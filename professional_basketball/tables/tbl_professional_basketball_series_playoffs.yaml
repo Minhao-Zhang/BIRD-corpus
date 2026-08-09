@@ -2,221 +2,132 @@ asset_type: table
 id: professional_basketball.series_playoffs
 schema: professional_basketball
 physical_name: series_playoffs
-summary: 'series_post (series_playoffs): id, year, round, series, tmIDWinner, lgIDWinner,
-  tmIDLoser, lgIDLoser, W, L'
+summary: series_playoffs is the result of every playoff series played, one row per series per
+  round per year, naming the winning and losing team.
+body: >
+  One row per playoff series, keyed by id. tour codes the round reached (e.g. 'F' for the Finals,
+  'SF' for semifinal, 'QF' for quarterfinal, 'DF'/'DSF' for division rounds); serie is a
+  league-assigned series label within that round. victoires and defaites are the winning team's
+  game record in the series (so victoires is always the larger of the two, or equal at most).
+  Joins to equipes on id_equipe against either id_equipe_gagnante or id_equipe_perdante,
+  depending on whether the query wants the winner's or loser's season row, and on annee for the
+  season context. Do not confuse this table with confrontations_playoffs, a similarly-shaped
+  table that is not dependable for playoff-series analysis.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — series_playoffs.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: id is the surrogate row key for this playoff series record.
+  body: >
+    An auto-generated integer unique to the row; carries no business meaning on its own.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: annee
-  summary: year — series_playoffs.annee
-  body: Means 'year' (obfuscated to 'annee').
+- physical_name: annee
+  summary: annee is the season year this playoff series was played in.
+  body: >
+    A four-digit season year, observed 1946 to 2011 (samples: 2006, 1956, 1979, 1978, 1977).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tour
-  summary: round — series_playoffs.tour
-  body: Postseason round code, e.g. 'F' finals, 'CSF'/'DSF' semifinals, 'QF' quarterfinal.
+- physical_name: tour
+  summary: tour is the playoff round this series was part of.
+  body: >
+    A short code: 'F' for the Finals (the championship round), 'SF' for semifinal, 'QF' for
+    quarterfinal, 'DF' for division final, 'DSF' for division semifinal, plus a few
+    league-specific historical codes.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: serie
-  summary: series — series_playoffs.serie
-  body: Means 'series' (obfuscated to 'serie').
+- physical_name: serie
+  summary: serie is the league's label for this particular series within its round.
+  body: >
+    A single letter such as 'M', 'A', 'O', 'L', 'N', assigned by the league rather than carrying
+    independent meaning.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_equipe_gagnante
-  summary: tmIDWinner — series_playoffs.id_equipe_gagnante
-  body: Winning team of the series.
+- physical_name: id_equipe_gagnante
+  summary: id_equipe_gagnante is the abbreviated code of the team that won this series.
+  body: >
+    A three-letter team code such as 'SAS', 'STL', 'SEA', matching equipes.id_equipe for the same
+    season.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_ligue_gagnante
-  summary: lgIDWinner — series_playoffs.id_ligue_gagnante
-  body: Means 'lgIDWinner' (obfuscated to 'id_ligue_gagnante').
+- physical_name: id_ligue_gagnante
+  summary: id_ligue_gagnante is the league of the team that won this series.
+  body: >
+    'NBA' or 'ABA'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_equipe_perdante
-  summary: tmIDLoser — series_playoffs.id_equipe_perdante
-  body: Losing team of the series.
+- physical_name: id_equipe_perdante
+  summary: id_equipe_perdante is the abbreviated code of the team that lost this series.
+  body: >
+    A three-letter team code such as 'PHO', 'FTW', 'MIL'; null for a small number of rows (3 of
+    500 sampled) where the losing side was not recorded.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_ligue_perdante
-  summary: lgIDLoser — series_playoffs.id_ligue_perdante
-  body: Means 'lgIDLoser' (obfuscated to 'id_ligue_perdante').
+- physical_name: id_ligue_perdante
+  summary: id_ligue_perdante is the league of the team that lost this series.
+  body: >
+    'NBA' or 'ABA'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: victoires
-  summary: W — series_playoffs.victoires
-  body: Means 'W' (obfuscated to 'victoires').
+- physical_name: victoires
+  summary: victoires is the number of games the winning team won in this series.
+  body: >
+    An integer from 0 to 4; always greater than or equal to defaites for the same row.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: defaites
-  summary: L — series_playoffs.defaites
-  body: Means 'L' (obfuscated to 'defaites').
+- physical_name: defaites
+  summary: defaites is the number of games the winning team lost in this series.
+  body: >
+    An integer from 0 to 4; the losing team's win count in the series.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: equipe_perdante_id
-  summary: equipe_perdante_id — series_playoffs.equipe_perdante_id
-  body: 'Physical column ''equipe_perdante_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''tmIDLoser''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: equipe_perdante_id
+  summary: equipe_perdante_id is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''tmIDLoser''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: equipe_gagnante_id
-  summary: equipe_gagnante_id — series_playoffs.equipe_gagnante_id
-  body: 'Physical column ''equipe_gagnante_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''tmIDWinner''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: equipe_gagnante_id
+  summary: equipe_gagnante_id is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''tmIDWinner''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: revers
-  summary: revers — series_playoffs.revers
-  body: 'Physical column ''revers''. DECOY column: not a real business field. Fabricated
-    to mimic ''L''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: revers
+  summary: revers is an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''L''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: 'Postseason series results: one row per series per year with round code (tour),
-  winning and losing team ids, and the series wins/losses record.'
+    - train_final.jsonl

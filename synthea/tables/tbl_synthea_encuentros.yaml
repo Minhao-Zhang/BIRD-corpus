@@ -2,178 +2,108 @@ asset_type: table
 id: synthea.encuentros
 schema: synthea
 physical_name: encuentros
-summary: 'encounters (encuentros): ID, DATE, PATIENT, CODE, DESCRIPTION, REASONCODE,
-  REASONDESCRIPTION'
+summary: encuentros records one medical visit, or encounter, that a patient had with
+  a provider.
+body: >
+  One row per encounter. This is the hub every other clinical table (alergias, condiciones,
+  medicamentos, inmunizaciones, procedimientos, observaciones, planes_cuidado, reclamaciones)
+  joins through via id_encuentro, in addition to joining directly to pacientes on id_paciente.
+  paciente_encuentro_id, codigo_encuentro, and fecha_encuentro sit alongside id_paciente, codigo,
+  and fecha but do not track the same values and must not be used.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: ID — encuentros.id
-  body: Means 'ID' (obfuscated to 'id').
+- physical_name: id
+  summary: id, the unique identifier of an encounter.
+  body: >
+    A UUID string, for example "c7455496-e0a6-4a24-ae0d-72e41772c202". Every other clinical table
+    joins to this column through its own id_encuentro.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha
-  summary: DATE — encuentros.fecha
-  body: Means 'DATE' (obfuscated to 'fecha').
+- physical_name: fecha
+  summary: fecha, the date the encounter took place.
+  body: >
+    A date, for example 2017-07-10, ranging from 1969 to 2017. Never null.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_paciente
-  summary: PATIENT — encuentros.id_paciente
-  body: Means 'PATIENT' (obfuscated to 'id_paciente').
+- physical_name: id_paciente
+  summary: id_paciente, the patient seen at this encounter.
+  body: >
+    A UUID string, for example "8b9de29c-34c9-405f-840c-71b5210cf9e1". Joins to
+    pacientes.id_paciente.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo
-  summary: CODE — encuentros.codigo
-  body: Means 'CODE' (obfuscated to 'codigo').
+- physical_name: codigo
+  summary: codigo, the coded identifier for the type of encounter.
+  body: >
+    An integer code, for example 185349003, one per distinct kind of visit. Pairs one-to-one with
+    descripcion in this table.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: descripcion
-  summary: DESCRIPTION — encuentros.descripcion
-  body: Means 'DESCRIPTION' (obfuscated to 'descripcion').
+- physical_name: descripcion
+  summary: descripcion, the type of the encounter.
+  body: >
+    Free text such as "Outpatient Encounter", "Encounter for symptom", or "Prenatal visit". This
+    is what a question about the kind of visit filters on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_razon
-  summary: REASONCODE — encuentros.codigo_razon
-  body: Means 'REASONCODE' (obfuscated to 'codigo_razon').
+- physical_name: codigo_razon
+  summary: codigo_razon, the coded identifier for the reason a patient had this encounter.
+  body: >
+    An integer code, for example 10509002, pairing one-to-one with descripcion_razon. Null for
+    roughly 72% of encounters, which have no recorded reason beyond routine care.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: descripcion_razon
-  summary: REASONDESCRIPTION — encuentros.descripcion_razon
-  body: Reason the patient sought the encounter, e.g. 'Drug overdose'.
+- physical_name: descripcion_razon
+  summary: descripcion_razon, the reason a patient had this encounter.
+  body: >
+    Free text such as "Acute bronchitis (disorder)", "Normal pregnancy", or "Viral sinusitis
+    (disorder)". Null whenever codigo_razon is null. This is what a question about visiting "for"
+    or "because of" a condition filters on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: paciente_encuentro_id
-  summary: paciente_encuentro_id — encuentros.paciente_encuentro_id
-  body: 'Physical column ''paciente_encuentro_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''PATIENT''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: paciente_encuentro_id
+  summary: paciente_encuentro_id, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''PATIENT''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_encuentro
-  summary: codigo_encuentro — encuentros.codigo_encuentro
-  body: 'Physical column ''codigo_encuentro''. DECOY column: not a real business field.
-    Fabricated to mimic ''CODE''. Corruption operator ''sparse_perturb'': values are
-    altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: codigo_encuentro
+  summary: codigo_encuentro, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CODE''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_encuentro
-  summary: fecha_encuentro — encuentros.fecha_encuentro
-  body: 'Physical column ''fecha_encuentro''. DECOY column: not a real business field.
-    Fabricated to mimic ''DATE''. Corruption operator ''sparse_date_offset'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: fecha_encuentro
+  summary: fecha_encuentro, a date column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: date
   logical_type: date
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''DATE''.
-      Corruption operator ''sparse_date_offset'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per clinical encounter/visit. Grain: encounter (id). descripcion is
-  the encounter type (e.g. ''Outpatient Encounter''); descripcion_razon is the reason
-  for the visit; fecha is the visit date.'
+    - information_schema

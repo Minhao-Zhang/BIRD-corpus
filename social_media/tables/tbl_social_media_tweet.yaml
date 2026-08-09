@@ -2,277 +2,155 @@ asset_type: table
 id: social_media.tweet
 schema: social_media
 physical_name: tweet
-summary: 'twitter (tweet): TweetID, Weekday, Hour, Day, Lang, IsReshare, Reach, RetweetCount,
-  Likes, Klout, Sentiment, text, LocationID, UserID'
+summary: tweet is the social_media schema's Twitter post table, one row per tweet, with its
+  text, language, timing, sentiment, and engagement counts.
+body: >-
+  One row per tweet. tweet_id identifies the tweet; benutzer_id names its author and joins to
+  benutzer.benutzer_id; standort_id names where it was posted from and joins to
+  standort.standort_id. wochentag, tag, and stunde record when it was posted; sprache records
+  its language; ist_weitergeteilt, reichweite, retweet_anzahl, likes, and klout record how it
+  spread; sentiment scores its tone. nutzer_id, tweet_ort_id, and stichwort_id are separate
+  columns on this same table that are unreliable for analysis; see their own definitions.
 columns:
-- asset_type: column
-  physical_name: tweet_id
-  summary: TweetID — tweet.tweet_id
-  body: Means 'TweetID' (obfuscated to 'tweet_id').
+- physical_name: tweet_id
+  summary: tweet_id is the unique identifier of a single tweet.
+  body: >-
+    A text identifier prefixed with 'tw-' followed by digits, for example
+    tw-682714583044243456. Unique per row.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: wochentag
-  summary: Weekday — tweet.wochentag
-  body: Weekday the tweet was posted, spelled in English, e.g. 'Monday', 'Thursday'.
+- physical_name: wochentag
+  summary: wochentag is the day of the week the tweet was posted on.
+  body: One of the seven English weekday names, Sunday through Saturday, matching the calendar
+    date the tweet was posted.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: stunde
-  summary: Hour — tweet.stunde
-  body: Hour of the day the tweet was posted (integer).
+- physical_name: stunde
+  summary: stunde is the hour of the day the tweet was posted, on a 24-hour clock.
+  body: An integer from 0 to 23; sample values seen include 2, 5, 10, 14, and 15.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tag
-  summary: Day — tweet.tag
-  body: Day of the month the tweet was posted (integer 1-31).
+- physical_name: tag
+  summary: tag is the day of the month the tweet was posted on.
+  body: >-
+    An integer from 1 to 31. stichwort_id is a separate, unreliable column on this table with a
+    similarly small range and should not be used in place of this one.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: sprache
-  summary: Lang — tweet.sprache
-  body: Language code of the tweet, e.g. 'en' (English), 'fr' (French), 'ru' (Russian).
+- physical_name: sprache
+  summary: sprache is the language of the tweet's text, stored as a short code.
+  body: >-
+    A short language code such as en (English), fr (French), ru (Russian), es (Spanish), ja
+    (Japanese), tl (Tagalog), or zh (Chinese); _u marks a tweet whose language is undetermined.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ist_weitergeteilt
-  summary: IsReshare — tweet.ist_weitergeteilt
-  body: Reshare flag stored as text; reshared/retweeted tweets have ist_weitergeteilt
-    = 'TRUE'.
+- physical_name: ist_weitergeteilt
+  summary: ist_weitergeteilt records whether the tweet is a reshare of another user's post.
+  body: TRUE when the tweet reshares or forwards someone else's post; FALSE when it is an
+    original tweet.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: reichweite
-  summary: Reach — tweet.reichweite
-  body: 'Reach: number of unique users who saw the tweet.'
+- physical_name: reichweite
+  summary: reichweite is the reach of the tweet, the number of unique users estimated to have
+    seen it.
+  body: A non-negative integer; sample values range from 0 into the low thousands.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: retweet_anzahl
-  summary: RetweetCount — tweet.retweet_anzahl
-  body: Number of times the tweet was retweeted.
+- physical_name: retweet_anzahl
+  summary: retweet_anzahl is the number of times the tweet has been retweeted.
+  body: A non-negative integer count; sample values seen range from 0 up into the dozens.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: likes
-  summary: Likes — tweet.likes
-  body: Number of likes the tweet received.
+- physical_name: likes
+  summary: likes is the number of likes the tweet has received.
+  body: A non-negative integer count, used to compute average and maximum like counts across
+    tweets.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: klout
-  summary: Klout — tweet.klout
-  body: Klout influence score of the tweet (integer).
+- physical_name: klout
+  summary: klout is the Klout influence score associated with the tweet.
+  body: An integer, typically in the range 0 to roughly 100, measuring the poster's social
+    influence at the time of the tweet.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: sentiment
-  summary: Sentiment — tweet.sentiment
-  body: 'Sentiment score (real): > 0 is positive, = 0 is neutral, < 0 is negative.'
+- physical_name: sentiment
+  summary: sentiment is a numeric score for the tone of the tweet's text.
+  body: >-
+    A decimal value: greater than 0 is positive, exactly 0 is neutral, and less than 0 is
+    negative; observed values range roughly from -1 to 4.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: text
-  summary: text — tweet.text
-  body: Means 'text' (obfuscated to 'text').
+- physical_name: text
+  summary: text is the written content of the tweet.
+  body: The raw tweet text, including mentions, hashtags, and links, up to the platform's
+    character limit.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: standort_id
-  summary: LocationID — tweet.standort_id
-  body: Means 'LocationID' (obfuscated to 'standort_id').
+- physical_name: standort_id
+  summary: standort_id names the location the tweet was posted from.
+  body: >-
+    Joins to standort.standort_id. tweet_ort_id is a separate, unreliable column on this table
+    and should not be used in place of this one.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: benutzer_id
-  summary: UserID — tweet.benutzer_id
-  body: Means 'UserID' (obfuscated to 'benutzer_id').
+- physical_name: benutzer_id
+  summary: benutzer_id names the user who posted the tweet.
+  body: >-
+    Joins to benutzer.benutzer_id. nutzer_id is a separate, unreliable column on this table and
+    should not be used in place of this one.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tweet_ort_id
-  summary: tweet_ort_id — tweet.tweet_ort_id
-  body: 'Physical column ''tweet_ort_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''LocationID''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: tweet_ort_id
+  summary: tweet_ort_id, an integer column on the tweet table.
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''LocationID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nutzer_id
-  summary: nutzer_id — tweet.nutzer_id
-  body: 'Physical column ''nutzer_id''. DECOY column: not a real business field. Fabricated
-    to mimic ''UserID''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: nutzer_id
+  summary: nutzer_id, a text column on the tweet table.
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''UserID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: stichwort_id
-  summary: stichwort_id — tweet.stichwort_id
-  body: 'Physical column ''stichwort_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''Day''. Corruption operator ''sparse_perturb'': values are
-    altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: stichwort_id
+  summary: stichwort_id, an integer column on the tweet table.
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Day''. Corruption
-      operator ''sparse_perturb'': values are altered. Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Tweets, one row per tweet_id, with text, language (sprache), sentiment, engagement
-  metrics (likes, reach, klout, retweet count, reshare flag) and posting time (weekday,
-  day, hour). Central fact table linking to benutzer (author) and standort (origin).
+    - information_schema

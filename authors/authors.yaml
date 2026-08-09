@@ -1,23 +1,33 @@
 asset_type: schema
 id: authors
 name: authors
-summary: 'authors: 5 tables — Author, Conference, Journal, Paper, PaperAuthor'
+summary: >-
+  The authors database records research papers, the authors and affiliations credited on each,
+  and the conference or journal that published them, for questions about authorship,
+  co-authorship, topics, and publication year or venue.
+body: >
+  Five tables carry the real data: Author (one row per author: name, affiliation), Conference
+  and Journal (one row each per publication venue: abbreviated and full name, homepage), Paper
+  (one row per paper: title, year, keyword topics, and a ConferenceId/JournalId pointing at its
+  venue), and PaperAuthor (one row per paper-author credit, bridging Paper and Author, with the
+  author's name and affiliation exactly as printed on that paper — which can differ from the
+  Author table's own values for the same person). A paper with Year = 0 and both ConferenceId
+  = 0 and JournalId = 0 is a preprint that was never formally published; a nonzero ConferenceId
+  or JournalId marks which kind of venue it appeared in, never both. periodical and
+  symposium_series look like Journal- and Conference-adjacent tables but are not dependable for
+  analysis; every column on both is unreliable.
+rules:
+- Answer authors questions from Author, Conference, Journal, Paper, and PaperAuthor only. Never
+  select, filter, or join on a column from periodical or symposium_series — every column in
+  those two tables is unreliable for analysis.
+- Join Paper to Conference on ConferenceId and to Journal on JournalId; a paper with both equal
+  to 0 is a preprint, not published at either venue.
+- Never join on author_identifier, conference_identifier, or journal_identifier — use Author.Id,
+  Conference.Id, and Journal.Id instead.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'Academic publications database: authors and their affiliations, the papers
-  they write, and the conferences and journals those papers are published in. Papers
-  link to authors through a co-authorship bridge and to a conference and/or journal.'
-rules:
-- Paper.Year = 0 means the paper is preprinted or not yet published; a real publication
-  year is Year <> 0.
-- A paper with ConferenceId = 0 and JournalId = 0 is an unpublished preprint; a JournalId
-  of 0 or -1 is treated as an invalid / missing journal.
-- Author holds one canonical row per author (Id, Name, Affiliation); PaperAuthor is
-  the paper-to-author bridge and stores the Name and Affiliation exactly as written
-  on that specific paper, so join Paper to Author through PaperAuthor.
+    - information_schema

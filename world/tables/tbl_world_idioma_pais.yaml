@@ -2,137 +2,91 @@ asset_type: table
 id: world.idioma_pais
 schema: world
 physical_name: idioma_pais
-summary: 'CountryLanguage (idioma_pais): CountryCode, Language, IsOfficial, Percentage'
+summary: idioma_pais holds one row per language spoken in a country, with whether it is official and the share of speakers.
+body: >
+  Grain: one row per country-language pair, keyed by codigo_pais and idioma together — a
+  country with several languages has several rows. codigo_pais matches pais.codigo and the
+  codigo_pais column on ciudad, attaching a country's languages to its country row and its
+  cities. Easily confused with lengua_por_pais, a language-like table that is not dependable
+  for analysis — use idioma_pais instead. Within idioma_pais itself, only codigo_pais, idioma,
+  es_oficial, and porcentaje are dependable — codigo_pais_fk, idioma_oficial, and
+  nombre_idioma duplicate codigo_pais, es_oficial, and idioma unreliably and must not be used.
 columns:
-- asset_type: column
-  physical_name: codigo_pais
-  summary: CountryCode — idioma_pais.codigo_pais
-  body: Country code the language belongs to; joins to pais.codigo.
+- physical_name: codigo_pais
+  summary: codigo_pais is the country code a language row belongs to.
+  body: >
+    Three-letter country code (sample values MOZ, PRI, COD, AND, AZE), matching pais.codigo
+    and the codigo_pais column on ciudad. Do not use codigo_pais_fk for this join, it is
+    unreliable.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: idioma
-  summary: Language — idioma_pais.idioma
-  body: Name of the language spoken, e.g. 'English', 'Portuguese', 'Arabic'.
+- physical_name: idioma
+  summary: idioma is the name of a language spoken in a country.
+  body: >
+    Free text language name (sample values Nyanja, English, Ngala and Bangi, Portuguese,
+    Lezgian), sometimes listing more than one dialect together. Combine with es_oficial to
+    find whether this particular language is officially recognized in the country. Do not use
+    nombre_idioma for this purpose, it is unreliable.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: es_oficial
-  summary: IsOfficial — idioma_pais.es_oficial
-  body: 'Official-language flag: ''T'' means the language is official in that country,
-    ''F'' means unofficial.'
+- physical_name: es_oficial
+  summary: es_oficial marks whether a language is officially recognized in a country.
+  body: >
+    Single-character flag, 'T' for official or 'F' for unofficial. Applies to one
+    country-language pair at a time — a country can have several official languages, each on
+    its own row. Do not use idioma_oficial for this purpose, it is unreliable.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: porcentaje
-  summary: Percentage — idioma_pais.porcentaje
-  body: Percentage (0-100) of the country's population that speaks this language.
+- physical_name: porcentaje
+  summary: porcentaje is the share of a country's population that speaks a given language.
+  body: >
+    Decimal percentage from 0.0 to 99.9 (sample values 3.3, 47.4, 5.8, 10.8, 2.3). Percentages
+    for a country's languages are not required to add to 100, since speakers of more than one
+    language are counted on more than one row.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_pais_fk
-  summary: codigo_pais_fk — idioma_pais.codigo_pais_fk
-  body: 'Physical column ''codigo_pais_fk''. DECOY column: not a real business field.
-    Fabricated to mimic ''CountryCode''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: codigo_pais_fk
+  summary: codigo_pais_fk, a text column on the idioma_pais table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CountryCode''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: idioma_oficial
-  summary: idioma_oficial — idioma_pais.idioma_oficial
-  body: 'Physical column ''idioma_oficial''. DECOY column: not a real business field.
-    Fabricated to mimic ''IsOfficial''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: idioma_oficial
+  summary: idioma_oficial, a text column on the idioma_pais table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''IsOfficial''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre_idioma
-  summary: nombre_idioma — idioma_pais.nombre_idioma
-  body: 'Physical column ''nombre_idioma''. DECOY column: not a real business field.
-    Fabricated to mimic ''Language''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: nombre_idioma
+  summary: nombre_idioma, a text column on the idioma_pais table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Language''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per (country, language) pair (grain = country-language). Records each
-  language spoken in a country, whether it is official (es_oficial), and the percentage
-  of the population that speaks it.
+    - information_schema

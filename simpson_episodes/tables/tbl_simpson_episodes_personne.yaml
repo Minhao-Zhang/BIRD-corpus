@@ -2,195 +2,123 @@ asset_type: table
 id: simpson_episodes.personne
 schema: simpson_episodes
 physical_name: personne
-summary: 'person (personne): name, birthdate, birth_name, birth_place, birth_region,
-  birth_country, height_meters, nickname'
+summary: personne holds one row per named Simpsons cast or crew member, with their name and birth details.
+body: >
+  Grain: one row per unique person, keyed by nom (369 distinct names in this sample). Birth
+  columns — date_naissance, lieu_naissance, region_naissance, pays_naissance, taille_metres, and
+  surnom — are mostly null, populated for only around a third of rows. There is no numeric
+  identifier: generique.personne and recompense.personne reference people in this table by exact
+  name text rather than a foreign key. nom_complet, pays_de_naissance, and nom_de_naissance sit on
+  this table but are not dependable for analysis.
 columns:
-- asset_type: column
-  physical_name: nom
-  summary: name — personne.nom
-  body: Means 'name' (obfuscated to 'nom').
+- physical_name: nom
+  summary: The person's name, used as the key for this table, nom.
+  body: >
+    Free-text canonical name, unique per row (369 distinct of 369 sampled) — Jodie Foster and Hank
+    Azaria are examples from this sample. Join generique.personne and recompense.personne to this
+    column by exact text match.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: date_naissance
-  summary: birthdate — personne.date_naissance
-  body: Birth date as text 'YYYY-MM-DD'; oldest = earliest date; age = year minus
-    first 4 chars.
+- physical_name: date_naissance
+  summary: The person's date of birth, date_naissance.
+  body: >
+    Text date in 'YYYY-MM-DD' format, null for 237 of 369 sampled rows. To compute age, extract
+    the year as a text substring (the leading four characters) rather than using date arithmetic,
+    since the column holds no native date type.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nom_naissance
-  summary: birth_name — personne.nom_naissance
-  body: Means 'birth_name' (obfuscated to 'nom_naissance').
+- physical_name: nom_naissance
+  summary: The person's birth name, nom_naissance.
+  body: >
+    Free-text full legal or birth name, which can differ from nom (the person's commonly used
+    name) — for the person credited as "Jodie Foster", this column holds "Alicia Christian
+    Foster". Null for 262 of 369 sampled rows.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lieu_naissance
-  summary: birth_place — personne.lieu_naissance
-  body: Birth city/place, e.g. 'New York City', 'Los Angeles'.
+- physical_name: lieu_naissance
+  summary: The city or place the person was born in, lieu_naissance.
+  body: >
+    Free-text birthplace — Los Angeles, Venice, and Albuquerque are examples from this sample (73
+    or more distinct values, null for 246 of 369 rows). Finer-grained than region_naissance and
+    pays_naissance, which record the state or province and the country.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: region_naissance
-  summary: birth_region — personne.region_naissance
-  body: Birth region/state, e.g. 'New York', 'California'.
+- physical_name: region_naissance
+  summary: The state, province, or region the person was born in, region_naissance.
+  body: >
+    Free-text region — California, Connecticut, and Nova Scotia are examples from this sample (24
+    distinct values, null for 258 of 369 rows). Broader than lieu_naissance (city) and narrower
+    than pays_naissance (country).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pays_naissance
-  summary: birth_country — personne.pays_naissance
-  body: Birth country, e.g. 'USA', 'North Korea'.
+- physical_name: pays_naissance
+  summary: The country the person was born in, pays_naissance.
+  body: >
+    Free-text country name — USA, Canada, and Ireland are examples from this sample (9 distinct
+    values, null for 250 of 369 rows). USA is by far the most common value among this cast and
+    crew.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: taille_metres
-  summary: height_meters — personne.taille_metres
-  body: Height in meters (real).
+- physical_name: taille_metres
+  summary: The person's height in meters, taille_metres.
+  body: >
+    Decimal height in meters, ranging 1.55-2.03 in this sample and null for 319 of 369 rows — the
+    least populated of the birth-detail columns.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: surnom
-  summary: nickname — personne.surnom
-  body: Means 'nickname' (obfuscated to 'surnom').
+- physical_name: surnom
+  summary: The person's nickname, surnom.
+  body: >
+    Free-text nickname, null for 354 of 369 sampled rows — populated only for a small number of
+    well-known crew members, such as "The Tiny Canadian" or "Joe Cool" in this sample.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nom_complet
-  summary: nom_complet — personne.nom_complet
-  body: 'Physical column ''nom_complet''. DECOY column: not a real business field.
-    Fabricated to mimic ''name''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: nom_complet
+  summary: nom_complet, a text column on the personne table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''name''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pays_de_naissance
-  summary: pays_de_naissance — personne.pays_de_naissance
-  body: 'Physical column ''pays_de_naissance''. DECOY column: not a real business
-    field. Fabricated to mimic ''birth_country''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: pays_de_naissance
+  summary: pays_de_naissance, a text column on the personne table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''birth_country''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nom_de_naissance
-  summary: nom_de_naissance — personne.nom_de_naissance
-  body: 'Physical column ''nom_de_naissance''. DECOY column: not a real business field.
-    Fabricated to mimic ''birth_name''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: nom_de_naissance
+  summary: nom_de_naissance, a text column on the personne table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''birth_name''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per person (crew or cast member), keyed by name (nom). Holds nickname,
-  birth name, birth date/place/region/country and height. Joined to credits and awards
-  by name.
+    - information_schema

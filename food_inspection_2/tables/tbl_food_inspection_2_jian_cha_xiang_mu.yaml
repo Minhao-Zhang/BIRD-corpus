@@ -2,167 +2,103 @@ asset_type: table
 id: food_inspection_2.jian_cha_xiang_mu
 schema: food_inspection_2
 physical_name: jian_cha_xiang_mu
-summary: 'inspection_point (jian_cha_xiang_mu): point_id, Description, category, code,
-  fine, point_level'
+summary: jian_cha_xiang_mu catalogs the sanitary operating points a Chicago health inspection can check, with each point's code, category, description, and standard fine.
+body: >
+  Grain: one row per inspection point (a specific operating requirement, such as food storage or
+  pest control), keyed by xiang_mu_id. Join to wei_gui on xiang_mu_id (one point, many
+  violations) to see every time it was cited during an inspection. fa_kuan here is the fine
+  schedule for the point's severity level, not the amount actually assessed on any one violation
+  — see wei_gui.fa_kuan for that.
 columns:
-- asset_type: column
-  physical_name: xiang_mu_id
-  summary: point_id — jian_cha_xiang_mu.xiang_mu_id
-  body: Means 'point_id' (obfuscated to 'xiang_mu_id').
+- physical_name: xiang_mu_id
+  summary: The unique identifier for a sanitary operating point checked during inspections, xiang_mu_id.
+  body: >
+    Numeric point id, one value per row in this table. Join key to wei_gui.xiang_mu_id to see
+    every violation recorded against this point. Sample values include 5, 23, 16, 15, and 13.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: miao_shu
-  summary: Description — jian_cha_xiang_mu.miao_shu
-  body: Means 'Description' (obfuscated to 'miao_shu').
+- physical_name: miao_shu
+  summary: The specific requirement description for a sanitary operating point, miao_shu.
+  body: >
+    Free text describing what the operating requirement checks, for example "Personnel with
+    infections restricted: no open sores, wounds, etc" or "Food protected during storage,
+    preparation, display, service and transportation".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lei_bie
-  summary: category — jian_cha_xiang_mu.lei_bie
-  body: Inspection point category, e.g. 'Display of Inspection Report Summary', 'Food
-    Equipment and Utensil', 'No Smoking Regulations'.
+- physical_name: lei_bie
+  summary: The category of sanitary requirement a point belongs to, lei_bie.
+  body: >
+    Free text category, such as Food Protection, Food Equipment and Utensil, Compliance Insect
+    and Rodent Control, Toilet / Hand Washing Facilities For Customers, or Toxic Items; about 14
+    distinct values in the sample.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: dai_ma
-  summary: code — jian_cha_xiang_mu.dai_ma
-  body: Requirement code for the inspection point (e.g. clean operating requirement
-    code).
+- physical_name: dai_ma
+  summary: The municipal sanitary code reference for an operating point, dai_ma.
+  body: >
+    Free text code citation, for example "7-38-010 (A) (B)", "7-38-031", or "7-38-005 (A)"; each
+    code stands for one operating requirement in the municipal ordinance.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fa_kuan
-  summary: fine — jian_cha_xiang_mu.fa_kuan
-  body: Means 'fine' (obfuscated to 'fa_kuan').
+- physical_name: fa_kuan
+  summary: The standard fine amount for a sanitary operating point's severity level, fa_kuan.
+  body: >
+    One of 100, 250, or 500 US dollars, tied to xiang_mu_ji_bie: Minor is 100, Serious is 250, and
+    Critical is 500. This is the fine schedule for the point, not the amount actually charged on
+    a specific violation.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xiang_mu_ji_bie
-  summary: point_level — jian_cha_xiang_mu.xiang_mu_ji_bie
-  body: Point level of severity, e.g. 'Critical', 'Serious ', 'Minor'.
+- physical_name: xiang_mu_ji_bie
+  summary: The severity level of a sanitary operating point, xiang_mu_ji_bie.
+  body: >
+    One of Critical, Serious, or Minor (values carry inconsistent trailing whitespace, such as
+    "Serious " and "Minor   "), from most to least severe.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xiang_mu_bian_hao
-  summary: xiang_mu_bian_hao — jian_cha_xiang_mu.xiang_mu_bian_hao
-  body: 'Physical column ''xiang_mu_bian_hao''. DECOY column: not a real business
-    field. Fabricated to mimic ''point_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: xiang_mu_bian_hao
+  summary: xiang_mu_bian_hao, an integer column on the jian_cha_xiang_mu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''point_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xiang_mu_shuo_ming
-  summary: xiang_mu_shuo_ming — jian_cha_xiang_mu.xiang_mu_shuo_ming
-  body: 'Physical column ''xiang_mu_shuo_ming''. DECOY column: not a real business
-    field. Fabricated to mimic ''Description''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: xiang_mu_shuo_ming
+  summary: xiang_mu_shuo_ming, a text column on the jian_cha_xiang_mu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Description''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fen_lei
-  summary: fen_lei — jian_cha_xiang_mu.fen_lei
-  body: 'Physical column ''fen_lei''. DECOY column: not a real business field. Fabricated
-    to mimic ''category''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: fen_lei
+  summary: fen_lei, a text column on the jian_cha_xiang_mu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''category''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Reference catalog of inspection points/requirements; one row per point id. Holds
-  the point's code, category, level (e.g. Critical, Serious) and description. Not
-  the (decoy) point-name lookup table.
+    - information_schema

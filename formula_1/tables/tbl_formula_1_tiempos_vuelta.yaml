@@ -2,164 +2,90 @@ asset_type: table
 id: formula_1.tiempos_vuelta
 schema: formula_1
 physical_name: tiempos_vuelta
-summary: 'lapTimes (tiempos_vuelta): raceId, driverId, lap, position, time, milliseconds'
+summary: "tiempos_vuelta: the lap-by-lap timing record of every driver in every race."
+body: >-
+  One row per driver per lap of a race. vuelta is the lap number, posicion the driver's running
+  position on that lap, and hora/milisegundos that lap's elapsed time. piloto_ref, carrera_id,
+  and numero_vuelta repeat id_piloto/id_carrera/vuelta but are marked reliability: suspect and
+  must not be used.
 columns:
-- asset_type: column
-  physical_name: id_carrera
-  summary: raceId — tiempos_vuelta.id_carrera
-  body: Means 'raceId' (obfuscated to 'id_carrera').
+- physical_name: id_carrera
+  summary: "id_carrera, the foreign key identifying the race a lap time was recorded in."
+  body: "Joins to carreras.id_carrera."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_piloto
-  summary: driverId — tiempos_vuelta.id_piloto
-  body: Means 'driverId' (obfuscated to 'id_piloto').
+- physical_name: id_piloto
+  summary: "id_piloto, the foreign key identifying the driver who set a lap time."
+  body: "Joins to pilotos.id_piloto."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: vuelta
-  summary: lap — tiempos_vuelta.vuelta
-  body: Lap number within the race (integer).
+- physical_name: vuelta
+  summary: "vuelta, the lap number a timing record refers to."
+  body: "An integer starting at 1, e.g. 1-83 in the sampled rows."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: posicion
-  summary: position — tiempos_vuelta.posicion
-  body: Means 'position' (obfuscated to 'posicion').
+- physical_name: posicion
+  summary: "posicion, a driver's running race position at the end of that lap."
+  body: "An integer rank, updated lap by lap."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: hora
-  summary: time — tiempos_vuelta.hora
-  body: Lap time as text; minimum is the fastest lap.
+- physical_name: hora
+  summary: "hora, the elapsed time a driver took to complete that lap."
+  body: "Text formatted 'M:SS.mmm', e.g. '1:21.099'. A smaller value is a faster lap."
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: milisegundos
-  summary: milliseconds — tiempos_vuelta.milisegundos
-  body: Lap time in milliseconds (integer); minimum is the best/fastest lap, averaged
-    for mean lap time.
+- physical_name: milisegundos
+  summary: "milisegundos, the elapsed time a driver took to complete that lap, in milliseconds."
+  body: >-
+    An integer, e.g. 81099, matching hora. Use this column, not hora, for numeric comparison or
+    aggregation such as finding the fastest lap.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: piloto_ref
-  summary: piloto_ref — tiempos_vuelta.piloto_ref
-  body: 'Physical column ''piloto_ref''. DECOY column: not a real business field.
-    Fabricated to mimic ''driverId''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: piloto_ref
+  summary: "piloto_ref, an integer column on the tiempos_vuelta table."
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. Although
+    its name suggests a foreign key, it must not be used to join to another table.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''driverId''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: carrera_id
-  summary: carrera_id — tiempos_vuelta.carrera_id
-  body: 'Physical column ''carrera_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''raceId''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: carrera_id
+  summary: "carrera_id, an integer column on the tiempos_vuelta table."
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. Although
+    its name suggests a foreign key, it must not be used to join to another table.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''raceId''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: numero_vuelta
-  summary: numero_vuelta — tiempos_vuelta.numero_vuelta
-  body: 'Physical column ''numero_vuelta''. DECOY column: not a real business field.
-    Fabricated to mimic ''lap''. Corruption operator ''sparse_perturb'': values are
-    altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: numero_vuelta
+  summary: "numero_vuelta, an integer column on the tiempos_vuelta table."
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''lap''. Corruption
-      operator ''sparse_perturb'': values are altered. Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: 'Lap times: one row per driver per lap of a race. Holds lap number (vuelta),
-  position on that lap, clock time (hora) and lap time in milliseconds. Grain is one
-  lap; used for fastest/average lap time.'
+    - information_schema

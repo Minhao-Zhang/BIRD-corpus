@@ -1,21 +1,37 @@
 asset_type: schema
 id: ice_hockey_draft
 name: ice_hockey_draft
-summary: 'ice_hockey_draft: 4 tables — PlayerInfo, SeasonStatus, height_info, weight_info'
+summary: >-
+  The ice_hockey_draft database tracks NHL draft prospects: birthdate, nation, height, weight,
+  position, and shooting hand; draft year, round, overall pick, team, and CSS rank; and season
+  goals, assists, points, and penalty minutes.
+body: >
+  PlayerInfo holds one row per drafted player, with birthdate, nation, position, shooting hand,
+  draft year, round, overall pick, drafting team, Central Scouting Service rank, and career-total
+  games and time on ice in the player's first 7 NHL seasons. SeasonStatus holds one row per player
+  per season, team, league, and game type (regular season or playoffs), with games played, goals,
+  assists, points, penalty minutes, and goal differential; join it to PlayerInfo on ELITEID.
+  height_info and weight_info are small lookup tables converting a raw inch or pound count into
+  centimeters/feet-inches or kilograms/pounds; PlayerInfo.height and PlayerInfo.weight are
+  themselves the raw inch and pound values and join to height_info.height_id and
+  weight_info.weight_id respectively, not to a surrogate key.
+
+  player_biographical_profile and player_weight_measurements resemble PlayerInfo and weight_info
+  but are not dependable for analysis; none of their columns should be used to answer a question.
+  Within PlayerInfo, SeasonStatus, height_info, and weight_info themselves, several columns
+  duplicate the real identifiers and measurements unreliably -- elite_registry_id, stature_value,
+  mass_value, season_elite_ref, assists_total, goals_total, stature_id, stature_cm,
+  stature_in_inches, mass_id, mass_kg, and mass_lbs -- and must not be used.
+rules:
+- Join PlayerInfo to SeasonStatus on ELITEID; join PlayerInfo to height_info on height = height_id
+  and to weight_info on weight = weight_id -- never on elite_registry_id, season_elite_ref,
+  stature_id, stature_value, mass_id, or mass_value, all of which are unreliable.
+- Never select from or join through player_biographical_profile or player_weight_measurements;
+  use PlayerInfo, height_info, and weight_info instead.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: Scouting and draft database for ice-hockey prospects. It tracks each player's
-  biographical and draft profile, their per-season per-league performance statistics,
-  and lookup tables that resolve a player's height and weight into physical units.
-rules:
-- A player's height and weight are stored as foreign keys (PlayerInfo.height -> height_info.height_id,
-  PlayerInfo.weight -> weight_info.weight_id), not as literal cm/kg values; join to
-  the lookup tables to read the actual measurement.
-- Per-season statistics live in SeasonStatus (one row per player-season-league-team-gametype)
-  joined to PlayerInfo on ELITEID, so a single player has many SeasonStatus rows.
+    - information_schema

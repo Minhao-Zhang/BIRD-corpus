@@ -2,266 +2,134 @@ asset_type: table
 id: movie_3.film
 schema: movie_3
 physical_name: film
-summary: 'film (film): film_id, title, description, release_year, language_id, original_language_id,
-  rental_duration, rental_rate, length, replacement_cost, rating, special_features,
-  last_update'
+summary: 'The film table in movie_3: the catalog of movies available to rent, with title and price.'
+body: One row per film (film_id). Links to actor through film_actor, to category through film_category,
+  and to inventory through inventory.film_id. The columns movie_id, lang_id, and lease_period mirror film_id,
+  language_id, and rental_duration but hold unreliable values; use the canonical columns instead. Easily
+  confused with the unreliable movie_release table, which should not be used.
 columns:
-- asset_type: column
-  physical_name: film_id
-  summary: film_id — film.film_id
-  body: Means 'film_id' (obfuscated to 'film_id').
+- physical_name: film_id
+  summary: The unique identifier for a film (film_id).
+  body: Primary key of film, referenced by film_actor.film_id, film_category.film_id, film_text.film_id,
+    and inventory.film_id.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: title
-  summary: title — film.title
-  body: Means 'title' (obfuscated to 'title').
+- physical_name: title
+  summary: The title of a film (title).
+  body: Upper-case text, e.g. ACADEMY DINOSAUR, ACE GOLDFIINGER, ALABAMA DEVIL, AFRICAN EGG, CHOCOLATE
+    DUCK, WYOMING STORM, BOUND CHEAPER, ENDING CROWDS, ANONYMOUS HUMAN, BABY HALL.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: description
-  summary: description — film.description
-  body: Means 'description' (obfuscated to 'description').
+- physical_name: description
+  summary: A short plot summary of a film (description).
+  body: Free text following a fixed pattern, e.g. 'A Amazing Yarn of a Hunter And a Butler who must Defeat
+    a Boy in A Jet Boat'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: release_year
-  summary: release_year — film.release_year
-  body: Year the film was released, stored as text (e.g. '2006').
+- physical_name: release_year
+  summary: The year a film was released (release_year).
+  body: Text value, constant at 2006 for every row in this data.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: language_id
-  summary: language_id — film.language_id
-  body: Means 'language_id' (obfuscated to 'language_id').
+- physical_name: language_id
+  summary: The identifier of the language a film is recorded in (language_id).
+  body: Foreign key to language.language_id; constant at 1 (English) for every row in this data.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: original_language_id
-  summary: original_language_id — film.original_language_id
-  body: Means 'original_language_id' (obfuscated to 'original_language_id').
+- physical_name: original_language_id
+  summary: The identifier of a film's original language before dubbing (original_language_id).
+  body: Foreign key to language.language_id; null for every row in this data, since no dubbed films are
+    recorded.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rental_duration
-  summary: rental_duration — film.rental_duration
-  body: Number of days a rental of this film is allowed to last.
+- physical_name: rental_duration
+  summary: The number of days a film may be kept in one rental (rental_duration).
+  body: Integer days, ranging from 3 to 7 in this data.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rental_rate
-  summary: rental_rate — film.rental_rate
-  body: Price to rent the film for its rental period, in dollars (e.g. 2.99, 4.99).
-    Price-per-day = rental_rate / rental_duration.
+- physical_name: rental_rate
+  summary: The price charged to rent a film once (rental_rate).
+  body: 'Decimal currency value: 0.99, 2.99, or 4.99 in this data. A higher value means a more expensive
+    film to rent, e.g. a rental rate of 2.99.'
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: length
-  summary: length — film.length
-  body: Running time of the film in minutes.
+- physical_name: length
+  summary: The running time of a film in minutes (length).
+  body: Integer minutes, e.g. 50, 101, 171, 124, 110; used for filters like a duration of over 50 minutes,
+    between 100 and 110 minutes, or exactly 178.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: replacement_cost
-  summary: replacement_cost — film.replacement_cost
-  body: Cost in dollars to replace the film copy if lost or damaged.
+- physical_name: replacement_cost
+  summary: The cost to replace a film if it is lost or damaged (replacement_cost).
+  body: Decimal currency value, e.g. 9.99 to 29.99 in this data.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rating
-  summary: rating — film.rating
-  body: 'MPAA rating code. Known values: ''G'', ''PG'', ''PG-13'', ''R'' (Restricted),
-    ''NC-17'' (Adults Only).'
+- physical_name: rating
+  summary: The Motion Picture Association content rating of a film (rating).
+  body: One of G (General Audiences), PG (Parental Guidance Suggested), PG-13 (Parents Strongly Cautioned),
+    R (Restricted), NC-17 (Adults Only).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: special_features
-  summary: special_features — film.special_features
-  body: Text list of extra features included with the film.
+- physical_name: special_features
+  summary: The bonus content bundled with a film, as a comma-separated list (special_features).
+  body: Combinations of Trailers, Commentaries, Deleted Scenes, Behind the Scenes, e.g. Trailers,Commentaries,Behind
+    the Scenes.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: last_update
-  summary: last_update — film.last_update
-  body: Means 'last_update' (obfuscated to 'last_update').
+- physical_name: last_update
+  summary: The timestamp of the most recent change to this film row (last_update).
+  body: Nearly constant at 2006-02-15 05:03:42+00:00 for the initial load.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: movie_id
-  summary: movie_id — film.movie_id
-  body: 'Physical column ''movie_id''. DECOY column: not a real business field. Fabricated
-    to mimic ''film_id''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: movie_id
+  summary: movie_id, an integer column.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be
+    used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''film_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lang_id
-  summary: lang_id — film.lang_id
-  body: 'Physical column ''lang_id''. DECOY column: not a real business field. Fabricated
-    to mimic ''language_id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: lang_id
+  summary: lang_id, an integer column.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be
+    used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''language_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lease_period
-  summary: lease_period — film.lease_period
-  body: 'Physical column ''lease_period''. DECOY column: not a real business field.
-    Fabricated to mimic ''rental_duration''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: lease_period
+  summary: lease_period, an integer column.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''rental_duration''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'The film catalog: one row per title, with rating, release_year, length, rental_rate,
-  rental_duration, replacement_cost, special_features and language. This is the grain
-  for catalog metrics; a physical rentable copy lives in inventory.'
+    - information_schema

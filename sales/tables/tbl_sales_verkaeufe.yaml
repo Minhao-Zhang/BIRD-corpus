@@ -2,86 +2,64 @@ asset_type: table
 id: sales.verkaeufe
 schema: sales
 physical_name: verkaeufe
-summary: 'Sales (verkaeufe): SalesID, SalesPersonID, CustomerID, ProductID, Quantity'
+summary: The verkaeufe table records the retailer's individual sales transactions, one row per
+  line-item sale, in the sales schema.
+body: >
+  One row per sale: it names the customer (kundenid), the employee who made the sale
+  (verkaeuferid), the product sold (produktid), and the quantity (menge). verkaufid is the
+  transaction's own identifier.
+
+  Multiply menge by produkte.preis to get a sale's total value; do not use produkte.verkaufspreis
+  for that calculation. verkaeuferid joins to mitarbeiter.mitarbeiterid, not to kunden -- the
+  customer and employee identifier spaces are separate even though both are plain integers.
 columns:
-- asset_type: column
-  physical_name: verkaufid
-  summary: SalesID — verkaeufe.verkaufid
-  body: 'SalesID: identifier of an individual sale transaction; sale-id ranges (e.g.
-    1 to 10) select transactions.'
+- physical_name: verkaufid
+  summary: verkaufid is the unique numeric identifier for a single sales transaction.
+  body: >
+    Integer primary key of verkaeufe, one value per sale row. Used to count or reference
+    individual sales, for example when a question asks for sales with an id in a given range.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: verkaeuferid
-  summary: SalesPersonID — verkaeufe.verkaeuferid
-  body: 'SalesPersonID: the employee who handled the sale; foreign key to mitarbeiter.mitarbeiterid.'
+- physical_name: verkaeuferid
+  summary: verkaeuferid records which employee made a sale.
+  body: >
+    Integer, joins to mitarbeiter.mitarbeiterid to identify the salesperson (22 distinct
+    employees in the sample). Despite the resemblance to kundenid, it is not a customer
+    identifier.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kundenid
-  summary: CustomerID — verkaeufe.kundenid
-  body: Means 'CustomerID' (obfuscated to 'kundenid').
+- physical_name: kundenid
+  summary: kundenid records which customer a sale belongs to.
+  body: >
+    Integer, joins to kunden.kundenid to identify the buyer (73 distinct customers among 500
+    sampled sales, so repeat customers are common). Do not confuse with verkaeuferid, which
+    identifies the employee instead.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: produktid
-  summary: ProductID — verkaeufe.produktid
-  body: Means 'ProductID' (obfuscated to 'produktid').
+- physical_name: produktid
+  summary: produktid records which product was sold in a sale.
+  body: >
+    Integer, joins to produkte.produktid to identify the product (71 distinct products among
+    500 sampled sales). Combine with produkte.preis to compute the sale's value.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: menge
-  summary: Quantity — verkaeufe.menge
-  body: Quantity of units sold in the sale (also called trading quantity or units).
+- physical_name: menge
+  summary: menge holds the quantity of product units sold in a sale.
+  body: >
+    Integer trading quantity, ranging from small orders to bulk sales (sample values from 10 to
+    983). Multiply by produkte.preis for a sale's total price; also called "units" or "trading
+    quantity" in business language.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Sales transactions, the fact table. One row per sale (verkaufid) recording which
-  customer (kundenid) bought which product (produktid), the quantity (menge), and
-  the handling sales person (verkaeuferid).
+    - information_schema

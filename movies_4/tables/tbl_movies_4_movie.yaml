@@ -2,269 +2,168 @@ asset_type: table
 id: movies_4.movie
 schema: movies_4
 physical_name: movie
-summary: 'movie (movie): movie_id, title, budget, homepage, overview, popularity,
-  release_date, revenue, runtime, movie_status, tagline, vote_average, vote_count'
+summary: movie is the central catalog of feature films, holding one row per title with its
+  budget, revenue, ratings, and release details.
+body: >
+  One row per movie, keyed by movie_id. Every bridge table in this schema hangs off this table's
+  movie_id: movie_cast and movie_crew name who worked on it, movie_genres and movie_keywords
+  classify it, movie_languages records its languages, and movie_company and production_country
+  record who produced it and where. film_id, production_budget, and official_site sit alongside
+  the real columns but do not correspond to the business facts this table records; do not use
+  them to answer questions.
 columns:
-- asset_type: column
-  physical_name: movie_id
-  summary: movie_id — movie.movie_id
-  body: Means 'movie_id' (obfuscated to 'movie_id').
+- physical_name: movie_id
+  summary: movie_id is the numeric identifier of a movie.
+  body: >
+    Bigint surrogate key, for example 8842 or 1813. Referenced by movie_cast.movie_id,
+    movie_crew.movie_id, movie_genres.movie_id, movie_keywords.movie_id,
+    movie_languages.movie_id, movie_company.movie_id, and production_country.movie_id.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: title
-  summary: title — movie.title
-  body: Means 'title' (obfuscated to 'title').
+- physical_name: title
+  summary: title is the movie's title.
+  body: >
+    Free text, for example 'Finding Nemo', 'Forrest Gump', or 'Iron Man'. Punctuation and
+    apostrophes appear literally, as in "Pirates of the Caribbean: At World's End". 'movies',
+    'films', and 'which movie' all resolve to this column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: budget
-  summary: budget — movie.budget
-  body: Production budget in dollars (bigint). A value of 0 means a zero-budget (or
-    unrecorded-budget) movie.
+- physical_name: budget
+  summary: budget is the production budget of the movie.
+  body: >
+    Integer amount in US dollars, for example 39000000 or 137000000; 0 marks an unknown or
+    zero budget. 'zero-budget' filters on budget = 0. 'highest budget' and 'highest-budget film'
+    both resolve to MAX(budget), and 'average budget' resolves to AVG(budget).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: homepage
-  summary: homepage — movie.homepage
-  body: Means 'homepage' (obfuscated to 'homepage').
+- physical_name: homepage
+  summary: homepage is the URL of the movie's official web page.
+  body: >
+    Free text URL, for example 'http://www.topfivemovie.com/'; blank when no page was recorded.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: overview
-  summary: overview — movie.overview
-  body: Means 'overview' (obfuscated to 'overview').
+- physical_name: overview
+  summary: overview is a short plot summary of the movie.
+  body: >
+    Free text paragraph describing the plot, typically one or two sentences; blank for a small
+    number of rows.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: popularity
-  summary: popularity — movie.popularity
-  body: Numeric popularity score (real); higher is more popular. 'most popular' =
-    max(popularity).
+- physical_name: popularity
+  summary: popularity is a numeric popularity score for the movie.
+  body: >
+    Decimal score, for example 0.702971 or 36.1736, reflecting ratings, reviews, and box-office
+    buzz; a higher value means the movie is more well-liked. 'highest popularity' and 'most
+    popularity' both resolve to MAX(popularity).
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: release_date
-  summary: release_date — movie.release_date
-  body: Theatrical release date. Year filters use the year portion (e.g. released
-    in 1995, in 2006); 'latest'/'most recent' = max, 'first' = min.
+- physical_name: release_date
+  summary: release_date is the date the movie was released.
+  body: >
+    Date in YYYY-MM-DD form, for example 2004-02-20, observed ranging from 1933-02-02 to
+    2016-06-29. 'released in 1995' filters with a LIKE pattern on the year prefix; 'between 2012
+    and 2015' filters with a BETWEEN range. 'latest released' and 'most recent movie' resolve to
+    MAX(release_date); 'when the first movie' resolves to MIN(release_date), optionally filtered
+    to one genre.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: revenue
-  summary: revenue — movie.revenue
-  body: 'Box-office revenue in dollars (bigint). Example thresholds from questions:
-    ''1 Billion'' = 1000000000; a specific value like 559852396.'
+- physical_name: revenue
+  summary: revenue is the box-office revenue earned by the movie.
+  body: >
+    Integer amount in US dollars, for example 25434291 or 152944660; 0 marks unknown or no
+    revenue. "income" is a business synonym for this column. 'have made at least 1 Billion at
+    the box office' filters on revenue > 1000000000. 'highest revenue' resolves to MAX(revenue),
+    'lowest revenue' to MIN(revenue), and 'average revenue' or 'average income' to AVG(revenue).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: runtime
-  summary: runtime — movie.runtime
-  body: Movie duration in minutes (bigint).
+- physical_name: runtime
+  summary: runtime is the running time of the movie in minutes.
+  body: >
+    Integer minutes, for example 92 or 144; 0 marks an unknown runtime. 'runtime of only 14
+    minutes' filters on runtime = 14. 'longest runtime' resolves to MAX(runtime).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: movie_status
-  summary: movie_status — movie.movie_status
-  body: Release status text; observed values include 'Released', 'Post Production',
-    and 'Rumored'.
+- physical_name: movie_status
+  summary: movie_status is the production status of the movie.
+  body: >
+    Free text with two observed values, 'Released' and 'Rumored' (also written 'rumoured' or
+    'post-production' in business phrasing). Most rows are 'Released'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tagline
-  summary: tagline — movie.tagline
-  body: Means 'tagline' (obfuscated to 'tagline').
+- physical_name: tagline
+  summary: tagline is the promotional tagline of the movie.
+  body: >
+    Free text, for example 'Enjoy it while it lasts' or 'Unleash the hero within'; blank when no
+    tagline was recorded.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: vote_average
-  summary: vote_average — movie.vote_average
-  body: 'Average audience rating (real), roughly on a 0-10 scale. Example filters:
-    vote_average > 7, vote_average > 5.'
+- physical_name: vote_average
+  summary: vote_average is the mean audience rating of the movie.
+  body: >
+    Decimal score on a 0-10 scale, for example 6.1 or 8.4. A higher value means a greater share
+    of positive ratings. 'positive ratings greater than 7' and 'vote average of more than 7'
+    filter on vote_average > 7; 'highest average vote' and 'well-received by the audiences'
+    resolve to MAX(vote_average).
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: vote_count
-  summary: vote_count — movie.vote_count
-  body: Number of audience votes contributing to vote_average (bigint).
+- physical_name: vote_count
+  summary: vote_count is the number of votes behind the movie's rating.
+  body: >
+    Integer count, for example 14 or 1374. A higher count together with a higher vote_average
+    indicates broader audience reception.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: film_id
-  summary: film_id — movie.film_id
-  body: 'Physical column ''film_id''. DECOY column: not a real business field. Fabricated
-    to mimic ''movie_id''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: film_id
+  summary: film_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''movie_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: production_budget
-  summary: production_budget — movie.production_budget
-  body: 'Physical column ''production_budget''. DECOY column: not a real business
-    field. Fabricated to mimic ''budget''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: production_budget
+  summary: production_budget, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''budget''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: official_site
-  summary: official_site — movie.official_site
-  body: 'Physical column ''official_site''. DECOY column: not a real business field.
-    Fabricated to mimic ''homepage''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: official_site
+  summary: official_site, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''homepage''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: One row per film; the central fact table. Holds title, release_date, budget,
-  revenue (box office), popularity, vote_average, vote_count, runtime, and movie_status.
+    - train_final.jsonl

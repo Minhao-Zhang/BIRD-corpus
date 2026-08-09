@@ -2,136 +2,93 @@ asset_type: table
 id: sales.kunden
 schema: sales
 physical_name: kunden
-summary: 'Customers (kunden): CustomerID, FirstName, MiddleInitial, LastName'
+summary: The kunden table holds the retailer's customer directory, one row per customer, in
+  the sales schema.
+body: >
+  One row per customer. kundenid is the primary identifier and is the column verkaeufe.kundenid
+  joins to when attributing a sale to its buyer. vorname and nachname, with the optional
+  zweiter_initial, hold the customer's given, middle, and family names.
+
+  This table also carries kunden_nr, rufname, and familienname, which look like duplicates of
+  kundenid, vorname, and nachname but are not dependable and must not be used. kunden_stammdaten
+  looks like an alternate source of customer data but is not dependable either -- use kunden for
+  every customer question.
 columns:
-- asset_type: column
-  physical_name: kundenid
-  summary: CustomerID — kunden.kundenid
-  body: Means 'CustomerID' (obfuscated to 'kundenid').
+- physical_name: kundenid
+  summary: kundenid is the unique numeric identifier for a customer, used to link a customer to
+    their sales.
+  body: >
+    Integer primary key of kunden, one distinct value per customer. This is the column
+    verkaeufe.kundenid references; do not substitute kunden_nr, which is a separate, unreliable
+    column on this same table.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: vorname
-  summary: FirstName — kunden.vorname
-  body: Means 'FirstName' (obfuscated to 'vorname').
+- physical_name: vorname
+  summary: vorname holds a customer's first name.
+  body: >
+    Text, one value per customer, for example Kevin, Mallory, Xavier, Linda, or Misty (314
+    distinct in a 500-row sample). This is the reliable first-name column; rufname on this same
+    table is a separate, unreliable copy and must not be used.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zweiter_initial
-  summary: MiddleInitial — kunden.zweiter_initial
-  body: Middle initial of the customer; combined with vorname and nachname to form
-    the full name.
+- physical_name: zweiter_initial
+  summary: zweiter_initial holds a customer's middle initial.
+  body: >
+    A single letter, for example R, V, A, C, or S; null for customers without a recorded middle
+    name (191 nulls of 500 sampled). Used together with vorname and nachname to render a
+    customer's full name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nachname
-  summary: LastName — kunden.nachname
-  body: Means 'LastName' (obfuscated to 'nachname').
+- physical_name: nachname
+  summary: nachname holds a customer's last name.
+  body: >
+    Text surname, for example Butler, Diaz, or Williams (210 distinct in a 500-row sample). This
+    is the reliable last-name column; familienname on this same table is a separate, unreliable
+    copy and must not be used.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kunden_nr
-  summary: kunden_nr — kunden.kunden_nr
-  body: 'Physical column ''kunden_nr''. DECOY column: not a real business field. Fabricated
-    to mimic ''CustomerID''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: kunden_nr
+  summary: kunden_nr, a numeric column on the kunden table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must
+    not be used to join to other tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CustomerID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rufname
-  summary: rufname — kunden.rufname
-  body: 'Physical column ''rufname''. DECOY column: not a real business field. Fabricated
-    to mimic ''FirstName''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: rufname
+  summary: rufname, a text column on the kunden table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''FirstName''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: familienname
-  summary: familienname — kunden.familienname
-  body: 'Physical column ''familienname''. DECOY column: not a real business field.
-    Fabricated to mimic ''LastName''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: familienname
+  summary: familienname, a text column on the kunden table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''LastName''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Customers who place orders. One row per customer, keyed by kundenid. Holds first
-  name, middle initial and last name. Joins to verkaeufe on kundenid.
+    - information_schema

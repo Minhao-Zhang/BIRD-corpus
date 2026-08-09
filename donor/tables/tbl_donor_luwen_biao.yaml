@@ -2,166 +2,107 @@ asset_type: table
 id: donor.luwen_biao
 schema: donor
 physical_name: luwen_biao
-summary: 'essays (luwen_biao): projectid, teacher_acctid, title, short_description,
-  need_statement, essay'
+summary: luwen_biao holds one row per project's essay, recording its title, short description, need statement, and full essay text.
+body: >
+  Grain: one row per project, keyed by xiangmu_id — the same identifier used in xiangmu_biao,
+  juan_kuan_biao, and ziyuan_biao. This is the table to start from for a project's title or
+  written pitch; join to xiangmu_biao on xiangmu_id for the teacher, school, and funding
+  details of the same project. Three of this table's columns — xiangmu_bianhao, luwen_neirong,
+  and xuqiu_miaoshu — are not dependable for analysis and must not be used to answer a
+  question or as a join key.
 columns:
-- asset_type: column
-  physical_name: xiangmu_id
-  summary: projectid — luwen_biao.xiangmu_id
-  body: Means 'projectid' (obfuscated to 'xiangmu_id').
+- physical_name: xiangmu_id
+  summary: The project this essay belongs to, xiangmu_id.
+  body: >
+    Join to xiangmu_biao.xiangmu_id (one project per id) for that project's teacher, school,
+    and cost, to juan_kuan_biao.xiangmu_id for its donations, or to ziyuan_biao.xiangmu_id for
+    its requested resources. One row per xiangmu_id in this table.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jiaoshi_zhanghao_id
-  summary: teacher_acctid — luwen_biao.jiaoshi_zhanghao_id
-  body: Means 'teacher_acctid' (obfuscated to 'jiaoshi_zhanghao_id').
+- physical_name: jiaoshi_zhanghao_id
+  summary: The account id of the teacher who wrote a project's essay, jiaoshi_zhanghao_id.
+  body: >
+    An opaque hexadecimal id, for example 42d43fa6f37314365d08692e08680973, matching the same
+    teacher's id in xiangmu_biao.jiaoshi_zhanghao_id. One teacher can have written essays for
+    several projects.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: biaoti
-  summary: title — luwen_biao.biaoti
-  body: Means 'title' (obfuscated to 'biaoti').
+- physical_name: biaoti
+  summary: The title of a project, biaoti.
+  body: >
+    Free-text project name chosen by the teacher, for example "Snap Crackle Circuits",
+    "iMath", or "Lets Share Ideas". Nearly unique in the sample (495 distinct of 500 rows);
+    used to look up a specific project by name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jianduanmiaoshu
-  summary: short_description — luwen_biao.jianduanmiaoshu
-  body: Means 'short_description' (obfuscated to 'jianduanmiaoshu').
+- physical_name: jianduanmiaoshu
+  summary: The short description a teacher wrote for a project, jianduanmiaoshu.
+  body: >
+    A one- or two-sentence summary of the project, for example "My students need one set of
+    quality conga drums." Shorter than xuqiu_shuoming and luwen, and the field most often
+    called "describe" or "description" in business language.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuqiu_shuoming
-  summary: need_statement — luwen_biao.xuqiu_shuoming
-  body: Means 'need_statement' (obfuscated to 'xuqiu_shuoming').
+- physical_name: xuqiu_shuoming
+  summary: The need statement a teacher wrote for a project, xuqiu_shuoming.
+  body: >
+    A short statement of what the classroom needs, phrased close to jianduanmiaoshu but
+    written as its own field, for example "My students need a computer linked microscope and
+    4 sets of prepared slides." Not the same field as the full essay text in luwen.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: luwen
-  summary: essay — luwen_biao.luwen
-  body: Means 'essay' (obfuscated to 'luwen').
+- physical_name: luwen
+  summary: The complete essay a teacher wrote to request funding for a project, luwen.
+  body: >
+    The full, multi-paragraph essay text, typically several hundred characters, describing the
+    classroom and the need in the teacher's own words. Longer and more detailed than
+    jianduanmiaoshu or xuqiu_shuoming, which are short summaries of the same request.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xiangmu_bianhao
-  summary: xiangmu_bianhao — luwen_biao.xiangmu_bianhao
-  body: 'Physical column ''xiangmu_bianhao''. DECOY column: not a real business field.
-    Fabricated to mimic ''projectid''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: xiangmu_bianhao
+  summary: xiangmu_bianhao, a text column on the luwen_biao table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''projectid''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: luwen_neirong
-  summary: luwen_neirong — luwen_biao.luwen_neirong
-  body: 'Physical column ''luwen_neirong''. DECOY column: not a real business field.
-    Fabricated to mimic ''essay''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: luwen_neirong
+  summary: luwen_neirong, a text column on the luwen_biao table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''essay''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuqiu_miaoshu
-  summary: xuqiu_miaoshu — luwen_biao.xuqiu_miaoshu
-  body: 'Physical column ''xuqiu_miaoshu''. DECOY column: not a real business field.
-    Fabricated to mimic ''need_statement''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: xuqiu_miaoshu
+  summary: xuqiu_miaoshu, a text column on the luwen_biao table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''need_statement''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per project essay (grain: projectid) holding the project title, short
-  description, need statement, and authoring teacher. It is the source of project
-  titles used to identify projects, not the project''s structural/financial facts.'
+    - information_schema

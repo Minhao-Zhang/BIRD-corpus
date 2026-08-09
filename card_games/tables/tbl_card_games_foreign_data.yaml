@@ -2,194 +2,105 @@ asset_type: table
 id: card_games.foreign_data
 schema: card_games
 physical_name: foreign_data
-summary: 'foreign_data (foreign_data): id, flavorText, language, multiverseid, name,
-  text, type, uuid'
+summary: 'foreign_data holds foreign-language localizations of Magic: The Gathering card printings, one
+  row per card-and-language translation of name, type, and rules text.'
+body: One row per card printing per language it has been localized into; a single card can have up to
+  ten foreign_data rows, one per supported language. Joins back to cards on uuid. Easily confused with
+  set_translations, which localizes set names rather than card text. foreign_uuid, flavor_description,
+  and foreign_record_id sit alongside uuid, flavorText, and id but are not dependable and must not be
+  used to answer questions.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — foreign_data.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: id, the surrogate row number for a foreign-language localization record.
+  body: Bigint, unique per row, ranging from 100398 to 99845 in the sample; identifies this translation
+    row, not the card it translates -- join on uuid for that.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: flavorText
-  summary: flavorText — foreign_data.flavorText
-  body: Means 'flavorText' (obfuscated to 'flavorText').
+- physical_name: flavorText
+  summary: flavorText, the localized flavor text for a card's translation.
+  body: Free text in the row's language, for example a German or Chinese rendering of the card's narrative
+    passage; empty string rather than null for translations that carry no flavor text.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: language
-  summary: language — foreign_data.language
-  body: Language of the card translation, e.g. 'German', 'Italian', 'French', 'Japanese',
-    'Chinese Simplified', 'Russian', 'Phyrexian'.
+- physical_name: language
+  summary: language, the language a row's translated card fields are written in.
+  body: Free text such as French, Japanese, Chinese Simplified, drawn from ten language values observed
+    in the sample; every row in this table represents exactly one language's translation of one card printing.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: multiverseid
-  summary: multiverseid — foreign_data.multiverseid
-  body: Means 'multiverseid' (obfuscated to 'multiverseid').
+- physical_name: multiverseid
+  summary: multiverseid, the Gatherer identifier for this translation's specific printed page.
+  body: Integer, null when Gatherer never catalogued this particular language's printing (182 of 500 sampled
+    rows); distinct from cards.multiverseId, which identifies the English printing.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: name
-  summary: name — foreign_data.name
-  body: Means 'name' (obfuscated to 'name').
+- physical_name: name
+  summary: name, the card's name translated into this row's language.
+  body: Free text such as "Vinculo espiritual" or "Sino de Kormus"; the localized counterpart to cards.name
+    for the language given in this row's language column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: text
-  summary: text — foreign_data.text
-  body: Means 'text' (obfuscated to 'text').
+- physical_name: text
+  summary: text, the card's rules text translated into this row's language.
+  body: Free text in the translation's language; empty string, not null, when the printing has no rules
+    text to translate.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: type
-  summary: type — foreign_data.type
-  body: Means 'type' (obfuscated to 'type').
+- physical_name: type
+  summary: type, the card's type line translated into this row's language.
+  body: Free text such as "Incanta Creatura"; the localized counterpart to cards.type for this row's language.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: uuid
-  summary: uuid — foreign_data.uuid
-  body: Means 'uuid' (obfuscated to 'uuid').
+- physical_name: uuid
+  summary: uuid, the card printing a foreign-language row translates.
+  body: A UUID matching cards.uuid; join on this column to attach a card's rules text, name, and mana
+    cost to one of its translations. A card printing has one foreign_data row per language it has been
+    localized into.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: foreign_uuid
-  summary: foreign_uuid — foreign_data.foreign_uuid
-  body: 'Physical column ''foreign_uuid''. DECOY column: not a real business field.
-    Fabricated to mimic ''uuid''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: foreign_uuid
+  summary: foreign_uuid, a text column on the foreign_data table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as
+    a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''uuid''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: flavor_description
-  summary: flavor_description — foreign_data.flavor_description
-  body: 'Physical column ''flavor_description''. DECOY column: not a real business
-    field. Fabricated to mimic ''flavorText''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: flavor_description
+  summary: flavor_description, a text column on the foreign_data table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''flavorText''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: foreign_record_id
-  summary: foreign_record_id — foreign_data.foreign_record_id
-  body: 'Physical column ''foreign_record_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: foreign_record_id
+  summary: foreign_record_id, an integer column on the foreign_data table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''id''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Foreign-language translations of a card (grain = card x language). One row per
-  card per language, joined to cards on uuid; holds the translated name, text, type
-  and flavorText plus the language.
+    - information_schema

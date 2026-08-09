@@ -2,71 +2,62 @@ asset_type: table
 id: language_corpus.bimots
 schema: language_corpus
 physical_name: bimots
-summary: 'biwords (bimots): lid, w1st, w2nd, occurrences'
+summary: >-
+  bimots is the table of ordered word-pair co-occurrence counts, recording how often one word is
+  immediately followed by another across the corpus.
+body: >-
+  One row per ordered pair of words that appear next to each other somewhere in the corpus,
+  identified by mot_premier (the first word's id) and mot_second (the second word's id);
+  occurrences is how many times that exact ordered pair was seen. This table is easy to confuse
+  with mots, which counts a single word's occurrences rather than a pair, and with langues_mots,
+  which counts a word's occurrences within one language rather than a word pair. mot_premier and
+  mot_second both reference mots.id_mot, and id_langue references langues.id_langue, though every
+  row observed so far belongs to the Catalan language.
 columns:
-- asset_type: column
-  physical_name: id_langue
-  summary: lid — bimots.id_langue
-  body: Language id the pair belongs to (Catalan = 1).
+- physical_name: id_langue
+  summary: >-
+    id_langue identifies which language this word pair belongs to, matching langues.id_langue.
+  body: >-
+    Every row observed in this corpus carries id_langue = 1, the Catalan language; join to
+    langues.id_langue to bring in the language's name and locale.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mot_premier
-  summary: w1st — bimots.mot_premier
-  body: Word id of the first word in the pair; references mots.id_mot.
+- physical_name: mot_premier
+  summary: >-
+    mot_premier is the id of the first word in this ordered word pair, referencing mots.id_mot.
+  body: >-
+    Holds a mots.id_mot value; sample ids seen include 1 and 2. Paired with mot_second to form
+    the ordered biword; a pair where mot_premier equals mot_second means the same word repeated
+    back to back.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mot_second
-  summary: w2nd — bimots.mot_second
-  body: Word id of the second word in the pair; references mots.id_mot.
+- physical_name: mot_second
+  summary: >-
+    mot_second is the id of the second word in this ordered word pair, referencing mots.id_mot.
+  body: >-
+    Holds a mots.id_mot value; observed ids range from single digits up into five digits (sample
+    values include 2, 4, 25, 34 and 51). Together with mot_premier it defines the ordered biword;
+    a wide range of second-word ids appear here even when mot_premier repeats.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: occurrences
-  summary: occurrences — bimots.occurrences
-  body: Number of times this ordered biword pair co-occurs.
+- physical_name: occurrences
+  summary: >-
+    occurrences is the count of times this exact ordered word pair was observed together.
+  body: >-
+    An integer frequency count for this specific bimots row; sample values run from 1 up into the
+    hundreds within the scanned rows, and some pairs elsewhere in the corpus reach into the
+    hundred-thousands. Use this column, not mots.occurrences, when the question is about a word
+    pair rather than a single word.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per biword (adjacent word) pair. mot_premier and mot_second are word
-  ids of the first and second word; occurrences is how many times that ordered pair
-  appears. Not a word list (see mots).
+    - information_schema

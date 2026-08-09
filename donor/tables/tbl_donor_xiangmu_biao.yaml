@@ -2,511 +2,317 @@ asset_type: table
 id: donor.xiangmu_biao
 schema: donor
 physical_name: xiangmu_biao
-summary: 'projects (xiangmu_biao): projectid, teacher_acctid, schoolid, school_ncesid,
-  school_latitude, school_longitude, school_city, school_state, school_zip, school_metro,
-  school_district, school_county, school_charter, school_magnet, school_year_round,
-  sc…'
+summary: xiangmu_biao holds one row per project, recording its teacher, school, subject, cost, funding eligibility, and posting date.
+body: >
+  Grain: one row per project, keyed by xiangmu_id. This is the table to start from for any
+  question about a project's teacher, school, subject, poverty level, grade level, cost, or
+  the promotional matches it qualified for. Join to luwen_biao on xiangmu_id for the project's
+  essay (one row on both sides), to juan_kuan_biao on xiangmu_id for its donations (many
+  donations per project), and to ziyuan_biao on xiangmu_id for its requested resources (many
+  resource lines per project). A project's teacher, xuexiao_id's school, and the resource
+  categories on this table describe the project as a whole; ziyuan_biao.xiangmu_ziyuan_leibie
+  is the type of a specific requested item, which need not match this table's ziyuan_leibie.
 columns:
-- asset_type: column
-  physical_name: xiangmu_id
-  summary: projectid — xiangmu_biao.xiangmu_id
-  body: Means 'projectid' (obfuscated to 'xiangmu_id').
+- physical_name: xiangmu_id
+  summary: The unique identifier for a project, xiangmu_id.
+  body: >
+    An opaque hexadecimal id, one per row in this table. Referenced from juan_kuan_biao,
+    luwen_biao, and ziyuan_biao to tie a donation, essay, or resource request to this project.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jiaoshi_zhanghao_id
-  summary: teacher_acctid — xiangmu_biao.jiaoshi_zhanghao_id
-  body: Means 'teacher_acctid' (obfuscated to 'jiaoshi_zhanghao_id').
+- physical_name: jiaoshi_zhanghao_id
+  summary: The account id of the teacher who created a project, jiaoshi_zhanghao_id.
+  body: >
+    An opaque hexadecimal id, matching the same teacher's id in luwen_biao.jiaoshi_zhanghao_id.
+    Not unique per row: one teacher can create several projects (456 distinct ids across 500
+    rows in the sample).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_id
-  summary: schoolid — xiangmu_biao.xuexiao_id
-  body: Means 'schoolid' (obfuscated to 'xuexiao_id').
+- physical_name: xuexiao_id
+  summary: The identifier of the school where a project's teacher works, xuexiao_id.
+  body: >
+    An opaque hexadecimal id. Not unique per row: several projects can come from the same
+    school (422 distinct ids across 500 rows in the sample). Distinct from xuexiao_ncesid, the
+    federal statistics id for the same school.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_ncesid
-  summary: school_ncesid — xiangmu_biao.xuexiao_ncesid
-  body: Means 'school_ncesid' (obfuscated to 'xuexiao_ncesid').
+- physical_name: xuexiao_ncesid
+  summary: The federal National Center for Education Statistics identifier for a project's school, xuexiao_ncesid.
+  body: >
+    A numeric-string code such as 063627006187, distinct from this table's own xuexiao_id.
+    Some rows leave it blank when no federal id was on file.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_weidu
-  summary: school_latitude — xiangmu_biao.xuexiao_weidu
-  body: School latitude (decimal degrees).
+- physical_name: xuexiao_weidu
+  summary: The latitude of a project's school, xuexiao_weidu.
+  body: >
+    A decimal degree value, from about 21.35 to 61.20 in the sample. Paired with
+    xuexiao_jingdu (longitude) to give the school's coordinates.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_jingdu
-  summary: school_longitude — xiangmu_biao.xuexiao_jingdu
-  body: School longitude (decimal degrees).
+- physical_name: xuexiao_jingdu
+  summary: The longitude of a project's school, xuexiao_jingdu.
+  body: >
+    A decimal degree value, from about -103.23 to -98.70 in the sample (all negative,
+    consistent with US locations). Paired with xuexiao_weidu (latitude) to give the school's
+    coordinates.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_chengshi
-  summary: school_city — xiangmu_biao.xuexiao_chengshi
-  body: Means 'school_city' (obfuscated to 'xuexiao_chengshi').
+- physical_name: xuexiao_chengshi
+  summary: The city where a project's school is located, xuexiao_chengshi.
+  body: >
+    Free-text city name such as Selma, Dallas, Colton, Brooklyn, or Los Angeles (298 distinct
+    in the sample). Distinct from juan_kuan_biao.juan_kuanzhe_chengshi, which is the donor's
+    city, not the school's.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_zhou
-  summary: school_state — xiangmu_biao.xuexiao_zhou
-  body: Means 'school_state' (obfuscated to 'xuexiao_zhou').
+- physical_name: xuexiao_zhou
+  summary: The state where a project's school is located, xuexiao_zhou.
+  body: >
+    A two-letter postal code such as CA, TX, OR, NY, or AZ (44 distinct in the sample).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_youbian
-  summary: school_zip — xiangmu_biao.xuexiao_youbian
-  body: Means 'school_zip' (obfuscated to 'xuexiao_youbian').
+- physical_name: xuexiao_youbian
+  summary: The zip code of a project's school, xuexiao_youbian.
+  body: >
+    A five-digit US zip code stored as a number, ranging from about 10001 to 99508 in the
+    sample.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_dushiquyuhuaban
-  summary: school_metro — xiangmu_biao.xuexiao_dushiquyuhuaban
-  body: 'School metro type: ''urban'', ''suburban'', or ''rural''.'
+- physical_name: xuexiao_dushiquyuhuaban
+  summary: The metro classification of a project's school, xuexiao_dushiquyuhuaban.
+  body: >
+    One of three values: urban, rural, or suburban. Some rows leave it blank when the school
+    was never classified.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_xuequ
-  summary: school_district — xiangmu_biao.xuexiao_xuequ
-  body: Means 'school_district' (obfuscated to 'xuexiao_xuequ').
+- physical_name: xuexiao_xuequ
+  summary: The school district of a project's school, xuexiao_xuequ.
+  body: >
+    Free-text district name such as "Selma Unified Sch District", "New York City Dept Of Ed",
+    or "Memphis City School District" (292 distinct in the sample). "[County run]" is a valid
+    value for districts run directly by a county rather than a named district.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_xian
-  summary: school_county — xiangmu_biao.xuexiao_xian
-  body: School county, e.g. 'Suffolk', 'Los Angeles'.
+- physical_name: xuexiao_xian
+  summary: The county where a project's school is located, xuexiao_xian.
+  body: >
+    Free-text county name such as Fresno, Dallas, or "Kings (Brooklyn)" (213 distinct in the
+    sample). A question naming a well-known area such as "Los Angeles County" or "Suffolk
+    County" filters this column on the county name alone, for example 'Los Angeles' or
+    'Suffolk'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_tezhenyuzhang
-  summary: school_charter — xiangmu_biao.xuexiao_tezhenyuzhang
-  body: Means 'school_charter' (obfuscated to 'xuexiao_tezhenyuzhang').
+- physical_name: xuexiao_tezhenyuzhang
+  summary: Whether a project's school is a public charter school, xuexiao_tezhenyuzhang.
+  body: >
+    'f' means the school is not a charter school; 't' means it is. Every school in this table
+    is public, so this never distinguishes public from private.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_xichuanxue
-  summary: school_magnet — xiangmu_biao.xuexiao_xichuanxue
-  body: Flag ('t'/'f') for whether the school is a public magnet school.
+- physical_name: xuexiao_xichuanxue
+  summary: Whether a project's school is a public magnet school, xuexiao_xichuanxue.
+  body: >
+    'f' means the school is not a magnet school; 't' means it is a public magnet school
+    offering a specialized curriculum to attract students across district lines.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_nianman_xiaoxue
-  summary: school_year_round — xiangmu_biao.xuexiao_nianman_xiaoxue
-  body: Means 'school_year_round' (obfuscated to 'xuexiao_nianman_xiaoxue').
+- physical_name: xuexiao_nianman_xiaoxue
+  summary: Whether a project's school runs on a year-round calendar, xuexiao_nianman_xiaoxue.
+  body: >
+    'f' means the school follows a traditional school-year calendar; 't' means it runs
+    year-round rather than following the usual summer break.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_nlns
-  summary: school_nlns — xiangmu_biao.xuexiao_nlns
-  body: Means 'school_nlns' (obfuscated to 'xuexiao_nlns').
+- physical_name: xuexiao_nlns
+  summary: Whether a project's school is part of the NLNS school network, xuexiao_nlns.
+  body: >
+    'f' means the school is not part of this network; 't' means it is. The underlying
+    classification behind this flag is not otherwise documented in this dataset.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_kipp
-  summary: school_kipp — xiangmu_biao.xuexiao_kipp
-  body: Means 'school_kipp' (obfuscated to 'xuexiao_kipp').
+- physical_name: xuexiao_kipp
+  summary: Whether a project's school is a KIPP (Knowledge Is Power Program) school, xuexiao_kipp.
+  body: >
+    'f' means the school is not part of the KIPP charter network; 't' means it is. Every row
+    in the sample is 'f'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xuexiao_tezhenyuzhang_zhunbeichengxi
-  summary: school_charter_ready_promise — xiangmu_biao.xuexiao_tezhenyuzhang_zhunbeichengxi
-  body: Means 'school_charter_ready_promise' (obfuscated to 'xuexiao_tezhenyuzhang_zhunbeichengxi').
+- physical_name: xuexiao_tezhenyuzhang_zhunbeichengxi
+  summary: Whether a project's school is a charter "Ready Promise" school, xuexiao_tezhenyuzhang_zhunbeichengxi.
+  body: >
+    'f' means the school does not carry this designation; 't' means it does. A narrower flag
+    than the general charter status in xuexiao_tezhenyuzhang.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jiaoshi_chenghuhu
-  summary: teacher_prefix — xiangmu_biao.jiaoshi_chenghuhu
-  body: Teacher prefix such as 'Dr.', 'Mr.', 'Ms.'; 'Dr.' indicates a Ph.D./doctoral
-    teacher.
+- physical_name: jiaoshi_chenghuhu
+  summary: The title, or prefix, used for a project's teacher, jiaoshi_chenghuhu.
+  body: >
+    One of Mr., Mrs., or Ms. in most rows. A value of "Dr." indicates the teacher holds a
+    Ph.D. or other doctoral degree, so "teachers with a Ph.D." filters this column to 'Dr.'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jiaoshi_jiaoyu_meiguo
-  summary: teacher_teach_for_america — xiangmu_biao.jiaoshi_jiaoyu_meiguo
-  body: Means 'teacher_teach_for_america' (obfuscated to 'jiaoshi_jiaoyu_meiguo').
+- physical_name: jiaoshi_jiaoyu_meiguo
+  summary: Whether a project's teacher is a Teach For America participant, jiaoshi_jiaoyu_meiguo.
+  body: >
+    'f' means the teacher is not part of Teach For America; 't' means they are.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jiaoshi_neiyue_jiaoxue_huohuozhe
-  summary: teacher_ny_teaching_fellow — xiangmu_biao.jiaoshi_neiyue_jiaoxue_huohuozhe
-  body: Flag ('t'/'f') for whether the teacher is a New York teaching fellow.
+- physical_name: jiaoshi_neiyue_jiaoxue_huohuozhe
+  summary: Whether a project's teacher is a New York City Teaching Fellow, jiaoshi_neiyue_jiaoxue_huohuozhe.
+  body: >
+    'f' means the teacher is not a New York City Teaching Fellow; 't' means they are, a
+    program for career-changers entering teaching in New York City.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zhuyao_jiaoxue_kemu
-  summary: primary_focus_subject — xiangmu_biao.zhuyao_jiaoxue_kemu
-  body: Primary focus subject of the project, e.g. 'Literacy'.
+- physical_name: zhuyao_jiaoxue_kemu
+  summary: The main academic subject a project's materials are intended for, zhuyao_jiaoxue_kemu.
+  body: >
+    One of about 25 subjects such as Literature & Writing, Literacy, Social Sciences,
+    Mathematics, or Gym & Fitness. "Literacy subject as primary focus" filters this column to
+    'Literacy'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zhuyao_jiaoxue_lingyu
-  summary: primary_focus_area — xiangmu_biao.zhuyao_jiaoxue_lingyu
-  body: Primary focus area of the project, e.g. 'Literacy & Language'.
+- physical_name: zhuyao_jiaoxue_lingyu
+  summary: The broad subject area a project's materials are intended for, zhuyao_jiaoxue_lingyu.
+  body: >
+    One of 7 broader groupings such as Literacy & Language, History & Civics, Math & Science,
+    Health & Sports, or Applied Learning. Each value in zhuyao_jiaoxue_kemu rolls up into one
+    of these areas.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ciyao_jiaoxue_kemu
-  summary: secondary_focus_subject — xiangmu_biao.ciyao_jiaoxue_kemu
-  body: Means 'secondary_focus_subject' (obfuscated to 'ciyao_jiaoxue_kemu').
+- physical_name: ciyao_jiaoxue_kemu
+  summary: The secondary academic subject a project's materials are intended for, ciyao_jiaoxue_kemu.
+  body: >
+    Drawn from the same roughly 25 subjects as zhuyao_jiaoxue_kemu, but blank on projects that
+    were only submitted with one subject (155 blank of 500 rows in the sample).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ciyao_jiaoxue_lingyu
-  summary: secondary_focus_area — xiangmu_biao.ciyao_jiaoxue_lingyu
-  body: Means 'secondary_focus_area' (obfuscated to 'ciyao_jiaoxue_lingyu').
+- physical_name: ciyao_jiaoxue_lingyu
+  summary: The secondary broad subject area a project's materials are intended for, ciyao_jiaoxue_lingyu.
+  body: >
+    Drawn from the same 7 areas as zhuyao_jiaoxue_lingyu, and blank whenever ciyao_jiaoxue_kemu
+    is blank.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ziyuan_leibie
-  summary: resource_type — xiangmu_biao.ziyuan_leibie
-  body: Means 'resource_type' (obfuscated to 'ziyuan_leibie').
+- physical_name: ziyuan_leibie
+  summary: The main category of resource a project as a whole requests, ziyuan_leibie.
+  body: >
+    One of 5 values: Books, Technology, Supplies, Other, or Visitors. This is a project-level
+    summary category, distinct from ziyuan_biao.xiangmu_ziyuan_leibie, which categorizes each
+    individual resource line item and need not match this column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pinkun_dengji
-  summary: poverty_level — xiangmu_biao.pinkun_dengji
-  body: Poverty level of the school, e.g. 'highest poverty', 'moderate poverty'; 'highest
-    poverty' corresponds to ~65%+ of students on reduced lunch.
+- physical_name: pinkun_dengji
+  summary: The poverty level of a project's school, pinkun_dengji.
+  body: >
+    One of four values, ranked by the share of students on free or reduced lunch: "highest
+    poverty" (65% or more), "high poverty" (40-64%), "moderate poverty" (10-39%), or "low
+    poverty" (0-9%). "65% of the students are on reduced lunch" and "the highest poverty
+    level" both mean pinkun_dengji = 'highest poverty'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nianjidengji
-  summary: grade_level — xiangmu_biao.nianjidengji
-  body: Grade level served, e.g. 'Grades 3-5'.
+- physical_name: nianjidengji
+  summary: The grade level a project's materials are intended for, nianjidengji.
+  body: >
+    One of four bands: "Grades PreK-2", "Grades 3-5", "Grades 6-8", or "Grades 9-12". "Teach
+    3-5 grades" means nianjidengji = 'Grades 3-5'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: wancheng_laodong_cailiao
-  summary: fulfillment_labor_materials — xiangmu_biao.wancheng_laodong_cailiao
-  body: Fulfillment cost of labor and materials, in US dollars.
+- physical_name: wancheng_laodong_cailiao
+  summary: The fulfillment labor and materials cost charged on a project, wancheng_laodong_cailiao.
+  body: >
+    A flat dollar fee DonorsChoose.org adds to cover shipping and handling; every row in the
+    sample carries the same value, 30.0. A higher value would mean a higher fulfillment cost,
+    but the sample shows no variation.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zonghe_jiage_buhan_xuanze_zhichi
-  summary: total_price_excluding_optional_support — xiangmu_biao.zonghe_jiage_buhan_xuanze_zhichi
-  body: Project total price excluding optional support, in US dollars; used as the
-    project cost.
+- physical_name: zonghe_jiage_buhan_xuanze_zhichi
+  summary: The total cost of a project when the optional support amount is excluded, zonghe_jiage_buhan_xuanze_zhichi.
+  body: >
+    The dollar amount needed to fully fund the project, before any optional tip donors add to
+    support DonorsChoose.org, ranging from about 1000 down through the hundreds in the sample.
+    This is the figure meant by "project cost" on its own, without the word "including".
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zonghe_jiage_baokuo_xuanze_zhichi
-  summary: total_price_including_optional_support — xiangmu_biao.zonghe_jiage_baokuo_xuanze_zhichi
-  body: Project total price including optional support, in US dollars.
+- physical_name: zonghe_jiage_baokuo_xuanze_zhichi
+  summary: The total cost of a project when the optional support amount is included, zonghe_jiage_baokuo_xuanze_zhichi.
+  body: >
+    zonghe_jiage_buhan_xuanze_zhichi plus the optional tip built into the project's listed
+    price; the difference between the two columns is the tip amount. "Total price including
+    optional support" and questions about the "highest" such price both refer to this column,
+    not zonghe_jiage_buhan_xuanze_zhichi.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jiedao_xuesheng_shu
-  summary: students_reached — xiangmu_biao.jiedao_xuesheng_shu
-  body: Number of students the project would impact if funded.
+- physical_name: jiedao_xuesheng_shu
+  summary: The number of students a project is expected to reach once funded, jiedao_xuesheng_shu.
+  body: >
+    A whole-number headcount, from 10 to 97 in the sample. "320 students will be impacted",
+    "affect more than 30 students", and "impact at least 600 students" all filter or compare
+    against this column.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zige_shuangbeifa_pipeizhu
-  summary: eligible_double_your_impact_match — xiangmu_biao.zige_shuangbeifa_pipeizhu
-  body: Means 'eligible_double_your_impact_match' (obfuscated to 'zige_shuangbeifa_pipeizhu').
+- physical_name: zige_shuangbeifa_pipeizhu
+  summary: Whether a project was eligible for the "Double Your Impact Match" offer, zige_shuangbeifa_pipeizhu.
+  body: >
+    'f' means the project was not eligible; 't' means a corporate partner, whose logo appears
+    on the project, offered to match a donation at 50% (for example Starbucks or Disney).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zige_jihuhuijia_pipeizhu
-  summary: eligible_almost_home_match — xiangmu_biao.zige_jihuhuijia_pipeizhu
-  body: Means 'eligible_almost_home_match' (obfuscated to 'zige_jihuhuijia_pipeizhu').
+- physical_name: zige_jihuhuijia_pipeizhu
+  summary: Whether a project was eligible for the "Almost Home Match" offer, zige_jihuhuijia_pipeizhu.
+  body: >
+    'f' means the project was not eligible; 't' means it qualified for a $100 boost from a
+    corporate partner. Every row in the sample is 'f'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fakuai_riqi
-  summary: date_posted — xiangmu_biao.fakuai_riqi
-  body: Means 'date_posted' (obfuscated to 'fakuai_riqi').
+- physical_name: fakuai_riqi
+  summary: The date a project went live on the site, fakuai_riqi.
+  body: >
+    A calendar date, for example 2014-05-12. "When a project went live" and "date posted" both
+    refer to this column. Only 6 distinct dates appear in the sample, all in a narrow window
+    in early-to-mid 2014.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per project (grain: projectid) with school location, teacher attributes,
-  poverty/grade/subject classification, student reach, and total price fields. It
-  is the project fact table, distinct from the essay text in luwen_biao.'
+    - information_schema

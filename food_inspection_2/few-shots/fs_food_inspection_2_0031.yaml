@@ -1,17 +1,23 @@
 asset_type: few_shot
 id: fs_food_inspection_2_0031
 schema: food_inspection_2
-sql: SELECT COUNT("jian_cha_id") FROM "food_inspection_2"."jian_cha" WHERE TO_CHAR(CAST("jian_cha_ri_qi"
-  AS TIMESTAMP), 'YYYY-MM') = '2011-01'
-summary: How many inspections were done in January 2011?
-body: 'Question: How many inspections were done in January 2011?
+sql: SELECT "T2"."ying_ye_ming_cheng", CAST(SUM(CASE WHEN "T1"."jie_guo" = 'Pass' THEN 1 ELSE 0 END) AS
+  REAL) * 100 / NULLIF(COUNT("T1"."jian_cha_id"), 0) AS "percentagePassed", CAST(SUM(CASE WHEN "T1"."jie_guo"
+  = 'Fail' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT("T1"."jian_cha_id"), 0) FROM "food_inspection_2"."jian_cha"
+  AS "T1" INNER JOIN "food_inspection_2"."ji_gou" AS "T2" ON "T1"."xu_ke_zheng_hao" = "T2"."xu_ke_zheng_hao"
+  GROUP BY "T2"."ying_ye_ming_cheng" ORDER BY COUNT("T1"."xu_ke_zheng_hao") DESC NULLS LAST LIMIT 1
+summary: Which business had the highest number of inspections done? Calculate the percentage of passed
+  and failed inspections of the said business.
+body: 'Question: Which business had the highest number of inspections done? Calculate the percentage of
+  passed and failed inspections of the said business.
 
   SQL:
 
-  SELECT COUNT("jian_cha_id") FROM "food_inspection_2"."jian_cha" WHERE TO_CHAR(CAST("jian_cha_ri_qi"
-  AS TIMESTAMP), ''YYYY-MM'') = ''2011-01'''
-complexity: simple
-confidence: 0.55
+  SELECT "T2"."ying_ye_ming_cheng", CAST(SUM(CASE WHEN "T1"."jie_guo" = ''Pass'' THEN 1 ELSE 0 END) AS
+  REAL) * 100 / NULLIF(COUNT("T1"."jian_cha_id"), 0) AS "percentagePassed", CAST(SUM(CASE WHEN "T1"."jie_guo"
+  = ''Fail'' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT("T1"."jian_cha_id"), 0) FROM "food_inspection_2"."jian_cha"
+  AS "T1" INNER JOIN "food_inspection_2"."ji_gou" AS "T2" ON "T1"."xu_ke_zheng_hao" = "T2"."xu_ke_zheng_hao"
+  GROUP BY "T2"."ying_ye_ming_cheng" ORDER BY COUNT("T1"."xu_ke_zheng_hao") DESC NULLS LAST LIMIT 1'
 audit:
   provenance:
     source: gold
@@ -19,4 +25,4 @@ audit:
     version: harvest-1
     source_refs:
     - train_final.jsonl
-  evidence: gold train Q train_6174; 1 question(s) share this shape
+  evidence: train question train_6158

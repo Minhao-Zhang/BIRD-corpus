@@ -2,152 +2,88 @@ asset_type: table
 id: car_retails.details_commande
 schema: car_retails
 physical_name: details_commande
-summary: 'orderdetails (details_commande): orderNumber, productCode, quantityOrdered,
-  priceEach, orderLineNumber'
+summary: details_commande records each line item of a commandes order, naming the product, quantity, and price sold.
+body: >
+  One row per order line, keyed by numero_commande and numero_ligne_commande together.
+  numero_commande references commandes.numero_commande and code_produit references
+  produits.code_produit. prix_par_unite, reference_produit, and quantite_demande look like the
+  same facts restated but are not dependable and must not be used to answer questions or as
+  join keys.
 columns:
-- asset_type: column
-  physical_name: numero_commande
-  summary: orderNumber — details_commande.numero_commande
-  body: Means 'orderNumber' (obfuscated to 'numero_commande').
+- physical_name: numero_commande
+  summary: numero_commande, the order this line item belongs to.
+  body: Joins to commandes.numero_commande.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: code_produit
-  summary: productCode — details_commande.code_produit
-  body: Means 'productCode' (obfuscated to 'code_produit').
+- physical_name: code_produit
+  summary: code_produit, the product ordered on this line.
+  body: Joins to produits.code_produit.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: quantite_commandee
-  summary: quantityOrdered — details_commande.quantite_commandee
-  body: Quantity ordered on this order line (units).
+- physical_name: quantite_commandee
+  summary: quantite_commandee, the number of units ordered on this line.
+  body: >
+    A positive integer count of units. Multiply by prix_unitaire for this line's total value.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prix_unitaire
-  summary: priceEach — details_commande.prix_unitaire
-  body: Unit price actually charged per unit on this order line (priceEach), in currency
-    units (money).
+- physical_name: prix_unitaire
+  summary: prix_unitaire, the actual price charged per unit on this line.
+  body: >
+    The price the customer was actually charged for one unit on this order line, which can
+    differ from produits.prix_catalogue. Multiply by quantite_commandee for the line's total
+    value; subtract produits.prix_achat for this line's realized profit per unit.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: numero_ligne_commande
-  summary: orderLineNumber — details_commande.numero_ligne_commande
-  body: Means 'orderLineNumber' (obfuscated to 'numero_ligne_commande').
+- physical_name: numero_ligne_commande
+  summary: numero_ligne_commande, the position of this line within its order.
+  body: >
+    A small integer starting at 1 that orders the lines within a single numero_commande; not
+    a global identifier on its own.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prix_par_unite
-  summary: prix_par_unite — details_commande.prix_par_unite
-  body: 'Physical column ''prix_par_unite''. DECOY column: not a real business field.
-    Fabricated to mimic ''priceEach''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: prix_par_unite
+  summary: prix_par_unite, a numeric column on the details_commande table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: real
   logical_type: decimal
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''priceEach''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: reference_produit
-  summary: reference_produit — details_commande.reference_produit
-  body: 'Physical column ''reference_produit''. DECOY column: not a real business
-    field. Fabricated to mimic ''productCode''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: reference_produit
+  summary: reference_produit, a text column on the details_commande table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''productCode''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: quantite_demande
-  summary: quantite_demande — details_commande.quantite_demande
-  body: 'Physical column ''quantite_demande''. DECOY column: not a real business field.
-    Fabricated to mimic ''quantityOrdered''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: quantite_demande
+  summary: quantite_demande, a numeric column on the details_commande table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''quantityOrdered''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Order line items. Grain: one row per order line (numero_commande + numero_ligne_commande).
-  Holds the product, quantity ordered and unit price sold; this is where order value
-  and quantities are computed.'
+    - information_schema

@@ -2,209 +2,133 @@ asset_type: table
 id: professional_basketball.entraineurs
 schema: professional_basketball
 physical_name: entraineurs
-summary: 'coaches (entraineurs): coachID, year, tmID, league_id, stint, W, L, post_wins,
-  post_losses'
+summary: entraineurs holds each coach's season-by-season win-loss record for a professional
+  basketball team, one row per coaching stint.
+body: >
+  One row per coach per team per season per stint (see passage): a coach who leaves one team and
+  takes over another in the same year gets a separate row for each spell. Regular-season and
+  playoff win/loss totals live side by side on the same row. Join to equipes on annee and
+  id_equipe to bring in the team's season context, and to recompenses_entraineurs on annee and
+  id_entraineur for coaching honors that season. Do not confuse this table with
+  recompenses_entraineurs, which records awards rather than win-loss totals, or with equipes,
+  which is one row per team-season rather than per coach.
 columns:
-- asset_type: column
-  physical_name: id_entraineur
-  summary: coachID — entraineurs.id_entraineur
-  body: Means 'coachID' (obfuscated to 'id_entraineur').
+- physical_name: id_entraineur
+  summary: id_entraineur identifies the individual coach across the coaching, awards, and roster
+    tables.
+  body: >
+    A short alphanumeric code built from the coach's surname and given-name initials plus a
+    sequence digit, e.g. 'adelmri01', 'woodsmi01', 'wintebr01'. Stable across seasons and teams,
+    so it is the key to use when following one coach's whole career. Join key to
+    recompenses_entraineurs.id_entraineur.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: annee
-  summary: year — entraineurs.annee
-  body: Means 'year' (obfuscated to 'annee').
+- physical_name: annee
+  summary: annee is the season year a coaching stint's win-loss record covers.
+  body: >
+    A four-digit season year, observed from 1946 to 2011 in this table (samples: 2004, 1996,
+    2006, 1971, 1968). Used to align a coach's stint with the matching equipes row and any
+    recompenses_entraineurs row for the same year.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_equipe
-  summary: tmID — entraineurs.id_equipe
-  body: Means 'tmID' (obfuscated to 'id_equipe').
+- physical_name: id_equipe
+  summary: id_equipe is the abbreviated code of the team this coaching stint was with.
+  body: >
+    A three-letter team abbreviation such as 'ATL', 'VAN', 'HOU', 'MNP', 'NYK', matching
+    equipes.id_equipe for the same season. A coach can appear with more than one id_equipe in a
+    single year if he changed teams mid-season.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_ligue
-  summary: league_id — entraineurs.id_ligue
-  body: League code, e.g. 'NBA', 'ABA', 'NBL'.
+- physical_name: id_ligue
+  summary: id_ligue is the league code the coached team competed in that season.
+  body: >
+    Mostly 'NBA' or 'ABA'; rarer historical leagues 'NBL', 'PBLA' and 'ABL1' also appear in this
+    table's early years.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: passage
-  summary: stint — entraineurs.passage
-  body: 'Stint number: distinguishes multiple coaching spells with the same team in
-    one season.'
+- physical_name: passage
+  summary: passage numbers a coach's separate coaching stints with a team within one season.
+  body: >
+    Starts at 1 for a coach's first stint that year; a value of 2, 3 or 4 marks a second, third
+    or fourth spell, most often after a mid-season coaching change. Observed values run 1 to 4.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: victoires
-  summary: W — entraineurs.victoires
-  body: Regular-season games won by the coach's team during that stint.
+- physical_name: victoires
+  summary: victoires counts the regular-season games this coaching stint won.
+  body: >
+    A non-negative game count scoped to this id_equipe/annee/passage combination; 0 means the
+    coach did not win a game during this stint. Sample values: 13, 8, 30, 56, 34.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: defaites
-  summary: L — entraineurs.defaites
-  body: Regular-season games lost during that stint.
+- physical_name: defaites
+  summary: defaites counts the regular-season games this coaching stint lost.
+  body: >
+    A non-negative game count for the same stint as victoires; the two normally add up to the
+    games the team played while this coach was in charge. Sample values: 69, 35, 52, 26, 48.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: victoires_playoffs
-  summary: post_wins — entraineurs.victoires_playoffs
-  body: Postseason (playoff) games won during that stint.
+- physical_name: victoires_playoffs
+  summary: victoires_playoffs counts post-season games this coaching stint won.
+  body: >
+    Reads 0 whenever the team did not reach that year's playoffs, matching the rule that both
+    playoff win and loss columns are zero together in that case. Sample values: 0, 4, 3, 7, 12.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: defaites_playoffs
-  summary: post_losses — entraineurs.defaites_playoffs
-  body: Means 'post_losses' (obfuscated to 'defaites_playoffs').
+- physical_name: defaites_playoffs
+  summary: defaites_playoffs counts post-season games this coaching stint lost.
+  body: >
+    Paired with victoires_playoffs; both read 0 when the team did not participate in that year's
+    playoffs. Sample values: 0, 6, 4, 8, 2.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: entraineur_ref
-  summary: entraineur_ref — entraineurs.entraineur_ref
-  body: 'Physical column ''entraineur_ref''. DECOY column: not a real business field.
-    Fabricated to mimic ''coachID''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: entraineur_ref
+  summary: entraineur_ref is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''coachID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pertes
-  summary: pertes — entraineurs.pertes
-  body: 'Physical column ''pertes''. DECOY column: not a real business field. Fabricated
-    to mimic ''lost''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: pertes
+  summary: pertes is an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''lost''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: identifiant_equipe
-  summary: identifiant_equipe — entraineurs.identifiant_equipe
-  body: 'Physical column ''identifiant_equipe''. DECOY column: not a real business
-    field. Fabricated to mimic ''tmID''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: identifiant_equipe
+  summary: identifiant_equipe is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''tmID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: 'Coaching stints: one row per coach (id_entraineur) per team (id_equipe) per
-  year and passage/stint, with regular-season wins/losses (victoires/defaites) and
-  playoff wins/losses (victoires_playoffs/defaites_playoffs).'
+    - train_final.jsonl

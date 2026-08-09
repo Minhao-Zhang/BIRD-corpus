@@ -2,86 +2,57 @@ asset_type: table
 id: student_loan.wu_xu_zhi_fu
 schema: student_loan
 physical_name: wu_xu_zhi_fu
-summary: 'no_payment_due (wu_xu_zhi_fu): name, bool'
+summary: wu_xu_zhi_fu records, by wu_xu_zhi_fu.bu_er, whether each student still owes a loan
+  payment.
+body: >
+  Grain: one row per student, keyed by ming_cheng. bu_er holds one of the two literal codes
+  defined in the bu_er lookup table: pos means the student has a payment due, neg means they do
+  not. Join to ren_wu on ming_cheng to confirm the student is a recognized person, to bu_er on
+  bu_er to spell out the code, and to nan_xing, can_ji, shen_qing_po_chan, shi_ye, zhu_ce,
+  zhu_ce_ru_xue, or zui_chang_que_ke on ming_cheng to combine payment status with any other
+  recorded condition.
 columns:
-- asset_type: column
-  physical_name: ming_cheng
-  summary: name — wu_xu_zhi_fu.ming_cheng
-  body: Means 'name' (obfuscated to 'ming_cheng').
+- physical_name: ming_cheng
+  summary: The name of the student whose payment-due status this row records, ming_cheng.
+  body: >
+    Free-text student identifier such as student892 or student337, matching ren_wu.ming_cheng.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: bu_er
-  summary: bool — wu_xu_zhi_fu.bu_er
-  body: Payment-due flag. 'pos' = the student has a payment due; 'neg' = the student
-    has no payment due.
+- physical_name: bu_er
+  summary: Whether the student named in this row still has a loan payment due, bu_er.
+  body: >
+    Literal code from the bu_er lookup table: pos means the student has a payment due, neg means
+    the student does not. Every row in the sample holds one of these two values.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zhi_fu_ming
-  summary: zhi_fu_ming — wu_xu_zhi_fu.zhi_fu_ming
-  body: 'Physical column ''zhi_fu_ming''. DECOY column: not a real business field.
-    Fabricated to mimic ''name''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: zhi_fu_ming
+  summary: zhi_fu_ming, a text column on the wu_xu_zhi_fu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''name''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: er_tong
-  summary: er_tong — wu_xu_zhi_fu.er_tong
-  body: 'Physical column ''er_tong''. DECOY column: not a real business field. Fabricated
-    to mimic ''bool''. Corruption operator ''sparse_cat_remap'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: er_tong
+  summary: er_tong, a text column on the wu_xu_zhi_fu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''bool''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Payment-due status per student (grain: student name); the bu_er flag records
-  whether a payment is due. Not to be confused with the standalone bu_er lookup table.'
+    - information_schema

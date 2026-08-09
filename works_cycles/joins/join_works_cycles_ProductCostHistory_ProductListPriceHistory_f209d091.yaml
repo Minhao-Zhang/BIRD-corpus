@@ -1,0 +1,22 @@
+asset_type: join
+id: join_works_cycles_ProductCostHistory_ProductListPriceHistory_f209d091
+left_table: works_cycles.ProductCostHistory
+right_table: works_cycles.ProductListPriceHistory
+'on': works_cycles.ProductCostHistory.ProductID = works_cycles.ProductListPriceHistory.ProductID
+summary: ProductCostHistory shares ProductID with ProductListPriceHistory, but the two track separate
+  effective-dated periods that do not line up row for row.
+body: A product can have several ProductCostHistory rows and, independently, several ProductListPriceHistory
+  rows, one each per effective-dated period; matching the two tables on ProductID alone pairs every cost
+  period with every price period for that product rather than aligning periods by date, so treat the join
+  as many to many. Filter both sides on EndDate IS NULL, or compare StartDate ranges, to line up a single
+  cost with the price that applied at the same time.
+cardinality: many_to_many
+audit:
+  provenance:
+    source: gold
+    status: draft
+    version: scaffold-1
+    source_refs:
+    - train_final.jsonl
+    - '*_tables.json'
+  evidence: equality between ProductCostHistory and ProductListPriceHistory in train gold SQL

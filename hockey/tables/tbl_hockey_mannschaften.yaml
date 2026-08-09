@@ -2,457 +2,255 @@ asset_type: table
 id: hockey.mannschaften
 schema: hockey
 physical_name: mannschaften
-summary: 'Teams (mannschaften): year, lgID, tmID, franchID, confID, divID, rank, playoff,
-  G, w, l, t, OTL, Pts, SoW, SoL, GF, GA, name, PIM, BenchMinor, PPG, PPC, SHA, SHG,
-  PKC, SHF'
+summary: mannschaften is the core team-season standings table, one row per team per season with
+  its record, standing, and special-teams totals.
+body: >
+  One row per (jahr, mannschaft_id); the primary table for "how did team X do in season Y"
+  questions. mannschaft_id identifies the team within one season and can change when a franchise
+  relocates or rebrands (join mannschaft_gegen_mannschaft, mannschaft_zeitraeume and the
+  scoring/goaltending tables on mannschaft_id and jahr together); franchise_id stays constant
+  across such changes and is the right key for a question about one franchise's whole history.
+  tore holds games played, not goals — tore_fuer and tore_gegen hold the actual goals scored and
+  allowed. konferenz_id, division_id and playoff hold short codes; join to abkuerzungen (matching
+  typ to the relevant category and code to the value) for their full names. The special-teams
+  columns follow the source dataset's own naming, which does not always match the German prefix:
+  ueberzahl_tore/ueberzahl_chancen are power-play goals/chances; ueberzahl_fuer is shorthanded
+  goals for despite the power-play-suggesting prefix; unterzahl_chancen is penalty-kill chances;
+  unterzahl_tore is power-play goals allowed while killing a penalty; unterzahl_assists, despite
+  its name, is shorthanded goals against, not an assist count. Three of its thirty-two columns
+  are individually unreliable duplicates of this table's real fields.
 columns:
-- asset_type: column
-  physical_name: jahr
-  summary: year — mannschaften.jahr
-  body: Means 'year' (obfuscated to 'jahr').
+- physical_name: jahr
+  summary: jahr is the four-digit season year of a mannschaften standing.
+  body: Observed 1909 to 2011 (samples 1909, 2011, 1910, 1978, 1985).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: liga_id
-  summary: lgID — mannschaften.liga_id
-  body: Means 'lgID' (obfuscated to 'liga_id').
+- physical_name: liga_id
+  summary: liga_id is the league abbreviation of a mannschaften standing.
+  body: Text league code (samples 'NHA', 'NHL', 'WHA', 'PCHA', 'WCHL').
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mannschaft_id
-  summary: tmID — mannschaften.mannschaft_id
-  body: Means 'tmID' (obfuscated to 'mannschaft_id').
+- physical_name: mannschaft_id
+  summary: mannschaft_id is the team code a mannschaften standing belongs to for that season.
+  body: >
+    Three-letter code, unique per season but reused by different franchises over time and
+    changeable when one franchise relocates or rebrands.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: franchise_id
-  summary: franchID — mannschaften.franchise_id
-  body: Means 'franchID' (obfuscated to 'franchise_id').
+- physical_name: franchise_id
+  summary: franchise_id is the franchise identifier that stays constant across a mannschaften
+    team's relocations and rebrandings.
+  body: >
+    Three-letter franchise code (samples 'BKN', 'MTL', 'TBS', 'MOS', 'MTW'); use this rather than
+    mannschaft_id to track one organization's history across seasons where mannschaft_id changed.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: konferenz_id
-  summary: confID — mannschaften.konferenz_id
-  body: Means 'confID' (obfuscated to 'konferenz_id').
+- physical_name: konferenz_id
+  summary: konferenz_id is the conference code a mannschaften team was assigned to that season.
+  body: >
+    Short code (samples 'EC', 'WC', 'WA', 'CC'); join to abkuerzungen for the full conference
+    name. Null for seasons or leagues that did not use a conference split.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: division_id
-  summary: divID — mannschaften.division_id
-  body: Means 'divID' (obfuscated to 'division_id').
+- physical_name: division_id
+  summary: division_id is the division code a mannschaften team was assigned to that season.
+  body: >
+    Short code (samples 'NE', 'PC', 'SE', 'NW', 'AT'); join to abkuerzungen for the full division
+    name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rang
-  summary: rank — mannschaften.rang
-  body: Final standing/rank of the team in the season; rank = 1 is first place.
+- physical_name: rang
+  summary: rang is the team's final league or division standing on mannschaften that season.
+  body: Small integer rank, 1 being first place.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: playoff
-  summary: playoff — mannschaften.playoff
-  body: Means 'playoff' (obfuscated to 'playoff').
+- physical_name: playoff
+  summary: playoff is the short code for how far a mannschaften team advanced in the postseason.
+  body: >
+    Short code (samples 'CF', 'CQF', 'CSF', 'SC', 'F'); join to abkuerzungen for the full playoff
+    result name. Null for a team that did not make the postseason.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tore
-  summary: G — mannschaften.tore
-  body: Means 'G' (obfuscated to 'tore').
+- physical_name: tore
+  summary: tore is the number of games the team played that season on mannschaften.
+  body: A count of games, not goals; goals scored and allowed are tore_fuer and tore_gegen.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: siege
-  summary: w — mannschaften.siege
-  body: Means 'w' (obfuscated to 'siege').
+- physical_name: siege
+  summary: siege is the number of games the team won that season on mannschaften.
+  body: Small integer count of season wins.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: niederlagen
-  summary: l — mannschaften.niederlagen
-  body: Means 'l' (obfuscated to 'niederlagen').
+- physical_name: niederlagen
+  summary: niederlagen is the number of games the team lost that season on mannschaften.
+  body: Small integer count of season losses.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: unentschieden
-  summary: t — mannschaften.unentschieden
-  body: Means 't' (obfuscated to 'unentschieden').
+- physical_name: unentschieden
+  summary: unentschieden is the number of games the team tied that season on mannschaften.
+  body: Small integer count of season ties; zero in eras without tie games.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: verlaengerte_niederlagen
-  summary: OTL — mannschaften.verlaengerte_niederlagen
-  body: Means 'OTL' (obfuscated to 'verlaengerte_niederlagen').
+- physical_name: verlaengerte_niederlagen
+  summary: verlaengerte_niederlagen is the number of overtime losses the team had that season on
+    mannschaften.
+  body: >
+    Small integer count, only nonzero in eras with an overtime-loss rule that awards a standings
+    point for a loss in overtime.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: punkte
-  summary: Pts — mannschaften.punkte
-  body: Means 'Pts' (obfuscated to 'punkte').
+- physical_name: punkte
+  summary: punkte is the team's total standings points for the season on mannschaften.
+  body: >
+    Integer total combining wins, ties and overtime losses under the league's points system for
+    that era; the exact formula varies by season and league.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: shootout_siege
-  summary: SoW — mannschaften.shootout_siege
-  body: Means 'SoW' (obfuscated to 'shootout_siege').
+- physical_name: shootout_siege
+  summary: shootout_siege is the number of games the team won in a shootout that season on
+    mannschaften.
+  body: Small integer count, only populated in the NHL's shootout era (2005 onward).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: shootout_niederlagen
-  summary: SoL — mannschaften.shootout_niederlagen
-  body: Means 'SoL' (obfuscated to 'shootout_niederlagen').
+- physical_name: shootout_niederlagen
+  summary: shootout_niederlagen is the number of games the team lost in a shootout that season on
+    mannschaften.
+  body: Small integer count, only populated in the NHL's shootout era (2005 onward).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tore_fuer
-  summary: GF — mannschaften.tore_fuer
-  body: Means 'GF' (obfuscated to 'tore_fuer').
+- physical_name: tore_fuer
+  summary: tore_fuer is the total goals the team scored that season on mannschaften.
+  body: Integer season total.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tore_gegen
-  summary: GA — mannschaften.tore_gegen
-  body: Means 'GA' (obfuscated to 'tore_gegen').
+- physical_name: tore_gegen
+  summary: tore_gegen is the total goals the team allowed that season on mannschaften.
+  body: Integer season total.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: name
-  summary: name — mannschaften.name
-  body: Team name (e.g. 'Boston Bruins', 'New York Rangers').
+- physical_name: name
+  summary: name is the team's full name on a mannschaften row.
+  body: >
+    Free text full team name (samples 'Cobalt Silver Kings', 'Haileybury Hockey Club', 'Les
+    Canadiens', 'Montreal Shamrocks', 'Montreal Wanderers'); can change across seasons for the
+    same mannschaft_id or franchise_id when a team rebrands.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: strafminuten
-  summary: PIM — mannschaften.strafminuten
-  body: Means 'PIM' (obfuscated to 'strafminuten').
+- physical_name: strafminuten
+  summary: strafminuten is the team's total penalty minutes for the season on mannschaften.
+  body: Integer total penalty minutes served across the season.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: bank_minor
-  summary: BenchMinor — mannschaften.bank_minor
-  body: Bench-minor penalties committed by a player or coach not on the ice.
+- physical_name: bank_minor
+  summary: bank_minor is the team's total bench-minor penalty minutes for the season on
+    mannschaften.
+  body: >
+    Integer minutes from bench-minor penalties (a minor penalty charged to the bench rather than
+    a specific player on the ice), separate from strafminuten's overall total.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ueberzahl_tore
-  summary: PPG — mannschaften.ueberzahl_tore
-  body: Power-play goals scored by the team.
+- physical_name: ueberzahl_tore
+  summary: ueberzahl_tore is the team's power-play goals scored for the season on mannschaften.
+  body: Integer count of goals scored with a man advantage.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ueberzahl_chancen
-  summary: PPC — mannschaften.ueberzahl_chancen
-  body: Power-play chances; power-play conversion = ueberzahl_tore / ueberzahl_chancen.
+- physical_name: ueberzahl_chancen
+  summary: ueberzahl_chancen is the team's power-play chances for the season on mannschaften.
+  body: >
+    Integer count of power-play opportunities; divide ueberzahl_tore by this to get a power-play
+    conversion rate.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: unterzahl_assists
-  summary: SHA — mannschaften.unterzahl_assists
-  body: Means 'SHA' (obfuscated to 'unterzahl_assists').
+- physical_name: unterzahl_assists
+  summary: unterzahl_assists is the team's shorthanded goals allowed for the season on
+    mannschaften.
+  body: >
+    Despite the assists-suggesting name, this holds shorthanded goals against (goals the opponent
+    scored while this team was shorthanded), not an assist count.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: unterzahl_tore
-  summary: SHG — mannschaften.unterzahl_tore
-  body: Means 'SHG' (obfuscated to 'unterzahl_tore').
+- physical_name: unterzahl_tore
+  summary: unterzahl_tore is the team's power-play goals allowed while killing a penalty for the
+    season on mannschaften.
+  body: Integer count of goals the opponent scored on the power play against this team.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: unterzahl_chancen
-  summary: PKC — mannschaften.unterzahl_chancen
-  body: Means 'PKC' (obfuscated to 'unterzahl_chancen').
+- physical_name: unterzahl_chancen
+  summary: unterzahl_chancen is the team's penalty-kill chances for the season on mannschaften.
+  body: Integer count of times this team had to kill a penalty during the season.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ueberzahl_fuer
-  summary: SHF — mannschaften.ueberzahl_fuer
-  body: Means 'SHF' (obfuscated to 'ueberzahl_fuer').
+- physical_name: ueberzahl_fuer
+  summary: ueberzahl_fuer is the team's shorthanded goals scored for the season on mannschaften.
+  body: >
+    Despite the power-play-suggesting prefix, this holds shorthanded goals for (scored by this
+    team while it was itself shorthanded), not a power-play total.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mannschafts_verluste
-  summary: mannschafts_verluste — mannschaften.mannschafts_verluste
-  body: 'Physical column ''mannschafts_verluste''. DECOY column: not a real business
-    field. Fabricated to mimic ''L''. Corruption operator ''sparse_perturb'': values
-    are altered. Do NOT use it to answer questions.'
+- physical_name: mannschafts_verluste
+  summary: mannschafts_verluste is an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''L''. Corruption
-      operator ''sparse_perturb'': values are altered. Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mannschaftssiege
-  summary: mannschaftssiege — mannschaften.mannschaftssiege
-  body: 'Physical column ''mannschaftssiege''. DECOY column: not a real business field.
-    Fabricated to mimic ''W''. Corruption operator ''sparse_perturb'': values are
-    altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: mannschaftssiege
+  summary: mannschaftssiege is an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''W''. Corruption
-      operator ''sparse_perturb'': values are altered. Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: liga_bezug
-  summary: liga_bezug — mannschaften.liga_bezug
-  body: 'Physical column ''liga_bezug''. DECOY column: not a real business field.
-    Fabricated to mimic ''lgID''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: liga_bezug
+  summary: liga_bezug is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''lgID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Team season record, grain = one team (mannschaft_id) in one season (jahr) and
-  league. Holds standings (rank, wins, losses, ties, points), goals for/against, penalty
-  minutes and special-teams totals, plus playoff qualification flag.
+    - information_schema

@@ -1,22 +1,29 @@
 asset_type: schema
 id: card_games
 name: card_games
-summary: 'card_games: 6 tables — cards, foreign_data, legalities, rulings, set_translations,
-  sets'
+summary: >-
+  card_games is a Magic: The Gathering trading-card database: card printings, rules text, mana
+  costs, set releases, tournament format legality, official rulings, and foreign-language
+  translations of cards and sets.
+body: >
+  Sourced from MTGJSON's card and set catalog. cards is the hub: it holds one row per card
+  printing, not per unique card name, and joins to sets and set_translations on setCode, and to
+  foreign_data, legalities, and rulings on uuid. A card's stable identifier is uuid; id is only a
+  load-time row number and is not stable across loads. Sets are identified by the short code
+  column, not by their own id. Every table in this schema carries one or more unreliable twin
+  columns whose name resembles a real column or table but whose values do not; card_collections
+  and collection_translations are themselves such twins of sets and set_translations.
+rules:
+- Join card printings to their translations and rulings through uuid (foreign_data, legalities,
+  rulings) or setCode (sets, set_translations); never through a twin such as card_uuid,
+  foreign_uuid, legality_uuid, ruling_uuid, set_tag, set_code, set_id, translation_id, or
+  translated_set_code, none of which track the real data.
+- Do not query card_collections or collection_translations for set or translation facts -- both
+  tables are unreliable end to end; use sets and set_translations instead.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'A Magic: The Gathering trading-card catalog (MTGJSON-style). It holds individual
-  cards and their printings, the sets/expansions they belong to, foreign-language
-  translations of cards and set names, tournament format legalities, and official
-  rulings.'
-rules:
-- A card is deemed 'powerful' / 'incredibly powerful' only when BOTH cardKingdomId
-  AND cardKingdomFoilId are non-null.
-- Cards link to their foreign translations, legalities, and rulings via uuid; a card
-  belongs to a set via cards.setCode = sets.code.
+    - information_schema

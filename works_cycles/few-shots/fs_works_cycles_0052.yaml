@@ -1,18 +1,17 @@
 asset_type: few_shot
 id: fs_works_cycles_0052
 schema: works_cycles
-sql: SELECT "Status" FROM "works_cycles"."SalesOrderHeader" ORDER BY "Freight" DESC
-  NULLS LAST LIMIT 1
-summary: What is the current status of the order with the highest shipping cost?
-body: 'Question: What is the current status of the order with the highest shipping
-  cost?
+sql: SELECT CAST(SUM(CASE WHEN "OrderQty" < 3 AND "UnitPriceDiscount" = 0.2 THEN 1 ELSE 0 END) AS REAL)
+  / NULLIF(COUNT("SalesOrderID"), 0) FROM "works_cycles"."SalesOrderDetail"
+summary: What is the percentage, by number of sales order units, for orders with quantities not greater
+  than 3 and a discount of 0.2?
+body: 'Question: What is the percentage, by number of sales order units, for orders with quantities not
+  greater than 3 and a discount of 0.2?
 
   SQL:
 
-  SELECT "Status" FROM "works_cycles"."SalesOrderHeader" ORDER BY "Freight" DESC NULLS
-  LAST LIMIT 1'
-complexity: simple
-confidence: 0.55
+  SELECT CAST(SUM(CASE WHEN "OrderQty" < 3 AND "UnitPriceDiscount" = 0.2 THEN 1 ELSE 0 END) AS REAL) /
+  NULLIF(COUNT("SalesOrderID"), 0) FROM "works_cycles"."SalesOrderDetail"'
 audit:
   provenance:
     source: gold
@@ -20,4 +19,4 @@ audit:
     version: harvest-1
     source_refs:
     - train_final.jsonl
-  evidence: gold train Q train_7278; 1 question(s) share this shape
+  evidence: train question train_7086

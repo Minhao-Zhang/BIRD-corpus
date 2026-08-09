@@ -2,142 +2,94 @@ asset_type: table
 id: donor.ziyuan_biao
 schema: donor
 physical_name: ziyuan_biao
-summary: 'resources (ziyuan_biao): resourceid, projectid, vendorid, vendor_name, project_resource_type,
-  item_name, item_number, item_unit_price, item_quantity'
+summary: ziyuan_biao holds one row per resource line item a project requested, recording the vendor, item, unit price, and quantity.
+body: >
+  Grain: one row per requested resource line, keyed by ziyuan_id; a single project can request
+  several lines, so this table is the many side of its join back to a project. Join to
+  xiangmu_biao on xiangmu_id for the project's teacher, school, and cost, and to luwen_biao on
+  xiangmu_id for that project's essay. This table's xiangmu_ziyuan_leibie categorizes one
+  requested item; it is distinct from xiangmu_biao.ziyuan_leibie, the project's own overall
+  resource category, and the two need not agree.
 columns:
-- asset_type: column
-  physical_name: ziyuan_id
-  summary: resourceid — ziyuan_biao.ziyuan_id
-  body: Means 'resourceid' (obfuscated to 'ziyuan_id').
+- physical_name: ziyuan_id
+  summary: The unique identifier for a requested resource line, ziyuan_id.
+  body: >
+    An opaque hexadecimal id, one per row in this table (500 distinct in a 500-row sample).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xiangmu_id
-  summary: projectid — ziyuan_biao.xiangmu_id
-  body: Means 'projectid' (obfuscated to 'xiangmu_id').
+- physical_name: xiangmu_id
+  summary: The project that requested a resource, xiangmu_id.
+  body: >
+    Join to xiangmu_biao.xiangmu_id (one project per id) or luwen_biao.xiangmu_id (that
+    project's essay). Many resource rows can share one xiangmu_id, since a project typically
+    requests several items.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: gongying_shangid
-  summary: vendorid — ziyuan_biao.gongying_shangid
-  body: Means 'vendorid' (obfuscated to 'gongying_shangid').
+- physical_name: gongying_shangid
+  summary: The identifier of the vendor supplying a resource, gongying_shangid.
+  body: >
+    A numeric id, from 150 to 954 in the sample, shared by every line item bought from the
+    same vendor. Blank on rows where no vendor was recorded.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: gongying_shangmingcheng
-  summary: vendor_name — ziyuan_biao.gongying_shangmingcheng
-  body: Means 'vendor_name' (obfuscated to 'gongying_shangmingcheng').
+- physical_name: gongying_shangmingcheng
+  summary: The name of the vendor supplying a resource, gongying_shangmingcheng.
+  body: >
+    Free-text vendor name, one of about 25 in the sample, such as Amazon, "Lakeshore Learning
+    Materials", "Sax Arts & Crafts", "Woodwind and Brasswind", or "Best Buy for Business".
+    Blank whenever gongying_shangid is blank.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xiangmu_ziyuan_leibie
-  summary: project_resource_type — ziyuan_biao.xiangmu_ziyuan_leibie
-  body: Type of resource requested for the project, e.g. 'Technology'.
+- physical_name: xiangmu_ziyuan_leibie
+  summary: The category of a single requested resource line, xiangmu_ziyuan_leibie.
+  body: >
+    One of 5 values: Technology, Supplies, Other, Books, or Trips. Answers "type of resource"
+    or "resource type" questions about one line item; distinct from
+    xiangmu_biao.ziyuan_leibie, which categorizes the project as a whole.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: wupin_mingcheng
-  summary: item_name — ziyuan_biao.wupin_mingcheng
-  body: Means 'item_name' (obfuscated to 'wupin_mingcheng').
+- physical_name: wupin_mingcheng
+  summary: The name of a requested item, wupin_mingcheng.
+  body: >
+    Free-text product name, for example "iPod nano 4th Gen 8GB (Black)", "Sony bloggie
+    MHS-FS1 - camcorder", or "VX748 - Best-Buy Jumbo Crayons - 12-Color Box" (462 distinct in
+    the sample). Blank whenever wupin_bianhao is blank.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: wupin_bianhao
-  summary: item_number — ziyuan_biao.wupin_bianhao
-  body: Means 'item_number' (obfuscated to 'wupin_bianhao').
+- physical_name: wupin_bianhao
+  summary: The vendor's item or SKU number for a requested item, wupin_bianhao.
+  body: >
+    Free-text catalog code such as VX748, LA138, or BB11216668, unique to the vendor's own
+    numbering rather than to this database. Blank on rows without a recorded vendor.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: wupin_danwei_jiage
-  summary: item_unit_price — ziyuan_biao.wupin_danwei_jiage
-  body: Unit price of the requested item, in US dollars.
+- physical_name: wupin_danwei_jiage
+  summary: The unit price of a requested item, wupin_danwei_jiage.
+  body: >
+    A dollar amount per unit, from about 0.62 to 99.5 in the sample. Multiply by
+    wupin_shuliang for the line's total cost.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: wupin_shuliang
-  summary: item_quantity — ziyuan_biao.wupin_shuliang
-  body: Quantity of the requested item.
+- physical_name: wupin_shuliang
+  summary: The quantity of a requested item, wupin_shuliang.
+  body: >
+    A whole-number count, from 1 to 25 in the sample (typically small, 1 to 8). "The project
+    with the highest quantity" compares this column across rows.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per requested resource line item (grain: resourceid) listing vendor,
-  item name, unit price, and quantity for a project. Many resource rows map to one
-  project; do not treat it as project- or donation-level.'
+    - information_schema

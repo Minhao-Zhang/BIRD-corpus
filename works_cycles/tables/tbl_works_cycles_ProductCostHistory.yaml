@@ -2,149 +2,93 @@ asset_type: table
 id: works_cycles.ProductCostHistory
 schema: works_cycles
 physical_name: ProductCostHistory
-summary: 'ProductCostHistory (ProductCostHistory): ProductID, StartDate, EndDate,
-  StandardCost, ModifiedDate'
+summary: ProductCostHistory tracks how a product's standard manufacturing cost has changed over
+  time in the works_cycles bicycle manufacturing schema.
+body: >
+  One row per effective-dated cost period per product; a cost change closes one row and opens
+  another. Join ProductID to Product for the item. The current cost is the row whose EndDate is
+  null — 195 of 395 rows in this sample have a null EndDate. Distinct from ProductListPriceHistory,
+  which tracks the customer-facing selling price rather than the internal manufacturing cost.
 columns:
-- asset_type: column
-  physical_name: ProductID
-  summary: ProductID — ProductCostHistory.ProductID
-  body: Means 'ProductID' (obfuscated to 'ProductID').
+- physical_name: ProductID
+  summary: ProductID identifies the product a ProductCostHistory row describes.
+  body: >
+    Integer foreign key to Product, 293 distinct values observed in this sample. A product can
+    have several rows here, one per cost period.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: StartDate
-  summary: StartDate — ProductCostHistory.StartDate
-  body: Means 'StartDate' (obfuscated to 'StartDate').
+- physical_name: StartDate
+  summary: StartDate is when a cost on a ProductCostHistory row took effect.
+  body: >
+    Calendar date, only 3 distinct values (2011-05-31, 2012-05-30, 2013-05-30) observed in this
+    sample, suggesting costs are revised on an annual schedule. Paired with EndDate to bound the
+    period.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: EndDate
-  summary: EndDate — ProductCostHistory.EndDate
-  body: Means 'EndDate' (obfuscated to 'EndDate').
+- physical_name: EndDate
+  summary: EndDate is when a cost on a ProductCostHistory row stopped applying.
+  body: >
+    Calendar date, null on 195 of 395 rows in this sample, meaning the cost is still current.
+    Filter on EndDate IS NULL to find a product's current standard cost.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: StandardCost
-  summary: StandardCost — ProductCostHistory.StandardCost
-  body: Means 'StandardCost' (obfuscated to 'StandardCost').
+- physical_name: StandardCost
+  summary: StandardCost is the internal manufacturing cost recorded on a ProductCostHistory row.
+  body: >
+    Decimal currency amount, observed from 0.8565 to 2171.2942 in this sample. The cost basis
+    used for margin calculations against ListPrice on Product, not the price charged to
+    customers.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ModifiedDate
-  summary: ModifiedDate — ProductCostHistory.ModifiedDate
-  body: Means 'ModifiedDate' (obfuscated to 'ModifiedDate').
+- physical_name: ModifiedDate
+  summary: ModifiedDate records when a ProductCostHistory row was last updated.
+  body: >
+    Timestamp, observed between 2012-05-29 and 2013-05-29 in this sample. Reflects the last edit
+    to the row, not StartDate or EndDate.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: product_cost_product_id
-  summary: product_cost_product_id — ProductCostHistory.product_cost_product_id
-  body: 'Physical column ''product_cost_product_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''ProductID''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: product_cost_product_id
+  summary: product_cost_product_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ProductID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: product_standard_cost
-  summary: product_standard_cost — ProductCostHistory.product_standard_cost
-  body: 'Physical column ''product_standard_cost''. DECOY column: not a real business
-    field. Fabricated to mimic ''StandardCost''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: product_standard_cost
+  summary: product_standard_cost, a decimal column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: real
   logical_type: decimal
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''StandardCost''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: product_cost_end_date
-  summary: product_cost_end_date — ProductCostHistory.product_cost_end_date
-  body: 'Physical column ''product_cost_end_date''. DECOY column: not a real business
-    field. Fabricated to mimic ''EndDate''. Corruption operator ''sparse_date_offset'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: product_cost_end_date
+  summary: product_cost_end_date, a date column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: date
   logical_type: date
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''EndDate''.
-      Corruption operator ''sparse_date_offset'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: History of a product's standard cost over time. Grain is ProductID + StartDate;
-  the row with EndDate NULL is the current standard cost.
+    - train_final.jsonl

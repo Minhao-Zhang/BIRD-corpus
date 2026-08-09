@@ -2,122 +2,84 @@ asset_type: table
 id: university.universidad
 schema: university
 physical_name: universidad
-summary: 'university (universidad): id, country_id, university_name'
+summary: universidad holds one row per university, recording its name and the country it is located in.
+body: >
+  Grain: one row per university, keyed by id. This is the table to start from for any question
+  about a university's identity or country. Join to pais on pais_id = id (many universities
+  share one country) to bring in the country name, to universidad_anio on id = universidad_id
+  (one row per year for this university) to bring in enrollment and student mix, and to
+  ranking_universidad_anio on id = universidad_id to bring in ranking scores. id_pais_universidad,
+  id_universidad, and nombre_institucion look like a country reference, a row id, and a name
+  column but are unreliable and should not be used in a query.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — universidad.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: The unique identifier for a university, id.
+  body: >
+    A numeric id, unique per row in this table. Join to universidad_anio.universidad_id and
+    ranking_universidad_anio.universidad_id to bring in this university's yearly stats and
+    ranking scores.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pais_id
-  summary: country_id — universidad.pais_id
-  body: Means 'country_id' (obfuscated to 'pais_id').
+- physical_name: pais_id
+  summary: The country a university is located in, pais_id.
+  body: >
+    Foreign key to pais.id (58 distinct countries in the sample). Join to pais to resolve this
+    to a country name for filtering or grouping by country.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre_universidad
-  summary: university_name — universidad.nombre_universidad
-  body: Means 'university_name' (obfuscated to 'nombre_universidad').
+- physical_name: nombre_universidad
+  summary: The name of a university, nombre_universidad.
+  body: >
+    Free-text university name, for example Prince of Songkla University, Tokyo University of
+    Marine Science and Technology, or University of Westminster (500 distinct values in the
+    sample). Matched against literal institution names in questions, such as Harvard
+    University, Stanford University, Yale University, Brown University, Emory University,
+    University of Oxford, or University of São Paulo — an accented value that some question
+    text renders with garbled encoding but that is stored here with the correct accent.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_pais_universidad
-  summary: id_pais_universidad — universidad.id_pais_universidad
-  body: 'Physical column ''id_pais_universidad''. DECOY column: not a real business
-    field. Fabricated to mimic ''country_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: id_pais_universidad
+  summary: id_pais_universidad, a numeric column on the universidad table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''country_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_universidad
-  summary: id_universidad — universidad.id_universidad
-  body: 'Physical column ''id_universidad''. DECOY column: not a real business field.
-    Fabricated to mimic ''id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: id_universidad
+  summary: id_universidad, a numeric column on the universidad table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''id''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre_institucion
-  summary: nombre_institucion — universidad.nombre_institucion
-  body: 'Physical column ''nombre_institucion''. DECOY column: not a real business
-    field. Fabricated to mimic ''university_name''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: nombre_institucion
+  summary: nombre_institucion, a text column on the universidad table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''university_name''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per university (grain: university). Holds the university name and a
-  foreign key to its country. Static attributes only; enrollment and scores that change
-  by year live in universidad_anio and ranking_universidad_anio.'
+    - information_schema

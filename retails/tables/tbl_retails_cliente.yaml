@@ -2,196 +2,124 @@ asset_type: table
 id: retails.cliente
 schema: retails
 physical_name: cliente
-summary: 'customer (cliente): o_custkey, c_mktsegment, s_nationkey, s_name, s_address,
-  s_phone, s_acctbal, s_comment'
+summary: cliente holds one row per customer, recording their market segment, nation, address, phone, account balance, and comment.
+body: >
+  Grain: one row per customer, keyed by id_cliente. Join to pais on id_pais to reach the
+  customer's nation (and from there, region), and to pedidos on id_cliente to reach the orders
+  that customer placed. The customer's printed name, nombre, embeds the same id_cliente as
+  "Customer#" plus a zero-padded number. Alongside the columns above, this table also carries
+  codigo_cliente, codigo_pais, and saldo_disponible; none of the three is dependable for
+  analysis, and each carries its own reliability note.
 columns:
-- asset_type: column
-  physical_name: id_cliente
-  summary: o_custkey — cliente.id_cliente
-  body: Means 'o_custkey' (obfuscated to 'id_cliente').
+- physical_name: id_cliente
+  summary: The unique identifier for a customer, id_cliente.
+  body: >
+    Numeric identifier, one distinct value per row in this table. The same number reappears in
+    nombre as "Customer#" followed by id_cliente zero-padded to nine digits, for example
+    id_cliente 6958 shows up as Customer#000006958. Join to pedidos.id_cliente (one customer to
+    many orders).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: segmento_mercado
-  summary: c_mktsegment — cliente.segmento_mercado
-  body: Market segment code, English uppercase enum, e.g. 'HOUSEHOLD', 'AUTOMOBILE',
-    'FURNITURE', 'BUILDING'.
+- physical_name: segmento_mercado
+  summary: The market segment a customer belongs to, segmento_mercado.
+  body: >
+    One of five values in the sample: AUTOMOBILE, BUILDING, FURNITURE, HOUSEHOLD, or MACHINERY.
+    Business language calls this a customer's market segment or marketing segment; a phrase
+    like "automobile market segment" or "household segment" is a filter on this column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_pais
-  summary: s_nationkey — cliente.id_pais
-  body: Means 's_nationkey' (obfuscated to 'id_pais').
+- physical_name: id_pais
+  summary: The nation a customer belongs to, id_pais.
+  body: >
+    Foreign key to pais.id_pais. Nations are numbered 0 through 24 in this corpus, matching the
+    25 rows of pais. Join to pais to bring in the nation's name and, from there, its region.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre
-  summary: s_name — cliente.nombre
-  body: Customer name, formatted like 'Customer#000000013'.
+- physical_name: nombre
+  summary: A customer's printed name, nombre.
+  body: >
+    Formatted as "Customer#" followed by id_cliente zero-padded to nine digits, for example
+    Customer#000001161 for id_cliente 1161. Business language calls this the customer's name,
+    or sometimes just "cliente"; a literal like Customer#000000055 names one specific row.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: direccion
-  summary: s_address — cliente.direccion
-  body: Means 's_address' (obfuscated to 'direccion').
+- physical_name: direccion
+  summary: A customer's street address, direccion.
+  body: >
+    Free-text address string with no fixed format, randomly generated rather than a real
+    street address, for example "YVetSIJBY5Q" or "2zsQDFRzcKTOom".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: telefono
-  summary: s_phone — cliente.telefono
-  body: Means 's_phone' (obfuscated to 'telefono').
+- physical_name: telefono
+  summary: A customer's phone number, telefono.
+  body: >
+    Formatted NNN-NNN-NNNN. Sample values range from "101-234-5641" to "999-714-8745"; the
+    leading digits loosely track the customer's nation code plus 10.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: saldo_cuenta
-  summary: s_acctbal — cliente.saldo_cuenta
-  body: Customer account balance in currency units; negative values mean the account
-    is in debt.
+- physical_name: saldo_cuenta
+  summary: A customer's account balance, saldo_cuenta.
+  body: >
+    Decimal currency amount. A negative value such as -185.56 means the account is in debt
+    (saldo_cuenta < 0); a value like 9986.91 is a healthy balance. This is the reliable balance
+    column on this table.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: comentario
-  summary: s_comment — cliente.comentario
-  body: Means 's_comment' (obfuscated to 'comentario').
+- physical_name: comentario
+  summary: A free-text comment recorded for a customer, comentario.
+  body: >
+    Auto-generated filler sentences with no structured business meaning, for example "finally
+    pending accounts about t" or "slyly pending deposits wake bl". Not useful for filtering or
+    joins.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_cliente
-  summary: codigo_cliente — cliente.codigo_cliente
-  body: 'Physical column ''codigo_cliente''. DECOY column: not a real business field.
-    Fabricated to mimic ''c_custkey''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: codigo_cliente
+  summary: codigo_cliente, a numeric column on the cliente table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''c_custkey''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_pais
-  summary: codigo_pais — cliente.codigo_pais
-  body: 'Physical column ''codigo_pais''. DECOY column: not a real business field.
-    Fabricated to mimic ''c_nationkey''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: codigo_pais
+  summary: codigo_pais, a numeric column on the cliente table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''c_nationkey''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: saldo_disponible
-  summary: saldo_disponible — cliente.saldo_disponible
-  body: 'Physical column ''saldo_disponible''. DECOY column: not a real business field.
-    Fabricated to mimic ''c_acctbal''. Corruption operator ''sparse_perturb'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: saldo_disponible
+  summary: saldo_disponible, a decimal column on the cliente table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: real
   logical_type: decimal
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''c_acctbal''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Customers. One row per customer (id_cliente). Holds market segment, account
-  balance, contact info, and a nation key (id_pais). Shares column names (nombre,
-  saldo_cuenta, telefono, direccion) with proveedor (suppliers) but is a distinct
-  entity; nombre here holds 'Customer#...' names.
+    - information_schema

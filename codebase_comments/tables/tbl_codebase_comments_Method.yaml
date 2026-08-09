@@ -2,158 +2,106 @@ asset_type: table
 id: codebase_comments.Method
 schema: codebase_comments
 physical_name: Method
-summary: 'Method (Method): Id, Name, FullComment, Summary, ApiCalls, CommentIsXml,
-  SampledAt, SolutionId, Lang, NameTokenized'
+summary: "Method: one row per source-code method sampled from a solution codebase, with its
+  name, comment, summary, language and call sequence."
+body: "One row per method sampled from the codebase of a Visual Studio solution. Each row
+  belongs to exactly one solution through SolutionId, which joins to Solution.Id. A method's
+  declared parameters are recorded separately, one row per parameter, in MethodParameter, linked
+  back here by MethodId. Do not confuse this table's own Id, the method's own identifier, with
+  SolutionId, the identifier of the solution it belongs to."
 columns:
-- asset_type: column
-  physical_name: Id
-  summary: Id — Method.Id
-  body: Means 'Id' (obfuscated to 'Id').
+- physical_name: Id
+  summary: "Id: the surrogate integer key that uniquely identifies a sampled method."
+  body: "Primary key of Method, assigned when the method was sampled. Referenced by
+    MethodParameter.MethodId to attach a parameter to the method that declares it."
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Name
-  summary: Name — Method.Name
-  body: Fully qualified method name; the 'task' of the method is the second dot-separated
-    part of this name.
+- physical_name: Name
+  summary: "Name: the fully qualified, dot-delimited identifier of a method in its source
+    repository."
+  body: "A period-delimited path such as HtmlSharp.HtmlParser.Feed or
+    IQ.Data.DbQueryProvider.GetQueryText. The segment after the leading namespace names the
+    class and the specific action the method performs, which a question means by the method's
+    task. Distinct from NameTokenized, which lower-cases and space-separates this same name for
+    text search."
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: FullComment
-  summary: FullComment — Method.FullComment
-  body: Full comment text attached to the method.
+- physical_name: FullComment
+  summary: "FullComment: the raw source-code comment text captured for a method."
+  body: "Verbatim comment text extracted from the method's source, which may span multiple lines
+    and may be formatted as XML documentation (see CommentIsXml) with tags such as <summary>.
+    Distinct from Summary, which is a shorter, cleaned-up description rather than the raw
+    comment. Sample values range from short phrases like 'Feeds data into the parser' to raw XML
+    doc blocks; the column is never null in the sampled rows."
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Summary
-  summary: Summary — Method.Summary
-  body: Short summary text of the method comment.
+- physical_name: Summary
+  summary: "Summary: a short natural-language description of what a method does."
+  body: "A cleaned, human-readable synopsis of the method's behavior, distinct from the raw
+    FullComment it is derived from. About 28% of sampled rows are null when no usable summary
+    could be extracted from the comment. Sample values include 'Execute the query expression'
+    and 'Convert the query expression into an execution plan'."
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ApiCalls
-  summary: ApiCalls — Method.ApiCalls
-  body: Linearized sequence of API calls made by the method.
+- physical_name: ApiCalls
+  summary: "ApiCalls: the linearized sequence of API and method calls made inside a method
+    body."
+  body: "A single space-separated text field listing, in call order, the fully qualified names
+    of the other methods and APIs a method invokes, for example System.String.IsNullOrEmpty or
+    IQ.Data.DbQueryProvider.Translate. Used to profile a method's runtime behavior rather than
+    its documentation."
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: CommentIsXml
-  summary: CommentIsXml — Method.CommentIsXml
-  body: 'XML-comment flag: 1 = the method comment is in XML format, 0 = it is not.'
+- physical_name: CommentIsXml
+  summary: "CommentIsXml: a flag for whether a method's recorded comment is written in XML
+    documentation format."
+  body: "Coded 0/1. 0 means the comment recorded in FullComment is not XML-formatted, 1 means it
+    is (for example, wrapped in <summary> tags). Training questions phrase both boundary
+    conditions directly as CommentIsXml = 0 and CommentIsXml = 1."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: SampledAt
-  summary: SampledAt — Method.SampledAt
-  body: Sampling time of the method, stored as a bigint magnitude.
+- physical_name: SampledAt
+  summary: "SampledAt: the timestamp recording when a method was sampled from its repository."
+  body: "A large integer .NET tick count (100-nanosecond intervals since 0001-01-01), not a Unix
+    timestamp. Sample values cluster tightly, for example 636430963695654788, reflecting the
+    batch window in which the underlying solutions were processed. MAX(SampledAt) identifies the
+    most recently sampled method."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: SolutionId
-  summary: SolutionId — Method.SolutionId
-  body: Means 'SolutionId' (obfuscated to 'SolutionId').
+- physical_name: SolutionId
+  summary: "SolutionId: the identifier of the solution that a method was sampled from."
+  body: "Foreign key joining to Solution.Id; every method belongs to exactly one solution. Not
+    to be confused with this table's own Id, which identifies the method row itself."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Lang
-  summary: Lang — Method.Lang
-  body: Language code of the method comment, e.g. 'en', 'zh-cn', 'sw', 'it'.
+- physical_name: Lang
+  summary: "Lang: the language code of the natural-language text in a method's comment."
+  body: "A short lowercase code such as en, fr, fi, it, af, ro, sw or zh-cn, detected from
+    FullComment. About 28% of sampled rows are null when no comment language could be detected.
+    English methods, the most common case in questions, are filtered with Lang = 'en'."
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: NameTokenized
-  summary: NameTokenized — Method.NameTokenized
-  body: Tokenized (space-separated, lower-cased) form of the method name, e.g. 'about
-    box1 dispose'.
+- physical_name: NameTokenized
+  summary: "NameTokenized: the tokenized, space-separated breakdown of a method's name."
+  body: "Derived from Name by splitting on dots and camel-case boundaries and lower-casing every
+    part, for example 'html parser feed' for HtmlSharp.HtmlParser.Feed. Used for text search and
+    readability rather than as a join key."
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per code method belonging to a solution (SolutionId -> Solution.Id).
-  Grain: method. Holds the method Name, tokenized name, comment text/summary, language,
-  XML-comment flag and API call sequence.'
+    - information_schema

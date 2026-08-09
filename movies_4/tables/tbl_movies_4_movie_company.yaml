@@ -2,86 +2,57 @@ asset_type: table
 id: movies_4.movie_company
 schema: movies_4
 physical_name: movie_company
-summary: 'movie_company (movie_company): movie_id, company_id'
+summary: movie_company records which production company or companies made each movie.
+body: >
+  One row per (movie_id, company_id) pairing; a movie with several production companies has
+  several rows. Joins to production_company.company_id for the company's name and to
+  movie.movie_id for the movie's title. company_ref_id and company_movie_id sit alongside the
+  real columns but do not correspond to the business facts this table records; do not join on
+  them.
 columns:
-- asset_type: column
-  physical_name: movie_id
-  summary: movie_id — movie_company.movie_id
-  body: Means 'movie_id' (obfuscated to 'movie_id').
+- physical_name: movie_id
+  summary: movie_id is the identifier of the movie a production credit belongs to.
+  body: >
+    Bigint foreign key to movie.movie_id.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: company_id
-  summary: company_id — movie_company.company_id
-  body: Means 'company_id' (obfuscated to 'company_id').
+- physical_name: company_id
+  summary: company_id is the identifier of the production company credited on a movie.
+  body: >
+    Bigint foreign key to production_company.company_id; movies sharing a company_id were made
+    by the same company.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: company_ref_id
-  summary: company_ref_id — movie_company.company_ref_id
-  body: 'Physical column ''company_ref_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''company_id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: company_ref_id
+  summary: company_ref_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''company_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: company_movie_id
-  summary: company_movie_id — movie_company.company_movie_id
-  body: 'Physical column ''company_movie_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''movie_id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: company_movie_id
+  summary: company_movie_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''movie_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: Bridge linking movies to the production companies that made them (movie_id to
-  company_id).
+    - train_final.jsonl

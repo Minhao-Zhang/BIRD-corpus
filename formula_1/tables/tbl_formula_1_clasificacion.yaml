@@ -2,211 +2,113 @@ asset_type: table
 id: formula_1.clasificacion
 schema: formula_1
 physical_name: clasificacion
-summary: 'qualifying (clasificacion): qualifyId, raceId, driverId, constructorId,
-  number, position, q1, q2, q3'
+summary: "clasificacion: qualifying results, one row per driver's qualifying session in a race."
+body: >-
+  One row per driver per race in qualifying. q1, q2, and q3 hold that driver's best lap time in
+  each qualifying segment; posicion is the resulting grid position. id_piloto_clasif,
+  id_carrera_clasif, and id_equipo_clasif repeat id_piloto/id_carrera/id_constructor but are
+  marked reliability: suspect and must not be used.
 columns:
-- asset_type: column
-  physical_name: id_clasificacion
-  summary: qualifyId — clasificacion.id_clasificacion
-  body: Means 'qualifyId' (obfuscated to 'id_clasificacion').
+- physical_name: id_clasificacion
+  summary: "id_clasificacion, the primary key identifying one qualifying record in clasificacion."
+  body: "A bigint surrogate key, one per driver-race qualifying row."
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_carrera
-  summary: raceId — clasificacion.id_carrera
-  body: Means 'raceId' (obfuscated to 'id_carrera').
+- physical_name: id_carrera
+  summary: "id_carrera, the foreign key identifying the race a qualifying record belongs to."
+  body: "Joins to carreras.id_carrera."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_piloto
-  summary: driverId — clasificacion.id_piloto
-  body: Means 'driverId' (obfuscated to 'id_piloto').
+- physical_name: id_piloto
+  summary: "id_piloto, the foreign key identifying the driver in a qualifying record."
+  body: "Joins to pilotos.id_piloto."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_constructor
-  summary: constructorId — clasificacion.id_constructor
-  body: Means 'constructorId' (obfuscated to 'id_constructor').
+- physical_name: id_constructor
+  summary: "id_constructor, the foreign key identifying the constructor a driver raced for in qualifying."
+  body: "Joins to constructores.id_constructor."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: numero
-  summary: number — clasificacion.numero
-  body: Means 'number' (obfuscated to 'numero').
+- physical_name: numero
+  summary: "numero, the car number used by a driver in qualifying."
+  body: "An integer racing number, e.g. 1, 18, 23."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: posicion
-  summary: position — clasificacion.posicion
-  body: Grid/qualifying position ranking (integer).
+- physical_name: posicion
+  summary: "posicion, the grid position a driver qualified in."
+  body: "An integer rank, 1 for pole position and increasing for slower qualifiers."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: q1
-  summary: q1 — clasificacion.q1
-  body: First qualifying period lap time, text in 'M:SS.mmm' format; slower/eliminated
-    drivers have the largest q1 values.
+- physical_name: q1
+  summary: "q1, a driver's best lap time in the first qualifying segment."
+  body: >-
+    Text formatted 'M:SS.mmm', e.g. '1:23.536'. Every driver who takes part in qualifying sets
+    a q1 time; Q1 eliminates the five slowest drivers from advancing to q2.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: q2
-  summary: q2 — clasificacion.q2
-  body: Second qualifying period lap time, text in 'M:SS.mmm' format; best time is
-    the minimum.
+- physical_name: q2
+  summary: "q2, a driver's best lap time in the second qualifying segment."
+  body: >-
+    Text formatted 'M:SS.mmm'. Only the fifteen drivers who advanced past q1 have a q2 value;
+    null otherwise (251 of the sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: q3
-  summary: q3 — clasificacion.q3
-  body: Third (final) qualifying period lap time, text in 'M:SS.mmm' format; pole/1st
-    is the minimum q3.
+- physical_name: q3
+  summary: "q3, a driver's best lap time in the third and final qualifying segment."
+  body: >-
+    Text formatted 'M:SS.mmm'. Only the ten drivers who advanced past q2 have a q3 value; null
+    otherwise (348 of the sampled rows). The smallest q3 time sets pole position.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_piloto_clasif
-  summary: id_piloto_clasif — clasificacion.id_piloto_clasif
-  body: 'Physical column ''id_piloto_clasif''. DECOY column: not a real business field.
-    Fabricated to mimic ''driverId''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: id_piloto_clasif
+  summary: "id_piloto_clasif, an integer column on the clasificacion table."
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. Although
+    its name suggests a foreign key, it must not be used to join to another table.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''driverId''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_carrera_clasif
-  summary: id_carrera_clasif — clasificacion.id_carrera_clasif
-  body: 'Physical column ''id_carrera_clasif''. DECOY column: not a real business
-    field. Fabricated to mimic ''raceId''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: id_carrera_clasif
+  summary: "id_carrera_clasif, an integer column on the clasificacion table."
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. Although
+    its name suggests a foreign key, it must not be used to join to another table.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''raceId''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_equipo_clasif
-  summary: id_equipo_clasif — clasificacion.id_equipo_clasif
-  body: 'Physical column ''id_equipo_clasif''. DECOY column: not a real business field.
-    Fabricated to mimic ''constructorId''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: id_equipo_clasif
+  summary: "id_equipo_clasif, an integer column on the clasificacion table."
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. Although
+    its name suggests a foreign key, it must not be used to join to another table.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''constructorId''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: 'Qualifying sessions: one row per driver per race qualifying, keyed by id_clasificacion.
-  Holds the three qualifying lap times q1/q2/q3, grid position and the driver/constructor.
-  Distinct from championship standings tables.'
+    - information_schema

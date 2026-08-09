@@ -1,21 +1,35 @@
 asset_type: schema
 id: law_episode
 name: law_episode
-summary: 'law_episode: 6 tables — Keyword, Episode, Award, Person, Vote, Credit'
+summary: >-
+  The law_episode database tracks episodes of the TV series Law and Order — titles, air
+  dates, seasons, viewer ratings and vote counts, keyword topics, awards and nominations, and
+  the cast and crew credited on each episode.
+body: >
+  All rows describe a single ninth-season run of Law and Order. ji_pian is the episode
+  spine — one row per episode, carrying title, season and episode number, air date, plot
+  summary, an image link, and the aggregate rating and vote total. guan_jian_ci tags each
+  episode with the topical keywords its plot touches (crime, witness, mafia, and similar).
+  tou_piao breaks that same aggregate rating down into one row per star level (1 through 10),
+  giving the vote count and percentage share at each level rather than the overall figure.
+  jiang_xiang records award nominations — one row per nomination, naming the organization,
+  award, category, year, result, and the person and episode involved. ren_wu is the person
+  directory (cast and crew), and xie_zuo_ming_dan is the credit list joining a person to an
+  episode with a role and category and whether that credit was shown on screen. ji_pian_fu
+  and ren_wu_xiang look like second copies of the episode and person tables but are not
+  dependable for analysis — use ji_pian and ren_wu instead. Episodes and people are both
+  identified by text codes shaped like IMDb ids (tt... for episodes, nm... for people); every
+  real table shares those two id columns rather than any of their look-alike duplicates.
+rules:
+- Join episodes across guan_jian_ci, tou_piao, jiang_xiang, and xie_zuo_ming_dan on
+  ji_pian.ji_pian_id, and join people across jiang_xiang and xie_zuo_ming_dan on
+  ren_wu.ren_wu_id — never on a look-alike id column such as ji_pian_dai_ma or ren_wu_dai_hao.
+- Do not answer questions from ji_pian_fu or ren_wu_xiang; both duplicate a real table's data
+  unreliably. Use ji_pian and ren_wu instead.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: Catalog of television episodes (Law & Order series) covering each episode's
-  metadata, its keywords, viewer star-vote distribution, cast and crew credits, the
-  people involved, and the awards those episodes and people were nominated for or
-  won.
-rules:
-- Episodes, votes, keywords, credits, and awards all join on the episode id ji_pian_id;
-  credits and awards additionally join to a person on ren_wu_id.
-- A credit counts as shown on-screen only when shi_fou_nian_zai = 'true'; an award
-  is a win only when jie_guo = 'Winner' and a nomination when jie_guo = 'Nominee'.
+    - information_schema

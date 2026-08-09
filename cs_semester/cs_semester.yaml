@@ -1,22 +1,31 @@
 asset_type: schema
 id: cs_semester
 name: cs_semester
-summary: 'cs_semester: 5 tables — RA, course, prof, registration, student'
+summary: >-
+  cs_semester tracks one university CS department's semester: professors and the courses they
+  teach, student registrations with grades and satisfaction, student GPA, and which students
+  hold paid or unpaid research-assistant (RA) positions.
+body: >
+  Five tables carry the real data: prof (professor profiles), course (the course catalog),
+  student (student profiles), registration (one row per student's enrollment in a course, with
+  grade and satisfaction), and RA (one row per student's research-assistant assignment to a
+  professor, with capability and salary). ra_positions and student_profiles look like RA and
+  student but are not dependable for analysis; none of their columns should be used to answer a
+  question. Within RA, course, prof, registration, and student themselves, several columns
+  duplicate the real join keys and ratings unreliably — instructor_id, learner_id,
+  competency_level, class_id, credit_hours, difficulty_level, professor_ref_id, contact_email,
+  given_name, registered_course_id, registered_student_id, letter_grade, pupil_id,
+  student_email_address, and student_given_name — and must not be used.
+rules:
+- Join RA, registration, course, prof, and student on student_id, course_id, and prof_id only —
+  never on instructor_id, learner_id, professor_ref_id, pupil_id, registered_student_id,
+  registered_course_id, class_id, student_ref, or supervisor_id, all of which are unreliable.
+- Never select from or join through ra_positions or student_profiles; use RA and student
+  instead.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A university computer-science semester database. It tracks students, professors,
-  courses, and course registrations, plus which students serve professors as research
-  assistants (RA), so the school can analyze grades, satisfaction, research capability,
-  and teaching quality.
-rules:
-- A research assistant is a student in RA whose student_id links to student and whose
-  prof_id links to the supervising professor in prof.
-- A student is registered in a course via registration joining student.student_id
-  and course.course_id; a NULL or empty grade in registration means the student failed
-  that course.
+    - information_schema

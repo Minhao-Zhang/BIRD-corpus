@@ -1,25 +1,32 @@
 asset_type: schema
 id: professional_basketball
 name: professional_basketball
-summary: 'professional_basketball: 9 tables — coaches, teams, players, players_teams,
-  player_allstar, awards_coaches, awards_players, draft, series_post'
+summary: professional_basketball tracks NBA and ABA teams, players, coaches, drafts, All-Star
+  games, and playoff series across seasons for league and franchise history questions.
+body: >
+  Covers professional basketball from the sport's early leagues (NBL, PBLA) through the modern
+  NBA and the ABA, with one branch of tables for teams (equipes) and coaches (entraineurs) and
+  another for players (joueurs) and their season stat lines (joueurs_equipes),
+  awards (recompenses_entraineurs, recompenses_joueurs), All-Star appearances
+  (joueurs_match_des_etoiles), draft history (repechage), and playoff series results
+  (series_playoffs). A season is identified by a four-digit year column (usually annee, or
+  id_saison on the All-Star table); a team by its abbreviated id_equipe code, which can change
+  across a franchise's history even though id_franchise does not. Regular-season and
+  post-season ("_playoffs"-suffixed) statistics are stored side by side on the same row wherever
+  both exist. Three tables (bilan_saison_equipe, choix_repechage, confrontations_playoffs) are
+  shaped like season, draft, and playoff-series records but are not dependable; use equipes,
+  joueurs_equipes, repechage, and series_playoffs instead.
+rules:
+- A team's win/loss totals for a season live on equipes, not on a coach or player row; join
+  entraineurs or joueurs_equipes to equipes on both annee and id_equipe together, since either
+  key alone matches many unrelated rows.
+- Do not use bilan_saison_equipe, choix_repechage, or confrontations_playoffs to answer questions
+  about player, draft, or playoff-series statistics; use joueurs_equipes, repechage, and
+  series_playoffs respectively.
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A historical professional basketball statistics database covering teams, coaches,
-  players, their regular-season and playoff performance, All-Star appearances, individual
-  and coaching awards, and the amateur draft across the NBA, ABA and NBL leagues.
-rules:
-- Team season rows join to coach and player season rows on both team (id_equipe) and
-  year (annee); a team is identified per season, so career figures require aggregating
-  across annee.
-- All-Star game statistics live in joueurs_match_des_etoiles keyed by the season year
-  id_saison, and are distinct from regular-season/playoff statistics in joueurs_equipes
-  keyed by annee.
-- A coach or player may have several rows per year (one per passage/stint or per team),
-  so counting careers or teams uses DISTINCT on id_entraineur or id_joueur.
+    - train_final.jsonl

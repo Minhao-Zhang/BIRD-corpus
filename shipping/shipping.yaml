@@ -1,22 +1,25 @@
 asset_type: schema
 id: shipping
 name: shipping
-summary: 'shipping: 5 tables — truck, driver, customer, shipment, city'
+summary: The shipping schema tracks a trucking company's fleet, drivers, and customers, recording which truck and driver carried each shipment, for which customer, to which destination city, on what date, and at what weight.
+body: >
+  The central fact table is expedition, one row per shipment, joined to camion for the truck,
+  chauffeur for the driver, client for the customer, and ville for the destination city.
+  chauffeur and client both store their state as a two-letter abbreviation (etat = 'TX', 'NY',
+  and so on), while ville stores the state as its full name (etat = 'Texas', 'New York') —
+  convert between the two forms rather than comparing them directly. conducteur_routier and
+  vehicule_lourd are look-alike tables of drivers and trucks that are not dependable for
+  analysis, and id_ville_expedition, id_client_expedition, and id_chauffeur_expedition on
+  expedition itself look like foreign keys but are not the ones to join on.
+rules:
+- Join expedition to its neighbours on id_camion, id_chauffeur, id_client, and id_ville only.
+  Never join on id_ville_expedition, id_client_expedition, or id_chauffeur_expedition, and
+  never select, filter, or join on any column from conducteur_routier or vehicule_lourd — all
+  are unreliable for analysis.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: Operational database for a freight/trucking company. It records shipments (expedition),
-  each linking the customer who ordered it, the truck that carried it, the driver
-  who delivered it, and the destination city. Used to analyze shipment volume, weight
-  hauled, and customer/route activity.
-rules:
-- State (etat) is stored as a two-letter abbreviation (e.g. 'FL','TX','NY') on customer
-  and driver rows, but as a full name (e.g. 'Florida','New Jersey','Illinois') on
-  city rows.
-- date_expedition is stored as text; filtering by year requires casting it to a date/timestamp
-  (e.g. CAST(date_expedition AS TIMESTAMP)).
+    - information_schema

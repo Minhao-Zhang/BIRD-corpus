@@ -1,25 +1,32 @@
 asset_type: schema
 id: world_development_indicators
 name: world_development_indicators
-summary: 'world_development_indicators: 6 tables — Country, CountryNotes, Footnotes,
-  Series, SeriesNotes, Indicators'
+summary: >-
+  world_development_indicators profiles each country's region, income group, lending category, and
+  currency, and tracks annual development indicator values, including GDP, population, trade, and
+  health statistics, reported per country and year.
+body: >
+  Country profiles live in guo_jia, one row per country or regional aggregate (Arab World, OECD
+  members, and similar rows share the table with real countries); region and income group values
+  are enumerated on guo_jia.qu_yu and guo_jia.shou_ru_zu. Indicator definitions, one row per
+  series, live in zhi_biao, carrying a topic, a unit of measure, and a source citation. Observed
+  values live in zhi_biao_shu_ju, one row per country, indicator, and year, and it denormalizes
+  the country name and indicator name alongside their codes so a query rarely needs to join back
+  to guo_jia or zhi_biao just to print a label. guo_jia_bei_zhu, jiao_zhu, and zhi_biao_bei_zhu
+  carry free-text footnotes keyed to a country, an indicator, and sometimes a year, caveating how
+  a figure was estimated, interpolated, or revised. zhi_biao_ping_bie looks like zhi_biao_bei_zhu
+  and zhi_biao_xiang_mu looks like zhi_biao, but neither is dependable for analysis.
+rules:
+- Join guo_jia to guo_jia_bei_zhu, jiao_zhu, and zhi_biao_shu_ju on guo_jia_dai_ma, and join
+  zhi_biao to zhi_biao_bei_zhu and jiao_zhu on zhi_biao_dai_ma. Never use guo_jia_bian_ma,
+  alpha2_bian_ma, beizhu_guo_jia_bian_ma, zhi_biao_bian_ma, zhi_biao_bianhao, or
+  bei_zhu_zhi_biao_bianhao as a join key even though their names resemble the real code columns.
+- zhi_biao_ping_bie and zhi_biao_xiang_mu are not dependable for analysis; get series notes from
+  zhi_biao_bei_zhu and indicator definitions from zhi_biao instead.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'A World Development Indicators reference database: it holds reference data
-  on countries (region, income group, lending category, currency, statistical practices),
-  a catalog of statistical indicators/series (topic, license, source, definitions),
-  the yearly indicator values reported for each country, and the country notes, series
-  notes, and footnotes that annotate those figures.'
-rules:
-- Reported indicator values live in zhi_biao_shu_ju; join to country reference data
-  via guo_jia_dai_ma and to series metadata via zhi_biao_dai_ma or zhi_biao_ming.
-- Year is stored as an integer (e.g. 1960) in zhi_biao_shu_ju.nian_fen but as text
-  like 'YR1980' in the note tables jiao_zhu and zhi_biao_bei_zhu.
-- 'Rich / high-income countries are shou_ru_zu = ''High income: OECD'' or ''High income:
-  nonOECD''; poor / low-income countries are shou_ru_zu = ''Low income''.'
+    - information_schema

@@ -2,267 +2,162 @@ asset_type: table
 id: retail_complains.journaux_centre_appels
 schema: retail_complains
 physical_name: journaux_centre_appels
-summary: 'callcenterlogs (journaux_centre_appels): Date received, Complaint ID, rand
-  client, phonefinal, vru+line, call_id, priority, type, outcome, server, ser_start,
-  ser_exit, ser_time'
+summary: journaux_centre_appels is the call center log behind each complaint, one row per call
+  with its agent, priority, and duration.
+body: >
+  Grain: one row per call, keyed by id_appel. Each call ties back to exactly one complaint on
+  evenements through id_reclamation, and to exactly one customer through client_aleatoire,
+  which despite its name holds a real client identifier. Not every complaint has a call behind
+  it, and not every call row is fully populated: priority, type, resultat, serveur,
+  debut_service, fin_service, and duree_service are null together for the same 141 rows in the
+  loaded sample. Three columns on this table (id_plainte, date_recue, id_numero_appel) look
+  like the real complaint id, receipt date, or call id but are not dependable and are marked
+  individually below.
 columns:
-- asset_type: column
-  physical_name: date_reception
-  summary: Date received — journaux_centre_appels.date_reception
-  body: Means 'Date received' (obfuscated to 'date_reception').
+- physical_name: date_reception
+  summary: The date a complaint behind a call was received, date_reception.
+  body: >
+    Spans 2011-12-19 to 2019-12-18 in the loaded sample. Mirrors evenements.date_reception for
+    the same complaint; distinct from date_recue on this same table, which is a separate,
+    unreliable column.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_reclamation
-  summary: Complaint ID — journaux_centre_appels.id_reclamation
-  body: Means 'Complaint ID' (obfuscated to 'id_reclamation').
+- physical_name: id_reclamation
+  summary: The complaint a call was about, id_reclamation.
+  body: >
+    A foreign key to evenements.id_reclamation. Null for 207 of 500 rows in the loaded sample,
+    where the call cannot be tied to a specific complaint.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: client_aleatoire
-  summary: rand client — journaux_centre_appels.client_aleatoire
-  body: Client key on the call log; joins to client.id_client (the client who made
-    the call).
+- physical_name: client_aleatoire
+  summary: The customer who placed a call, client_aleatoire.
+  body: >
+    A foreign key to client.id_client, despite the "random" in its name; for example
+    'C00001425'. Null for the same 207 rows in the loaded sample where id_reclamation is null.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: telephone_final
-  summary: phonefinal — journaux_centre_appels.telephone_final
-  body: Means 'phonefinal' (obfuscated to 'telephone_final').
+- physical_name: telephone_final
+  summary: The phone number a call was placed from or to, telephone_final.
+  body: >
+    A text value in NNN-NNN-NNNN format. This is the number used on this specific call, not
+    necessarily client.telephone, the customer's own contact number on file.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: serveur_vocal_ligne
-  summary: vru+line — journaux_centre_appels.serveur_vocal_ligne
-  body: Means 'vru+line' (obfuscated to 'serveur_vocal_ligne').
+- physical_name: serveur_vocal_ligne
+  summary: The voice response unit and line that handled a call, serveur_vocal_ligne.
+  body: >
+    A code such as 'AA0210' or 'AA0105', identifying the automated line a call came through
+    before reaching an agent. Null for 141 of 500 rows in the loaded sample.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_appel
-  summary: call_id — journaux_centre_appels.id_appel
-  body: Means 'call_id' (obfuscated to 'id_appel').
+- physical_name: id_appel
+  summary: The unique identifier of a call, id_appel.
+  body: >
+    A numeric id, unique per row where present; null for 141 of 500 rows in the loaded sample,
+    the same rows missing priority, type, resultat, serveur, and the service timestamps.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: priorite
-  summary: priority — journaux_centre_appels.priorite
-  body: Call priority as an integer; priority 1 (priorite = 1) is a common filter.
+- physical_name: priorite
+  summary: The priority assigned to a call, priorite.
+  body: >
+    0, 1, or 2 in the loaded sample; null for 141 of 500 rows. A higher value means a higher
+    priority — a more serious or urgent complaint.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: type
-  summary: type — journaux_centre_appels.type
-  body: Call type as a short text code, e.g. 'PS'.
+- physical_name: type
+  summary: The type of a call, type.
+  body: >
+    A short code such as 'PS', 'NW', 'TT', 'IN', or 'NE' in the loaded sample; null for 141 of
+    500 rows.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: resultat
-  summary: outcome — journaux_centre_appels.resultat
-  body: Call outcome as text, e.g. 'AGENT'.
+- physical_name: resultat
+  summary: The outcome of processing a call, resultat.
+  body: >
+    One of 'AGENT', 'HANG', or 'PHANTOM' in the loaded sample; null for 141 of 500 rows.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: serveur
-  summary: server — journaux_centre_appels.serveur
-  body: Server (agent) name in uppercase text, e.g. 'MICHAL', 'SHARON', 'DORIT', 'TOVA'.
-    Matched exactly.
+- physical_name: serveur
+  summary: The agent who handled a call, serveur.
+  body: >
+    An agent name such as 'STEREN', 'KAZAV', or 'MIKI', or the sentinel 'NO_SERVER' when no
+    agent took the call; null for 141 of 500 rows. "Served by" refers to this column; see the
+    "call agent" term.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: debut_service
-  summary: ser_start — journaux_centre_appels.debut_service
-  body: Means 'ser_start' (obfuscated to 'debut_service').
+- physical_name: debut_service
+  summary: The time an agent began handling a call, debut_service.
+  body: >
+    Stored as text in HH:MM:SS format, for example '13:04:46'. Paired with fin_service; their
+    difference is duree_service.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fin_service
-  summary: ser_exit — journaux_centre_appels.fin_service
-  body: Means 'ser_exit' (obfuscated to 'fin_service').
+- physical_name: fin_service
+  summary: The time an agent finished handling a call, fin_service.
+  body: >
+    Stored as text in HH:MM:SS format, for example '13:16:10'. Paired with debut_service; their
+    difference is duree_service.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: duree_service
-  summary: ser_time — journaux_centre_appels.duree_service
-  body: Call service time as an 'HH:MM:SS' text string; compared as strings (e.g.
-    < '00:05:00', > '00:15:00') and MAX() gives the longest/most verbose call.
+- physical_name: duree_service
+  summary: The duration a call took to handle, duree_service.
+  body: >
+    Stored as text in HH:MM:SS format, for example '00:11:24', ranging '00:00:00' to '00:28:15'
+    in the loaded sample; cast before arithmetic or comparison. A longer duration means a more
+    verbose or longer complaint. See the "average call duration" and "longest call duration"
+    metrics.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_plainte
-  summary: id_plainte — journaux_centre_appels.id_plainte
-  body: 'Physical column ''id_plainte''. DECOY column: not a real business field.
-    Fabricated to mimic ''Complaint ID''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: id_plainte
+  summary: id_plainte, a text column on the journaux_centre_appels table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Complaint
-      ID''. Corruption operator ''permute'': values are altered (permuted — breaks
-      joins/row lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: date_recue
-  summary: date_recue — journaux_centre_appels.date_recue
-  body: 'Physical column ''date_recue''. DECOY column: not a real business field.
-    Fabricated to mimic ''Date received''. Corruption operator ''sparse_date_offset'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: date_recue
+  summary: date_recue, a date column on the journaux_centre_appels table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: date
   logical_type: date
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Date received''.
-      Corruption operator ''sparse_date_offset'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_numero_appel
-  summary: id_numero_appel — journaux_centre_appels.id_numero_appel
-  body: 'Physical column ''id_numero_appel''. DECOY column: not a real business field.
-    Fabricated to mimic ''call_id''. Corruption operator ''sparse_perturb'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: id_numero_appel
+  summary: id_numero_appel, a numeric column on the journaux_centre_appels table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''call_id''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per call-center log for a complaint, keyed by id_appel and linked by
-  id_reclamation: server, priority, service start/end/duration, call type, outcome,
-  and the client (client_aleatoire). Grain is one call. Holds how a complaint was
-  handled, not the complaint''s product/issue.'
+    - information_schema

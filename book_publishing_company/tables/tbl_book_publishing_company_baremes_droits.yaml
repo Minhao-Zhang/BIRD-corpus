@@ -2,138 +2,85 @@ asset_type: table
 id: book_publishing_company.baremes_droits
 schema: book_publishing_company
 physical_name: baremes_droits
-summary: 'roysched (baremes_droits): title_id, lorange, hirange, royalty'
+summary: baremes_droits is the royalty schedule that sets a title's pourcentage_droit for each range of year-to-date sales.
+body: >
+  One row per title and sales-range combination: plage_min and plage_max bound a range of
+  year-to-date units sold (titres.ventes_annee), and pourcentage_droit is the royalty rate that
+  applies to sales within that range. A title with tiered royalties has multiple rows here, one
+  per tier. Joins to titres on id_titre. Do not confuse with the suspect columns
+  identifiant_titre, borne_superieure and borne_inferieure, which are not dependable.
 columns:
-- asset_type: column
-  physical_name: id_titre
-  summary: title_id — baremes_droits.id_titre
-  body: Means 'title_id' (obfuscated to 'id_titre').
+- physical_name: id_titre
+  summary: id_titre, the title a royalty range applies to, joining baremes_droits to titres.
+  body: >
+    Foreign key to titres.id_titre. A title with several royalty tiers appears on multiple rows
+    here, one per plage_min/plage_max range.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: plage_min
-  summary: lorange — baremes_droits.plage_min
-  body: Low end (minimum) of the year-to-date sales range for this royalty band; the
-    minimum range to qualify for the band's royalty.
+- physical_name: plage_min
+  summary: plage_min, the lower bound of the sales range a royalty tier applies to.
+  body: >
+    An integer count of year-to-date units sold, e.g. 0, 5001, or 20001. A sales figure below
+    plage_min falls outside this tier. A tier without a minimum-range amount has plage_min not
+    equal to zero excluded, i.e. the filter is plage_min <> 0.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: plage_max
-  summary: hirange — baremes_droits.plage_max
-  body: High end (maximum) of the year-to-date sales range for this royalty band.
+- physical_name: plage_max
+  summary: plage_max, the upper bound of the sales range a royalty tier applies to.
+  body: >
+    An integer count of year-to-date units sold, e.g. 5000, 8000, or 12000. Paired with plage_min
+    to bound the tier that pourcentage_droit applies to.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pourcentage_droit
-  summary: royalty — baremes_droits.pourcentage_droit
-  body: Royalty percentage that applies within this sales-range band (integer percent).
+- physical_name: pourcentage_droit
+  summary: pourcentage_droit, the royalty percentage rate that applies within one sales tier.
+  body: >
+    An integer percentage, e.g. 10, 14, or 24. The same column name appears on titres as a
+    title's current overall royalty rate; here it is the rate for one tier of the schedule
+    rather than the title's headline rate.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: identifiant_titre
-  summary: identifiant_titre — baremes_droits.identifiant_titre
-  body: 'Physical column ''identifiant_titre''. DECOY column: not a real business
-    field. Fabricated to mimic ''title_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: identifiant_titre
+  summary: identifiant_titre, a text column on the baremes_droits table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''title_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: borne_superieure
-  summary: borne_superieure — baremes_droits.borne_superieure
-  body: 'Physical column ''borne_superieure''. DECOY column: not a real business field.
-    Fabricated to mimic ''hirange''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: borne_superieure
+  summary: borne_superieure, a numeric column on the baremes_droits table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''hirange''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: borne_inferieure
-  summary: borne_inferieure — baremes_droits.borne_inferieure
-  body: 'Physical column ''borne_inferieure''. DECOY column: not a real business field.
-    Fabricated to mimic ''lorange''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: borne_inferieure
+  summary: borne_inferieure, a numeric column on the baremes_droits table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''lorange''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Royalty schedule per title. Grain: one row per title per sales-range band,
-  mapping a year-to-date sales range (plage_min to plage_max) to a royalty percentage
-  (pourcentage_droit).'
+    - information_schema

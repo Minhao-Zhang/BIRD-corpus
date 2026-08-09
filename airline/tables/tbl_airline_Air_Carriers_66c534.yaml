@@ -2,42 +2,61 @@ asset_type: table
 id: airline.Air_Carriers_66c534
 schema: airline
 physical_name: Air Carriers
-summary: 'Air Carriers (4 columns): Code, Description, air_carrier_id, carrier_details'
-body: 'Reference list of air carriers: the airline code used by flight rows and its description. Its physical name contains a space, so every SQL reference must quote it as "Air Carriers".'
+summary: Air Carriers holds the roster of airline operators, each identified by a numeric code and a name, that flights in the Airlines table are attributed to.
+body: >
+  One row per air carrier (airline operator). Code is the numeric carrier identifier used to
+  join to Airlines.OP_CARRIER_AIRLINE_ID; Description names the carrier together with its
+  two-letter abbreviation, for example 'Southwest Airlines Co.: WN'. air_carrier_id and
+  carrier_details sit alongside Code and Description but are not dependable and must not be
+  used to answer questions or as join keys. Do not confuse this table's Code with the
+  three-letter airport codes stored in Airports.Code.
 columns:
-- asset_type: column
-  physical_name: Code
-  summary: Code — Air Carriers.Code
+- physical_name: Code
+  summary: Code, the numeric identifier assigned to an air carrier, used to link a carrier to the flights it operated.
+  body: >
+    An integer, for example 20033 or 21823, ranging from 19033 to 22005 in the sampled data.
+    Joins to Airlines.OP_CARRIER_AIRLINE_ID. Distinct from the three-letter codes stored in
+    Airports.Code, which identify airports rather than carriers.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit: &id001
-    provenance:
-      source: seed
-      status: draft
-      version: adr-0008-d1
-      source_refs:
-      - live introspection
-    evidence: 'Carried under ADR 0008 D1: the identifier is unspellable as an asset id, so the id uses slug(physical_name) and physical_name keeps the engine''s exact spelling.'
-- asset_type: column
-  physical_name: Description
-  summary: Description — Air Carriers.Description
+- physical_name: Description
+  summary: Description, the air carrier's registered name paired with its two-letter carrier abbreviation.
+  body: >
+    Formatted as 'Name: XX', for example 'Alaska Airlines Inc.: AS', 'American Airlines Inc.:
+    AA', 'Southwest Airlines Co.: WN', 'Spirit Air Lines: NK', or 'Republic Airline: YX'. A
+    question that names a carrier is answered by matching this text, typically with LIKE, since
+    the value also carries the trailing abbreviation.
   physical_type: text
   logical_type: string
   nullable: true
-  audit: *id001
-- asset_type: column
-  physical_name: air_carrier_id
-  summary: air_carrier_id — Air Carriers.air_carrier_id
+- physical_name: air_carrier_id
+  summary: air_carrier_id, a numeric column on the Air Carriers table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit: *id001
-- asset_type: column
-  physical_name: carrier_details
-  summary: carrier_details — Air Carriers.carrier_details
+  reliability:
+    status: suspect
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: carrier_details
+  summary: carrier_details, a text column on the Air Carriers table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
-  audit: *id001
-audit: *id001
+  reliability:
+    status: suspect
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+audit:
+  provenance:
+    source: seed
+    status: draft
+    version: scaffold-1
+    source_refs:
+    - information_schema

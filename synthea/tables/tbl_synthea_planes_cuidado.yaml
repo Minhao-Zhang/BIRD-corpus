@@ -2,208 +2,122 @@ asset_type: table
 id: synthea.planes_cuidado
 schema: synthea
 physical_name: planes_cuidado
-summary: 'careplans (planes_cuidado): ID, START, STOP, PATIENT, ENCOUNTER, CODE, DESCRIPTION,
-  REASONCODE, REASONDESCRIPTION'
+summary: planes_cuidado records a care plan, a diet or a disease-management program,
+  assigned to a patient.
+body: >
+  One row per care plan episode. Easily confused with plan_terapeutico, which mirrors this
+  table's shape but is not dependable; use planes_cuidado for any question about a patient's
+  care plans. Joins to pacientes and encuentros on id_paciente and id_encuentro. Also joins to
+  condiciones by matching id_paciente, since a care plan is typically assigned to manage a
+  diagnosed condition. paciente_identificador, codigo_tipo, and descripcion_cuidado sit alongside
+  id_paciente, codigo, and descripcion but do not track the same values and must not be used.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: ID — planes_cuidado.id
-  body: Means 'ID' (obfuscated to 'id').
+- physical_name: id
+  summary: id, the unique identifier of a care plan.
+  body: >
+    A UUID string, for example "38268f04-31d3-4c69-88ef-bb2954671e5d".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_inicio
-  summary: START — planes_cuidado.fecha_inicio
-  body: Means 'START' (obfuscated to 'fecha_inicio').
+- physical_name: fecha_inicio
+  summary: fecha_inicio, the date a care plan began.
+  body: >
+    A date, for example 1980-01-30, ranging from 1920 to 2017. Never null.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_fin
-  summary: STOP — planes_cuidado.fecha_fin
-  body: Means 'STOP' (obfuscated to 'fecha_fin').
+- physical_name: fecha_fin
+  summary: fecha_fin, the date a care plan ended.
+  body: >
+    A date, for example 2011-08-23. Null for roughly 46% of rows, meaning the care plan is still
+    in effect. Subtracting fecha_inicio from this gives the plan's duration.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_paciente
-  summary: PATIENT — planes_cuidado.id_paciente
-  body: Means 'PATIENT' (obfuscated to 'id_paciente').
+- physical_name: id_paciente
+  summary: id_paciente, the patient this care plan is for.
+  body: >
+    A UUID string, for example "cd96d791-09ca-4d08-a913-66a3559117eb". Joins to
+    pacientes.id_paciente.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_encuentro
-  summary: ENCOUNTER — planes_cuidado.id_encuentro
-  body: Means 'ENCOUNTER' (obfuscated to 'id_encuentro').
+- physical_name: id_encuentro
+  summary: id_encuentro, the encounter at which the care plan was assigned.
+  body: >
+    A UUID string, for example "9fe90120-df93-43d4-971a-e0daa7c043e2". Joins to encuentros.id.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo
-  summary: CODE — planes_cuidado.codigo
-  body: Means 'CODE' (obfuscated to 'codigo').
+- physical_name: codigo
+  summary: codigo, the coded identifier for the kind of care plan.
+  body: >
+    A numeric code stored with a decimal point, for example 58332000.0, one per distinct care
+    plan type. Pairs one-to-one with descripcion in this table.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: descripcion
-  summary: DESCRIPTION — planes_cuidado.descripcion
-  body: Means 'DESCRIPTION' (obfuscated to 'descripcion').
+- physical_name: descripcion
+  summary: descripcion, the name of the care plan.
+  body: >
+    Free text such as "Diabetic diet", "Self care", or "Allergy education". This is what a
+    question naming a care plan filters on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_razon
-  summary: REASONCODE — planes_cuidado.codigo_razon
-  body: Means 'REASONCODE' (obfuscated to 'codigo_razon').
+- physical_name: codigo_razon
+  summary: codigo_razon, the coded identifier for the condition a care plan addresses.
+  body: >
+    An integer code, for example 10509002, pairing one-to-one with descripcion_razon. Null when
+    no specific condition is recorded as the reason.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: descripcion_razon
-  summary: REASONDESCRIPTION — planes_cuidado.descripcion_razon
-  body: Means 'REASONDESCRIPTION' (obfuscated to 'descripcion_razon').
+- physical_name: descripcion_razon
+  summary: descripcion_razon, the condition a care plan addresses.
+  body: >
+    Free text such as "Stroke", "Prediabetes", or "Normal pregnancy". Null whenever codigo_razon
+    is null. This is what a question about why a care plan was assigned filters on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: paciente_identificador
-  summary: paciente_identificador — planes_cuidado.paciente_identificador
-  body: 'Physical column ''paciente_identificador''. DECOY column: not a real business
-    field. Fabricated to mimic ''PATIENT''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: paciente_identificador
+  summary: paciente_identificador, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''PATIENT''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_tipo
-  summary: codigo_tipo — planes_cuidado.codigo_tipo
-  body: 'Physical column ''codigo_tipo''. DECOY column: not a real business field.
-    Fabricated to mimic ''CODE''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: codigo_tipo
+  summary: codigo_tipo, a decimal column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: real
   logical_type: decimal
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CODE''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: descripcion_cuidado
-  summary: descripcion_cuidado — planes_cuidado.descripcion_cuidado
-  body: 'Physical column ''descripcion_cuidado''. DECOY column: not a real business
-    field. Fabricated to mimic ''DESCRIPTION''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: descripcion_cuidado
+  summary: descripcion_cuidado, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''DESCRIPTION''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per care plan assigned to a patient. Grain: care plan episode. descripcion
-  is the plan (e.g. ''Diabetes self management plan''); fecha_inicio/fecha_fin bound
-  its period.'
+    - information_schema

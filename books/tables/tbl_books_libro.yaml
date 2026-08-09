@@ -2,181 +2,110 @@ asset_type: table
 id: books.libro
 schema: books
 physical_name: libro
-summary: 'book (libro): book_id, title, isbn13, language_id, num_pages, publication_date,
-  publisher_id'
+summary: libro is the catalog of every book carried by the books store, one row per title.
+body: >
+  Grain: one row per book. id_libro is the primary key, titulo is the title, isbn13 is the
+  standard book identifier, numero_paginas is the page count, fecha_publicacion is the
+  publication date, id_idioma points to the language it is written in, and id_editorial points to
+  its publisher. Join to libro_autor on id_libro to find its author(s), and to linea_pedido on
+  id_libro to find every order line that included it. libro_id, idioma_id and editorial_id on this
+  same table are not dependable and should not be used.
 columns:
-- asset_type: column
-  physical_name: id_libro
-  summary: book_id — libro.id_libro
-  body: Means 'book_id' (obfuscated to 'id_libro').
+- physical_name: id_libro
+  summary: id_libro, the surrogate key that identifies a book.
+  body: >
+    Integer primary key, one row per book. Sampled ids run to five digits (207, 342, 1677, 2362).
+    Referenced by libro_autor.id_libro and linea_pedido.id_libro.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: titulo
-  summary: title — libro.titulo
-  body: Means 'title' (obfuscated to 'titulo').
+- physical_name: titulo
+  summary: titulo, the book's title.
+  body: >
+    Free text (Whirlpool, Blindness, The Red Tent, iWoz). Use this column for title lookups,
+    including partial or fuzzy matches, and to identify the best-selling books by counting order
+    lines grouped by title.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isbn13
-  summary: isbn13 — libro.isbn13
-  body: The book's 13-digit ISBN identifier (text).
+- physical_name: isbn13
+  summary: isbn13, the book's International Standard Book Number.
+  body: >
+    Thirteen-digit text code printed on the book's cover (9780060511135, 9780060725143). Unique
+    per edition of a book; a small number of sampled values are shorter than thirteen digits.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_idioma
-  summary: language_id — libro.id_idioma
-  body: Means 'language_id' (obfuscated to 'id_idioma').
+- physical_name: id_idioma
+  summary: id_idioma, the language this book is written in.
+  body: >
+    Foreign key to idioma_libro.id_idioma. Join to idioma_libro to filter or display books by
+    language name.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: numero_paginas
-  summary: num_pages — libro.numero_paginas
-  body: Number of pages in the book (integer). Used in thresholds like >300, >500,
-    >3000 and in average/greatest-pages calculations.
+- physical_name: numero_paginas
+  summary: numero_paginas, the book's page count.
+  body: >
+    Integer, ranging from 0 to the high hundreds in the sampled rows (448, 316, 326, 321, 313).
+    A value of 0 means the page count is not recorded rather than that the book has no pages.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_publicacion
-  summary: publication_date — libro.fecha_publicacion
-  body: Publication date of the book. Earliest/oldest = MIN, and year filters compare
-    the year portion (e.g. '1995', '2004').
+- physical_name: fecha_publicacion
+  summary: fecha_publicacion, the book's publication date.
+  body: >
+    Date, sampled values spanning 1940 through the early 2010s (2006-10-31, 2004-12-28,
+    1999-10-04). Use this to filter books published in a given year or date range, or to find the
+    earliest or most recent title in the catalog.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_editorial
-  summary: publisher_id — libro.id_editorial
-  body: Means 'publisher_id' (obfuscated to 'id_editorial').
+- physical_name: id_editorial
+  summary: id_editorial, the publisher of this book.
+  body: >
+    Foreign key to editorial.id_editorial. Join to editorial to filter or display books by
+    publisher name, or to count how many books each publisher has released.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: libro_id
-  summary: libro_id — libro.libro_id
-  body: 'Physical column ''libro_id''. DECOY column: not a real business field. Fabricated
-    to mimic ''book_id''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: libro_id
+  summary: libro_id, an integer column on the libro table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list or a filter, or as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''book_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: idioma_id
-  summary: idioma_id — libro.idioma_id
-  body: 'Physical column ''idioma_id''. DECOY column: not a real business field. Fabricated
-    to mimic ''language_id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: idioma_id
+  summary: idioma_id, an integer column on the libro table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list or a filter, or as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''language_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: editorial_id
-  summary: editorial_id — libro.editorial_id
-  body: 'Physical column ''editorial_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''publisher_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: editorial_id
+  summary: editorial_id, an integer column on the libro table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list or a filter, or as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''publisher_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: One row per book (the catalog). Holds title, ISBN13, page count, publication
-  date, and links to its publisher and language.
+    - train_final.jsonl

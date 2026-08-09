@@ -2,72 +2,51 @@ asset_type: table
 id: food_inspection_2.wei_gui
 schema: food_inspection_2
 physical_name: wei_gui
-summary: 'violation (wei_gui): inspection_id, point_id, fine, inspector_comment'
+summary: wei_gui holds one row per violation cited during a Chicago health inspection, linking the inspection and operating point to the fine charged.
+body: >
+  Grain: one row per violation, with no dedicated id column of its own — the pair (jian_cha_id,
+  xiang_mu_id) identifies which inspection cited which operating point. Join to jian_cha on
+  jian_cha_id to bring in the inspection's date and result, and to jian_cha_xiang_mu on
+  xiang_mu_id to bring in the point's category, code, and severity.
 columns:
-- asset_type: column
-  physical_name: jian_cha_id
-  summary: inspection_id — wei_gui.jian_cha_id
-  body: Means 'inspection_id' (obfuscated to 'jian_cha_id').
+- physical_name: jian_cha_id
+  summary: The identifier of the health inspection a violation was cited during, jian_cha_id.
+  body: >
+    Numeric inspection id, join key to jian_cha.jian_cha_id. Many rows in this table can share
+    the same jian_cha_id, one for each operating point cited during that inspection.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xiang_mu_id
-  summary: point_id — wei_gui.xiang_mu_id
-  body: Means 'point_id' (obfuscated to 'xiang_mu_id').
+- physical_name: xiang_mu_id
+  summary: The identifier of the sanitary operating point a violation was cited for, xiang_mu_id.
+  body: >
+    Numeric point id, join key to jian_cha_xiang_mu.xiang_mu_id to bring in the point's category,
+    code, and severity.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fa_kuan
-  summary: fine — wei_gui.fa_kuan
-  body: Fine amount in dollars for the violation; 0 = no fine, 100 = minor food-safety
-    problem, 500 seen for more serious issues.
+- physical_name: fa_kuan
+  summary: The fine amount actually charged for a specific violation, fa_kuan.
+  body: >
+    0, 100, 250, or 500 US dollars in the sample; 0 means no fine was assessed for that citation.
+    Distinct from jian_cha_xiang_mu.fa_kuan, the standard fine schedule for the point's severity
+    level rather than the amount charged on this particular violation.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jian_cha_yuan_bei_zhu
-  summary: inspector_comment — wei_gui.jian_cha_yuan_bei_zhu
-  body: Means 'inspector_comment' (obfuscated to 'jian_cha_yuan_bei_zhu').
+- physical_name: jian_cha_yuan_bei_zhu
+  summary: The inspector's written comment on a violation, jian_cha_yuan_bei_zhu.
+  body: >
+    Free text comment describing the violation found and any corrective action noted, often the
+    fuller code description followed by an inspector's specific observation. About 52 of the
+    sampled rows are null.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per violation cited in an inspection. Links an inspection (jian_cha_id)
-  to the inspection point cited (xiang_mu_id), recording the fine levied and the inspector's
-  comment.
+    - information_schema

@@ -2,1693 +2,750 @@ asset_type: table
 id: european_football_2.partido
 schema: european_football_2
 physical_name: partido
-summary: 'Match (partido): id, country_id, league_id, season, stage, date, match_api_id,
-  home_team_api_id, away_team_api_id, home_team_goal, away_team_goal, home_player_X1,
-  home_player_X2, home_player_X3, home_player_X4, home_player_X5, home_player_X6,
-  home_p…'
+summary: 'The partido table in european_football_2: one row per football match, its result, starting
+  lineups, in-match event logs, and bookmaker betting odds.'
+body: One row per match (id). Country and league are id_pais and id_liga; the two teams are
+  id_api_equipo_local and id_api_equipo_visitante; the result is goles_equipo_local and
+  goles_equipo_visitante. Each side names up to 11 starters in jugador_local_1..11 /
+  jugador_visitante_1..11 (slot 1 is the goalkeeper, 2-11 are outfield players), each paired with a
+  jugador_*_xN / jugador_*_yN grid position set at kickoff (small integers, not a distance unit). gol,
+  tiro_entre_palos, tiro_fuera, falta_cometida, tarjeta, centro, saque_esquina, and posesion are XML
+  event logs, one blob per match; parsing is needed to count events. apuesta_<bookmaker>_local /
+  _empate / _visitante give ten bookmakers' pre-match decimal odds on a home win, a draw, and an away
+  win; smaller odds mean the bookmaker rated that outcome more likely. visitante_1_id, visitante_5_id,
+  and visitante_9_id mirror three away-lineup slots but hold unreliable values; use jugador_visitante_1,
+  jugador_visitante_5, and jugador_visitante_9 instead.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — partido.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: The unique identifier for a match row in the partido table (id).
+  body: Primary key of partido, distinct from id_api_partido.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_pais
-  summary: country_id — partido.id_pais
-  body: Means 'country_id' (obfuscated to 'id_pais').
+- physical_name: id_pais
+  summary: The country a match was played in (id_pais).
+  body: Foreign key to pais.id.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_liga
-  summary: league_id — partido.id_liga
-  body: Means 'league_id' (obfuscated to 'id_liga').
+- physical_name: id_liga
+  summary: The league a match belongs to (id_liga).
+  body: Foreign key to liga.id.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: temporada
-  summary: season — partido.temporada
-  body: Season label formatted like '2015/2016'.
+- physical_name: temporada
+  summary: The football season a match was played in (temporada).
+  body: Text in a 'YYYY/YYYY' shape, 2008/2009 through 2015/2016; the first year is when the season started.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fase
-  summary: stage — partido.fase
-  body: Means 'stage' (obfuscated to 'fase').
+- physical_name: fase
+  summary: The round number of a match within its season's schedule (fase).
+  body: Integer matchday/round number within a league season, not a named phase like a final.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha
-  summary: date — partido.fecha
-  body: Means 'date' (obfuscated to 'fecha').
+- physical_name: fecha
+  summary: The date a match was played (fecha).
+  body: Timestamp text, ranging from 2008-07-19 to 2016-04-09 in this data.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_api_partido
-  summary: match_api_id — partido.id_api_partido
-  body: Means 'match_api_id' (obfuscated to 'id_api_partido').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_api_equipo_local
-  summary: home_team_api_id — partido.id_api_equipo_local
-  body: Means 'home_team_api_id' (obfuscated to 'id_api_equipo_local').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_api_equipo_visitante
-  summary: away_team_api_id — partido.id_api_equipo_visitante
-  body: Means 'away_team_api_id' (obfuscated to 'id_api_equipo_visitante').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: goles_equipo_local
-  summary: home_team_goal — partido.goles_equipo_local
-  body: Goals scored by the home team in the match.
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: goles_equipo_visitante
-  summary: away_team_goal — partido.goles_equipo_visitante
-  body: Goals scored by the away team in the match.
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_x1
-  summary: home_player_X1 — partido.jugador_local_x1
-  body: Means 'home_player_X1' (obfuscated to 'jugador_local_x1').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_x2
-  summary: home_player_X2 — partido.jugador_local_x2
-  body: Means 'home_player_X2' (obfuscated to 'jugador_local_x2').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_x3
-  summary: home_player_X3 — partido.jugador_local_x3
-  body: Means 'home_player_X3' (obfuscated to 'jugador_local_x3').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_x4
-  summary: home_player_X4 — partido.jugador_local_x4
-  body: Means 'home_player_X4' (obfuscated to 'jugador_local_x4').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_x5
-  summary: home_player_X5 — partido.jugador_local_x5
-  body: Means 'home_player_X5' (obfuscated to 'jugador_local_x5').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_x6
-  summary: home_player_X6 — partido.jugador_local_x6
-  body: Means 'home_player_X6' (obfuscated to 'jugador_local_x6').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_x7
-  summary: home_player_X7 — partido.jugador_local_x7
-  body: Means 'home_player_X7' (obfuscated to 'jugador_local_x7').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_x8
-  summary: home_player_X8 — partido.jugador_local_x8
-  body: Means 'home_player_X8' (obfuscated to 'jugador_local_x8').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_x9
-  summary: home_player_X9 — partido.jugador_local_x9
-  body: Means 'home_player_X9' (obfuscated to 'jugador_local_x9').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_x10
-  summary: home_player_X10 — partido.jugador_local_x10
-  body: Means 'home_player_X10' (obfuscated to 'jugador_local_x10').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_x11
-  summary: home_player_X11 — partido.jugador_local_x11
-  body: Means 'home_player_X11' (obfuscated to 'jugador_local_x11').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_x1
-  summary: away_player_X1 — partido.jugador_visitante_x1
-  body: Means 'away_player_X1' (obfuscated to 'jugador_visitante_x1').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_x2
-  summary: away_player_X2 — partido.jugador_visitante_x2
-  body: Means 'away_player_X2' (obfuscated to 'jugador_visitante_x2').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_x3
-  summary: away_player_X3 — partido.jugador_visitante_x3
-  body: Means 'away_player_X3' (obfuscated to 'jugador_visitante_x3').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_x4
-  summary: away_player_X4 — partido.jugador_visitante_x4
-  body: Means 'away_player_X4' (obfuscated to 'jugador_visitante_x4').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_x5
-  summary: away_player_X5 — partido.jugador_visitante_x5
-  body: Means 'away_player_X5' (obfuscated to 'jugador_visitante_x5').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_x6
-  summary: away_player_X6 — partido.jugador_visitante_x6
-  body: Means 'away_player_X6' (obfuscated to 'jugador_visitante_x6').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_x7
-  summary: away_player_X7 — partido.jugador_visitante_x7
-  body: Means 'away_player_X7' (obfuscated to 'jugador_visitante_x7').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_x8
-  summary: away_player_X8 — partido.jugador_visitante_x8
-  body: Means 'away_player_X8' (obfuscated to 'jugador_visitante_x8').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_x9
-  summary: away_player_X9 — partido.jugador_visitante_x9
-  body: Means 'away_player_X9' (obfuscated to 'jugador_visitante_x9').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_x10
-  summary: away_player_X10 — partido.jugador_visitante_x10
-  body: Means 'away_player_X10' (obfuscated to 'jugador_visitante_x10').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_x11
-  summary: away_player_X11 — partido.jugador_visitante_x11
-  body: Means 'away_player_X11' (obfuscated to 'jugador_visitante_x11').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_y1
-  summary: home_player_Y1 — partido.jugador_local_y1
-  body: Means 'home_player_Y1' (obfuscated to 'jugador_local_y1').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_y2
-  summary: home_player_Y2 — partido.jugador_local_y2
-  body: Means 'home_player_Y2' (obfuscated to 'jugador_local_y2').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_y3
-  summary: home_player_Y3 — partido.jugador_local_y3
-  body: Means 'home_player_Y3' (obfuscated to 'jugador_local_y3').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_y4
-  summary: home_player_Y4 — partido.jugador_local_y4
-  body: Means 'home_player_Y4' (obfuscated to 'jugador_local_y4').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_y5
-  summary: home_player_Y5 — partido.jugador_local_y5
-  body: Means 'home_player_Y5' (obfuscated to 'jugador_local_y5').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_y6
-  summary: home_player_Y6 — partido.jugador_local_y6
-  body: Means 'home_player_Y6' (obfuscated to 'jugador_local_y6').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_y7
-  summary: home_player_Y7 — partido.jugador_local_y7
-  body: Means 'home_player_Y7' (obfuscated to 'jugador_local_y7').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_y8
-  summary: home_player_Y8 — partido.jugador_local_y8
-  body: Means 'home_player_Y8' (obfuscated to 'jugador_local_y8').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_y9
-  summary: home_player_Y9 — partido.jugador_local_y9
-  body: Means 'home_player_Y9' (obfuscated to 'jugador_local_y9').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_y10
-  summary: home_player_Y10 — partido.jugador_local_y10
-  body: Means 'home_player_Y10' (obfuscated to 'jugador_local_y10').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_y11
-  summary: home_player_Y11 — partido.jugador_local_y11
-  body: Means 'home_player_Y11' (obfuscated to 'jugador_local_y11').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_y1
-  summary: away_player_Y1 — partido.jugador_visitante_y1
-  body: Means 'away_player_Y1' (obfuscated to 'jugador_visitante_y1').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_y2
-  summary: away_player_Y2 — partido.jugador_visitante_y2
-  body: Means 'away_player_Y2' (obfuscated to 'jugador_visitante_y2').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_y3
-  summary: away_player_Y3 — partido.jugador_visitante_y3
-  body: Means 'away_player_Y3' (obfuscated to 'jugador_visitante_y3').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_y4
-  summary: away_player_Y4 — partido.jugador_visitante_y4
-  body: Means 'away_player_Y4' (obfuscated to 'jugador_visitante_y4').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_y5
-  summary: away_player_Y5 — partido.jugador_visitante_y5
-  body: Means 'away_player_Y5' (obfuscated to 'jugador_visitante_y5').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_y6
-  summary: away_player_Y6 — partido.jugador_visitante_y6
-  body: Means 'away_player_Y6' (obfuscated to 'jugador_visitante_y6').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_y7
-  summary: away_player_Y7 — partido.jugador_visitante_y7
-  body: Means 'away_player_Y7' (obfuscated to 'jugador_visitante_y7').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_y8
-  summary: away_player_Y8 — partido.jugador_visitante_y8
-  body: Means 'away_player_Y8' (obfuscated to 'jugador_visitante_y8').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_y9
-  summary: away_player_Y9 — partido.jugador_visitante_y9
-  body: Means 'away_player_Y9' (obfuscated to 'jugador_visitante_y9').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_y10
-  summary: away_player_Y10 — partido.jugador_visitante_y10
-  body: Means 'away_player_Y10' (obfuscated to 'jugador_visitante_y10').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_y11
-  summary: away_player_Y11 — partido.jugador_visitante_y11
-  body: Means 'away_player_Y11' (obfuscated to 'jugador_visitante_y11').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_1
-  summary: home_player_1 — partido.jugador_local_1
-  body: Means 'home_player_1' (obfuscated to 'jugador_local_1').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_2
-  summary: home_player_2 — partido.jugador_local_2
-  body: Means 'home_player_2' (obfuscated to 'jugador_local_2').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_3
-  summary: home_player_3 — partido.jugador_local_3
-  body: Means 'home_player_3' (obfuscated to 'jugador_local_3').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_4
-  summary: home_player_4 — partido.jugador_local_4
-  body: Means 'home_player_4' (obfuscated to 'jugador_local_4').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_5
-  summary: home_player_5 — partido.jugador_local_5
-  body: Means 'home_player_5' (obfuscated to 'jugador_local_5').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_6
-  summary: home_player_6 — partido.jugador_local_6
-  body: Means 'home_player_6' (obfuscated to 'jugador_local_6').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_7
-  summary: home_player_7 — partido.jugador_local_7
-  body: Means 'home_player_7' (obfuscated to 'jugador_local_7').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_8
-  summary: home_player_8 — partido.jugador_local_8
-  body: Means 'home_player_8' (obfuscated to 'jugador_local_8').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_9
-  summary: home_player_9 — partido.jugador_local_9
-  body: Means 'home_player_9' (obfuscated to 'jugador_local_9').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_10
-  summary: home_player_10 — partido.jugador_local_10
-  body: Means 'home_player_10' (obfuscated to 'jugador_local_10').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_local_11
-  summary: home_player_11 — partido.jugador_local_11
-  body: Means 'home_player_11' (obfuscated to 'jugador_local_11').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_1
-  summary: away_player_1 — partido.jugador_visitante_1
-  body: Means 'away_player_1' (obfuscated to 'jugador_visitante_1').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_2
-  summary: away_player_2 — partido.jugador_visitante_2
-  body: Means 'away_player_2' (obfuscated to 'jugador_visitante_2').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_3
-  summary: away_player_3 — partido.jugador_visitante_3
-  body: Means 'away_player_3' (obfuscated to 'jugador_visitante_3').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_4
-  summary: away_player_4 — partido.jugador_visitante_4
-  body: Means 'away_player_4' (obfuscated to 'jugador_visitante_4').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_5
-  summary: away_player_5 — partido.jugador_visitante_5
-  body: Means 'away_player_5' (obfuscated to 'jugador_visitante_5').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_6
-  summary: away_player_6 — partido.jugador_visitante_6
-  body: Means 'away_player_6' (obfuscated to 'jugador_visitante_6').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_7
-  summary: away_player_7 — partido.jugador_visitante_7
-  body: Means 'away_player_7' (obfuscated to 'jugador_visitante_7').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_8
-  summary: away_player_8 — partido.jugador_visitante_8
-  body: Means 'away_player_8' (obfuscated to 'jugador_visitante_8').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_9
-  summary: away_player_9 — partido.jugador_visitante_9
-  body: Means 'away_player_9' (obfuscated to 'jugador_visitante_9').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_10
-  summary: away_player_10 — partido.jugador_visitante_10
-  body: Means 'away_player_10' (obfuscated to 'jugador_visitante_10').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jugador_visitante_11
-  summary: away_player_11 — partido.jugador_visitante_11
-  body: Means 'away_player_11' (obfuscated to 'jugador_visitante_11').
-  physical_type: bigint
-  logical_type: integer
-  nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: gol
-  summary: goal — partido.gol
-  body: Means 'goal' (obfuscated to 'gol').
+- physical_name: id_api_partido
+  summary: The external match-provider identifier for a match (id_api_partido).
+  body: A separate id space from partido.id for the source feed.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: id_api_equipo_local
+  summary: The home team playing a match (id_api_equipo_local).
+  body: Foreign key to equipo.id_api_equipo for the team that played at home.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: id_api_equipo_visitante
+  summary: The away team playing a match (id_api_equipo_visitante).
+  body: Foreign key to equipo.id_api_equipo for the team that played away.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: goles_equipo_local
+  summary: The number of goals scored by the home team in a match (goles_equipo_local).
+  body: Non-negative integer; compare against goles_equipo_visitante for the match result.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: goles_equipo_visitante
+  summary: The number of goals scored by the away team in a match (goles_equipo_visitante).
+  body: Non-negative integer; compare against goles_equipo_local for the match result.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_x1
+  summary: The horizontal pitch grid value for the home lineup slot 1 (jugador_local_x1).
+  body: Pairs with jugador_local_y1; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_x2
+  summary: The horizontal pitch grid value for the home lineup slot 2 (jugador_local_x2).
+  body: Pairs with jugador_local_y2; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_x3
+  summary: The horizontal pitch grid value for the home lineup slot 3 (jugador_local_x3).
+  body: Pairs with jugador_local_y3; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_x4
+  summary: The horizontal pitch grid value for the home lineup slot 4 (jugador_local_x4).
+  body: Pairs with jugador_local_y4; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_x5
+  summary: The horizontal pitch grid value for the home lineup slot 5 (jugador_local_x5).
+  body: Pairs with jugador_local_y5; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_x6
+  summary: The horizontal pitch grid value for the home lineup slot 6 (jugador_local_x6).
+  body: Pairs with jugador_local_y6; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_x7
+  summary: The horizontal pitch grid value for the home lineup slot 7 (jugador_local_x7).
+  body: Pairs with jugador_local_y7; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_x8
+  summary: The horizontal pitch grid value for the home lineup slot 8 (jugador_local_x8).
+  body: Pairs with jugador_local_y8; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_x9
+  summary: The horizontal pitch grid value for the home lineup slot 9 (jugador_local_x9).
+  body: Pairs with jugador_local_y9; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_x10
+  summary: The horizontal pitch grid value for the home lineup slot 10 (jugador_local_x10).
+  body: Pairs with jugador_local_y10; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_x11
+  summary: The horizontal pitch grid value for the home lineup slot 11 (jugador_local_x11).
+  body: Pairs with jugador_local_y11; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_y1
+  summary: The vertical pitch grid value for the home lineup slot 1 (jugador_local_y1).
+  body: Pairs with jugador_local_x1; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_y2
+  summary: The vertical pitch grid value for the home lineup slot 2 (jugador_local_y2).
+  body: Pairs with jugador_local_x2; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_y3
+  summary: The vertical pitch grid value for the home lineup slot 3 (jugador_local_y3).
+  body: Pairs with jugador_local_x3; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_y4
+  summary: The vertical pitch grid value for the home lineup slot 4 (jugador_local_y4).
+  body: Pairs with jugador_local_x4; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_y5
+  summary: The vertical pitch grid value for the home lineup slot 5 (jugador_local_y5).
+  body: Pairs with jugador_local_x5; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_y6
+  summary: The vertical pitch grid value for the home lineup slot 6 (jugador_local_y6).
+  body: Pairs with jugador_local_x6; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_y7
+  summary: The vertical pitch grid value for the home lineup slot 7 (jugador_local_y7).
+  body: Pairs with jugador_local_x7; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_y8
+  summary: The vertical pitch grid value for the home lineup slot 8 (jugador_local_y8).
+  body: Pairs with jugador_local_x8; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_y9
+  summary: The vertical pitch grid value for the home lineup slot 9 (jugador_local_y9).
+  body: Pairs with jugador_local_x9; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_y10
+  summary: The vertical pitch grid value for the home lineup slot 10 (jugador_local_y10).
+  body: Pairs with jugador_local_x10; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_y11
+  summary: The vertical pitch grid value for the home lineup slot 11 (jugador_local_y11).
+  body: Pairs with jugador_local_x11; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_x1
+  summary: The horizontal pitch grid value for the away lineup slot 1 (jugador_visitante_x1).
+  body: Pairs with jugador_visitante_y1; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_x2
+  summary: The horizontal pitch grid value for the away lineup slot 2 (jugador_visitante_x2).
+  body: Pairs with jugador_visitante_y2; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_x3
+  summary: The horizontal pitch grid value for the away lineup slot 3 (jugador_visitante_x3).
+  body: Pairs with jugador_visitante_y3; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_x4
+  summary: The horizontal pitch grid value for the away lineup slot 4 (jugador_visitante_x4).
+  body: Pairs with jugador_visitante_y4; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_x5
+  summary: The horizontal pitch grid value for the away lineup slot 5 (jugador_visitante_x5).
+  body: Pairs with jugador_visitante_y5; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_x6
+  summary: The horizontal pitch grid value for the away lineup slot 6 (jugador_visitante_x6).
+  body: Pairs with jugador_visitante_y6; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_x7
+  summary: The horizontal pitch grid value for the away lineup slot 7 (jugador_visitante_x7).
+  body: Pairs with jugador_visitante_y7; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_x8
+  summary: The horizontal pitch grid value for the away lineup slot 8 (jugador_visitante_x8).
+  body: Pairs with jugador_visitante_y8; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_x9
+  summary: The horizontal pitch grid value for the away lineup slot 9 (jugador_visitante_x9).
+  body: Pairs with jugador_visitante_y9; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_x10
+  summary: The horizontal pitch grid value for the away lineup slot 10 (jugador_visitante_x10).
+  body: Pairs with jugador_visitante_y10; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_x11
+  summary: The horizontal pitch grid value for the away lineup slot 11 (jugador_visitante_x11).
+  body: Pairs with jugador_visitante_y11; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_y1
+  summary: The vertical pitch grid value for the away lineup slot 1 (jugador_visitante_y1).
+  body: Pairs with jugador_visitante_x1; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_y2
+  summary: The vertical pitch grid value for the away lineup slot 2 (jugador_visitante_y2).
+  body: Pairs with jugador_visitante_x2; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_y3
+  summary: The vertical pitch grid value for the away lineup slot 3 (jugador_visitante_y3).
+  body: Pairs with jugador_visitante_x3; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_y4
+  summary: The vertical pitch grid value for the away lineup slot 4 (jugador_visitante_y4).
+  body: Pairs with jugador_visitante_x4; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_y5
+  summary: The vertical pitch grid value for the away lineup slot 5 (jugador_visitante_y5).
+  body: Pairs with jugador_visitante_x5; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_y6
+  summary: The vertical pitch grid value for the away lineup slot 6 (jugador_visitante_y6).
+  body: Pairs with jugador_visitante_x6; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_y7
+  summary: The vertical pitch grid value for the away lineup slot 7 (jugador_visitante_y7).
+  body: Pairs with jugador_visitante_x7; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_y8
+  summary: The vertical pitch grid value for the away lineup slot 8 (jugador_visitante_y8).
+  body: Pairs with jugador_visitante_x8; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_y9
+  summary: The vertical pitch grid value for the away lineup slot 9 (jugador_visitante_y9).
+  body: Pairs with jugador_visitante_x9; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_y10
+  summary: The vertical pitch grid value for the away lineup slot 10 (jugador_visitante_y10).
+  body: Pairs with jugador_visitante_x10; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_y11
+  summary: The vertical pitch grid value for the away lineup slot 11 (jugador_visitante_y11).
+  body: Pairs with jugador_visitante_x11; see the table body.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_1
+  summary: Lineup slot 1 for the home team in a match (jugador_local_1).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_2
+  summary: Lineup slot 2 for the home team in a match (jugador_local_2).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_3
+  summary: Lineup slot 3 for the home team in a match (jugador_local_3).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_4
+  summary: Lineup slot 4 for the home team in a match (jugador_local_4).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_5
+  summary: Lineup slot 5 for the home team in a match (jugador_local_5).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_6
+  summary: Lineup slot 6 for the home team in a match (jugador_local_6).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_7
+  summary: Lineup slot 7 for the home team in a match (jugador_local_7).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_8
+  summary: Lineup slot 8 for the home team in a match (jugador_local_8).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_9
+  summary: Lineup slot 9 for the home team in a match (jugador_local_9).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_10
+  summary: Lineup slot 10 for the home team in a match (jugador_local_10).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_local_11
+  summary: Lineup slot 11 for the home team in a match (jugador_local_11).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_1
+  summary: Lineup slot 1 for the away team in a match (jugador_visitante_1).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_2
+  summary: Lineup slot 2 for the away team in a match (jugador_visitante_2).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_3
+  summary: Lineup slot 3 for the away team in a match (jugador_visitante_3).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_4
+  summary: Lineup slot 4 for the away team in a match (jugador_visitante_4).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_5
+  summary: Lineup slot 5 for the away team in a match (jugador_visitante_5).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_6
+  summary: Lineup slot 6 for the away team in a match (jugador_visitante_6).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_7
+  summary: Lineup slot 7 for the away team in a match (jugador_visitante_7).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_8
+  summary: Lineup slot 8 for the away team in a match (jugador_visitante_8).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_9
+  summary: Lineup slot 9 for the away team in a match (jugador_visitante_9).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_10
+  summary: Lineup slot 10 for the away team in a match (jugador_visitante_10).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: jugador_visitante_11
+  summary: Lineup slot 11 for the away team in a match (jugador_visitante_11).
+  body: Foreign key to jugador.id_api_jugador; see the table body for the slot numbering.
+  physical_type: bigint
+  logical_type: integer
+  nullable: true
+- physical_name: gol
+  summary: The raw event log of every goal in a match (gol).
+  body: An XML blob of the match's goals, one blob per match rather than one row per event.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tiro_entre_palos
-  summary: shoton — partido.tiro_entre_palos
-  body: Means 'shoton' (obfuscated to 'tiro_entre_palos').
+- physical_name: tiro_entre_palos
+  summary: The raw event log of every shot on target in a match (tiro_entre_palos).
+  body: An XML blob of the match's shots on target, one blob per match rather than one row per event.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tiro_fuera
-  summary: shotoff — partido.tiro_fuera
-  body: Means 'shotoff' (obfuscated to 'tiro_fuera').
+- physical_name: tiro_fuera
+  summary: The raw event log of every shot off target in a match (tiro_fuera).
+  body: An XML blob of the match's shots off target, one blob per match rather than one row per event.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: falta_cometida
-  summary: foulcommit — partido.falta_cometida
-  body: Means 'foulcommit' (obfuscated to 'falta_cometida').
+- physical_name: falta_cometida
+  summary: The raw event log of every foul in a match (falta_cometida).
+  body: An XML blob of the match's fouls, one blob per match rather than one row per event.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tarjeta
-  summary: card — partido.tarjeta
-  body: Means 'card' (obfuscated to 'tarjeta').
+- physical_name: tarjeta
+  summary: The raw event log of every card in a match (tarjeta).
+  body: An XML blob of the match's cards, one blob per match rather than one row per event.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: centro
-  summary: cross — partido.centro
-  body: Means 'cross' (obfuscated to 'centro').
+- physical_name: centro
+  summary: The raw event log of every cross in a match (centro).
+  body: An XML blob of the match's crosses, one blob per match rather than one row per event.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: saque_esquina
-  summary: corner — partido.saque_esquina
-  body: Means 'corner' (obfuscated to 'saque_esquina').
+- physical_name: saque_esquina
+  summary: The raw event log of every corner in a match (saque_esquina).
+  body: An XML blob of the match's corners, one blob per match rather than one row per event.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: posesion
-  summary: possession — partido.posesion
-  body: Means 'possession' (obfuscated to 'posesion').
+- physical_name: posesion
+  summary: The running ball-possession log for a match (posesion).
+  body: An XML blob of the home/away possession split at points during the match, one blob per match.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_365_local
-  summary: B365H — partido.apuesta_365_local
-  body: Means 'B365H' (obfuscated to 'apuesta_365_local').
+- physical_name: apuesta_365_local
+  summary: Bet365's pre-match odds on a home win (apuesta_365_local).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_365_empate
-  summary: B365D — partido.apuesta_365_empate
-  body: Means 'B365D' (obfuscated to 'apuesta_365_empate').
+- physical_name: apuesta_365_empate
+  summary: Bet365's pre-match odds on a draw (apuesta_365_empate).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_365_visitante
-  summary: B365A — partido.apuesta_365_visitante
-  body: Means 'B365A' (obfuscated to 'apuesta_365_visitante').
+- physical_name: apuesta_365_visitante
+  summary: Bet365's pre-match odds on an away win (apuesta_365_visitante).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_bwin_local
-  summary: BWH — partido.apuesta_bwin_local
-  body: Means 'BWH' (obfuscated to 'apuesta_bwin_local').
+- physical_name: apuesta_bwin_local
+  summary: Bwin's pre-match odds on a home win (apuesta_bwin_local).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_bwin_empate
-  summary: BWD — partido.apuesta_bwin_empate
-  body: Means 'BWD' (obfuscated to 'apuesta_bwin_empate').
+- physical_name: apuesta_bwin_empate
+  summary: Bwin's pre-match odds on a draw (apuesta_bwin_empate).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_bwin_visitante
-  summary: BWA — partido.apuesta_bwin_visitante
-  body: Means 'BWA' (obfuscated to 'apuesta_bwin_visitante').
+- physical_name: apuesta_bwin_visitante
+  summary: Bwin's pre-match odds on an away win (apuesta_bwin_visitante).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_interwetten_local
-  summary: IWH — partido.apuesta_interwetten_local
-  body: Means 'IWH' (obfuscated to 'apuesta_interwetten_local').
+- physical_name: apuesta_interwetten_local
+  summary: Interwetten's pre-match odds on a home win (apuesta_interwetten_local).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_interwetten_empate
-  summary: IWD — partido.apuesta_interwetten_empate
-  body: Means 'IWD' (obfuscated to 'apuesta_interwetten_empate').
+- physical_name: apuesta_interwetten_empate
+  summary: Interwetten's pre-match odds on a draw (apuesta_interwetten_empate).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_interwetten_visitante
-  summary: IWA — partido.apuesta_interwetten_visitante
-  body: Means 'IWA' (obfuscated to 'apuesta_interwetten_visitante').
+- physical_name: apuesta_interwetten_visitante
+  summary: Interwetten's pre-match odds on an away win (apuesta_interwetten_visitante).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_ladbrokes_local
-  summary: LBH — partido.apuesta_ladbrokes_local
-  body: Means 'LBH' (obfuscated to 'apuesta_ladbrokes_local').
+- physical_name: apuesta_ladbrokes_local
+  summary: Ladbrokes's pre-match odds on a home win (apuesta_ladbrokes_local).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_ladbrokes_empate
-  summary: LBD — partido.apuesta_ladbrokes_empate
-  body: Means 'LBD' (obfuscated to 'apuesta_ladbrokes_empate').
+- physical_name: apuesta_ladbrokes_empate
+  summary: Ladbrokes's pre-match odds on a draw (apuesta_ladbrokes_empate).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_ladbrokes_visitante
-  summary: LBA — partido.apuesta_ladbrokes_visitante
-  body: Means 'LBA' (obfuscated to 'apuesta_ladbrokes_visitante').
+- physical_name: apuesta_ladbrokes_visitante
+  summary: Ladbrokes's pre-match odds on an away win (apuesta_ladbrokes_visitante).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_pinnaclesports_local
-  summary: PSH — partido.apuesta_pinnaclesports_local
-  body: Means 'PSH' (obfuscated to 'apuesta_pinnaclesports_local').
+- physical_name: apuesta_pinnaclesports_local
+  summary: Pinnacle Sports's pre-match odds on a home win (apuesta_pinnaclesports_local).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_pinnaclesports_empate
-  summary: PSD — partido.apuesta_pinnaclesports_empate
-  body: Means 'PSD' (obfuscated to 'apuesta_pinnaclesports_empate').
+- physical_name: apuesta_pinnaclesports_empate
+  summary: Pinnacle Sports's pre-match odds on a draw (apuesta_pinnaclesports_empate).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_pinnaclesports_visitante
-  summary: PSA — partido.apuesta_pinnaclesports_visitante
-  body: Means 'PSA' (obfuscated to 'apuesta_pinnaclesports_visitante').
+- physical_name: apuesta_pinnaclesports_visitante
+  summary: Pinnacle Sports's pre-match odds on an away win (apuesta_pinnaclesports_visitante).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_williamhill_local
-  summary: WHH — partido.apuesta_williamhill_local
-  body: Means 'WHH' (obfuscated to 'apuesta_williamhill_local').
+- physical_name: apuesta_williamhill_local
+  summary: William Hill's pre-match odds on a home win (apuesta_williamhill_local).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_williamhill_empate
-  summary: WHD — partido.apuesta_williamhill_empate
-  body: Means 'WHD' (obfuscated to 'apuesta_williamhill_empate').
+- physical_name: apuesta_williamhill_empate
+  summary: William Hill's pre-match odds on a draw (apuesta_williamhill_empate).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_williamhill_visitante
-  summary: WHA — partido.apuesta_williamhill_visitante
-  body: Means 'WHA' (obfuscated to 'apuesta_williamhill_visitante').
+- physical_name: apuesta_williamhill_visitante
+  summary: William Hill's pre-match odds on an away win (apuesta_williamhill_visitante).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_stanleybet_local
-  summary: SJH — partido.apuesta_stanleybet_local
-  body: Means 'SJH' (obfuscated to 'apuesta_stanleybet_local').
+- physical_name: apuesta_stanleybet_local
+  summary: Stanleybet's pre-match odds on a home win (apuesta_stanleybet_local).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_stanleybet_empate
-  summary: SJD — partido.apuesta_stanleybet_empate
-  body: Means 'SJD' (obfuscated to 'apuesta_stanleybet_empate').
+- physical_name: apuesta_stanleybet_empate
+  summary: Stanleybet's pre-match odds on a draw (apuesta_stanleybet_empate).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_stanleybet_visitante
-  summary: SJA — partido.apuesta_stanleybet_visitante
-  body: Means 'SJA' (obfuscated to 'apuesta_stanleybet_visitante').
+- physical_name: apuesta_stanleybet_visitante
+  summary: Stanleybet's pre-match odds on an away win (apuesta_stanleybet_visitante).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_victorchandler_local
-  summary: VCH — partido.apuesta_victorchandler_local
-  body: Means 'VCH' (obfuscated to 'apuesta_victorchandler_local').
+- physical_name: apuesta_victorchandler_local
+  summary: Victor Chandler's pre-match odds on a home win (apuesta_victorchandler_local).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_victorchandler_empate
-  summary: VCD — partido.apuesta_victorchandler_empate
-  body: Means 'VCD' (obfuscated to 'apuesta_victorchandler_empate').
+- physical_name: apuesta_victorchandler_empate
+  summary: Victor Chandler's pre-match odds on a draw (apuesta_victorchandler_empate).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_victorchandler_visitante
-  summary: VCA — partido.apuesta_victorchandler_visitante
-  body: Means 'VCA' (obfuscated to 'apuesta_victorchandler_visitante').
+- physical_name: apuesta_victorchandler_visitante
+  summary: Victor Chandler's pre-match odds on an away win (apuesta_victorchandler_visitante).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_gamebookers_local
-  summary: GBH — partido.apuesta_gamebookers_local
-  body: Means 'GBH' (obfuscated to 'apuesta_gamebookers_local').
+- physical_name: apuesta_gamebookers_local
+  summary: Gamebookers's pre-match odds on a home win (apuesta_gamebookers_local).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_gamebookers_empate
-  summary: GBD — partido.apuesta_gamebookers_empate
-  body: Means 'GBD' (obfuscated to 'apuesta_gamebookers_empate').
+- physical_name: apuesta_gamebookers_empate
+  summary: Gamebookers's pre-match odds on a draw (apuesta_gamebookers_empate).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_gamebookers_visitante
-  summary: GBA — partido.apuesta_gamebookers_visitante
-  body: Means 'GBA' (obfuscated to 'apuesta_gamebookers_visitante').
+- physical_name: apuesta_gamebookers_visitante
+  summary: Gamebookers's pre-match odds on an away win (apuesta_gamebookers_visitante).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_betsafe_local
-  summary: BSH — partido.apuesta_betsafe_local
-  body: Means 'BSH' (obfuscated to 'apuesta_betsafe_local').
+- physical_name: apuesta_betsafe_local
+  summary: Betsafe's pre-match odds on a home win (apuesta_betsafe_local).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_betsafe_empate
-  summary: BSD — partido.apuesta_betsafe_empate
-  body: Means 'BSD' (obfuscated to 'apuesta_betsafe_empate').
+- physical_name: apuesta_betsafe_empate
+  summary: Betsafe's pre-match odds on a draw (apuesta_betsafe_empate).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: apuesta_betsafe_visitante
-  summary: BSA — partido.apuesta_betsafe_visitante
-  body: Means 'BSA' (obfuscated to 'apuesta_betsafe_visitante').
+- physical_name: apuesta_betsafe_visitante
+  summary: Betsafe's pre-match odds on an away win (apuesta_betsafe_visitante).
+  body: Decimal odds; see the table body for how to read them.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: visitante_1_id
-  summary: visitante_1_id — partido.visitante_1_id
-  body: 'Physical column ''visitante_1_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''away_player_1''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: visitante_1_id
+  summary: visitante_1_id, an integer column.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be
+    used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''away_player_1''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: visitante_5_id
-  summary: visitante_5_id — partido.visitante_5_id
-  body: 'Physical column ''visitante_5_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''away_player_5''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: visitante_5_id
+  summary: visitante_5_id, an integer column.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be
+    used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''away_player_5''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: visitante_9_id
-  summary: visitante_9_id — partido.visitante_9_id
-  body: 'Physical column ''visitante_9_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''away_player_9''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: visitante_9_id
+  summary: visitante_9_id, an integer column.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be
+    used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''away_player_9''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Match: one row per match with home/away team ids, home/away goals, season,
-  league, country, lineup positions and bookmaker odds. Grain = one played match.'
+    - information_schema

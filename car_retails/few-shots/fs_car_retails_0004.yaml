@@ -1,21 +1,27 @@
 asset_type: few_shot
 id: fs_car_retails_0004
 schema: car_retails
-sql: SELECT "T1"."adresse_ligne1", "T1"."adresse_ligne2" FROM "car_retails"."clients"
-  AS "T1" INNER JOIN "car_retails"."commandes" AS "T2" ON "T1"."numero_client" = "T2"."numero_client"
-  WHERE "T2"."date_expedition" = '2005-04-04' AND "T2"."statut" = 'Shipped'
-summary: What is the full address of the customer who commented that DHL be used for
-  the order that was shipped on April 4, 2005?
-body: 'Question: What is the full address of the customer who commented that DHL be
-  used for the order that was shipped on April 4, 2005?
+sql: SELECT "T2"."nom_produit", SUM(ROUND(CAST("T1"."quantite_commandee" AS DECIMAL) * CAST("T1"."prix_unitaire"
+  AS DECIMAL), 2)) FROM "car_retails"."details_commande" AS "T1" INNER JOIN (SELECT "code_produit", "nom_produit"
+  FROM "car_retails"."produits" ORDER BY "prix_catalogue" - "prix_achat" DESC LIMIT 1) AS "T2" ON "T1"."code_produit"
+  = "T2"."code_produit" GROUP BY "T2"."nom_produit" UNION SELECT "T2"."nom_produit", SUM(ROUND(CAST("T1"."quantite_commandee"
+  AS DECIMAL) * CAST("T1"."prix_unitaire" AS DECIMAL), 2)) FROM "car_retails"."details_commande" AS "T1"
+  INNER JOIN (SELECT "code_produit", "nom_produit" FROM "car_retails"."produits" ORDER BY "prix_catalogue"
+  - "prix_achat" ASC LIMIT 1) AS "T2" ON "T1"."code_produit" = "T2"."code_produit" GROUP BY "T2"."nom_produit"
+summary: Which two products has the highest and lowest expected profits? Determine the total price for
+  each product in terms of the largest quantity that was ordered.
+body: 'Question: Which two products has the highest and lowest expected profits? Determine the total price
+  for each product in terms of the largest quantity that was ordered.
 
   SQL:
 
-  SELECT "T1"."adresse_ligne1", "T1"."adresse_ligne2" FROM "car_retails"."clients"
-  AS "T1" INNER JOIN "car_retails"."commandes" AS "T2" ON "T1"."numero_client" = "T2"."numero_client"
-  WHERE "T2"."date_expedition" = ''2005-04-04'' AND "T2"."statut" = ''Shipped'''
-complexity: medium
-confidence: 0.55
+  SELECT "T2"."nom_produit", SUM(ROUND(CAST("T1"."quantite_commandee" AS DECIMAL) * CAST("T1"."prix_unitaire"
+  AS DECIMAL), 2)) FROM "car_retails"."details_commande" AS "T1" INNER JOIN (SELECT "code_produit", "nom_produit"
+  FROM "car_retails"."produits" ORDER BY "prix_catalogue" - "prix_achat" DESC LIMIT 1) AS "T2" ON "T1"."code_produit"
+  = "T2"."code_produit" GROUP BY "T2"."nom_produit" UNION SELECT "T2"."nom_produit", SUM(ROUND(CAST("T1"."quantite_commandee"
+  AS DECIMAL) * CAST("T1"."prix_unitaire" AS DECIMAL), 2)) FROM "car_retails"."details_commande" AS "T1"
+  INNER JOIN (SELECT "code_produit", "nom_produit" FROM "car_retails"."produits" ORDER BY "prix_catalogue"
+  - "prix_achat" ASC LIMIT 1) AS "T2" ON "T1"."code_produit" = "T2"."code_produit" GROUP BY "T2"."nom_produit"'
 audit:
   provenance:
     source: gold
@@ -23,4 +29,4 @@ audit:
     version: harvest-1
     source_refs:
     - train_final.jsonl
-  evidence: gold train Q train_1603; 1 question(s) share this shape
+  evidence: train question train_1556

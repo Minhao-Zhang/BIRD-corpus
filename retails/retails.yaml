@@ -1,22 +1,34 @@
 asset_type: schema
 id: retails
 name: retails
-summary: 'retails: 8 tables — customer, lineitem, nation, part, partsupp, orders,
-  supplier, region'
+summary: >-
+  retails: a wholesale distribution database of customers, suppliers, parts, and their orders
+  and shipped line items, grouped by nation and region, for questions about pricing, discounts,
+  shipping, supply cost, and account balances.
+body: >
+  Ten tables. cliente (customers), proveedor (suppliers), parte (parts), and parte_proveedor
+  (which supplier stocks which part, at what cost and available quantity) are the master data.
+  pedidos holds one row per order; detalle_pedido holds one row per line item within an order,
+  and is the table most quantity, price, discount, and shipping questions run against. pais
+  (nation) and region are shared geography: both cliente and proveedor carry an id_pais, and
+  pais carries an id_region. estado_nacional and zona_geografica look like nation and region
+  tables but are not dependable for analysis; use pais and region instead. Most tables also
+  carry a handful of extra id-like or text columns (the codigo_* columns, saldo_disponible,
+  saldo_proveedor, notas_pais, notas_parte, notas_region, denominacion_region, marca_fabricante)
+  that resemble one of the real columns but are not reliable — each is flagged on the column
+  itself and should not be selected, filtered, or joined on.
+rules:
+- Join cliente and proveedor to pais on id_pais, and pais to region on id_region. Never join on
+  any codigo_* column even though some look like a key — none of them are dependable.
+- Use pais and region, not estado_nacional or zona_geografica, for a customer's or supplier's
+  nation and region.
+- A line item's discounted price is precio_extendido * (1 - descuento), and its profit is that
+  discounted price minus costo_suministro * cantidad; costo_suministro is on parte_proveedor,
+  not on detalle_pedido, so it takes a join to compute.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A TPC-H style wholesale/retail operations database. Customers place orders,
-  each order is made of line items for parts supplied by suppliers, and both customers
-  and suppliers are organized by nation and region. Used to analyze sales value, account
-  balances, order priority/shipping, and part supply.
-rules:
-- A customer (cliente) or supplier (proveedor) is tied to its nation via id_pais =
-  pais.id_pais, and that nation's region via pais.id_region = region.id_region.
-- An account is in debt when saldo_cuenta < 0 (applies to both customers and suppliers).
-- Earlier fecha_pedido (order date) means higher delivery priority.
+    - information_schema

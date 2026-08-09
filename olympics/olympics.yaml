@@ -1,24 +1,31 @@
 asset_type: schema
 id: olympics
 name: olympics
-summary: 'olympics: 11 tables — event, city, noc_region, medal, person, person_region,
-  competitor_event, games, games_city, games_competitor, sport'
+summary: 'olympics: Olympic Games history — athletes and the events, sports, and
+  medals they compete for, the games editions and host cities, and the countries
+  and regions they represent.'
+body: >
+  Data spans Olympic Games editions from 1896 to 2016, both Summer and Winter. A person
+  (ren_wu) competes in one or more games editions (yun_dong_hui_xuan_shou, one row per person
+  per edition, carrying the age they competed at) and, within an edition, in one or more
+  events (xuan_shou_bi_sai, one row per competitor per event, carrying the medal won). An
+  event (bi_sai) belongs to one sport (yun_dong_xiang_mu); a games edition is hosted by one
+  city (yun_dong_hui_cheng_shi joining to cheng_shi); a person represents one national
+  Olympic committee region (ren_wu_qu_yu joining to guo_jia_qu_yu). Several tables carry a
+  second, unreliable copy of a real column, and jiang_xiang_leibie and ti_yu_xiang_mu each
+  duplicate a whole table; those are marked suspect and must not be used.
+rules:
+  - shen_gao (height) and ti_zhong (weight) equal to 0 mean the value is missing, not an
+    actual measurement; exclude those rows before averaging or comparing height or weight.
+  - xuan_shou_bi_sai.xuan_shou_id joins to yun_dong_hui_xuan_shou.id, not directly to
+    ren_wu.id; go through yun_dong_hui_xuan_shou to reach the person or the age they competed
+    at.
+  - jiang_pai includes a row for no medal (jiang_pai_ming = 'NA'); exclude it when counting
+    how many medals a competitor or region has won.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'An Olympic Games history database: people (athletes) compete in events belonging
-  to sports, at seasonal Games held in host cities, representing regions (with NOC
-  codes), and may win medals. It answers who competed where, when, at what age, from
-  which region, and how many medals they won.'
-rules:
-- Medals actually won exclude the 'No medal' outcome (jiang_pai_id = 4); gold medals
-  are jiang_pai_ming = 'Gold' (jiang_pai_id = 1).
-- A competitor's age (nian_ling) is recorded per Games participation in yun_dong_hui_xuan_shou,
-  not once on the person.
-- A Games name (yun_dong_hui_ming) combines year and season, e.g. '1994 Winter' or
-  '2012 Summer'.
+    - information_schema

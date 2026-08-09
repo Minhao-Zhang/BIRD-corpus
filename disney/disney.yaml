@@ -1,24 +1,33 @@
 asset_type: schema
 id: disney
 name: disney
-summary: 'disney: 5 tables — voice-actors, director, revenue, movies_total_gross,
-  characters'
+summary: >-
+  The disney database catalogs Walt Disney movies — director, voice cast, hero and villain
+  characters, genre, MPAA rating, release date, and box-office gross — plus the company's total
+  yearly revenue by business segment.
+body: >
+  Two unrelated subject areas share this schema. Four tables — actores_voz, director,
+  peliculas_recaudacion_total, and personajes — describe individual Disney movies: their
+  director, voice cast, hero and villain characters, an associated song, genre, MPAA rating,
+  release date, and box-office gross, all tied together by matching the movie's title as free
+  text rather than a shared numeric id. The fifth real table, ingresos, is unrelated: one row
+  per fiscal year giving the Walt Disney Company's total revenue split across its Studio
+  Entertainment, Consumer Products, Disney Interactive, Parks and Resorts, and Media Networks
+  business segments. doblaje_personajes and peliculas_financieras are not dependable and should
+  not be used for either subject area.
+rules:
+- Join movies across actores_voz, director, peliculas_recaudacion_total, and personajes on their
+  exact movie-title text (pelicula, nombre, titulo_pelicula) — there is no numeric id, and
+  titulo_original, titulo_pelicula_voz, nombre_completo, and titulo_largometraje are unreliable
+  copies that must not be used for this.
+- Never select, filter, or join on doblaje_personajes, peliculas_financieras, or any column
+  marked unreliable.
+- ingresos gives the Walt Disney Company's total yearly revenue by business segment and has no
+  movie-title column, so it does not join to the other tables in this schema.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A catalog of Walt Disney animated feature films with their box-office performance,
-  plus a company-level table of annual segment revenue. It links each movie to its
-  director, cast of voice actors, and its main characters (heroes, villains) and songs.
-rules:
-- 'A movie is identified by its title, but the join column differs per table: peliculas_recaudacion_total.titulo_pelicula,
-  personajes.titulo_pelicula, actores_voz.pelicula, and director.nombre all hold the
-  movie title and are joined on equality.'
-- The ingresos table is company-wide annual financials keyed by year and does not
-  join to the film tables; do not relate a film's box-office gross to segment revenue.
-- A movie's voice actor for a specific role is found by matching actores_voz.personaje
-  to personajes.heroe or personajes.villano for the same title.
+    - information_schema

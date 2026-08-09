@@ -2,209 +2,133 @@ asset_type: table
 id: menu.plat
 schema: menu
 physical_name: plat
-summary: 'Dish (plat): id, name, description, menus_appeared, times_appeared, first_appeared,
-  last_appeared, lowest_price, highest_price'
+summary: plat is the dish catalog, one row per distinct dish name, with the years and prices at which it was seen across every menu that lists it.
+body: >
+  One row per distinct dish name (Coffee, Consomme, Roast Turkey, and so on) drawn from every
+  menu in the collection, not one row per listing. Its date and price columns describe a range
+  observed across all menus carrying the dish, so they are already aggregated: they are not
+  looked up on `elementmenu` or `menu`, they are stored here directly. Joins to `elementmenu`
+  by id = id_plat to find every specific menu placement of a dish, its exact price on that
+  menu, and its position on the page.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — plat.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: id, the unique identifier of a dish in the plat catalog.
+  body: >
+    A whole number, distinct per dish name, referenced by elementmenu.id_plat to attach a
+    specific menu listing to its dish. Not reused across dishes.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nom
-  summary: name — plat.nom
-  body: Means 'name' (obfuscated to 'nom').
+- physical_name: nom
+  summary: nom, the name of the dish as printed on a menu.
+  body: >
+    Free text, for example 'CHEESE.', 'Potatoes a la creme', or 'Bass''. This is what a
+    question naming a specific dish (for example "Bluefish" or "Chicken gumbo") matches
+    against. Spelling and punctuation follow the original menu, so casing and trailing
+    punctuation vary between otherwise identical dish names.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: description
-  summary: description — plat.description
-  body: Means 'description' (obfuscated to 'description').
+- physical_name: description
+  summary: description, free-text notes about the dish.
+  body: Always empty in this dataset; no dish carries a description here.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: menus_apparus
-  summary: menus_appeared — plat.menus_apparus
-  body: Number of distinct menus the dish appeared on.
+- physical_name: menus_apparus
+  summary: menus_apparus, the number of distinct menus that list this dish.
+  body: >
+    A count of distinct menus, ranging from 0 up to the low tens. Distinct from fois_apparu,
+    which counts every listing including repeats within one menu, so fois_apparu is always
+    greater than or equal to menus_apparus for the same dish.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fois_apparu
-  summary: times_appeared — plat.fois_apparu
-  body: Number of times the dish appeared. If fois_apparu > menus_apparus the dish
-    appeared on a menu more than once.
+- physical_name: fois_apparu
+  summary: fois_apparu, the total number of times this dish is listed across all menus.
+  body: >
+    A count of listings (rows in elementmenu that reference this dish), which can exceed
+    menus_apparus when the same dish is listed more than once within a single menu — for
+    example on more than one page, or in more than one section.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: premiere_apparition
-  summary: first_appeared — plat.premiere_apparition
-  body: Year the dish first appeared. Values outside 1851-2012 are considered incorrect
-    data.
+- physical_name: premiere_apparition
+  summary: premiere_apparition, the earliest year this dish is seen on any menu.
+  body: >
+    A four-digit year, the minimum date year across every menu listing this dish. Valid years
+    fall between 1851 and 2012; a value outside that range marks the dish's date data as not
+    correct rather than a genuinely early or late appearance. Paired with derniere_apparition
+    to measure how long a dish stayed in circulation: the larger derniere_apparition minus
+    premiere_apparition is, the longer and more historical or classical the dish's run.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: derniere_apparition
-  summary: last_appeared — plat.derniere_apparition
-  body: Year the dish last appeared. Longevity/history = derniere_apparition - premiere_apparition.
+- physical_name: derniere_apparition
+  summary: derniere_apparition, the most recent year this dish is seen on any menu.
+  body: >
+    A four-digit year, the maximum date year across every menu listing this dish. Valid years
+    fall between 1851 and 2012; a value outside that range marks the dish's date data as not
+    correct. Always greater than or equal to premiere_apparition for the same dish.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prix_minimum
-  summary: lowest_price — plat.prix_minimum
-  body: Lowest observed price of the dish across menus. 0 means the dish was once
-    free.
+- physical_name: prix_minimum
+  summary: prix_minimum, the lowest price this dish is listed at across all menus.
+  body: >
+    A decimal amount in whatever currency each menu used (see menu.devise), with no
+    cross-menu currency conversion applied. A value of 0 means the dish was listed as free on
+    at least one menu.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prix_maximum
-  summary: highest_price — plat.prix_maximum
-  body: Highest observed price of the dish. NULL indicates a stable (single) price.
+- physical_name: prix_maximum
+  summary: prix_maximum, the highest price this dish is listed at across all menus.
+  body: >
+    A decimal amount, unconverted across currencies. Null means the dish's price never
+    varied enough across its listings to have a distinct high end recorded, i.e. its price
+    was stable rather than ranging.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: premiere_presence
-  summary: premiere_presence — plat.premiere_presence
-  body: 'Physical column ''premiere_presence''. DECOY column: not a real business
-    field. Fabricated to mimic ''first_appeared''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+- physical_name: premiere_presence
+  summary: premiere_presence, an integer column on the plat table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''first_appeared''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: identifiant
-  summary: identifiant — plat.identifiant
-  body: 'Physical column ''identifiant''. DECOY column: not a real business field.
-    Fabricated to mimic ''id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: identifiant
+  summary: identifiant, an integer column on the plat table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''id''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: derniere_presence
-  summary: derniere_presence — plat.derniere_presence
-  body: 'Physical column ''derniere_presence''. DECOY column: not a real business
-    field. Fabricated to mimic ''last_appeared''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: derniere_presence
+  summary: derniere_presence, an integer column on the plat table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''last_appeared''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per distinct dish. Grain: a dish identified by id. Holds the dish name
-  and cross-menu appearance summary: first/last year appeared, times appeared, number
-  of menus appeared on, and lowest/highest observed price.'
+    - information_schema

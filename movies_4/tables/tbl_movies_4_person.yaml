@@ -2,85 +2,57 @@ asset_type: table
 id: movies_4.person
 schema: movies_4
 physical_name: person
-summary: 'person (person): person_id, person_name'
+summary: person holds one reference row per individual who acted in or worked on a movie.
+body: >
+  One row per person, keyed by person_id, giving the name used for actors in movie_cast and crew
+  members in movie_crew. individual_id and individual_name sit alongside the real columns but do
+  not correspond to the business facts this table records; do not use them to answer questions,
+  and never join on individual_id.
 columns:
-- asset_type: column
-  physical_name: person_id
-  summary: person_id — person.person_id
-  body: Means 'person_id' (obfuscated to 'person_id').
+- physical_name: person_id
+  summary: person_id is the numeric identifier of a person.
+  body: >
+    Bigint surrogate key, for example 60734 or 1000241. Referenced by movie_cast.person_id and
+    movie_crew.person_id.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: person_name
-  summary: person_name — person.person_name
-  body: Means 'person_name' (obfuscated to 'person_name').
+- physical_name: person_name
+  summary: person_name is the name of the person.
+  body: >
+    Free text, for example 'Jim Carrey' or 'Haji'. 'actor', 'director', 'the director', and 'who
+    is the person' all resolve to this column, filtered by job through movie_crew when a
+    specific role is asked for.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: individual_id
-  summary: individual_id — person.individual_id
-  body: 'Physical column ''individual_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''person_id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: individual_id
+  summary: individual_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''person_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: individual_name
-  summary: individual_name — person.individual_name
-  body: 'Physical column ''individual_name''. DECOY column: not a real business field.
-    Fabricated to mimic ''person_name''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: individual_name
+  summary: individual_name, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''person_name''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: One row per individual (actor or crew member), keyed by person_id with person_name.
-  Reached from movie_cast and movie_crew.
+    - train_final.jsonl

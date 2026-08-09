@@ -1,22 +1,41 @@
 asset_type: schema
 id: regional_sales
 name: regional_sales
-summary: 'regional_sales: 6 tables — Customers, Sales Orders, Store Locations, Sales
-  Team, Products, Regions'
+summary: The regional_sales database tracks a retailer's sales orders, discounts, and net
+  profit across sales channels, warehouses, stores, customers, products, and sales teams, plus
+  store demographics and state-to-region groupings.
+body: >
+  commandes_vente is the fact table, one row per sales order line, referencing clients, produits,
+  equipe_vente and emplacements_magasin. Net profit is never stored directly: it is
+  prix_unitaire minus cout_unitaire for the order line, and remise_appliquee records the
+  discount applied as a fraction (0.2 means a 20% discount). Order, ship, delivery, and
+  procurement dates are stored as text in M/D/YY form with a two-digit year (17 means 2017, 20
+  means 2020).
+
+  Several tables and columns look like alternate sources for the same facts but are not
+  dependable: clients.identifiant_client and clients.nom_complet_client duplicate clients' own
+  id_client and nom_client; commandes_vente.identifiant_client_commande,
+  identifiant_produit_commande and identifiant_equipe_vente duplicate its own id_client,
+  id_produit and id_equipe_vente; emplacements_magasin.code_province_magasin, code_zone and
+  code_zone_geo shadow or duplicate its own code_etat and identifiant_magasin duplicates its own
+  id_magasin; equipe_vente.identifiant_equipe, nom_equipe and zone_couverte duplicate its own
+  id_equipe_vente, equipe_vente and region; produits.identifiant_produit and
+  designation_produit duplicate produits' own id_produit and nom_produit; regions.code_province,
+  territoire and nom_province duplicate regions' own code_etat, region and etat; and the
+  groupes_commerciaux and zones_geographiques tables are not dependable at all. None of these
+  should be read, filtered on, or joined on.
+rules:
+  - Compute net profit as commandes_vente.prix_unitaire minus commandes_vente.cout_unitaire; do
+    not read it from any other column.
+  - Join commandes_vente to clients, produits, equipe_vente and emplacements_magasin using
+    id_client, id_produit, id_equipe_vente and id_magasin; never using an identifiant_* column.
+  - Join emplacements_magasin to regions using code_etat; never using code_province,
+    code_province_magasin, code_zone, or code_zone_geo, and never treating
+    groupes_commerciaux or zones_geographiques as a source of region data.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A regional retail sales database tracking sales orders placed by customers,
-  fulfilled by sales teams, and shipped from stores across US states and regions.
-  It links each order to its product, customer, sales team, and store location, and
-  supports analysis of order volume, net profit, discounts, quantities, and geographic/demographic
-  breakdowns.
-rules:
-- A store's region and state name come from regions joined on code_etat (emplacements_magasin.code_etat
-  = regions.code_etat); a sales team also carries its own region.
-- Net profit is not stored; it is derived per order as prix_unitaire minus cout_unitaire.
+    - information_schema

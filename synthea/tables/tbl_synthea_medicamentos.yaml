@@ -2,195 +2,115 @@ asset_type: table
 id: synthea.medicamentos
 schema: synthea
 physical_name: medicamentos
-summary: 'medications (medicamentos): START, STOP, PATIENT, ENCOUNTER, CODE, DESCRIPTION,
-  REASONCODE, REASONDESCRIPTION'
+summary: medicamentos records a medication prescribed to or taken by a patient, tied
+  to an encounter.
+body: >
+  One row per medication episode for a patient. Easily confused with registro_medicacion, which
+  mirrors this table's shape but is not dependable; use medicamentos for any question about what
+  a patient takes or has taken. Joins to pacientes and encuentros on id_paciente and id_encuentro.
+  medicamento_paciente_id, codigo_medicamento, and nombre_medicamento sit alongside id_paciente,
+  codigo, and descripcion but do not track the same values and must not be used.
 columns:
-- asset_type: column
-  physical_name: fecha_inicio
-  summary: START — medicamentos.fecha_inicio
-  body: Means 'START' (obfuscated to 'fecha_inicio').
+- physical_name: fecha_inicio
+  summary: fecha_inicio, the date a patient started taking a medication.
+  body: >
+    A date, for example 2010-05-16, ranging from 1921 to 2017. Never null.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_fin
-  summary: STOP — medicamentos.fecha_fin
-  body: Means 'STOP' (obfuscated to 'fecha_fin').
+- physical_name: fecha_fin
+  summary: fecha_fin, the date a patient stopped taking a medication.
+  body: >
+    A date, for example 2011-04-01. Null for roughly 43% of rows, meaning the patient is still on
+    that medication. Subtracting fecha_inicio from this gives how long the medication was taken.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_paciente
-  summary: PATIENT — medicamentos.id_paciente
-  body: Means 'PATIENT' (obfuscated to 'id_paciente').
+- physical_name: id_paciente
+  summary: id_paciente, the patient taking the medication.
+  body: >
+    A UUID string, for example "4035b14d-0f16-46e1-af7e-d01b0d2f464f". Joins to
+    pacientes.id_paciente.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_encuentro
-  summary: ENCOUNTER — medicamentos.id_encuentro
-  body: Means 'ENCOUNTER' (obfuscated to 'id_encuentro').
+- physical_name: id_encuentro
+  summary: id_encuentro, the encounter at which the medication was prescribed.
+  body: >
+    A UUID string, for example "6101f9b7-1bf1-4cfa-b2f5-4497a455bdef". Joins to encuentros.id.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo
-  summary: CODE — medicamentos.codigo
-  body: Means 'CODE' (obfuscated to 'codigo').
+- physical_name: codigo
+  summary: codigo, the coded identifier for a medication.
+  body: >
+    An integer code, for example 608680, one per distinct medication and strength. Pairs
+    one-to-one with descripcion in this table.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: descripcion
-  summary: DESCRIPTION — medicamentos.descripcion
-  body: Means 'DESCRIPTION' (obfuscated to 'descripcion').
+- physical_name: descripcion
+  summary: descripcion, the name of the medication.
+  body: >
+    Free text such as "Acetaminophen 160 MG Oral Tablet" or "Loratadine 5 MG Chewable Tablet",
+    including strength and form. This is what a question naming a drug filters on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_razon
-  summary: REASONCODE — medicamentos.codigo_razon
-  body: Means 'REASONCODE' (obfuscated to 'codigo_razon').
+- physical_name: codigo_razon
+  summary: codigo_razon, the coded identifier for the reason a medication was prescribed.
+  body: >
+    An integer code, for example 10509002, pairing one-to-one with descripcion_razon. Null for
+    roughly 41% of rows, which have no recorded reason.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: descripcion_razon
-  summary: REASONDESCRIPTION — medicamentos.descripcion_razon
-  body: Reason (indication) the medication was prescribed, e.g. 'Acute bronchitis
-    (disorder)', 'Coronary Heart Disease'.
+- physical_name: descripcion_razon
+  summary: descripcion_razon, the reason a medication was prescribed.
+  body: >
+    Free text such as "Cardiac Arrest", "Coronary Heart Disease", or "Childhood asthma". Null
+    whenever codigo_razon is null. This is what a question about why a medication was taken
+    filters on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: medicamento_paciente_id
-  summary: medicamento_paciente_id — medicamentos.medicamento_paciente_id
-  body: 'Physical column ''medicamento_paciente_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''PATIENT''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: medicamento_paciente_id
+  summary: medicamento_paciente_id, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''PATIENT''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_medicamento
-  summary: codigo_medicamento — medicamentos.codigo_medicamento
-  body: 'Physical column ''codigo_medicamento''. DECOY column: not a real business
-    field. Fabricated to mimic ''CODE''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: codigo_medicamento
+  summary: codigo_medicamento, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CODE''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre_medicamento
-  summary: nombre_medicamento — medicamentos.nombre_medicamento
-  body: 'Physical column ''nombre_medicamento''. DECOY column: not a real business
-    field. Fabricated to mimic ''DESCRIPTION''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: nombre_medicamento
+  summary: nombre_medicamento, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''DESCRIPTION''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per medication prescription. Grain: prescription episode. descripcion
-  is the drug name; descripcion_razon is why it was prescribed; fecha_inicio/fecha_fin
-  bound the course.'
+    - information_schema

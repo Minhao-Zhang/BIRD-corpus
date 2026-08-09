@@ -2,205 +2,127 @@ asset_type: table
 id: works_cycles.TransactionHistoryArchive
 schema: works_cycles
 physical_name: TransactionHistoryArchive
-summary: 'TransactionHistoryArchive (TransactionHistoryArchive): TransactionID, ProductID,
-  ReferenceOrderID, ReferenceOrderLineID, TransactionDate, TransactionType, Quantity,
-  ActualCost, ModifiedDate'
+summary: TransactionHistoryArchive preserves older inventory movement records moved out of
+  TransactionHistory in the works_cycles bicycle manufacturing schema.
+body: >
+  One row per archived transaction, in the same shape as TransactionHistory: TransactionType
+  classifies the driving order type and ReferenceOrderID points at the corresponding
+  PurchaseOrderHeader, SalesOrderHeader, or WorkOrder. Rows land here once they age out of the
+  active TransactionHistory table. Easily confused with TransactionHistory itself, which holds
+  the current, unarchived transactions rather than the historical ones.
 columns:
-- asset_type: column
-  physical_name: TransactionID
-  summary: TransactionID — TransactionHistoryArchive.TransactionID
-  body: Means 'TransactionID' (obfuscated to 'TransactionID').
+- physical_name: TransactionID
+  summary: TransactionID identifies a single TransactionHistoryArchive record.
+  body: >
+    Integer identifier carried over from the original TransactionHistory row, observed from
+    10055 to 9611 in this sample.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ProductID
-  summary: ProductID — TransactionHistoryArchive.ProductID
-  body: Means 'ProductID' (obfuscated to 'ProductID').
+- physical_name: ProductID
+  summary: ProductID names the product moved in a TransactionHistoryArchive record.
+  body: >
+    Integer foreign key to Product, observed from 3 to 996 in this sample across 189 distinct
+    values.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ReferenceOrderID
-  summary: ReferenceOrderID — TransactionHistoryArchive.ReferenceOrderID
-  body: Means 'ReferenceOrderID' (obfuscated to 'ReferenceOrderID').
+- physical_name: ReferenceOrderID
+  summary: ReferenceOrderID is the order that generated a TransactionHistoryArchive record.
+  body: >
+    Integer identifier, observed from 10110 to 9890 in this sample. Points at a
+    PurchaseOrderHeader, SalesOrderHeader, or WorkOrder row depending on TransactionType; it is
+    not a single foreign key to one table.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ReferenceOrderLineID
-  summary: ReferenceOrderLineID — TransactionHistoryArchive.ReferenceOrderLineID
-  body: Means 'ReferenceOrderLineID' (obfuscated to 'ReferenceOrderLineID').
+- physical_name: ReferenceOrderLineID
+  summary: ReferenceOrderLineID is the order line that generated a TransactionHistoryArchive
+    record.
+  body: >
+    Integer line number, observed from 0 to 9 in this sample. Identifies which line of the order
+    named by ReferenceOrderID this transaction corresponds to.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: TransactionDate
-  summary: TransactionDate — TransactionHistoryArchive.TransactionDate
-  body: Means 'TransactionDate' (obfuscated to 'TransactionDate').
+- physical_name: TransactionDate
+  summary: TransactionDate is when a TransactionHistoryArchive movement occurred.
+  body: >
+    Timestamp, observed between 2011-05-31 and 2013-07-27 in this sample. Matches ModifiedDate on
+    every sampled row.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: TransactionType
-  summary: TransactionType — TransactionHistoryArchive.TransactionType
-  body: '''P'' = purchase, ''S'' = sale, ''W'' = work order.'
+- physical_name: TransactionType
+  summary: TransactionType classifies what kind of order caused a TransactionHistoryArchive
+    record.
+  body: >
+    Single-letter code: "W" work order, "S" sales order, "P" purchase order. Determines which
+    table ReferenceOrderID points into.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Quantity
-  summary: Quantity — TransactionHistoryArchive.Quantity
-  body: Means 'Quantity' (obfuscated to 'Quantity').
+- physical_name: Quantity
+  summary: Quantity is the number of units moved in a TransactionHistoryArchive record.
+  body: >
+    Integer quantity, observed from 1 to 97 in this sample. Positive regardless of whether the
+    movement is inbound or outbound; use TransactionType to interpret direction.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ActualCost
-  summary: ActualCost — TransactionHistoryArchive.ActualCost
-  body: Means 'ActualCost' (obfuscated to 'ActualCost').
+- physical_name: ActualCost
+  summary: ActualCost is the cost associated with a TransactionHistoryArchive movement.
+  body: >
+    Decimal currency amount, observed from 0.0 to 999.0 in this sample. Reflects the product's
+    cost at the time of the archived transaction, not its current standard cost.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ModifiedDate
-  summary: ModifiedDate — TransactionHistoryArchive.ModifiedDate
-  body: Means 'ModifiedDate' (obfuscated to 'ModifiedDate').
+- physical_name: ModifiedDate
+  summary: ModifiedDate records when a TransactionHistoryArchive row was last updated.
+  body: >
+    Timestamp, observed between 2011-05-31 and 2013-07-27 in this sample. Matches TransactionDate
+    on every sampled row.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: transaction_archive_product_id
-  summary: transaction_archive_product_id — TransactionHistoryArchive.transaction_archive_product_id
-  body: 'Physical column ''transaction_archive_product_id''. DECOY column: not a real
-    business field. Fabricated to mimic ''ProductID''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+- physical_name: transaction_archive_product_id
+  summary: transaction_archive_product_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ProductID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: transaction_archive_actual_cost
-  summary: transaction_archive_actual_cost — TransactionHistoryArchive.transaction_archive_actual_cost
-  body: 'Physical column ''transaction_archive_actual_cost''. DECOY column: not a
-    real business field. Fabricated to mimic ''ActualCost''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: transaction_archive_actual_cost
+  summary: transaction_archive_actual_cost, a decimal column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: real
   logical_type: decimal
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ActualCost''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: transaction_archive_modified_at
-  summary: transaction_archive_modified_at — TransactionHistoryArchive.transaction_archive_modified_at
-  body: 'Physical column ''transaction_archive_modified_at''. DECOY column: not a
-    real business field. Fabricated to mimic ''ModifiedDate''. Corruption operator
-    ''sparse_date_offset'': values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: transaction_archive_modified_at
+  summary: transaction_archive_modified_at, a datetime column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ModifiedDate''.
-      Corruption operator ''sparse_date_offset'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: Archived (older) inventory transactions, same shape and codes as TransactionHistory.
+    - train_final.jsonl

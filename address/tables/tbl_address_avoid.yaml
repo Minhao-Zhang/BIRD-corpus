@@ -2,87 +2,56 @@ asset_type: table
 id: address.avoid
 schema: address
 physical_name: avoid
-summary: 'avoid (avoid): zip_code, bad_alias'
+summary: avoid records a place name that must not be used to address mail for a ZIP code, even
+  though it looks plausible.
+body: >
+  One row per discouraged place name for a ZIP code. Easily confused with alias, which records
+  the opposite: a place name the postal service does accept for that ZIP code. Joins to zip_data
+  and zip_congress on zip_code. excluded_zip and invalid_alias sit alongside zip_code and
+  bad_alias but are not dependable and must not be used to answer questions.
 columns:
-- asset_type: column
-  physical_name: zip_code
-  summary: zip_code — avoid.zip_code
-  body: Means 'zip_code' (obfuscated to 'zip_code').
+- physical_name: zip_code
+  summary: zip_code, the 5-digit postal code a discouraged name is recorded for.
+  body: >
+    Integer, for example 20262 or 47022, observed ranging from 10008 to 99660. Joins to
+    zip_data.zip_code and zip_congress.zip_code.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: bad_alias
-  summary: bad_alias — avoid.bad_alias
-  body: An incorrect or discouraged alias for the zip code (as opposed to the valid
-    alias in the alias table).
+- physical_name: bad_alias
+  summary: bad_alias, the place name that should not be used to address mail for the ZIP code.
+  body: >
+    Free text, for example "Mafic", "Dover", or "Gu Achi"; some values are organization names such
+    as "General Electric Co" rather than place names. One discouraged name per row.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: excluded_zip
-  summary: excluded_zip — avoid.excluded_zip
-  body: 'Physical column ''excluded_zip''. DECOY column: not a real business field.
-    Fabricated to mimic ''zip_code''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: excluded_zip
+  summary: excluded_zip, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''zip_code''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: invalid_alias
-  summary: invalid_alias — avoid.invalid_alias
-  body: 'Physical column ''invalid_alias''. DECOY column: not a real business field.
-    Fabricated to mimic ''bad_alias''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: invalid_alias
+  summary: invalid_alias, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''bad_alias''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Bad or incorrect place aliases that should be avoided for a zip code, in column
-  bad_alias. Grain: bad_alias per zip_code. Distinct from the alias table''s valid
-  aliases.'
+    - information_schema

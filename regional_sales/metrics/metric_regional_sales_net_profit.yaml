@@ -2,19 +2,21 @@ asset_type: metric
 id: metric_regional_sales_net_profit
 name: net profit
 base_table: regional_sales.commandes_vente
-expression: SUM(prix_unitaire - cout_unitaire)
-summary: 'net profit: SUM(prix_unitaire - cout_unitaire) over orders; also used with
-  AVG, MAX, MIN.'
-body: Derived profit per order (unit price minus unit cost), aggregated. Gold uses
-  total (SUM), average (AVG), highest (MAX), and lowest (MIN); often filtered by product
-  or channel.
-dimensions:
-- regional_sales.commandes_vente.canal_vente
-confidence: 0.8
+expression: prix_unitaire - cout_unitaire
+summary: Net profit is the margin an order line earned, computed as its unit price minus its
+  unit cost.
+body: >
+  Computed as commandes_vente.prix_unitaire minus commandes_vente.cout_unitaire for a single
+  order line; both columns are stored as text with a thousands comma, so cast them to a numeric
+  type before subtracting. To answer "total net profit", "average net profit", "highest net
+  profit", or "lowest net profit", wrap this per-line expression in SUM, AVG, MAX, or MIN across
+  the order lines in question -- for example SUM(prix_unitaire - cout_unitaire) filtered to a
+  product or channel for "total net profit of above 5000 USD" for that group. Never substitute
+  a stored price or cost column from another table; prix_unitaire and cout_unitaire on
+  commandes_vente are the only reliable source.
 audit:
   provenance:
     source: curator
     status: draft
-    version: inference-1
-    source_refs:
-    - train_final.jsonl
+    version: rebuild-1
+    source_refs: [train_final.jsonl]

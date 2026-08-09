@@ -2,146 +2,89 @@ asset_type: table
 id: menu.elementmenu
 schema: menu
 physical_name: elementmenu
-summary: 'MenuItem (elementmenu): id, menu_page_id, price, high_price, dish_id, created_at,
-  updated_at, xpos, ypos'
+summary: elementmenu is one row per listing of a dish on a menu page, carrying that listing's price and where it sits on the page.
+body: >
+  One row per placement of a dish on a page — the line-item level of the collection, finer
+  than either pagemenu (one row per page) or plat (one row per distinct dish across all
+  menus). Joins to pagemenu by id_page_menu = pagemenu.id to reach the page and menu a listing
+  belongs to, and to plat by id_plat = plat.id to reach the dish's name and its
+  price-and-date range across every menu. A single dish name in plat can have many
+  elementmenu rows, one per menu that lists it.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — elementmenu.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: id, the unique identifier of a menu item listing.
+  body: A whole number, distinct per row in this table.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_page_menu
-  summary: menu_page_id — elementmenu.id_page_menu
-  body: Means 'menu_page_id' (obfuscated to 'id_page_menu').
+- physical_name: id_page_menu
+  summary: id_page_menu, the identifier of the page a listing appears on.
+  body: Joins to pagemenu.id. Many listings share one page.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prix
-  summary: price — elementmenu.prix
-  body: Price of this dish at this placement on a menu page. Highest/total prices
-    are computed over this column.
+- physical_name: prix
+  summary: prix, the price printed for a dish's listing on this page.
+  body: >
+    A decimal amount in the menu's currency (menu.devise), typically well under 1 in this
+    dataset's sample. Distinct from plat.prix_minimum and plat.prix_maximum, which summarize
+    the price range for the dish across every menu rather than this one listing.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prix_eleve
-  summary: high_price — elementmenu.prix_eleve
-  body: Means 'high_price' (obfuscated to 'prix_eleve').
+- physical_name: prix_eleve
+  summary: prix_eleve, an alternate higher price printed for the same listing.
+  body: >
+    A decimal amount, used when a menu prints two prices for one dish (for example a
+    small/large or a la carte/table d'hote pair). Null when only one price is printed, which is
+    the common case.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_plat
-  summary: dish_id — elementmenu.id_plat
-  body: Means 'dish_id' (obfuscated to 'id_plat').
+- physical_name: id_plat
+  summary: id_plat, the identifier of the dish this listing is for.
+  body: Joins to plat.id to reach the dish's name and its price-and-date range across all menus.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cree_le
-  summary: created_at — elementmenu.cree_le
-  body: Creation timestamp stored as text; year is characters 1-4 and month is character
-    7 (e.g. April 2011 = SUBSTR 1-4 '2011', SUBSTR 7 '4').
+- physical_name: cree_le
+  summary: cree_le, the timestamp this listing record was created.
+  body: >
+    A UTC timestamp string such as '2011-03-28 15:00:44 UTC', recording when the row was
+    entered into this database rather than anything about the menu itself.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: modifie_le
-  summary: updated_at — elementmenu.modifie_le
-  body: Means 'updated_at' (obfuscated to 'modifie_le').
+- physical_name: modifie_le
+  summary: modifie_le, the timestamp this listing record was last updated.
+  body: >
+    A UTC timestamp string, always at or after cree_le for the same row, recording the most
+    recent edit to the record rather than anything about the menu itself.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pos_x
-  summary: xpos — elementmenu.pos_x
-  body: 'Horizontal position of the item on the page, normalized 0-1. Corners: <0.25
-    left, >0.75 right; center is 0.25-0.75.'
+- physical_name: pos_x
+  summary: pos_x, the horizontal position of a listing on its page.
+  body: >
+    A fraction between 0 and 1, where 0 is the page's left edge and 1 is its right edge.
+    Paired with pos_y to locate a listing on the page: a value under 0.25 is near the left
+    edge, over 0.75 is near the right edge.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pos_y
-  summary: ypos — elementmenu.pos_y
-  body: 'Vertical position of the item on the page, normalized 0-1. Corners: <0.25
-    upper, >0.75 lower; center is 0.25-0.75.'
+- physical_name: pos_y
+  summary: pos_y, the vertical position of a listing on its page.
+  body: >
+    A fraction between 0 and 1, where 0 is the page's top edge and 1 is its bottom edge.
+    Paired with pos_x to locate a listing on the page: a value under 0.25 is near the top
+    edge, over 0.75 is near the bottom edge.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per placement of a dish on a menu page (a line item). Grain: a dish
-  appearing at a position on one page, linked to pagemenu via id_page_menu and to
-  plat via id_plat. Holds the per-placement prix and page coordinates pos_x/pos_y.'
+    - information_schema

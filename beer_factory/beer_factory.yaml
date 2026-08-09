@@ -1,22 +1,30 @@
 asset_type: schema
 id: beer_factory
 name: beer_factory
-summary: 'beer_factory: 7 tables — geolocation, customers, location, transaction,
-  rootbeer, rootbeerreview, rootbeerbrand'
+summary: >-
+  The beer_factory database tracks root beer brands, breweries, store locations, customer
+  purchases, and customer reviews, for questions about price, rating, container type,
+  ingredients, or sales by brand, location, or credit card.
+body: >
+  Six tables carry the real data: kunden (customers), standort (store locations), geoposition
+  (a location's coordinates), transaktion (purchases), wurzelbier (root beer units sold or
+  stocked), and wurzelbiermarke (brands, breweries, and ingredients). A customer's purchases
+  join to transaktion on kunde_id, and a purchase's brand is reached through
+  transaktion.wurzelbier_id into wurzelbier and then wurzelbiermarke. betriebsstandorte and
+  wurzelbier_feedback look like standort and wurzelbier_bewertung respectively but are not
+  dependable for analysis; neither is any column whose name doubles a real identifier, such as
+  kunde_nummer next to kunde_id or marke_ref_id next to marke_id.
+rules:
+- Join customers, locations, brands, and root beer units using kunde_id, standort_id, marke_id,
+  and wurzelbier_id. Every alternate identifier column with a similar name is unreliable and
+  must not be used as a join key.
+- Answer questions about a customer review from wurzelbier_bewertung and a location's address
+  from standort. Never select, filter, or join on a column from betriebsstandorte or
+  wurzelbier_feedback; every column in those two tables is unreliable for analysis.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'Retail sales database for a root beer business: it tracks customers, the physical
-  store locations where sales happen, individual root beer units and their brands/breweries,
-  each purchase transaction, and customer star reviews of brands.'
-rules:
-- A transaction (transaktion) links one customer (kunden.kunde_id), one location (standort.standort_id),
-  and one root beer unit (wurzelbier.wurzelbier_id); a root beer unit belongs to exactly
-  one brand (wurzelbiermarke.marke_id).
-- Reviews (wurzelbier_bewertung) are written by a customer about a brand; join them
-  to brand via marke_id, not through a transaction.
+    - information_schema

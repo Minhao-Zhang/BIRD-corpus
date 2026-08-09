@@ -2,220 +2,117 @@ asset_type: table
 id: soccer_2016.ball_fuer_ball
 schema: soccer_2016
 physical_name: ball_fuer_ball
-summary: 'Ball_by_Ball (ball_fuer_ball): Match_Id, Over_Id, Ball_Id, Innings_No, Team_Batting,
-  Team_Bowling, Striker_Batting_Position, Striker, Non_Striker, Bowler'
+summary: ball_fuer_ball is the ball-by-ball delivery log of every soccer_2016 match, one row per ball
+  bowled.
+body: 'Grain: one row per delivery, holding which match, innings, over, and ball number it was, which
+  team is batting and which is bowling, who is on strike, who is the non-striker, who is bowling, and
+  the striker''s batting-order position. Joins to spiel on spiel_id and to spieler on schlaeger, nicht_schlaeger,
+  and werfer for player identity. schlaeger_punkte (runs off the bat) and extra_laeufe (extra runs conceded)
+  both key off this table''s spiel_id, uebung_id, and ball_id. An innings runs 50 overs of six balls each.
+  Carries the unreliable spiel_ref, schlaeger_anzahl, and ball_nummer columns.'
 columns:
-- asset_type: column
-  physical_name: spiel_id
-  summary: Match_Id — ball_fuer_ball.spiel_id
-  body: Means 'Match_Id' (obfuscated to 'spiel_id').
+- physical_name: spiel_id
+  summary: spiel_id identifies the match a ball_fuer_ball row belongs to.
+  body: A whole number matching spiel.spiel_id. Many rows share one match id, one per ball bowled in that
+    match.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: uebung_id
-  summary: Over_Id — ball_fuer_ball.uebung_id
-  body: Over id/number within the innings.
+- physical_name: uebung_id
+  summary: uebung_id identifies the over within an innings that a ball belongs to.
+  body: A whole number from 1 through 20 observed in this data. An innings is 50 overs of six balls each;
+    uebung_id resets to 1 at the start of each innings.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ball_id
-  summary: Ball_Id — ball_fuer_ball.ball_id
-  body: Means 'Ball_Id' (obfuscated to 'ball_id').
+- physical_name: ball_id
+  summary: ball_id identifies which delivery within an over a row records.
+  body: A whole number from 1 through 8; extra deliveries such as wides or no-balls can push the count
+    past 6. Resets at the start of each over.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: inning_nummer
-  summary: Innings_No — ball_fuer_ball.inning_nummer
-  body: Means 'Innings_No' (obfuscated to 'inning_nummer').
+- physical_name: inning_nummer
+  summary: inning_nummer identifies which of the match's two innings a ball was bowled in.
+  body: 1 for the first innings, 2 for the second. A match is made up of two innings, each team batting
+    once.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: schlagende_mannschaft
-  summary: Team_Batting — ball_fuer_ball.schlagende_mannschaft
-  body: Means 'Team_Batting' (obfuscated to 'schlagende_mannschaft').
+- physical_name: schlagende_mannschaft
+  summary: schlagende_mannschaft identifies the team batting when a ball was bowled.
+  body: A whole number matching mannschaft.mannschaft_id. Distinct from werfende_mannschaft, the fielding
+    side on the same ball.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: werfende_mannschaft
-  summary: Team_Bowling — ball_fuer_ball.werfende_mannschaft
-  body: Means 'Team_Bowling' (obfuscated to 'werfende_mannschaft').
+- physical_name: werfende_mannschaft
+  summary: werfende_mannschaft identifies the team bowling when a ball was bowled.
+  body: A whole number matching mannschaft.mannschaft_id. Distinct from schlagende_mannschaft, the batting
+    side on the same ball.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: schlaeger_position
-  summary: Striker_Batting_Position — ball_fuer_ball.schlaeger_position
-  body: Means 'Striker_Batting_Position' (obfuscated to 'schlaeger_position').
+- physical_name: schlaeger_position
+  summary: schlaeger_position is the batting-order position the striker came in at.
+  body: A whole number, 1 being the opening batsman, observed from 1 through 11 in this data.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: schlaeger
-  summary: Striker — ball_fuer_ball.schlaeger
-  body: 'Striker on the ball: foreign key to spieler.spieler_id.'
+- physical_name: schlaeger
+  summary: schlaeger identifies the batsman who is on strike for a ball.
+  body: A whole number matching spieler.spieler_id, for example 40 or 262. Distinct from nicht_schlaeger,
+    the batsman at the other end.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nicht_schlaeger
-  summary: Non_Striker — ball_fuer_ball.nicht_schlaeger
-  body: Means 'Non_Striker' (obfuscated to 'nicht_schlaeger').
+- physical_name: nicht_schlaeger
+  summary: nicht_schlaeger identifies the batsman at the non-striker's end for a ball.
+  body: A whole number matching spieler.spieler_id. Distinct from schlaeger, who is the batsman actually
+    facing the ball.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: werfer
-  summary: Bowler — ball_fuer_ball.werfer
-  body: Means 'Bowler' (obfuscated to 'werfer').
+- physical_name: werfer
+  summary: werfer identifies the bowler who bowled a ball.
+  body: A whole number matching spieler.spieler_id.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: spiel_ref
-  summary: spiel_ref — ball_fuer_ball.spiel_ref
-  body: 'Physical column ''spiel_ref''. DECOY column: not a real business field. Fabricated
-    to mimic ''Match_Id''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: spiel_ref
+  summary: spiel_ref, a numeric column.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Match_Id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: schlaeger_anzahl
-  summary: schlaeger_anzahl — ball_fuer_ball.schlaeger_anzahl
-  body: 'Physical column ''schlaeger_anzahl''. DECOY column: not a real business field.
-    Fabricated to mimic ''Striker''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: schlaeger_anzahl
+  summary: schlaeger_anzahl, a numeric column.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Striker''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ball_nummer
-  summary: ball_nummer — ball_fuer_ball.ball_nummer
-  body: 'Physical column ''ball_nummer''. DECOY column: not a real business field.
-    Fabricated to mimic ''Ball_Id''. Corruption operator ''sparse_perturb'': values
-    are altered. Do NOT use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: ball_nummer
+  summary: ball_nummer, a numeric column.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Ball_Id''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Ball-by-ball delivery log; grain is one ball. Identifies match, innings (inning_nummer),
-  over (uebung_id), striker, non-striker, bowler, and batting/bowling teams.
+    - information_schema

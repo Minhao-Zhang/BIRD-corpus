@@ -1,26 +1,35 @@
 asset_type: schema
 id: synthea
 name: synthea
-summary: 'synthea: 11 tables — allergies, conditions, encounters, immunizations, medications,
-  observations, patients, careplans, procedures, claims, all_prevalences'
+summary: >-
+  synthea is a clinical database of patient health records, covering demographics, encounters,
+  the conditions diagnosed, the medications and immunizations given, allergies, procedures,
+  observations, care plans, claims, and disease prevalence.
+body: >
+  A clinical record system: pacientes is the hub, one row per person, and every clinical table
+  hangs off it through id_paciente and, for a specific visit, id_encuentro on encuentros.
+  Repeated shape across alergias, condiciones, medicamentos, inmunizaciones, procedimientos and
+  planes_cuidado: a codigo/descripcion pair names the clinical item (SNOMED or similar code plus
+  its free-text name), and fecha_inicio/fecha_fin (or a single fecha) bounds when it applied. A
+  null fecha_fin on a medication or care plan means it is still active; a null fecha_defuncion on
+  pacientes means the person is alive. observaciones stores vitals and lab results as
+  descripcion/valor/unidades triples rather than one column per measurement. todas_prevalencias
+  is a separate, patient-independent table of population-wide disease and drug prevalence
+  statistics, joined to condiciones only by matching descripcion to elemento. Every table other
+  than todas_prevalencias also carries two or three extra columns whose name resembles a real
+  column but whose values are not dependable, and three whole tables
+  (historial_alergias, plan_terapeutico, registro_medicacion) duplicate the shape of alergias,
+  planes_cuidado and medicamentos without being dependable at all.
+rules:
+- Join every clinical table to pacientes on id_paciente and to encuentros on id_encuentro; a
+  same-named twin such as paciente_id, paciente_ref, or codigo_encuentro looks identical but does
+  not track the real identifiers.
+- Do not query historial_alergias, plan_terapeutico, or registro_medicacion; use alergias,
+  planes_cuidado, and medicamentos instead, which record the same events reliably.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'A synthetic electronic health records database. It tracks patients and their
-  clinical history: allergies, conditions (diagnoses), encounters (visits), immunizations,
-  medications, observations (vitals/labs), procedures, care plans, and insurance claims,
-  plus population-level disease prevalence.'
-rules:
-- All clinical tables (alergias, condiciones, encuentros, inmunizaciones, medicamentos,
-  observaciones, procedimientos, planes_cuidado, reclamaciones) link to a patient
-  via id_paciente = pacientes.id_paciente.
-- A patient is still alive/living when fecha_defuncion IS NULL, and has died when
-  fecha_defuncion IS NOT NULL.
-- 'Population prevalence in todas_prevalencias joins to a condition by matching name:
-  todas_prevalencias.elemento = condiciones.descripcion (case-insensitively), not
-  by id.'
+    - information_schema

@@ -2,178 +2,96 @@ asset_type: table
 id: formula_1.paradas_boxes
 schema: formula_1
 physical_name: paradas_boxes
-summary: 'pitStops (paradas_boxes): raceId, driverId, stop, lap, time, duration, milliseconds'
+summary: "paradas_boxes: pit-stop records, one row per pit stop a driver made during a race."
+body: >-
+  One row per pit stop. parada numbers a driver's stops within the race (1st, 2nd, ...); vuelta
+  is the lap the stop happened on; duracion/milisegundos give how long the stop took.
+  id_piloto_parada, carrera_parada_id, and tiempo_parada repeat id_piloto/id_carrera/duracion but
+  are marked reliability: suspect and must not be used.
 columns:
-- asset_type: column
-  physical_name: id_carrera
-  summary: raceId — paradas_boxes.id_carrera
-  body: Means 'raceId' (obfuscated to 'id_carrera').
+- physical_name: id_carrera
+  summary: "id_carrera, the foreign key identifying the race a pit stop happened in."
+  body: "Joins to carreras.id_carrera."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_piloto
-  summary: driverId — paradas_boxes.id_piloto
-  body: Means 'driverId' (obfuscated to 'id_piloto').
+- physical_name: id_piloto
+  summary: "id_piloto, the foreign key identifying the driver who made a pit stop."
+  body: "Joins to pilotos.id_piloto."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: parada
-  summary: stop — paradas_boxes.parada
-  body: Sequential pit stop number for that driver in the race (integer).
+- physical_name: parada
+  summary: "parada, the sequence number of a pit stop within a driver's race."
+  body: "An integer starting at 1 for a driver's first stop, e.g. 1-6 in the sampled rows."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: vuelta
-  summary: lap — paradas_boxes.vuelta
-  body: Lap number on which the pit stop occurred (integer).
+- physical_name: vuelta
+  summary: "vuelta, the lap number on which a pit stop occurred."
+  body: "An integer lap count, e.g. 1-59 in the sampled rows."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: hora
-  summary: time — paradas_boxes.hora
-  body: Means 'time' (obfuscated to 'hora').
+- physical_name: hora
+  summary: "hora, the time of day at which a pit stop began."
+  body: "A time-of-day string, e.g. '14:22:44'."
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: duracion
-  summary: duration — paradas_boxes.duracion
-  body: Pit stop duration as text (seconds); the maximum is the longest stop.
+- physical_name: duracion
+  summary: "duracion, how long a pit stop took, expressed in seconds."
+  body: "Text formatted as seconds with milliseconds, e.g. '24.865', '22.400'. Corresponds one-to-one with milisegundos."
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: milisegundos
-  summary: milliseconds — paradas_boxes.milisegundos
-  body: Pit stop duration in milliseconds (integer); averaged for mean pit stop time.
+- physical_name: milisegundos
+  summary: "milisegundos, how long a pit stop took, expressed in milliseconds."
+  body: >-
+    An integer, e.g. 24865, 22400 — the same span as duracion expressed in milliseconds. Use
+    this column for numeric comparison and aggregation.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_piloto_parada
-  summary: id_piloto_parada — paradas_boxes.id_piloto_parada
-  body: 'Physical column ''id_piloto_parada''. DECOY column: not a real business field.
-    Fabricated to mimic ''driverId''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: id_piloto_parada
+  summary: "id_piloto_parada, an integer column on the paradas_boxes table."
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. Although
+    its name suggests a foreign key, it must not be used to join to another table.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''driverId''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: carrera_parada_id
-  summary: carrera_parada_id — paradas_boxes.carrera_parada_id
-  body: 'Physical column ''carrera_parada_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''raceId''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: carrera_parada_id
+  summary: "carrera_parada_id, an integer column on the paradas_boxes table."
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. Although
+    its name suggests a foreign key, it must not be used to join to another table.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''raceId''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tiempo_parada
-  summary: tiempo_parada — paradas_boxes.tiempo_parada
-  body: 'Physical column ''tiempo_parada''. DECOY column: not a real business field.
-    Fabricated to mimic ''duration''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: tiempo_parada
+  summary: "tiempo_parada, a text column on the paradas_boxes table."
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''duration''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: 'Pit stops: one row per driver pit stop in a race, keyed by driver+race. Holds
-  the stop number (parada), lap (vuelta), clock time (hora), duration text (duracion)
-  and duration in milliseconds.'
+    - information_schema

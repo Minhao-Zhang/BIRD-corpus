@@ -2,87 +2,54 @@ asset_type: table
 id: formula_1.estado
 schema: formula_1
 physical_name: estado
-summary: 'status (estado): statusId, status'
+summary: "estado: the code table of race-finish outcomes referenced by resultados.id_estado."
+body: >-
+  One row per distinct finishing or retirement outcome, e.g. 'Finished', 'Accident', 'Engine'.
+  Joined from resultados.id_estado. identificador_estado and estado_descripcion repeat
+  id_estado/estado but are marked reliability: suspect and must not be used.
 columns:
-- asset_type: column
-  physical_name: id_estado
-  summary: statusId — estado.id_estado
-  body: 'Status code. Known codes: 2 = disqualified, 3 = accident; joined from resultados.id_estado.'
+- physical_name: id_estado
+  summary: "id_estado, the primary key that identifies one finishing status in estado."
+  body: "A bigint surrogate key. Referenced as id_estado from resultados."
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: estado
-  summary: status — estado.estado
-  body: Status label text describing how a driver's race ended, e.g. 'Finished', 'Accident',
-    'Disqualified'.
+- physical_name: estado
+  summary: "estado, the text label of a race-finish outcome."
+  body: >-
+    e.g. 'Finished', '+1 Lap', 'Steering', 'Withdrew', '107% Rule'. A value like '+1 Lap' or
+    '+16 Laps' means the driver finished but that many laps behind the winner; other values name
+    the cause of a retirement or disqualification.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: identificador_estado
-  summary: identificador_estado — estado.identificador_estado
-  body: 'Physical column ''identificador_estado''. DECOY column: not a real business
-    field. Fabricated to mimic ''statusId''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: identificador_estado
+  summary: "identificador_estado, an integer column on the estado table."
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. Although
+    its name suggests a foreign key, it must not be used to join to another table.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''statusId''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: estado_descripcion
-  summary: estado_descripcion — estado.estado_descripcion
-  body: 'Physical column ''estado_descripcion''. DECOY column: not a real business
-    field. Fabricated to mimic ''status''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: estado_descripcion
+  summary: "estado_descripcion, a text column on the estado table."
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''status''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: 'Status lookup: one row per outcome status, keyed by id_estado, with a text
-  label (estado) such as accident or disqualified. Joined from results to classify
-  how a driver''s race ended.'
+    - information_schema

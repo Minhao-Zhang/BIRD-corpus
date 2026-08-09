@@ -1,24 +1,30 @@
 asset_type: schema
 id: superstore
 name: superstore
-summary: 'superstore: 6 tables — east_superstore, people, product, south_superstore,
-  west_superstore, central_superstore'
+summary: superstore covers a US furniture, office-supply and technology retailer's
+  order lines by region, with customer and product master data, for questions about
+  sales, discount, quantity, profit and delivery speed.
+body: >
+  This is a national retailer selling furniture, office supplies and technology across the
+  United States between 2013 and 2018. Each order line belongs to exactly one of four
+  region-specific order tables (ost_superstore for East, sued_superstore for South,
+  west_superstore for West, zentral_superstore for Central); no single table holds every
+  region's orders. kunde_id joins an order line to the personen table for the customer's name,
+  segment and address, and produkt_id joins it to the produkt table for the product's name,
+  category and sub-category. Two tables in this schema, artikel_katalog and superstore_sued,
+  hold snapshots whose columns are not dependable and should not be queried.
+rules:
+  - A question about the whole company's orders must combine ost_superstore, sued_superstore,
+    west_superstore and zentral_superstore (for example with UNION ALL); no single order table
+    covers every region.
+  - produkt_id is not unique in the produkt table, since the same product recurs once per
+    region, so joining an order line to produkt on produkt_id alone can duplicate rows.
+  - Do not query or join artikel_katalog or superstore_sued; their columns do not correspond
+    to the business facts this schema otherwise records.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A retail Superstore sales database. It tracks orders (sales, profit, quantity,
-  discount, ship mode and dates) for a customer base and a product catalog. Order
-  lines are partitioned into four regional sales tables (Central, East, South, West).
-rules:
-- 'Sales order lines are split across four region tables sharing identical structure:
-  zentral_superstore (Central), ost_superstore (East), sued_superstore (South), west_superstore
-  (West); pick the table matching the region asked about.'
-- Every sales line joins to a customer via kunde_id (to personen) and to a product
-  via produkt_id (to produkt).
-- One order (bestellung_id) can span multiple line rows, so count distinct bestellung_id
-  for order counts.
+    - information_schema

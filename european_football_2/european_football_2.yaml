@@ -1,24 +1,28 @@
 asset_type: schema
 id: european_football_2
 name: european_football_2
-summary: 'european_football_2: 7 tables — Team_Attributes, Player_Attributes, Team,
-  Player, League, Country, Match'
+summary: european_football_2's men's football (soccer) data on European leagues, countries, teams,
+  players, match results and lineups, FIFA attribute ratings, and bookmaker betting odds.
+body: Covers eleven seasons of match, player, and team data for European men's football leagues. pais
+  (country) sits above liga (league), and liga sits above partido (match); a match belongs to one country
+  and one league, and is played between two teams from equipo. atributos_equipo and atributos_jugador
+  hold FIFA video-game attribute ratings (0-100 scales, snapshotted at points in time) for teams and
+  players, joined to equipo and jugador through the API id columns rather than the primary key. partido
+  additionally carries, for each match, up to 22 starting-lineup player references, pitch coordinates
+  for each of them, free-text match events, and pre-match odds from ten bookmakers. futbolista and nacion
+  resemble the player and country data but are not dependable; see their table entries.
+rules:
+- Do not query futbolista or nacion; use jugador and pais instead.
+- Join atributos_equipo to equipo, and atributos_jugador to jugador, using the id_api_equipo/id_api_fifa_equipo
+  or id_api_jugador/id_api_fifa_jugador pairs, never equipo_id, equipo_api_id, jugador_id, or jugador_api_id,
+  which are unreliable.
+- A match's starting lineups live in partido as jugador_local_1..11 and jugador_visitante_1..11 (each
+  an id_api_jugador value); visitante_1_id, visitante_5_id, and visitante_9_id are unreliable and must
+  not be used.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A European club-football analytics database. It tracks players and teams, their
-  FIFA-style skill and build-up/defence attributes over time, the matches they played
-  (with scores, seasons and bookmaker odds), and the leagues and countries those matches
-  belong to.
-rules:
-- Player and team attribute rows are dated snapshots (fecha), so a single player/team
-  has many attribute rows over time; filter or aggregate by date for point-in-time
-  values.
-- The larger a player's fecha_nacimiento (birthday) value, the younger the player,
-  and vice versa.
-- A match is a draw when goles_equipo_local equals goles_equipo_visitante.
+    - information_schema

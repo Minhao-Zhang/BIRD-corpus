@@ -2,279 +2,162 @@ asset_type: table
 id: codebase_community.usuarios
 schema: codebase_community
 physical_name: usuarios
-summary: 'users (usuarios): Id, Reputation, CreaionDate, DisplayName, LastAccessDate,
-  WebsiteUrl, Location, AboutMe, Views, UpVotes, DownVotes, AccountId, Age, ProfileImageUrl'
+summary: usuarios holds every registered community member, one row per user with their reputation, display name, profile details, and vote tallies.
+body: >
+  Grain: one row per user, keyed by id. Referenced by comentarios, historial_publicaciones,
+  insignias, publicaciones, and votos through their own id_usuario, id_propietario, or
+  id_ultimo_editor columns. Do not confuse this table with miembros_comunidad, which mirrors it
+  but is not dependable for analysis. id_usuario_global, reputacion_total, and sobre_mi look
+  like id, reputacion, and acerca_de_mi but are not dependable either.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: Id — usuarios.id
-  body: Means 'Id' (obfuscated to 'id').
+- physical_name: id
+  summary: The unique identifier for a user, id.
+  body: >
+    Primary key of usuarios, one row per registered member. Referenced by id_usuario,
+    id_propietario, and id_ultimo_editor columns across the schema.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: reputacion
-  summary: Reputation — usuarios.reputacion
-  body: Reputation points of the user; higher means more influential. 'Highest/most
-    influential' = MAX(reputacion).
+- physical_name: reputacion
+  summary: The reputation score of a user, reputacion.
+  body: >
+    Integer score reflecting community standing, small values in the sample such as 1, 16, and
+    137. A user with a higher reputation has more influence in the community.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_creacion
-  summary: CreaionDate — usuarios.fecha_creacion
-  body: Means 'CreaionDate' (obfuscated to 'fecha_creacion').
+- physical_name: fecha_creacion
+  summary: The timestamp when a user account was created, fecha_creacion.
+  body: >
+    Timestamp in UTC, ranging from 2010-07-19 19:11:56 to 2014-09-11 15:17:06 in the sample.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre_mostrado
-  summary: DisplayName — usuarios.nombre_mostrado
-  body: Means 'DisplayName' (obfuscated to 'nombre_mostrado').
+- physical_name: nombre_mostrado
+  summary: The display name of a user, nombre_mostrado.
+  body: >
+    Free text name shown throughout the site, for example "Shige" or "robo"; a small share of
+    accounts use the placeholder "НЛО" for a deleted or unclaimed profile.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_ultimo_acceso
-  summary: LastAccessDate — usuarios.fecha_ultimo_acceso
-  body: Means 'LastAccessDate' (obfuscated to 'fecha_ultimo_acceso').
+- physical_name: fecha_ultimo_acceso
+  summary: The timestamp of a user's most recent site access, fecha_ultimo_acceso.
+  body: >
+    Timestamp in UTC, ranging from 2010-07-20 12:43:02 to 2014-09-13 21:09:47 in the sample.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: url_sitio_web
-  summary: WebsiteUrl — usuarios.url_sitio_web
-  body: Means 'WebsiteUrl' (obfuscated to 'url_sitio_web').
+- physical_name: url_sitio_web
+  summary: The personal website a user has listed, url_sitio_web.
+  body: >
+    Free text URL, for example "http://marcusnunes.me/"; null for roughly 92% of sampled users
+    who have not listed one.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ubicacion
-  summary: Location — usuarios.ubicacion
-  body: Free-text user location, e.g. 'India', 'New York', 'United Kingdom'.
+- physical_name: ubicacion
+  summary: The location a user has listed, ubicacion.
+  body: >
+    Free text place name, for example "London" or "Montreal, Canada"; null for roughly 85% of
+    sampled users who have not listed one.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: acerca_de_mi
-  summary: AboutMe — usuarios.acerca_de_mi
-  body: Means 'AboutMe' (obfuscated to 'acerca_de_mi').
+- physical_name: acerca_de_mi
+  summary: The self-written biography a user has listed, acerca_de_mi.
+  body: >
+    Free text HTML "about me" blurb, for example "Simply a UNIX/Linux enthusiast."; null for
+    roughly 87% of sampled users who have not written one.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: vistas
-  summary: Views — usuarios.vistas
-  body: Number of profile views for the user; 'most number of views' = MAX(vistas).
+- physical_name: vistas
+  summary: The number of times a user's profile has been viewed, vistas.
+  body: >
+    Integer view count, small values in the sample from 0 to 91. A higher value means the
+    profile has drawn more visits.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: votos_positivos
-  summary: UpVotes — usuarios.votos_positivos
-  body: Lifetime up-votes received by the user (UpVotes).
+- physical_name: votos_positivos
+  summary: The number of upvotes a user has cast, votos_positivos.
+  body: >
+    Integer count, mostly small in the sample but ranging up to 82 for very active voters.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: votos_negativos
-  summary: DownVotes — usuarios.votos_negativos
-  body: Lifetime down-votes received by the user (DownVotes).
+- physical_name: votos_negativos
+  summary: The number of downvotes a user has cast, votos_negativos.
+  body: >
+    Integer count, consistently small in the sample, from 0 to 4.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_cuenta
-  summary: AccountId — usuarios.id_cuenta
-  body: Means 'AccountId' (obfuscated to 'id_cuenta').
+- physical_name: id_cuenta
+  summary: The account identifier linking a user to the wider network, id_cuenta.
+  body: >
+    Large numeric identifier tying this profile to an account shared across sites in the same
+    network; not used as a join key within this schema, unlike id.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: edad
-  summary: Age — usuarios.edad
-  body: 'User age in years. Age bands used in questions: teenager = BETWEEN 13 AND
-    18, adult = BETWEEN 19 AND 65, elder = > 65.'
+- physical_name: edad
+  summary: The age of a user, edad.
+  body: >
+    Integer age in years, null for the large majority of sampled users who have not disclosed
+    it. This dataset's convention buckets a value of 13 to 18 as a teenager, 19 to 65 as an
+    adult, and above 65 as an elder.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: url_imagen_perfil
-  summary: ProfileImageUrl — usuarios.url_imagen_perfil
-  body: Means 'ProfileImageUrl' (obfuscated to 'url_imagen_perfil').
+- physical_name: url_imagen_perfil
+  summary: The profile image URL of a user, url_imagen_perfil.
+  body: >
+    Free text URL, typically a Gravatar or linked social-media image such as
+    "http://i.stack.imgur.com/jiek1.jpg"; null for roughly 75% of sampled users.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_usuario_global
-  summary: id_usuario_global — usuarios.id_usuario_global
-  body: 'Physical column ''id_usuario_global''. DECOY column: not a real business
-    field. Fabricated to mimic ''Id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: id_usuario_global
+  summary: id_usuario_global, a numeric column on the usuarios table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Id''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: reputacion_total
-  summary: reputacion_total — usuarios.reputacion_total
-  body: 'Physical column ''reputacion_total''. DECOY column: not a real business field.
-    Fabricated to mimic ''Reputation''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: reputacion_total
+  summary: reputacion_total, a numeric column on the usuarios table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Reputation''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: sobre_mi
-  summary: sobre_mi — usuarios.sobre_mi
-  body: 'Physical column ''sobre_mi''. DECOY column: not a real business field. Fabricated
-    to mimic ''AboutMe''. Corruption operator ''sparse_cat_remap'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: sobre_mi
+  summary: sobre_mi, a text column on the usuarios table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''AboutMe''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per community user (grain: user). Holds reputation, age, location,
-  profile views, and lifetime up/down votes. Referenced as post owner/editor, commenter,
-  voter and badge recipient. Do not confuse with the badges table.'
+    - information_schema

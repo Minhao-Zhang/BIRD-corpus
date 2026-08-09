@@ -1,16 +1,39 @@
 asset_type: schema
 id: soccer_2016
 name: soccer_2016
-summary: 'soccer_2016: 21 tables — Out_Type, Ball_by_Ball, Outcome, Extra_Runs, Extra_Type, Country, Team, Rolee, Season, Umpire, Batsman_Scored, Batting_Style, Win_Type, Match, Player, Player_Match, Wicket_Taken, Venue, City, Toss_Decide, Bowling_Style'
+summary: 'soccer_2016 tracks Indian Premier League cricket seasons: matches, teams, players, umpires,
+  venues, tosses, innings, overs, wickets, extras, and the Man of the Match, Man of the Series, Purple
+  Cap, and Orange Cap awards.'
+body: 'Despite the schema''s name, soccer_2016 is Twenty20 cricket data for the Indian Premier League,
+  seasons 2008 through 2016 (saison.saison_jahr). spiel holds one row per match; ball_fuer_ball, schlaeger_punkte,
+  extra_laeufe, and spielfigur_genommen refine that down to one row per ball bowled, per run scored off
+  the bat, per extra conceded, and per wicket taken, all keyed by spiel_id, uebung_id (over), and ball_id.
+  A match has two innings (inning_nummer), each of 50 overs of six balls.
+
+
+  Several id-like columns hold a surrogate key rather than the text their name suggests: spieler.land_name
+  and schiedsrichter.schiedsrichter_land are both country ids joining to land.land_id, not country text;
+  the country text itself lives on land.land_name. spieler.schlag_hand and spieler.wurf_fertigkeit are
+  likewise ids joining to schlag_stil and wurf_stil for the batting-hand and bowling-style names.
+
+
+  Six tables -- laender_info, spielbericht, spieler_profil, vereinsdaten, wurf_technik, and wurf_typen
+  -- resemble land, spiel, spieler, mannschaft, wurf_stil, and wurf_entscheidung respectively but are
+  not dependable; every column in them is unreliable. Within the otherwise-real tables, a further set
+  of id/ref/name columns (for example spiel.match_id, spiel.sieger_id, mannschaft.team_id, and land.staat_name)
+  duplicate a real column on the same table unreliably. Every such column is marked suspect on the column
+  itself; use the real column named in that table''s body instead.'
+rules:
+- Never select from or join through laender_info, spielbericht, spieler_profil, vereinsdaten, wurf_technik,
+  or wurf_typen; use land, spiel, spieler, mannschaft, wurf_stil, and wurf_entscheidung instead, all of
+  which are dependable.
+- 'Within a real table, never join or filter on a column marked reliability: suspect (for example spiel.match_id,
+  spiel.sieger_id, spiel.spieler_des_matchs, mannschaft.team_id, mannschaft.team_name, or land.staat_ref/staat_name);
+  use that table''s real key or name column instead.'
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'A cricket (IPL-style) match analytics database. Despite the schema name, the data is cricket: it records matches with their two teams, winner, venue, season, toss and result; players with their country, batting hand and bowling skill; ball-by-ball events, runs scored, dismissals, umpires, and season awards.'
-rules:
-- A player's country, batting hand and bowling skill are stored on spieler as foreign-key ids (land_name -> land.land_id, schlag_hand -> schlag_stil.schlag_id, wurf_fertigkeit -> wurf_stil.wurf_id), not as text on the player row.
-- A match (spiel) references its two competing teams in mannschaft_1 and mannschaft_2 and its winner in spiel_gewinner, all pointing to mannschaft.mannschaft_id; the toss winner is wurf_gewinner.
+    - information_schema

@@ -1,22 +1,31 @@
 asset_type: schema
 id: book_publishing_company
 name: book_publishing_company
-summary: 'book_publishing_company: 11 tables — authors, roysched, publishers, employee,
-  pub_info, stores, jobs, discounts, titles, titleauthor, sales'
+summary: book_publishing_company tracks publishers, authors, titles, royalty schedules, employees, job levels, bookstores, discounts, and sales orders, for questions about contracts, pricing, royalties, and store sales volume.
+body: >
+  A publisher (editeurs) employs staff (employes), each holding a job (postes) with a numeric
+  level range, and releases titles (titres). Each title can have several credited authors
+  (auteurs), bridged through titres_auteurs, which records billing order and royalty share; a
+  title can also carry a tiered royalty schedule (baremes_droits) that sets a royalty rate per
+  range of year-to-date sales. Bookstores (magasins) place sales orders for titles (ventes) and
+  may run quantity-based discount programs (remises). A publisher's press kit and logo are kept
+  separately in info_editeurs. Three tables mirror real ones but are not dependable for analysis:
+  auteurs_oeuvres duplicates author-title contribution facts that belong in titres_auteurs,
+  points_vente duplicates store facts that belong in magasins, and transactions_ventes duplicates
+  sales-order facts that belong in ventes.
+rules:
+- Never select, filter, or join on a column from auteurs_oeuvres, points_vente, or
+  transactions_ventes — use titres_auteurs, magasins, and ventes instead for author credits,
+  store records, and sales orders.
+- Join on the plain id_ columns (id_auteur, id_titre, id_editeur, id_magasin, id_poste), never on
+  a same-table identifiant_* or *_code column such as identifiant_auteur or poste_code, which are
+  unreliable for analysis.
+- pourcentage_droit on titres is a title's current headline royalty rate; the same column name on
+  baremes_droits is the rate for one sales-volume tier, not the same value.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'Operational database for a book publishing company: publishers issue titles
-  that are written by authors and sold through retail stores. It also tracks employees
-  and their jobs, per-title royalty schedules, and store discount schedules.'
-rules:
-- Individual sales orders and their per-order quantity live in ventes; titres.ventes_annee
-  is a separate pre-aggregated year-to-date sales total, so do not confuse the two
-  when measuring sales.
-- An author is linked to a title only through the titres_auteurs bridge table; there
-  is no direct author-to-title column.
+    - information_schema

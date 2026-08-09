@@ -2,124 +2,81 @@ asset_type: table
 id: restaurant.geografisch
 schema: restaurant
 physical_name: geografisch
-summary: 'geographic (geografisch): city, county, region'
+summary: geografisch maps each city that a restaurant sits in to its county and region.
+body: >
+  Grain: one row per city (168 distinct cities in the loaded sample). Use this table whenever a
+  question names a county or a region rather than a city — allgemeine_informationen.stadt and
+  standort.stadt hold the same city values, but the county and region live only here. Join to
+  either of those tables on stadt; because many restaurants share a city, that join is
+  many-to-one from a restaurant table into geografisch. 'unknown' appears as a placeholder in
+  the county and region columns when a city's county or region was never identified.
 columns:
-- asset_type: column
-  physical_name: stadt
-  summary: city — geografisch.stadt
-  body: Means 'city' (obfuscated to 'stadt').
+- physical_name: stadt
+  summary: The city name that a county and region are recorded for, stadt.
+  body: >
+    One row per city in this table (168 distinct in the loaded sample); joins to
+    allgemeine_informationen.stadt and standort.stadt to bring in a restaurant's county and
+    region. Lowercase text, for example san carlos, san jose, watsonville, hercules, or
+    alameda.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: landkreis
-  summary: county — geografisch.landkreis
-  body: County name in lowercase text, e.g. 'marin county', 'santa cruz county', 'alameda
-    county'; missing values are 'unknown'.
+- physical_name: landkreis
+  summary: The county that a city belongs to, landkreis.
+  body: >
+    Text value ending in "county", for example san mateo county, santa clara county, or
+    yolo county (20 distinct in the sample). 'unknown' is used when the county was never
+    identified for that city.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: region
-  summary: region — geografisch.region
-  body: Region name in lowercase text, e.g. 'bay area', 'northern california', 'los
-    angeles area', 'monterey', 'lake tahoe'; missing values are 'unknown'.
+- physical_name: region
+  summary: The named geographic region a city falls in, region.
+  body: >
+    One of nine broad labels in the loaded sample, such as bay area, monterey, sacramento
+    area, or napa valley, plus 'unknown' when a city's region was never identified. Coarser
+    than landkreis (county): several counties can share one region.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ortschaft
-  summary: ortschaft — geografisch.ortschaft
-  body: 'Physical column ''ortschaft''. DECOY column: not a real business field. Fabricated
-    to mimic ''city''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: ortschaft
+  summary: ortschaft, a text column on the geografisch table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''city''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kreisname
-  summary: kreisname — geografisch.kreisname
-  body: 'Physical column ''kreisname''. DECOY column: not a real business field. Fabricated
-    to mimic ''county''. Corruption operator ''sparse_cat_remap'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: kreisname
+  summary: kreisname, a text column on the geografisch table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''county''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: regionname
-  summary: regionname — geografisch.regionname
-  body: 'Physical column ''regionname''. DECOY column: not a real business field.
-    Fabricated to mimic ''region''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: regionname
+  summary: regionname, a text column on the geografisch table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''region''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per city (geographic lookup): maps a city to its county and region.
-  Grain is one city. Joined to restaurants via city, not restaurant_id; not a per-restaurant
-  table.'
+    - information_schema

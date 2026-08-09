@@ -1,26 +1,39 @@
 asset_type: schema
 id: public_review_platform
 name: public_review_platform
-summary: 'public_review_platform: 15 tables — Years, Attributes, Business_Attributes,
-  Categories, Business_Categories, Tips, Compliments, Users_Compliments, Days, Elite,
-  Business_Hours, Business, Checkins, Reviews, Users'
+summary: "public_review_platform models a Yelp-style business review platform in
+  Arizona: businesses, users, star ratings, reviews, tips, check-ins, elite status,
+  categories, attributes, and business hours."
+body: >
+  public_review_platform is a Spanish-named mirror of the Yelp academic dataset. negocios holds
+  businesses, usuarios holds reviewers, resenas holds star-rated reviews, and consejos holds
+  shorter unrated tips. categorias and atributos are lookup tables joined through the bridge
+  tables categorias_negocio and atributos_negocio, since a business can carry many categories and
+  many attributes at once. horarios_negocio and registros_entrada both key off dias for the day
+  of the week: the first gives a business's opening and closing time per day, the second gives
+  hourly check-in volume per day. elite and anos together record which calendar years a user held
+  Yelp elite status. cumplidos and cumplidos_usuario record compliment types and, per user, how
+  many of each type a user has received.
+
+  Several columns across nearly every table are ordinal volume buckets stored as text (values
+  like 'None', 'Low', 'Medium', 'High', 'Uber') rather than raw counts: cantidad_resenas,
+  votos_util, votos_divertido, votos_genial, numero_cumplidos, and seguidores_usuario, along with
+  their *_usuario equivalents on usuarios. Every table also carries a handful of columns marked
+  reliability: suspect that were added for evaluation and do not correspond to the business facts
+  the table otherwise records.
+rules:
+- "Columns marked reliability: suspect must never be selected, filtered on, or joined on, no
+  matter how plausible their name looks next to the real column."
+- cantidad_resenas, votos_util, votos_divertido, votos_genial, numero_cumplidos, and
+  seguidores_usuario (and their *_usuario equivalents) hold the text bucket None/Low/Medium/High/Uber,
+  not a number; compare them as strings, not with numeric operators.
+- categorias_negocio and atributos_negocio are many-to-many bridges between negocios and
+  categorias/atributos; count DISTINCT id_negocio when the question asks about businesses, since
+  counting id_negocio directly counts category or attribute assignments instead.
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A Yelp-style local business review platform. Businesses carry a location (city,
-  state), a star rating, an active/closed flag, and a review-count band, and are described
-  by categories, attributes, and weekly opening hours. Users write reviews and tips,
-  earn compliments and elite status, and questions ask about businesses by category/city/state,
-  their ratings and hours, and user/review activity.
-rules:
-- A business's category name lives in categorias and is linked to a business only
-  through categorias_negocio on id_categoria/id_negocio; an attribute name lives in
-  atributos and links through atributos_negocio (with valor_atributo giving the setting).
-- A compliment's type lives in cumplidos and attaches to a user only through cumplidos_usuario
-  on id_cumplido; opening hours link a business to a weekday via horarios_negocio.id_dia
-  to dias.id_dia.
+    - information_schema

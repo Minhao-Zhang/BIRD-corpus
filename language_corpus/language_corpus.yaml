@@ -1,19 +1,28 @@
 asset_type: schema
 id: language_corpus
 name: language_corpus
-summary: 'language_corpus: 6 tables — biwords, langs, langs_words, words, pages, pages_words'
+summary: >-
+  language_corpus is a Catalan-language text-mining warehouse built from a single Wikipedia
+  snapshot: it tracks the words in use, the pages they came from, how often each word occurs,
+  and how often pairs of words appear next to each other.
+body: >-
+  This corpus is drawn from a single Wikipedia dump in one language: every language-tagged row
+  here points at Catalan (langue = 'ca', id_langue = 1), so id_langue functions mainly as a join
+  key rather than a dimension worth filtering on for its own sake. mots is the word dictionary,
+  holding each distinct word and its total occurrence count across the whole corpus. pages is
+  the set of Wikipedia articles, each with its own title, MediaWiki page and revision
+  identifiers, and a distinct-word count. langues_mots and pages_mots are bridge tables that
+  break a word's occurrence count down by language and by page respectively, and bimots records
+  how often ordered pairs of adjacent words occur together, a word pair often called a biword.
+rules:
+- Every id_langue value in this corpus is 1 (Catalan); a query that filters or groups by a
+  different language id will return nothing.
+- references_langues is not a dependable source and must not be used to answer questions about
+  languages.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A linguistic corpus of Wikipedia text (chiefly the Catalan edition). It records
-  languages, their pages, the distinct words used, how often each word repeats, and
-  biword (adjacent word) pairs, supporting word-frequency and co-occurrence analysis.
-rules:
-- The Catalan language is identified by langue = 'ca', equivalently id_langue = 1.
-- 'A biword pair (bimots) links two words: mot_premier and mot_second are word ids
-  referencing mots.id_mot.'
+    - information_schema

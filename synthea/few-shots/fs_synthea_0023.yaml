@@ -1,17 +1,23 @@
 asset_type: few_shot
 id: fs_synthea_0023
 schema: synthea
-sql: SELECT "v"."c0" FROM (VALUES ('1958-05-10'), ('1994-11-10'), ('1998-04-03'),
-  ('2012-02-10')) AS "v"("c0")
-summary: Indicate the start date of patient Walter Bahringer's care plan.
-body: 'Question: Indicate the start date of patient Walter Bahringer''s care plan.
+sql: SELECT CAST(SUM(CASE WHEN "T2"."descripcion" = 'Influenza seasonal injectable preservative free'
+  THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT("T1"."id_paciente"), 0), SUM(CASE WHEN "T1"."etnia"
+  = 'english' THEN 1 ELSE 0 END) FROM "synthea"."pacientes" AS "T1" INNER JOIN "synthea"."inmunizaciones"
+  AS "T2" ON "T1"."id_paciente" = "T2"."id_paciente" WHERE TO_CHAR(CAST("T2"."fecha" AS TIMESTAMP), 'YYYY')
+  = '2017'
+summary: Among the immunizations in 2017, calculate the percentage of patients who received the Influenza
+  seasonal injectable preservative free. Among them, how many patients are English?
+body: 'Question: Among the immunizations in 2017, calculate the percentage of patients who received the
+  Influenza seasonal injectable preservative free. Among them, how many patients are English?
 
   SQL:
 
-  SELECT "v"."c0" FROM (VALUES (''1958-05-10''), (''1994-11-10''), (''1998-04-03''),
-  (''2012-02-10'')) AS "v"("c0")'
-complexity: simple
-confidence: 0.55
+  SELECT CAST(SUM(CASE WHEN "T2"."descripcion" = ''Influenza seasonal injectable preservative free'' THEN
+  1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT("T1"."id_paciente"), 0), SUM(CASE WHEN "T1"."etnia" = ''english''
+  THEN 1 ELSE 0 END) FROM "synthea"."pacientes" AS "T1" INNER JOIN "synthea"."inmunizaciones" AS "T2"
+  ON "T1"."id_paciente" = "T2"."id_paciente" WHERE TO_CHAR(CAST("T2"."fecha" AS TIMESTAMP), ''YYYY'')
+  = ''2017'''
 audit:
   provenance:
     source: gold
@@ -19,4 +25,4 @@ audit:
     version: harvest-1
     source_refs:
     - train_final.jsonl
-  evidence: gold train Q train_1526; 1 question(s) share this shape
+  evidence: train question train_1431

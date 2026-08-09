@@ -2,86 +2,56 @@ asset_type: table
 id: books.libro_autor
 schema: books
 physical_name: libro_autor
-summary: 'book_author (libro_autor): book_id, author_id'
+summary: libro_autor is the junction that credits each book in libro to the author or authors in autor who wrote it.
+body: >
+  Grain: one row per book-author pairing, so a co-authored book has more than one row and a
+  prolific author has one row per book. id_libro and id_autor are the two foreign keys; join
+  either one back to its own table to move between a book and its author(s). Books sharing the
+  same id_autor value are written by the same author. autor_ref_id and libro_ref_id on this same
+  table are not dependable and should not be used.
 columns:
-- asset_type: column
-  physical_name: id_libro
-  summary: book_id — libro_autor.id_libro
-  body: Means 'book_id' (obfuscated to 'id_libro').
+- physical_name: id_libro
+  summary: id_libro, the book side of a book-author pairing.
+  body: >
+    Foreign key to libro.id_libro. Join to libro for the title, and group by this column to count
+    how many authors a book has.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_autor
-  summary: author_id — libro_autor.id_autor
-  body: Means 'author_id' (obfuscated to 'id_autor').
+- physical_name: id_autor
+  summary: id_autor, the author side of a book-author pairing.
+  body: >
+    Foreign key to autor.id_autor. Join to autor for the author's name, and group by this column
+    to count how many books an author has written.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: autor_ref_id
-  summary: autor_ref_id — libro_autor.autor_ref_id
-  body: 'Physical column ''autor_ref_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''author_id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: autor_ref_id
+  summary: autor_ref_id, an integer column on the libro_autor table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list or a filter, or as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''author_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: libro_ref_id
-  summary: libro_ref_id — libro_autor.libro_ref_id
-  body: 'Physical column ''libro_ref_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''book_id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: libro_ref_id
+  summary: libro_ref_id, an integer column on the libro_autor table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list or a filter, or as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''book_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: 'Bridge table pairing books with their authors (many-to-many). Grain: one row
-  per book-author pair.'
+    - train_final.jsonl

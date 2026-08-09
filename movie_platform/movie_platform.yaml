@@ -1,21 +1,28 @@
 asset_type: schema
 id: movie_platform
 name: movie_platform
-summary: 'movie_platform: 5 tables — lists, lists_users, movies, ratings, ratings_users'
+summary: >-
+  movie_platform tracks Mubi movies and directors, the star ratings and written critiques users
+  leave on them, and the movie lists users curate, for questions about popularity, ratings, and
+  list-following.
+body: >
+  Five tables carry the real data. movies holds one row per film with its director and a
+  popularity count; ratings holds one row per star rating a user gave a movie, with an optional
+  written critique and how many likes and comments that critique drew; lists holds one row per
+  user-curated list of movies, with its follower and comment counts; lists_users and
+  ratings_users each add a per-action snapshot of the acting user's subscription, trial, and
+  payment status at the moment they made that list or that rating. A user's user_id is the
+  thread that ties their lists to their ratings; a movie's movie_id ties it to every rating it
+  received. rating_score runs 1 (the lowest a user can give) to 5 (the highest). Several tables
+  also carry an extra column that looks like a real identifier, count, or timestamp but is not
+  dependable for analysis — see the affected table or column for which ones.
+rules:
+- Do not join on list_key, creator_user_id, list_ref_id, member_user_id, or movie_key. Use
+  list_id, user_id, and movie_id instead — the others are unreliable identifiers.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A movie catalog and social-rating platform (Mubi-style). Users rate movies,
-  write critic reviews, and curate movie lists. It tracks movies and directors, per-user
-  ratings and reviews, and user-created lists with followers.
-rules:
-- rating_score is an integer from 1 to 5 where 5 is the highest/best score and 1 the
-  lowest.
-- 'The user status flags (subscriber, trialist, payment method, trial eligibility)
-  are stored per event: on ratings they describe the user when they rated the movie,
-  on lists_users when they created the list.'
+    - information_schema

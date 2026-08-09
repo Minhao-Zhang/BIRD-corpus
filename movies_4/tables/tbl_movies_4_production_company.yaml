@@ -2,85 +2,57 @@ asset_type: table
 id: movies_4.production_company
 schema: movies_4
 physical_name: production_company
-summary: 'production_company (production_company): company_id, company_name'
+summary: production_company holds one reference row per company that produced or co-produced
+  movies.
+body: >
+  One row per company, keyed by company_id, giving the company's name. Joins to
+  movie_company.company_id to find which movies a company produced. prod_company_id and
+  prod_company_name sit alongside the real columns but do not correspond to the business facts
+  this table records; do not use them to answer questions, and never join on prod_company_id.
 columns:
-- asset_type: column
-  physical_name: company_id
-  summary: company_id — production_company.company_id
-  body: Means 'company_id' (obfuscated to 'company_id').
+- physical_name: company_id
+  summary: company_id is the numeric identifier of a production company.
+  body: >
+    Bigint surrogate key, for example 972 or 429. Referenced by movie_company.company_id.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: company_name
-  summary: company_name — production_company.company_name
-  body: Means 'company_name' (obfuscated to 'company_name').
+- physical_name: company_name
+  summary: company_name is the name of the production company.
+  body: >
+    Free text, for example 'Universal Pictures', 'Paramount Pictures', 'Walt Disney Pictures', or
+    'DreamWorks'. 'names of the production companies' and 'all companies' both resolve to this
+    column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prod_company_id
-  summary: prod_company_id — production_company.prod_company_id
-  body: 'Physical column ''prod_company_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''company_id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: prod_company_id
+  summary: prod_company_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''company_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prod_company_name
-  summary: prod_company_name — production_company.prod_company_name
-  body: 'Physical column ''prod_company_name''. DECOY column: not a real business
-    field. Fabricated to mimic ''company_name''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: prod_company_name
+  summary: prod_company_name, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''company_name''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: One row per production/studio company, keyed by company_id with company_name
-  (e.g. 'Warner Bros.', 'Universal Pictures').
+    - train_final.jsonl

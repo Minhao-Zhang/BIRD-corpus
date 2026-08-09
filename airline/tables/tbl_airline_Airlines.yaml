@@ -2,416 +2,263 @@ asset_type: table
 id: airline.Airlines
 schema: airline
 physical_name: Airlines
-summary: 'Airlines (Airlines): FL_DATE, OP_CARRIER_AIRLINE_ID, TAIL_NUM, OP_CARRIER_FL_NUM,
-  ORIGIN_AIRPORT_ID, ORIGIN_AIRPORT_SEQ_ID, ORIGIN_CITY_MARKET_ID, ORIGIN, DEST_AIRPORT_ID,
-  DEST_AIRPORT_SEQ_ID, DEST_CITY_MARKET_ID, DEST, CRS_DEP_TIME, DEP_TIME, DEP_D…'
+summary: Airlines records each individual flight segment operated on a given date, its carrier, route, schedule, delay, and cancellation outcome.
+body: >
+  One row per flight segment flown on a specific date by a specific carrier between two
+  airports. OP_CARRIER_AIRLINE_ID joins to Air_Carriers_66c534.Code to name the operating
+  carrier; ORIGIN and DEST join to Airports.Code to resolve the route's endpoints. Delay
+  columns are in minutes and can be negative, meaning the flight ran early rather than late.
+  Not to be confused with the carrier roster (Air_Carriers_66c534) or the airport roster
+  (Airports) that this table's columns reference.
 columns:
-- asset_type: column
-  physical_name: FL_DATE
-  summary: FL_DATE — Airlines.FL_DATE
-  body: Flight date, stored as text in 'YYYY/M/D' form (e.g. '2018/8/1'); all data
-    falls in August 2018.
+- physical_name: FL_DATE
+  summary: FL_DATE, the calendar date on which the flight was operated.
+  body: >
+    Stored as text in 'YYYY/M/D' form, for example '2018/8/1' or '2018/8/27'; not a native date
+    type, so a date filter must match that stored format rather than a zero-padded ISO date.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: OP_CARRIER_AIRLINE_ID
-  summary: OP_CARRIER_AIRLINE_ID — Airlines.OP_CARRIER_AIRLINE_ID
-  body: Numeric id of the operating carrier (e.g. 19049).
+- physical_name: OP_CARRIER_AIRLINE_ID
+  summary: OP_CARRIER_AIRLINE_ID, the numeric identifier of the carrier that operated the flight.
+  body: >
+    An integer such as 19805 or 20398 that joins to Air_Carriers_66c534.Code to resolve the
+    operating carrier's registered name. Distinct from OP_CARRIER_FL_NUM, which numbers the
+    flight itself rather than identifying the carrier that flew it.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: TAIL_NUM
-  summary: TAIL_NUM — Airlines.TAIL_NUM
-  body: Aircraft tail number (e.g. 'N702SK'); identifies the physical plane.
+- physical_name: TAIL_NUM
+  summary: TAIL_NUM, the registration number of the specific aircraft that flew the flight.
+  body: >
+    An alphanumeric string such as 'N756US' or 'N995AN', unique to one physical airframe rather
+    than to a carrier or a route; it is not a join key to any other table in this schema.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: OP_CARRIER_FL_NUM
-  summary: OP_CARRIER_FL_NUM — Airlines.OP_CARRIER_FL_NUM
-  body: Flight number of the operating carrier.
+- physical_name: OP_CARRIER_FL_NUM
+  summary: OP_CARRIER_FL_NUM, the flight number the operating carrier assigned to the flight.
+  body: >
+    An integer such as 2006 or 2755. The same flight number is reused across different dates and
+    even different aircraft, because it identifies a scheduled service rather than one flight
+    instance.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ORIGIN_AIRPORT_ID
-  summary: ORIGIN_AIRPORT_ID — Airlines.ORIGIN_AIRPORT_ID
-  body: Means 'ORIGIN_AIRPORT_ID' (obfuscated to 'ORIGIN_AIRPORT_ID').
+- physical_name: ORIGIN_AIRPORT_ID
+  summary: ORIGIN_AIRPORT_ID, the numeric identifier of the airport the flight departed from.
+  body: >
+    An integer such as 11433 or 14683, distinct from the three-letter ORIGIN code and from
+    Airports.Code, which is not numeric. This schema carries no numeric-id join to Airports, so
+    resolve the origin airport's name through ORIGIN rather than through this column.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ORIGIN_AIRPORT_SEQ_ID
-  summary: ORIGIN_AIRPORT_SEQ_ID — Airlines.ORIGIN_AIRPORT_SEQ_ID
-  body: Means 'ORIGIN_AIRPORT_SEQ_ID' (obfuscated to 'ORIGIN_AIRPORT_SEQ_ID').
+- physical_name: ORIGIN_AIRPORT_SEQ_ID
+  summary: ORIGIN_AIRPORT_SEQ_ID, the time-versioned sequence identifier for the origin airport.
+  body: >
+    An integer such as 1143302 that changes if the origin airport's own records were revised
+    between reporting periods; it is not used as a join key elsewhere in this schema.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ORIGIN_CITY_MARKET_ID
-  summary: ORIGIN_CITY_MARKET_ID — Airlines.ORIGIN_CITY_MARKET_ID
-  body: Means 'ORIGIN_CITY_MARKET_ID' (obfuscated to 'ORIGIN_CITY_MARKET_ID').
+- physical_name: ORIGIN_CITY_MARKET_ID
+  summary: ORIGIN_CITY_MARKET_ID, the numeric identifier of the metropolitan market containing the origin airport.
+  body: >
+    An integer such as 31295 that groups together airports serving the same metropolitan area;
+    it is not used as a join key elsewhere in this schema.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ORIGIN
-  summary: ORIGIN — Airlines.ORIGIN
-  body: Origin (departure) airport as an IATA code (e.g. 'JFK'); joins to Airports.Code.
+- physical_name: ORIGIN
+  summary: ORIGIN, the three-letter code of the airport the flight departed from.
+  body: >
+    A three-letter string such as 'DTW', 'SEA', or 'DEN', joining to Airports.Code to resolve
+    the departure airport's city and name. A question that asks where a flight departed from,
+    flew from, or took off from is answered by filtering or grouping on this column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: DEST_AIRPORT_ID
-  summary: DEST_AIRPORT_ID — Airlines.DEST_AIRPORT_ID
-  body: Means 'DEST_AIRPORT_ID' (obfuscated to 'DEST_AIRPORT_ID').
+- physical_name: DEST_AIRPORT_ID
+  summary: DEST_AIRPORT_ID, the numeric identifier of the airport the flight arrived at.
+  body: >
+    An integer such as 14100 or 11298, distinct from the three-letter DEST code and from
+    Airports.Code, which is not numeric. This schema carries no numeric-id join to Airports, so
+    resolve the destination airport's name through DEST rather than through this column.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: DEST_AIRPORT_SEQ_ID
-  summary: DEST_AIRPORT_SEQ_ID — Airlines.DEST_AIRPORT_SEQ_ID
-  body: Means 'DEST_AIRPORT_SEQ_ID' (obfuscated to 'DEST_AIRPORT_SEQ_ID').
+- physical_name: DEST_AIRPORT_SEQ_ID
+  summary: DEST_AIRPORT_SEQ_ID, the time-versioned sequence identifier for the destination airport.
+  body: >
+    An integer such as 1410005 that changes if the destination airport's own records were
+    revised between reporting periods; it is not used as a join key elsewhere in this schema.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: DEST_CITY_MARKET_ID
-  summary: DEST_CITY_MARKET_ID — Airlines.DEST_CITY_MARKET_ID
-  body: Means 'DEST_CITY_MARKET_ID' (obfuscated to 'DEST_CITY_MARKET_ID').
+- physical_name: DEST_CITY_MARKET_ID
+  summary: DEST_CITY_MARKET_ID, the numeric identifier of the metropolitan market containing the destination airport.
+  body: >
+    An integer such as 34100 that groups together airports serving the same metropolitan area;
+    it is not used as a join key elsewhere in this schema.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: DEST
-  summary: DEST — Airlines.DEST
-  body: Destination (arrival) airport as an IATA code (e.g. 'MIA'); joins to Airports.Code.
+- physical_name: DEST
+  summary: DEST, the three-letter code of the airport the flight arrived at.
+  body: >
+    A three-letter string such as 'PHL', 'CLT', or 'SEA', joining to Airports.Code to resolve
+    the arrival airport's city and name. A question naming a destination, an arrival city, or
+    where a flight landed is answered by filtering or grouping on this column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: CRS_DEP_TIME
-  summary: CRS_DEP_TIME — Airlines.CRS_DEP_TIME
-  body: Scheduled (CRS) local departure time as an integer hhmm (e.g. 1345 = 13:45).
+- physical_name: CRS_DEP_TIME
+  summary: CRS_DEP_TIME, the scheduled local departure time published for the flight.
+  body: >
+    An integer in HHMM form with no colon, for example 536 for 5:36 AM or 1726 for 5:26 PM.
+    Compare it to DEP_TIME to see how far the actual departure varied from the published
+    schedule.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: DEP_TIME
-  summary: DEP_TIME — Airlines.DEP_TIME
-  body: Actual local departure time as an integer hhmm.
+- physical_name: DEP_TIME
+  summary: DEP_TIME, the actual local departure time recorded for the flight.
+  body: >
+    An integer in HHMM form, for example 530 or 1716; null when the flight was cancelled before
+    it pushed back. Compare it to CRS_DEP_TIME to compute how early or late the flight departed.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: DEP_DELAY
-  summary: DEP_DELAY — Airlines.DEP_DELAY
-  body: Departure delay in minutes vs schedule; negative = departed early, 0 or <=
-    0 = on time, > 0 = delayed.
+- physical_name: DEP_DELAY
+  summary: DEP_DELAY, the number of minutes the flight's departure ran ahead of or behind its published schedule.
+  body: >
+    A signed integer in minutes: a positive value means the flight departed late (delayed); a
+    value of zero or negative means it departed on time or early, for example -6 for six minutes
+    early. Null when the flight was cancelled. Compare to ARR_DELAY for the equivalent figure at
+    arrival.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: DEP_DELAY_NEW
-  summary: DEP_DELAY_NEW — Airlines.DEP_DELAY_NEW
-  body: Departure delay in minutes with early departures floored to 0 (negatives set
-    to 0).
+- physical_name: DEP_DELAY_NEW
+  summary: DEP_DELAY_NEW, the departure delay in minutes with any early departure floored to zero.
+  body: >
+    A non-negative integer, for example 0, 2, or 55. It does not distinguish an on-time
+    departure from an early one the way DEP_DELAY does, so it is not the right column for a
+    question about how early a flight left.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ARR_TIME
-  summary: ARR_TIME — Airlines.ARR_TIME
-  body: Actual local arrival time as an integer hhmm.
+- physical_name: ARR_TIME
+  summary: ARR_TIME, the actual local arrival time recorded for the flight.
+  body: >
+    An integer in HHMM form, for example 703 or 2111; null when the flight was cancelled or
+    diverted before landing.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ARR_DELAY
-  summary: ARR_DELAY — Airlines.ARR_DELAY
-  body: Arrival delay in minutes vs schedule; negative = arrived earlier than scheduled.
+- physical_name: ARR_DELAY
+  summary: ARR_DELAY, the number of minutes the flight's arrival ran ahead of or behind its published schedule.
+  body: >
+    A signed integer in minutes: a positive value means the flight arrived late; a value of zero
+    or negative means it arrived on time or early, for example -16 for sixteen minutes early or
+    4 for four minutes late. Null when the flight was cancelled.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ARR_DELAY_NEW
-  summary: ARR_DELAY_NEW — Airlines.ARR_DELAY_NEW
-  body: Arrival delay in minutes with early arrivals floored to 0; 0 means on time
-    or early.
+- physical_name: ARR_DELAY_NEW
+  summary: ARR_DELAY_NEW, the arrival delay in minutes with any early arrival floored to zero.
+  body: >
+    A non-negative integer, for example 0, 2, or 41. It is redundant with ARR_DELAY for a
+    delayed flight but does not capture how early an early flight arrived.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: CANCELLED
-  summary: CANCELLED — Airlines.CANCELLED
-  body: 'Cancellation flag: 1 = flight cancelled, 0 = operated.'
+- physical_name: CANCELLED
+  summary: CANCELLED, a flag recording whether the flight was cancelled.
+  body: >
+    1 when the flight was cancelled, 0 when it operated. A question about cancelled flights
+    filters on CANCELLED = 1; one about completed or operated flights filters on CANCELLED = 0.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: CANCELLATION_CODE
-  summary: CANCELLATION_CODE — Airlines.CANCELLATION_CODE
-  body: Reason a flight was cancelled, single-letter code; 'A' is the most serious
-    reason, 'C' another cause. Null when not cancelled.
+- physical_name: CANCELLATION_CODE
+  summary: CANCELLATION_CODE, the single-letter reason code recorded for a cancelled flight.
+  body: >
+    Populated only when CANCELLED = 1 and null otherwise. 'A' denotes a carrier-caused
+    cancellation, treated as the most serious reason in this dataset; 'C' denotes a National
+    Aviation System cancellation. A question about the most serious cancellation reason filters
+    on CANCELLATION_CODE = 'A'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: CRS_ELAPSED_TIME
-  summary: CRS_ELAPSED_TIME — Airlines.CRS_ELAPSED_TIME
-  body: Scheduled flight duration in minutes.
+- physical_name: CRS_ELAPSED_TIME
+  summary: CRS_ELAPSED_TIME, the scheduled total flight time in minutes.
+  body: >
+    An integer number of minutes, for example 103 or 174. Compare to ACTUAL_ELAPSED_TIME: a
+    flight with a smaller actual value ran faster than scheduled, and one with a larger actual
+    value ran slower than scheduled.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ACTUAL_ELAPSED_TIME
-  summary: ACTUAL_ELAPSED_TIME — Airlines.ACTUAL_ELAPSED_TIME
-  body: Actual flight duration in minutes; a flight is faster than scheduled when
-    ACTUAL_ELAPSED_TIME < CRS_ELAPSED_TIME.
+- physical_name: ACTUAL_ELAPSED_TIME
+  summary: ACTUAL_ELAPSED_TIME, the actual total flight time in minutes, gate to gate.
+  body: >
+    An integer number of minutes, for example 93 or 175; null when the flight was cancelled. If
+    this value is less than CRS_ELAPSED_TIME the flight was faster than scheduled; if greater,
+    it was slower than scheduled.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: CARRIER_DELAY
-  summary: CARRIER_DELAY — Airlines.CARRIER_DELAY
-  body: Minutes of delay attributed to the carrier.
+- physical_name: CARRIER_DELAY
+  summary: CARRIER_DELAY, the portion of a flight's arrival delay attributed to the carrier itself.
+  body: >
+    Minutes, for example 9 or 31. Populated only when the flight was delayed or cancelled by the
+    carrier and null otherwise, so most rows carry no value. One of five delay-cause columns
+    that together should sum close to ARR_DELAY_NEW for a delayed flight.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: WEATHER_DELAY
-  summary: WEATHER_DELAY — Airlines.WEATHER_DELAY
-  body: Minutes of delay attributed to weather.
+- physical_name: WEATHER_DELAY
+  summary: WEATHER_DELAY, the portion of a flight's arrival delay attributed to weather.
+  body: >
+    Minutes, for example 15 or 50. Populated only when the flight was delayed and null otherwise,
+    so most rows carry no value. One of five delay-cause columns that together should sum close
+    to ARR_DELAY_NEW for a delayed flight.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: NAS_DELAY
-  summary: NAS_DELAY — Airlines.NAS_DELAY
-  body: Minutes of delay attributed to the National Airspace System.
+- physical_name: NAS_DELAY
+  summary: NAS_DELAY, the portion of a flight's arrival delay attributed to the National Aviation System.
+  body: >
+    Minutes, for example 16 or 30. Populated only when the flight was delayed and null otherwise,
+    so most rows carry no value. One of five delay-cause columns that together should sum close
+    to ARR_DELAY_NEW for a delayed flight.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: SECURITY_DELAY
-  summary: SECURITY_DELAY — Airlines.SECURITY_DELAY
-  body: Minutes of delay attributed to security.
+- physical_name: SECURITY_DELAY
+  summary: SECURITY_DELAY, the portion of a flight's arrival delay attributed to a security incident.
+  body: >
+    Minutes; every sampled row holds 0, since a security delay is rare, and the column is null
+    for a flight that was not delayed. One of five delay-cause columns that together should sum
+    close to ARR_DELAY_NEW for a delayed flight.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: LATE_AIRCRAFT_DELAY
-  summary: LATE_AIRCRAFT_DELAY — Airlines.LATE_AIRCRAFT_DELAY
-  body: Minutes of delay attributed to a late-arriving inbound aircraft.
+- physical_name: LATE_AIRCRAFT_DELAY
+  summary: LATE_AIRCRAFT_DELAY, the portion of a flight's arrival delay attributed to the late arrival of the incoming aircraft.
+  body: >
+    Minutes, for example 26 or 119. Populated only when the flight was delayed and null
+    otherwise, so most rows carry no value. One of five delay-cause columns that together should
+    sum close to ARR_DELAY_NEW for a delayed flight.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Fact table; one row per scheduled flight leg in August 2018. Holds route (ORIGIN,
-  DEST), dates, scheduled vs actual times, per-cause delay minutes, cancellation flag/code,
-  aircraft tail number and operating carrier id. This is the flights table, not the
-  airport reference.
+    - information_schema

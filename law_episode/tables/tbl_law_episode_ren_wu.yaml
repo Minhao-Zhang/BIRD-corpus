@@ -2,205 +2,133 @@ asset_type: table
 id: law_episode.ren_wu
 schema: law_episode
 physical_name: ren_wu
-summary: 'Person (ren_wu): person_id, name, birthdate, birth_name, birth_place, birth_region,
-  birth_country, height_meters, nickname'
+summary: ren_wu is the person directory for law_episode, one row per cast or crew member with their name, birth details, height, and nickname.
+body: >
+  Grain: one row per person. ren_wu_id is the text key shared by jiang_xiang and
+  xie_zuo_ming_dan; join on it to attach a person's nominations or episode credits. Easily
+  confused with ren_wu_xiang, a second person table that is not dependable for analysis — use
+  ren_wu instead. Within this table, ren_wu_dai_hao, chu_sheng_di_qu, and chu_sheng_ming
+  duplicate other columns here unreliably and must not be used. Many birth-related columns
+  are null for people whose biographical details were never recorded.
 columns:
-- asset_type: column
-  physical_name: ren_wu_id
-  summary: person_id — ren_wu.ren_wu_id
-  body: Means 'person_id' (obfuscated to 'ren_wu_id').
+- physical_name: ren_wu_id
+  summary: ren_wu_id is the unique identifier for a person, shared by every other table that describes them.
+  body: >
+    Text code shaped like an IMDb person id (sample values nm0587808, nm1218597,
+    nm0799777). Every join from jiang_xiang and xie_zuo_ming_dan back to this table uses this
+    column. Do not use ren_wu_dai_hao for that join, it is unreliable.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ming_cheng
-  summary: name — ren_wu.ming_cheng
-  body: Means 'name' (obfuscated to 'ming_cheng').
+- physical_name: ming_cheng
+  summary: ming_cheng is the name a person is professionally known by.
+  body: >
+    Text (sample values Georgienne Millen, Joseph Vincent Gay, J.K. Simmons). Matched by an
+    exact comparison for a specific person, e.g. ming_cheng = 'Rene Balcer'. This is the
+    column meant by an unqualified "who" or "name" in a question about a person.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: chu_sheng_ri_qi
-  summary: birthdate — ren_wu.chu_sheng_ri_qi
-  body: Means 'birthdate' (obfuscated to 'chu_sheng_ri_qi').
+- physical_name: chu_sheng_ri_qi
+  summary: chu_sheng_ri_qi is the date a person was born.
+  body: >
+    Date in YYYY-MM-DD form (sample values 1955-01-09, 1978-10-15, 1961-09-20). Null when the
+    person's birthdate is not available, which is common for minor crew credits.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: chu_sheng_xing_ming
-  summary: birth_name — ren_wu.chu_sheng_xing_ming
-  body: Means 'birth_name' (obfuscated to 'chu_sheng_xing_ming').
+- physical_name: chu_sheng_xing_ming
+  summary: chu_sheng_xing_ming is the full name given to a person by their parents at birth.
+  body: >
+    Text, often longer than ming_cheng and including middle names (sample values Jonathan
+    Kimble Simmons, Lacey Ann Hornkohl, James Leo Colby). Null for most rows; only recorded
+    when it differs meaningfully from the person's professional name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: chu_sheng_di_dian
-  summary: birth_place — ren_wu.chu_sheng_di_dian
-  body: Means 'birth_place' (obfuscated to 'chu_sheng_di_dian').
+- physical_name: chu_sheng_di_dian
+  summary: chu_sheng_di_dian is the city or town where a person was born.
+  body: >
+    Text (sample values Grosse Pointe, Colchester, Arlington, Perrysburg, Jersey City). A
+    person's full birth place, when every part is available, is the concatenation of
+    chu_sheng_guo_jia, chu_sheng_qu_yu, and this column, in that order. Null when unknown.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: chu_sheng_qu_yu
-  summary: birth_region — ren_wu.chu_sheng_qu_yu
-  body: Birth region of the person.
+- physical_name: chu_sheng_qu_yu
+  summary: chu_sheng_qu_yu is the state or region a person was born in, one level broader than their birth city.
+  body: >
+    Text (sample values Michigan, Connecticut, Massachusetts, Ohio, New Jersey). Matched by
+    an exact comparison, e.g. chu_sheng_qu_yu = 'New Jersey'. The chu_sheng_di_qu column on
+    this same table duplicates these values unreliably and must not be used.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: chu_sheng_guo_jia
-  summary: birth_country — ren_wu.chu_sheng_guo_jia
-  body: Birth country, e.g. 'USA' (American).
+- physical_name: chu_sheng_guo_jia
+  summary: chu_sheng_guo_jia is the country a person was born in.
+  body: >
+    Text (sample values USA, Canada, Slovenia, India, USSR). "American" or "born in the USA"
+    means chu_sheng_guo_jia = 'USA'. A continent question can be answered from this column by
+    mapping the country name, e.g. USA maps to North America.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: shen_gao_mi
-  summary: height_meters — ren_wu.shen_gao_mi
-  body: Person's height in meters (real, e.g. > 1.80).
+- physical_name: shen_gao_mi
+  summary: shen_gao_mi is a person's height in meters.
+  body: >
+    Real-valued figure roughly between 1.57 and 1.93 in this corpus slice (sample values
+    1.8, 1.78, 1.83, 1.65, 1.85). A threshold like "a height of over 1.80m" is
+    shen_gao_mi > 1.80; "the tallest person" is the maximum of this column. Null when a
+    person's height was not recorded.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: bie_ming
-  summary: nickname — ren_wu.bie_ming
-  body: Means 'nickname' (obfuscated to 'bie_ming').
+- physical_name: bie_ming
+  summary: bie_ming is the nickname a person goes by.
+  body: >
+    Text (sample values Mare, Frankie, Chevi, Mike the Bike, Jay). Null for most people; only
+    populated when a nickname is documented.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ren_wu_dai_hao
-  summary: ren_wu_dai_hao — ren_wu.ren_wu_dai_hao
-  body: 'Physical column ''ren_wu_dai_hao''. DECOY column: not a real business field.
-    Fabricated to mimic ''person_id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: ren_wu_dai_hao
+  summary: ren_wu_dai_hao, a text column on the ren_wu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''person_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: chu_sheng_di_qu
-  summary: chu_sheng_di_qu — ren_wu.chu_sheng_di_qu
-  body: 'Physical column ''chu_sheng_di_qu''. DECOY column: not a real business field.
-    Fabricated to mimic ''birth_country''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: chu_sheng_di_qu
+  summary: chu_sheng_di_qu, a text column on the ren_wu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''birth_country''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: chu_sheng_ming
-  summary: chu_sheng_ming — ren_wu.chu_sheng_ming
-  body: 'Physical column ''chu_sheng_ming''. DECOY column: not a real business field.
-    Fabricated to mimic ''birth_name''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: chu_sheng_ming
+  summary: chu_sheng_ming, a text column on the ren_wu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''birth_name''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per person (grain: person). Holds names, nickname, birth details and
-  height. Do not confuse with the decoy sibling ren_wu_xiang.'
+    - information_schema

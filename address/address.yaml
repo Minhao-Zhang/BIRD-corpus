@@ -1,23 +1,31 @@
 asset_type: schema
 id: address
 name: address
-summary: 'address: 9 tables — CBSA, alias, area_code, avoid, congress, country, state,
-  zip_congress, zip_data'
+summary: >-
+  The address database is a U.S. postal and geographic reference: ZIP codes, cities, counties,
+  states, congressional districts, and CBSA metro areas, joined to census population, housing,
+  and mailing-organization data.
+body: >
+  zip_code is the hub every other table joins through: alias and avoid record accepted and
+  discouraged place names for a ZIP code, area_code its telephone prefix, country its county and
+  state, zip_congress its congressional district, and zip_data its census demographics, latitude
+  and longitude. congress lists members of the House and Senate and joins to state and, for House
+  members only, to zip_congress. CBSA lists metro and micro statistical areas and joins to
+  zip_data on a CBSA code shared by every ZIP code in that area. "country" is a naming quirk: it
+  holds county and state data, not nations. exclusion_zips and zip_legislative_districts are not
+  dependable for analysis; every other table also carries one or more unreliable twin columns
+  whose name resembles a real column but whose values do not.
+rules:
+- Join tables on zip_code, CBSA, or a state abbreviation; never on an unreliable twin such as
+  postal_code, excluded_zip, cbsa_code, region_state, state_abbr, or state_full_name, which does
+  not track the real data.
+- congress.cognress_rep_id matches zip_congress.district only for House members; a Senator's
+  identifier carries a state-wide suffix that no district value has, so the join silently drops
+  every Senate row.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A US ZIP-code geographic and demographic reference database. Each postal point
-  (zip code) in zip_data carries population, income, housing, and postal attributes,
-  with lookup tables for counties, states, telephone area codes, CBSA metro areas,
-  aliases, and congressional districts.
-rules:
-- A zip code's county and its owning state abbreviation come from the country table
-  (join zip_data.zip_code = country.zip_code); the state table only maps a state abbreviation
-  to its full name.
-- 'Congressional representatives link to zip codes through zip_congress: join congress.cognress_rep_id
-  = zip_congress.district and zip_congress.zip_code = zip_data.zip_code.'
+    - information_schema

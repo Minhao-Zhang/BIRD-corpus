@@ -2,168 +2,89 @@ asset_type: table
 id: soccer_2016.spieler
 schema: soccer_2016
 physical_name: spieler
-summary: 'Player (spieler): Player_Id, Player_Name, DOB, Batting_hand, Bowling_skill,
-  Country_Name'
+summary: spieler is the roster of every player who appears in soccer_2016, with birth date, batting hand,
+  bowling style, and country.
+body: One row per player. schlag_hand and wurf_fertigkeit are ids joining to schlag_stil and wurf_stil
+  respectively for the batting hand and bowling style names; land_name is likewise an id joining to land.land_id
+  despite reading like a text column. geburtstag is the player's date of birth. Joins to spiel, ball_fuer_ball,
+  schlaeger_punkte, spielfigur_genommen, spieler_spiel, and saison in the roles of striker, bowler, fielder,
+  and award winner. Carries the unreliable spieler_schlaghhand, spieler_wurfskill, and spieler_herkunftsland
+  columns, which duplicate schlag_hand, wurf_fertigkeit, and land_name respectively.
 columns:
-- asset_type: column
-  physical_name: spieler_id
-  summary: Player_Id — spieler.spieler_id
-  body: Means 'Player_Id' (obfuscated to 'spieler_id').
+- physical_name: spieler_id
+  summary: spieler_id is the unique identifier for a player in spieler.
+  body: A whole number, for example 26 or 218, unique per player and reused as the join key everywhere
+    a player is referenced.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: spieler_name
-  summary: Player_Name — spieler.spieler_name
-  body: Means 'Player_Name' (obfuscated to 'spieler_name').
+- physical_name: spieler_name
+  summary: spieler_name is the player's name.
+  body: Free text in initials-plus-surname form, for example 'CH Gayle' or 'SC Ganguly'. 469 distinct
+    players appear.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: geburtstag
-  summary: DOB — spieler.geburtstag
-  body: Date of birth (DATE). Decade/year filters use LIKE '1977%' or BETWEEN date
-    ranges; oldest = min, youngest = max.
+- physical_name: geburtstag
+  summary: geburtstag is the player's date of birth.
+  body: A date from 1969-06-30 through 1998-07-18, format YYYY-MM-DD. The earliest value marks the oldest
+    player and the latest the youngest.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: schlag_hand
-  summary: Batting_hand — spieler.schlag_hand
-  body: 'Player''s batting style: bigint foreign key to schlag_stil.schlag_id.'
+- physical_name: schlag_hand
+  summary: schlag_hand identifies a player's batting hand.
+  body: A whole number matching schlag_stil.schlag_id, 1 or 2.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: wurf_fertigkeit
-  summary: Bowling_skill — spieler.wurf_fertigkeit
-  body: 'Player''s bowling style: bigint foreign key to wurf_stil.wurf_id.'
+- physical_name: wurf_fertigkeit
+  summary: wurf_fertigkeit identifies a player's bowling style.
+  body: A whole number matching wurf_stil.wurf_id. Null for players who do not bowl.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: land_name
-  summary: Country_Name — spieler.land_name
-  body: 'Player''s country: bigint foreign key to land.land_id (despite the name,
-    it is an id, not a country string).'
+- physical_name: land_name
+  summary: land_name identifies the country a player represents.
+  body: A whole number matching land.land_id, despite the column name reading like the country's text
+    name; the text name itself lives on land.land_name.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: spieler_schlaghhand
-  summary: spieler_schlaghhand — spieler.spieler_schlaghhand
-  body: 'Physical column ''spieler_schlaghhand''. DECOY column: not a real business
-    field. Fabricated to mimic ''Batting_hand''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+- physical_name: spieler_schlaghhand
+  summary: spieler_schlaghhand, a numeric column.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Batting_hand''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: spieler_wurfskill
-  summary: spieler_wurfskill — spieler.spieler_wurfskill
-  body: 'Physical column ''spieler_wurfskill''. DECOY column: not a real business
-    field. Fabricated to mimic ''Bowling_skill''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: spieler_wurfskill
+  summary: spieler_wurfskill, a numeric column.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Bowling_skill''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: spieler_herkunftsland
-  summary: spieler_herkunftsland — spieler.spieler_herkunftsland
-  body: 'Physical column ''spieler_herkunftsland''. DECOY column: not a real business
-    field. Fabricated to mimic ''Country_Name''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: spieler_herkunftsland
+  summary: spieler_herkunftsland, a numeric column.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Country_Name''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Player table; one row per player. spieler_name, geburtstag (DOB), and foreign
-  keys land_name (country), schlag_hand (batting style) and wurf_fertigkeit (bowling
-  style). Do not confuse the FK columns with text values.
+    - information_schema

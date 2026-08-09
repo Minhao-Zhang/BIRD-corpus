@@ -1,24 +1,46 @@
 asset_type: schema
 id: hockey
 name: hockey
-summary: 'hockey: 22 tables — abbrev, AwardsMisc, AwardsPlayers, AwardsCoaches, CombinedShutouts,
-  TeamVsTeam, TeamsHalf, TeamsPost, TeamsSC, TeamSplits, Teams, SeriesPost, HOF, Master,
-  Scoring, ScoringSC, ScoringShootout, ScoringSup, Goalies, GoaliesSC, Goali…'
+summary: hockey covers NHL and WHA ice hockey history — teams, players, goaltenders, coaches,
+  season standings, playoff series, awards, and the Hall of Fame, with regular-season and
+  postseason statistics tracked year by year.
+body: >
+  Spans professional ice hockey from the sport's earliest leagues (NHA, PCHA, WCHL) through the
+  modern NHA/NHL and the rival WHA. Team-season standings live on mannschaften, one row per team
+  per year, with sibling tables for early Stanley-Cup-era seasons (mannschaft_sc), split-season
+  play (mannschaft_halbzeit), postseason results (mannschaft_playoffs), and monthly/home-away
+  breakdowns (mannschaft_zeitraeume). Player biography lives on spieler; player scoring lines
+  live on statistiken (statistiken_sc, statistiken_shootout and statistiken_zusatz cover the
+  same concept for early seasons, the shootout era, and a short supplemental-assist stint
+  respectively); goaltending lines live on torhueter (with torhueter_sc and torhueter_shootout
+  as its early-season and shootout-era counterparts). Coaches live on trainer, awards on the
+  auszeichnungen_* tables, and Hall of Fame inductees on ruhmeshalle. Season is almost always the
+  four-digit column jahr; a team is identified within one season by mannschaft_id, which can
+  change when a franchise relocates or rebrands even though franchise_id (on mannschaften) does
+  not. abkuerzungen is a lookup of short codes to full names for divisions, conferences and
+  playoff rounds. Seven tables — mannschaft_halbzeit_statistik, mannschaft_monatsbilanz,
+  mannschaft_saison_collected, person_spieler_profil, spiel_statistik_extra,
+  spieler_auszeichnungen_jahr, and spieler_saison_statistik — duplicate the shape of a real table
+  but hold no dependable data in any column; use mannschaft_halbzeit, mannschaft_zeitraeume,
+  mannschaft_sc, spieler, statistiken_zusatz, auszeichnungen_spieler and statistiken respectively
+  instead. A number of otherwise-reliable tables also carry a handful of individually
+  unreliable columns alongside their real ones; those are marked suspect on the column itself.
+rules:
+- Do not use mannschaft_halbzeit_statistik, mannschaft_monatsbilanz, mannschaft_saison_collected,
+  person_spieler_profil, spiel_statistik_extra, spieler_auszeichnungen_jahr, or
+  spieler_saison_statistik to answer any question; no column on these seven tables holds
+  dependable data. Use mannschaft_halbzeit, mannschaft_zeitraeume, mannschaft_sc, spieler,
+  statistiken_zusatz, auszeichnungen_spieler and statistiken respectively instead.
+- mannschaft_id identifies a team within one season and is not stable across a franchise's
+  history; when a question is about a franchise across relocations or renames, join through
+  franchise_id on mannschaften instead of matching mannschaft_id across years.
+- Regular-season and postseason statistics sit side by side on the same row on statistiken,
+  torhueter and trainer, in columns with a playoff_ prefix; a player or coach who did not reach
+  the postseason that year has nulls in those columns rather than a separate row.
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: Historical ice-hockey statistics database. It holds a master record of players
-  and coaches with their biographical and career profile, per-season scoring and goaltending
-  performance, team season standings and splits, playoff and Stanley Cup records,
-  awards, and Hall of Fame inductions.
-rules:
-- Player biography lives in spieler (one row per player); per-season stats live in
-  child tables (statistiken, torhueter, etc.) joined on spieler.spieler_id, so one
-  player has many stat rows across seasons.
-- 'Coaches are also players in the spieler master: join spieler.trainer_id to trainer
-  / auszeichnungen_trainer to resolve a coach''s identity.'
+    - train_final.jsonl

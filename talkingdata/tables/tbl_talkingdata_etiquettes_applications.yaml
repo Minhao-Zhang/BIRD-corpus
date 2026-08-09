@@ -2,86 +2,54 @@ asset_type: table
 id: talkingdata.etiquettes_applications
 schema: talkingdata
 physical_name: etiquettes_applications
-summary: 'app_labels (etiquettes_applications): app_id, label_id'
+summary: etiquettes_applications records which label id_etiquette applies to which application id_application.
+body: 'Grain: one row per application-label assignment; an application can carry more than one label,
+  and a label can apply to many applications. Join to applications_tous on id_application for the app
+  dimension, and to categories_etiquettes on id_etiquette for the label''s category name. application_associe_id
+  and identifiant_etiquette sit alongside the real columns but are not dependable for analysis.'
 columns:
-- asset_type: column
-  physical_name: id_application
-  summary: app_id — etiquettes_applications.id_application
-  body: Means 'app_id' (obfuscated to 'id_application').
+- physical_name: id_application
+  summary: The application id, id_application, that a label is assigned to.
+  body: Large signed integer application id (500 of 500 sampled rows distinct). Each id_application here
+    also represents one app user in the source data. Join to categories_etiquettes.id_etiquette (through
+    id_etiquette on this row) to see the label's category name, and to evenements_applications.id_application
+    for the app's per-event install and activity status.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_etiquette
-  summary: label_id — etiquettes_applications.id_etiquette
-  body: Means 'label_id' (obfuscated to 'id_etiquette').
+- physical_name: id_etiquette
+  summary: The label id, id_etiquette, assigned to an application.
+  body: Integer label id (86 of 500 sampled rows distinct - a label typically covers many applications).
+    Join to categories_etiquettes.id_etiquette for the label's category name.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: application_associe_id
-  summary: application_associe_id — etiquettes_applications.application_associe_id
-  body: 'Physical column ''application_associe_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''app_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: application_associe_id
+  summary: application_associe_id, a numeric column on the etiquettes_applications table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as
+    a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''app_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: identifiant_etiquette
-  summary: identifiant_etiquette — etiquettes_applications.identifiant_etiquette
-  body: 'Physical column ''identifiant_etiquette''. DECOY column: not a real business
-    field. Fabricated to mimic ''label_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: identifiant_etiquette
+  summary: identifiant_etiquette, a numeric column on the etiquettes_applications table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as
+    a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''label_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Bridge table linking apps (id_application) to labels (id_etiquette); many-to-many.
-  Counting id_application after joining to categories gives 'app users' per category.
+    - information_schema

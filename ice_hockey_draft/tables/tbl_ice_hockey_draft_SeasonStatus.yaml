@@ -2,238 +2,143 @@ asset_type: table
 id: ice_hockey_draft.SeasonStatus
 schema: ice_hockey_draft
 physical_name: SeasonStatus
-summary: 'SeasonStatus (SeasonStatus): ELITEID, SEASON, TEAM, LEAGUE, GAMETYPE, GP,
-  G, A, P, PIM, PLUSMINUS'
+summary: SeasonStatus is a season-by-season scoring log, one row per player per season, team,
+  league, and game type.
+body: >
+  One row per player per season, team, league, and game type (regular season versus playoffs), so
+  a single player and season can span several rows across different leagues, teams, or game
+  types. Carries games played, goals, assists, points, penalty minutes, and goal differential.
+  Joins to PlayerInfo on ELITEID; a player's career totals in PlayerInfo (sum_7yr_GP, sum_7yr_TOI)
+  are separate columns computed over the player's first 7 NHL seasons, not a sum of this table's
+  GP.
 columns:
-- asset_type: column
-  physical_name: ELITEID
-  summary: ELITEID — SeasonStatus.ELITEID
-  body: Means 'ELITEID' (obfuscated to 'ELITEID').
+- physical_name: ELITEID
+  summary: ELITEID identifies which player this season row belongs to, joining to
+    PlayerInfo.ELITEID.
+  body: A whole number matching a PlayerInfo.ELITEID value. Not unique in this table -- a player
+    has one row per season, team, league, and game type.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: SEASON
-  summary: SEASON — SeasonStatus.SEASON
-  body: Season label as a text range such as '2000-2001'.
+- physical_name: SEASON
+  summary: SEASON labels the two-year season this row's stats were recorded in.
+  body: >
+    Free text in "YYYY-YYYY" form, for example "1998-1999" or "2004-2005". Ten distinct seasons
+    appear, spanning 1997-1998 through 2007-2008.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: TEAM
-  summary: TEAM — SeasonStatus.TEAM
-  body: Team the player played for that season (e.g. 'Plymouth Whalers', 'Avangard
-    Omsk').
+- physical_name: TEAM
+  summary: TEAM names the club the player played for during this season row.
+  body: >
+    Free-text team name, for example "Karpat" or "Acadie-Bathurst Titan". This is the junior,
+    college, or international team the player skated for that season, not necessarily an NHL
+    club; over 280 distinct teams appear.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: LEAGUE
-  summary: LEAGUE — SeasonStatus.LEAGUE
-  body: League code the row belongs to (e.g. 'QMJHL', 'OHL', 'WHL', 'International').
+- physical_name: LEAGUE
+  summary: LEAGUE names the league the TEAM competed in for this row.
+  body: >
+    Free-text league name or abbreviation. Common values include OHL (Ontario Hockey League),
+    QMJHL (Quebec Major Junior Hockey League), WHL (Western Hockey League), NCAA, and
+    International (national-team competitions); over 50 distinct leagues appear in total,
+    including professional leagues such as the AHL.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: GAMETYPE
-  summary: GAMETYPE — SeasonStatus.GAMETYPE
-  body: 'Type of game for the row: ''Regular Season'' or ''Playoffs''.'
+- physical_name: GAMETYPE
+  summary: GAMETYPE marks whether this row's stats are from the regular season or the playoffs.
+  body: '"Regular Season" or "Playoffs" -- exactly two values, each player-season typically
+    appearing once per game type it was played in.'
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: GP
-  summary: GP — SeasonStatus.GP
-  body: Games played in that season row; number of playoffs participated is derived
-    by summing GP where GAMETYPE = 'Playoffs'.
+- physical_name: GP
+  summary: GP counts games played in this specific season, team, league, and game type.
+  body: >
+    A whole number, typically small (0 through the low dozens) because it counts one
+    season/team/league/game-type slice, not a career. Compare with PlayerInfo.sum_7yr_GP, which
+    is the player's multi-season NHL career total.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: G
-  summary: G — SeasonStatus.G
-  body: Goals scored in the season row.
+- physical_name: G
+  summary: G counts goals the player scored in this season row.
+  body: >
+    A whole number of goals for this season, team, league, and game type. 0 means the player was
+    scoreless in that slice. Business language calling this "goals scored" or "number of goals
+    scored" means this column, not the career sum_7yr_GP or sum_7yr_TOI columns on PlayerInfo.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: A
-  summary: A — SeasonStatus.A
-  body: Assists recorded in the season row.
+- physical_name: A
+  summary: A counts assists the player recorded in this season row.
+  body: A whole number of assists for this season, team, league, and game type.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: P
-  summary: P — SeasonStatus.P
-  body: Points scored in the season row; the most valuable player / most NHL points
-    corresponds to MAX(P).
+- physical_name: P
+  summary: P is the player's point total (goals plus assists) for this season row.
+  body: >
+    A whole number equal to G plus A for the same row. A higher value marks a more productive
+    scorer for that season, team, league, and game type.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: PIM
-  summary: PIM — SeasonStatus.PIM
-  body: Penalty minutes; 'rule violations' map to PIM, and the most rule violations
-    is MAX(PIM).
+- physical_name: PIM
+  summary: PIM totals the penalty minutes the player served in this season row.
+  body: >
+    A whole number of minutes. A higher value means the player committed more rule violations in
+    that season, team, league, and game type.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: PLUSMINUS
-  summary: PLUSMINUS — SeasonStatus.PLUSMINUS
-  body: Plus-minus rating; the highest goal differential is MAX(PLUSMINUS).
+- physical_name: PLUSMINUS
+  summary: PLUSMINUS is the player's goal differential while on the ice for this season row.
+  body: >
+    A signed whole number: positive when the player's team scored more goals than it conceded
+    while he was on the ice, negative when the reverse was true.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: season_elite_ref
-  summary: season_elite_ref — SeasonStatus.season_elite_ref
-  body: 'Physical column ''season_elite_ref''. DECOY column: not a real business field.
-    Fabricated to mimic ''ELITEID''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: season_elite_ref
+  summary: season_elite_ref, a numeric column on the SeasonStatus table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ELITEID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: assists_total
-  summary: assists_total — SeasonStatus.assists_total
-  body: 'Physical column ''assists_total''. DECOY column: not a real business field.
-    Fabricated to mimic ''A''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: assists_total
+  summary: assists_total, a numeric column on the SeasonStatus table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''A''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: goals_total
-  summary: goals_total — SeasonStatus.goals_total
-  body: 'Physical column ''goals_total''. DECOY column: not a real business field.
-    Fabricated to mimic ''G''. Corruption operator ''sparse_perturb'': values are
-    altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: goals_total
+  summary: goals_total, a numeric column on the SeasonStatus table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''G''. Corruption
-      operator ''sparse_perturb'': values are altered. Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Per-season performance rows, grain = one player (ELITEID) in one SEASON, LEAGUE,
-  TEAM and GAMETYPE (Regular Season or Playoffs). Holds scoring stats G, A, P, PIM,
-  PLUSMINUS and games played GP. A player appears in many rows.
+    - information_schema

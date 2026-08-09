@@ -2,337 +2,204 @@ asset_type: table
 id: retail_complains.client
 schema: retail_complains
 physical_name: client
-summary: 'client (client): Client_ID, sex, day, month, year, age, social, first, middle,
-  last, phone, email, address_1, address_2, city, State, zipcode, district_id'
+summary: client holds one retail-banking customer per row, with their name, birth date,
+  contact details, and home address down to the district.
+body: >
+  Grain: one row per customer, keyed by id_client. Every complaint on evenements and every
+  call log on journaux_centre_appels ties back to exactly one client; avis (reviews) has no
+  client identifier and only reaches client indirectly through the district they share. A
+  client's birth date is split across three columns (annee, mois, jour) rather than stored as
+  one date, and age is kept as a separate, already-computed column. Three columns on this
+  table (id_consommateur, id_arrondissement, adresse_principale) look like real identifiers
+  or an address but are not dependable and are marked individually below.
 columns:
-- asset_type: column
-  physical_name: id_client
-  summary: Client_ID — client.id_client
-  body: Means 'Client_ID' (obfuscated to 'id_client').
+- physical_name: id_client
+  summary: The unique identifier of a customer, id_client.
+  body: >
+    A text code such as 'C00000456', unique per row. Join to evenements.id_client to bring in
+    a customer's complaints, and to journaux_centre_appels.client_aleatoire to bring in their
+    call logs.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: sexe
-  summary: sex — client.sexe
-  body: Client sex as text 'Male'/'Female' (Mr = Male, Ms = Female).
+- physical_name: sexe
+  summary: The sex recorded for a customer, sexe.
+  body: >
+    Two values in the loaded sample: 'Male' and 'Female'. Business language sometimes uses the
+    honorific instead of the value: "Mr" means sexe = 'Male' and "Ms" means sexe = 'Female'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jour
-  summary: day — client.jour
-  body: Birth day (integer); part of date of birth.
+- physical_name: jour
+  summary: The day-of-month a customer was born, jour.
+  body: >
+    An integer 1-31. Combine with mois and annee to build a full birth date; see the "date of
+    birth" term for how the three columns compose.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mois
-  summary: month — client.mois
-  body: Birth month (integer); part of date of birth.
+- physical_name: mois
+  summary: The month a customer was born, mois.
+  body: >
+    An integer 1-12. Combine with jour and annee to build a full birth date; see the "date of
+    birth" term for how the three columns compose.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: annee
-  summary: year — client.annee
-  body: Birth year (integer); part of the date of birth with mois and jour. Also used
-    for born-between filters.
+- physical_name: annee
+  summary: The year a customer was born, annee.
+  body: >
+    A four-digit year, spanning 1932 to 2003 in the loaded sample. Combine with mois and jour
+    to build a full birth date. The customer with the largest annee is the youngest; the
+    smallest is the oldest.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: age
-  summary: age — client.age
-  body: 'Client age in years. Common bands: teenage 13-20, middle-aged 35-55, elderly
-    > 65.'
+- physical_name: age
+  summary: The age of a customer, age.
+  body: >
+    A pre-computed integer, 16 to 87 in the loaded sample, consistent with annee. The
+    dataset's own age bands are teenager (13-19), adult (19-65), and elder (over 65); see the
+    "age band" term for the exact boundaries used in business language.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: numero_securite_sociale
-  summary: social — client.numero_securite_sociale
-  body: Means 'social' (obfuscated to 'numero_securite_sociale').
+- physical_name: numero_securite_sociale
+  summary: The US social security number of a customer, numero_securite_sociale.
+  body: >
+    A text value in NNN-NN-NNNN format, unique per row. Not used as a join key anywhere in
+    this schema; id_client is the identifier to use instead.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prenom
-  summary: first — client.prenom
-  body: Means 'first' (obfuscated to 'prenom').
+- physical_name: prenom
+  summary: The first name of a customer, prenom.
+  body: >
+    Free text, for example 'Beckett' or 'Juliet'. Combine with deuxieme_prenom and nom for a
+    customer's full name; see the "full name" term.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: deuxieme_prenom
-  summary: middle — client.deuxieme_prenom
-  body: Means 'middle' (obfuscated to 'deuxieme_prenom').
+- physical_name: deuxieme_prenom
+  summary: The middle name of a customer, deuxieme_prenom.
+  body: >
+    Free text, for example 'Wendell' or 'Marley'. Always present in the loaded sample.
+    Combine with prenom and nom for a customer's full name; see the "full name" term.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nom
-  summary: last — client.nom
-  body: Means 'last' (obfuscated to 'nom').
+- physical_name: nom
+  summary: The last name of a customer, nom.
+  body: >
+    Free text, for example 'Franklin' or 'Salazar'. Combine with prenom and deuxieme_prenom for
+    a customer's full name; see the "full name" term.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: telephone
-  summary: phone — client.telephone
-  body: Means 'phone' (obfuscated to 'telephone').
+- physical_name: telephone
+  summary: The phone number on file for a customer, telephone.
+  body: >
+    A text value in NNN-NNN-NNNN format. This is the customer's own contact number, distinct
+    from journaux_centre_appels.telephone_final, which records the number a specific call was
+    placed from or to.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: email
-  summary: email — client.email
-  body: Means 'email' (obfuscated to 'email').
+- physical_name: email
+  summary: The email address of a customer, email.
+  body: >
+    A text address such as 'beckett.franklin@outlook.com'. The domain names a webmail
+    provider: '@gmail.com' means a Google account and '@outlook.com' or '@hotmail.com' means a
+    Microsoft account; see the "email provider" term.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: adresse_ligne_1
-  summary: address_1 — client.adresse_ligne_1
-  body: Means 'address_1' (obfuscated to 'adresse_ligne_1').
+- physical_name: adresse_ligne_1
+  summary: The first line of a customer's home address, adresse_ligne_1.
+  body: >
+    A street address, for example '9318 Race Ave.'. Combine with adresse_ligne_2 for the full
+    address; see the "full address" term. Distinct from adresse_principale on this same table,
+    which is a separate, unreliable column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: adresse_ligne_2
-  summary: address_2 — client.adresse_ligne_2
-  body: Means 'address_2' (obfuscated to 'adresse_ligne_2').
+- physical_name: adresse_ligne_2
+  summary: The second line of a customer's home address, adresse_ligne_2.
+  body: >
+    A unit or suite designation, for example 'Unit 81'; null for most rows (494 of 500 in the
+    loaded sample) since most addresses have no second line. Combine with adresse_ligne_1 for
+    the full address; see the "full address" term.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ville
-  summary: city — client.ville
-  body: Means 'city' (obfuscated to 'ville').
+- physical_name: ville
+  summary: The city of a customer's home address, ville.
+  body: >
+    A US city name, for example 'Wichita' or 'Atlanta'. Independent of district.ville, which
+    names the city for the whole district rather than this one customer's address.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: etat
-  summary: State — client.etat
-  body: State the client lives in, stored as the state abbreviation, e.g. 'MD' for
-    Maryland.
+- physical_name: etat
+  summary: The state of a customer's home address, etat.
+  body: >
+    A two-letter state code, for example 'KS' or 'NY', matching etat.code_etat. Named the same
+    as the etat table but holds only this customer's own state code, not a joinable key to it.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: code_postal
-  summary: zipcode — client.code_postal
-  body: Means 'zipcode' (obfuscated to 'code_postal').
+- physical_name: code_postal
+  summary: The ZIP code of a customer's home address, code_postal.
+  body: >
+    A five-digit US postal code, for example 40440 or 10105.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_district
-  summary: district_id — client.id_district
-  body: Means 'district_id' (obfuscated to 'id_district').
+- physical_name: id_district
+  summary: The district a customer lives in, id_district.
+  body: >
+    A numeric foreign key to district.id_district, bringing in the customer's district-level
+    city, state, and census division.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_consommateur
-  summary: id_consommateur — client.id_consommateur
-  body: 'Physical column ''id_consommateur''. DECOY column: not a real business field.
-    Fabricated to mimic ''client_id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: id_consommateur
+  summary: id_consommateur, a text column on the client table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''client_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_arrondissement
-  summary: id_arrondissement — client.id_arrondissement
-  body: 'Physical column ''id_arrondissement''. DECOY column: not a real business
-    field. Fabricated to mimic ''district_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: id_arrondissement
+  summary: id_arrondissement, a numeric column on the client table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''district_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: adresse_principale
-  summary: adresse_principale — client.adresse_principale
-  body: 'Physical column ''adresse_principale''. DECOY column: not a real business
-    field. Fabricated to mimic ''address_1''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: adresse_principale
+  summary: adresse_principale, a text column on the client table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''address_1''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per client (the complainant): name parts, birth year/month/day, age,
-  sex, contact and address fields, and the district/state they live in, keyed by id_client.
-  Grain is one client. Holds who filed a complaint, not the complaint itself.'
+    - information_schema

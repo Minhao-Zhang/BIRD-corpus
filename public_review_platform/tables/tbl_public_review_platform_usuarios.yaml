@@ -2,196 +2,107 @@ asset_type: table
 id: public_review_platform.usuarios
 schema: public_review_platform
 physical_name: usuarios
-summary: 'Users (usuarios): user_id, user_yelping_since_year, user_average_stars,
-  user_votes_funny, user_votes_useful, user_votes_cool, user_review_count, user_fans'
+summary: usuarios is the master table of Yelp users in public_review_platform,
+  one row per reviewer.
+body: >
+  Grain: one row per user. Its id_usuario is the key that resenas, consejos, cumplidos_usuario,
+  and elite join against.
 columns:
-- asset_type: column
-  physical_name: id_usuario
-  summary: user_id — usuarios.id_usuario
-  body: Means 'user_id' (obfuscated to 'id_usuario').
+- physical_name: id_usuario
+  summary: id_usuario is the surrogate key that identifies one user in usuarios.
+  body: Integer key referenced by resenas, consejos, cumplidos_usuario, and elite.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ano_inicio_usuario
-  summary: user_yelping_since_year — usuarios.ano_inicio_usuario
-  body: Year the user joined the platform (Yelping-since year) as an integer, e.g.
-    2004, 2012.
+- physical_name: ano_inicio_usuario
+  summary: ano_inicio_usuario is the calendar year a user in usuarios first joined
+    Yelp.
+  body: Four-digit year such as 2005 through 2014. Subtracting this value from the
+    current year gives how long the user has been on Yelp.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: promedio_estrellas_usuario
-  summary: user_average_stars — usuarios.promedio_estrellas_usuario
-  body: User's average star rating given, stored as text.
+- physical_name: promedio_estrellas_usuario
+  summary: promedio_estrellas_usuario is the average star rating a user in usuarios
+    has given across all of their reviews.
+  body: A decimal from 1.0 to 5.0 in half-point steps, stored as text rather than
+    a numeric type; cast it before doing arithmetic comparisons.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: votos_divertido_usuario
-  summary: user_votes_funny — usuarios.votos_divertido_usuario
-  body: Means 'user_votes_funny' (obfuscated to 'votos_divertido_usuario').
+- physical_name: votos_divertido_usuario
+  summary: votos_divertido_usuario is the funny-vote volume bucket a user in usuarios
+    has sent to others.
+  body: One of 'None', 'Low', 'Medium', 'High', or 'Uber'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: votos_util_usuario
-  summary: user_votes_useful — usuarios.votos_util_usuario
-  body: Means 'user_votes_useful' (obfuscated to 'votos_util_usuario').
+- physical_name: votos_util_usuario
+  summary: votos_util_usuario is the useful-vote volume bucket a user in usuarios
+    has sent to others.
+  body: One of 'None', 'Low', 'Medium', 'High', or 'Uber'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: votos_genial_usuario
-  summary: user_votes_cool — usuarios.votos_genial_usuario
-  body: Means 'user_votes_cool' (obfuscated to 'votos_genial_usuario').
+- physical_name: votos_genial_usuario
+  summary: votos_genial_usuario is the cool-vote volume bucket a user in usuarios
+    has sent to others.
+  body: One of 'None', 'Low', 'Medium', 'High', or 'Uber'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cantidad_resenas_usuario
-  summary: user_review_count — usuarios.cantidad_resenas_usuario
-  body: User's review-count band as text.
+- physical_name: cantidad_resenas_usuario
+  summary: cantidad_resenas_usuario is the ordinal volume bucket for how many reviews
+    a user in usuarios has written.
+  body: One of 'Low', 'Medium', 'High', or 'Uber', not a raw count.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: seguidores_usuario
-  summary: user_fans — usuarios.seguidores_usuario
-  body: Fan count as a text band, e.g. 'Low', 'Medium', 'High', 'Uber'; 'High'/'Uber'
-    denote many fans.
+- physical_name: seguidores_usuario
+  summary: seguidores_usuario is the ordinal volume bucket for how many followers
+    a user in usuarios has.
+  body: One of 'None', 'Low', 'Medium', 'High', or 'Uber'. A user with an 'Uber'
+    bucket here tends to also send an 'Uber' volume of cool, useful, and funny votes.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: usuario_pk
-  summary: usuario_pk — usuarios.usuario_pk
-  body: 'Physical column ''usuario_pk''. DECOY column: not a real business field.
-    Fabricated to mimic ''user_id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: usuario_pk
+  summary: usuario_pk, a numeric column on the usuarios table.
+  body: Values in this column are not dependable and do not correspond to the business
+    facts the table otherwise records. Do not use it in a SELECT list, a filter,
+    or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''user_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ano_registro_usuario
-  summary: ano_registro_usuario — usuarios.ano_registro_usuario
-  body: 'Physical column ''ano_registro_usuario''. DECOY column: not a real business
-    field. Fabricated to mimic ''user_yelping_since_year''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: ano_registro_usuario
+  summary: ano_registro_usuario, a numeric column on the usuarios table.
+  body: Values in this column are not dependable and do not correspond to the business
+    facts the table otherwise records. Do not use it in a SELECT list, a filter,
+    or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''user_yelping_since_year''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: media_estrellas_usuario
-  summary: media_estrellas_usuario — usuarios.media_estrellas_usuario
-  body: 'Physical column ''media_estrellas_usuario''. DECOY column: not a real business
-    field. Fabricated to mimic ''user_average_stars''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: media_estrellas_usuario
+  summary: media_estrellas_usuario, a text column on the usuarios table.
+  body: Values in this column are not dependable and do not correspond to the business
+    facts the table otherwise records. Do not use it in a SELECT list, a filter,
+    or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''user_average_stars''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per user: the year they joined, their review-count band, average stars
-  given, fan band, and funny/cool/useful vote counts, keyed by user_id. Grain is one
-  user.'
+    - information_schema

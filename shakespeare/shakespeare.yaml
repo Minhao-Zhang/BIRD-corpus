@@ -1,21 +1,31 @@
 asset_type: schema
 id: shakespeare
 name: shakespeare
-summary: 'shakespeare: 4 tables — chapters, works, paragraphs, characters'
+summary: >-
+  The shakespeare database holds the full text of Shakespeare's plays, sonnets and poems,
+  organized by work, act and scene, paragraph, and speaking character, for questions about
+  genre, publication date, characters, and dialogue.
+body: >
+  Five dependable tables. obras holds one row per work (title, long title, genre, and the year
+  it was written), the anchor everything else hangs off. capitulos holds one row per
+  act/scene division of a work (its act and scene numbers, a short setting description),
+  joined to obras by obra_id. parrafos holds one row per paragraph of dialogue or stage
+  direction (its text, its position within the chapter, the character speaking it), joined to
+  capitulos by capitulo_id and to personajes by personaje_id. personajes holds one row per
+  character (name, abbreviation, and a short description such as their family relation or
+  role). fragmentos_texto and secciones_obra look like a finer-grained text table and a
+  scene/act table but are not dependable for analysis; use parrafos and capitulos instead.
+rules:
+- Reach a character's dialogue only through parrafos.personaje_id joined to personajes.id;
+  parrafos.personaje_ref and personajes.personaje_id_2 are unreliable and must not be used for
+  this join.
+- Reach a chapter's work only through capitulos.obra_id joined to obras.id; capitulos.id_obra
+  and obras.obra_identificador are unreliable and must not be used for this join.
+- Never select from fragmentos_texto or secciones_obra; use parrafos and capitulos instead.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A catalog of William Shakespeare's works and their text. It records each work
-  (play or poem), its acts and scenes, the paragraphs of dialogue/stage text, and
-  the characters who speak them, supporting questions about titles, genres, dates,
-  scenes, paragraphs, and characters.
-rules:
-- A work is linked to its characters only indirectly through works -> chapters ->
-  paragraphs -> characters; there is no direct work-to-character link.
-- The completion year lives on the work (obras.fecha) as an integer year, not a calendar
-  date.
+    - information_schema

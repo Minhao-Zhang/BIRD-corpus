@@ -1,27 +1,17 @@
 asset_type: few_shot
 id: fs_student_club_0091
 schema: student_club
-sql: SELECT DISTINCT "T3"."first_name", "T3"."last_name", "T3"."phone" FROM "student_club"."expense"
-  AS "T1" INNER JOIN "student_club"."budget" AS "T2" ON "T1"."link_to_budget" = "T2"."budget_id"
-  INNER JOIN "student_club"."member" AS "T3" ON "T3"."member_id" = "T1"."link_to_member"
-  WHERE "T1"."cost" > (SELECT AVG("T1"."cost") FROM "student_club"."expense" AS "T1"
-  INNER JOIN "student_club"."budget" AS "T2" ON "T1"."link_to_budget" = "T2"."budget_id"
-  INNER JOIN "student_club"."member" AS "T3" ON "T3"."member_id" = "T1"."link_to_member")
-summary: Give the full name and contact number of members who had to spend more than
-  average on each expense.
-body: 'Question: Give the full name and contact number of members who had to spend
-  more than average on each expense.
+sql: SELECT CAST((SUM(CASE WHEN "T2"."state" = 'New Jersey' THEN 1 ELSE 0 END) - SUM(CASE WHEN "T2"."state"
+  = 'Vermont' THEN 1 ELSE 0 END)) AS REAL) * 100 / NULLIF(COUNT("T1"."member_id"), 0) AS "diff" FROM "student_club"."member"
+  AS "T1" INNER JOIN "student_club"."zip_code" AS "T2" ON "T2"."zip_code" = "T1"."zip"
+summary: Calculate the difference in the percentage of members in New Jersey and Vermont.
+body: 'Question: Calculate the difference in the percentage of members in New Jersey and Vermont.
 
   SQL:
 
-  SELECT DISTINCT "T3"."first_name", "T3"."last_name", "T3"."phone" FROM "student_club"."expense"
-  AS "T1" INNER JOIN "student_club"."budget" AS "T2" ON "T1"."link_to_budget" = "T2"."budget_id"
-  INNER JOIN "student_club"."member" AS "T3" ON "T3"."member_id" = "T1"."link_to_member"
-  WHERE "T1"."cost" > (SELECT AVG("T1"."cost") FROM "student_club"."expense" AS "T1"
-  INNER JOIN "student_club"."budget" AS "T2" ON "T1"."link_to_budget" = "T2"."budget_id"
-  INNER JOIN "student_club"."member" AS "T3" ON "T3"."member_id" = "T1"."link_to_member")'
-complexity: complex
-confidence: 0.55
+  SELECT CAST((SUM(CASE WHEN "T2"."state" = ''New Jersey'' THEN 1 ELSE 0 END) - SUM(CASE WHEN "T2"."state"
+  = ''Vermont'' THEN 1 ELSE 0 END)) AS REAL) * 100 / NULLIF(COUNT("T1"."member_id"), 0) AS "diff" FROM
+  "student_club"."member" AS "T1" INNER JOIN "student_club"."zip_code" AS "T2" ON "T2"."zip_code" = "T1"."zip"'
 audit:
   provenance:
     source: gold
@@ -29,4 +19,4 @@ audit:
     version: harvest-1
     source_refs:
     - train_final.jsonl
-  evidence: gold train Q 1457; 1 question(s) share this shape
+  evidence: train question 1458

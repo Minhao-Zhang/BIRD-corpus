@@ -2,192 +2,115 @@ asset_type: table
 id: superstore.personen
 schema: superstore
 physical_name: personen
-summary: 'people (personen): Customer ID, Customer Name, Segment, Country, City, State,
-  Postal Code, Region'
+summary: personen holds one row per customer, giving the name, segment and address
+  used to describe who placed each order in the superstore schema.
+body: >
+  Grain: one row per customer, identified by kunde_id. Every regional order table
+  (ost_superstore, sued_superstore, west_superstore, zentral_superstore) has a kunde_id column
+  that joins back here for the customer's name, segment, city, state and country. kunden_nr,
+  ort and land_name on this table are not dependable; use kunde_id, stadt and land instead.
 columns:
-- asset_type: column
-  physical_name: kunde_id
-  summary: Customer ID — personen.kunde_id
-  body: Means 'Customer ID' (obfuscated to 'kunde_id').
+- physical_name: kunde_id
+  summary: kunde_id, the unique identifier for a customer in the personen table.
+  body: >
+    A text code such as 'AB-10150', unique per customer. Join order tables on kunde_id to bring
+    in this customer's name, segment and address.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kunde_name
-  summary: Customer Name — personen.kunde_name
-  body: Means 'Customer Name' (obfuscated to 'kunde_name').
+- physical_name: kunde_name
+  summary: kunde_name, the full name of the customer in the personen table.
+  body: >
+    A free-text personal name such as 'Aaron Bergman'. This is the column a question about a
+    named customer's orders should filter on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: segment
-  summary: Segment — personen.segment
-  body: Customer market segment, e.g. 'Corporate', 'Consumer', 'Home Office'.
+- physical_name: segment
+  summary: segment, the customer segment recorded in the personen table.
+  body: >
+    One of three values: Consumer, Corporate or Home Office. Home Office is sometimes called
+    headquarter in business language, but the stored value is always 'Home Office'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: land
-  summary: Country — personen.land
-  body: Means 'Country' (obfuscated to 'land').
+- physical_name: land
+  summary: land, the country recorded for the customer in the personen table.
+  body: A single constant value, 'United States', for every customer in this dataset.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: stadt
-  summary: City — personen.stadt
-  body: Means 'City' (obfuscated to 'stadt').
+- physical_name: stadt
+  summary: stadt, the city recorded for the customer in the personen table.
+  body: >
+    A free-text city name such as 'Chicago' or 'Boca Raton', matching the customer's mailing
+    address.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: bundesland
-  summary: State — personen.bundesland
-  body: US State the customer lives in, e.g. 'Texas', 'Illinois'.
+- physical_name: bundesland
+  summary: bundesland, the state recorded for the customer in the personen table.
+  body: >
+    The customer's US state spelled out in full, such as 'Illinois' or 'Texas', never
+    abbreviated.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: postleitzahl
-  summary: Postal Code — personen.postleitzahl
-  body: Means 'Postal Code' (obfuscated to 'postleitzahl').
+- physical_name: postleitzahl
+  summary: postleitzahl, the postal code recorded for the customer in the personen
+    table.
+  body: >
+    A five-digit US ZIP code stored as an integer, so a leading zero is not shown; join with
+    care when comparing against text ZIP codes elsewhere.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: region
-  summary: Region — personen.region
-  body: 'Region assigned to the customer. Values: ''Central'', ''East'', ''South'',
-    ''West''.'
+- physical_name: region
+  summary: region, the sales region recorded for the customer in the personen table.
+  body: >
+    One of Central, East, South or West, matching the region of the order table that carries
+    this customer's orders.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kunden_nr
-  summary: kunden_nr — personen.kunden_nr
-  body: 'Physical column ''kunden_nr''. DECOY column: not a real business field. Fabricated
-    to mimic ''Customer ID''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: kunden_nr
+  summary: kunden_nr, a text column on the personen table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts this
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key; it must
+    not be used to join tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Customer
-      ID''. Corruption operator ''permute'': values are altered (permuted — breaks
-      joins/row lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ort
-  summary: ort — personen.ort
-  body: 'Physical column ''ort''. DECOY column: not a real business field. Fabricated
-    to mimic ''City''. Corruption operator ''sparse_cat_remap'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: ort
+  summary: ort, a text column on the personen table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts this
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''City''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: land_name
-  summary: land_name — personen.land_name
-  body: 'Physical column ''land_name''. DECOY column: not a real business field. Fabricated
-    to mimic ''Country''. Corruption operator ''sparse_cat_remap'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: land_name
+  summary: land_name, a text column on the personen table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts this
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Country''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Customer dimension: one row per customer (kunde_id, kunde_name) with location
-  attributes (city, state, country, postal code, region) and market segment.'
+    - information_schema

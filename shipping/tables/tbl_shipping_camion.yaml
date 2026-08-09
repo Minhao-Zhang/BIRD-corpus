@@ -2,122 +2,78 @@ asset_type: table
 id: shipping.camion
 schema: shipping
 physical_name: camion
-summary: 'truck (camion): truck_id, make, model_year'
+summary: camion holds one row per truck in the shipping company's fleet, recording its brand and model year.
+body: >
+  Grain: one row per truck, keyed by id_camion (12 trucks in the loaded sample). Use this table
+  for a truck's brand or model year. It is easily confused with vehicule_lourd, a table of
+  truck-like records that is not dependable for analysis — use camion instead. Join to
+  expedition on id_camion (one truck can appear on many shipments) to see which shipments a
+  truck carried.
 columns:
-- asset_type: column
-  physical_name: id_camion
-  summary: truck_id — camion.id_camion
-  body: Means 'truck_id' (obfuscated to 'id_camion').
+- physical_name: id_camion
+  summary: The unique identifier for a truck, id_camion.
+  body: >
+    A numeric id, one per truck in the fleet. Join to expedition.id_camion to find every
+    shipment a truck carried.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: marque
-  summary: make — camion.marque
-  body: Truck make/brand; observed values include 'Peterbilt', 'Mack', and 'Kenworth'.
+- physical_name: marque
+  summary: The brand of a truck, marque.
+  body: >
+    One of three truck brands in the loaded sample: Peterbilt, Mack, or Kenworth. A question
+    about a brand's manufacturer headquarters is answered from the truck headquarters term, not
+    a stored column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: annee_modele
-  summary: model_year — camion.annee_modele
-  body: Truck model year (e.g. 2005, 2009). Min(annee_modele) identifies the oldest
-    truck model.
+- physical_name: annee_modele
+  summary: The model year of a truck, annee_modele.
+  body: >
+    A four-digit calendar year, 2005 to 2010 in the loaded sample. "Oldest" resolves to the
+    smallest annee_modele and "newest" or "latest" to the largest, the ordinary sense of the
+    words.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: identifiant_camion
-  summary: identifiant_camion — camion.identifiant_camion
-  body: 'Physical column ''identifiant_camion''. DECOY column: not a real business
-    field. Fabricated to mimic ''truck_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: identifiant_camion
+  summary: identifiant_camion, a numeric column on the camion table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''truck_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: constructeur
-  summary: constructeur — camion.constructeur
-  body: 'Physical column ''constructeur''. DECOY column: not a real business field.
-    Fabricated to mimic ''make''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: constructeur
+  summary: constructeur, a text column on the camion table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''make''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: annee_fabrication
-  summary: annee_fabrication — camion.annee_fabrication
-  body: 'Physical column ''annee_fabrication''. DECOY column: not a real business
-    field. Fabricated to mimic ''model_year''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: annee_fabrication
+  summary: annee_fabrication, a numeric column on the camion table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''model_year''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Trucks used to deliver shipments; one row per truck (id_camion). Identified
-  by make/brand (marque) and model year (annee_modele).
+    - information_schema

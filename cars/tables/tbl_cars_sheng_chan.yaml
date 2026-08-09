@@ -2,121 +2,85 @@ asset_type: table
 id: cars.sheng_chan
 schema: cars
 physical_name: sheng_chan
-summary: 'production (sheng_chan): ID, model_year, country'
+summary: sheng_chan records the country of origin and model year a car was produced in, joined to jia_ge and shu_ju by the same car id.
+body: >
+  Grain: one row per car, keyed by id, matching jia_ge.id and shu_ju.id. guo_jia is the
+  numeric country code, joined to guo_jia.yuan_di for the country name; nian_fen is the
+  four-digit model year. Its guo_jia_id, sheng_chan_bian_hao, and chan_sheng_nian columns
+  duplicate guo_jia, id, and nian_fen unreliably and must not be used. Easily confused with
+  sheng_chan_xinxi, a production-like table that is not dependable for analysis — use this
+  table instead.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: ID — sheng_chan.id
-  body: Means 'ID' (obfuscated to 'id').
+- physical_name: id
+  summary: id is the row key that identifies a car production record, shared with the matching row in jia_ge and shu_ju.
+  body: >
+    Positive integer; join cars.sheng_chan.id to cars.jia_ge.id and cars.shu_ju.id to bring
+    together a car's origin/year, price, and technical specs. A sample scan of this table
+    found a handful of rows repeating an id, so do not assume id alone is unique here the way
+    it is in jia_ge and shu_ju. Do not use sheng_chan_bian_hao for this join, it is
+    unreliable.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nian_fen
-  summary: model_year — sheng_chan.nian_fen
-  body: Model year the car was introduced to the market (e.g. 1970-1982).
+- physical_name: nian_fen
+  summary: nian_fen is the four-digit model year a car was introduced to the market.
+  body: >
+    Integer year from 1970 to 1982 (sample values 1976, 1977, 1972, 1979, 1971). Called
+    "model year," "production year," or just "year" in business language. The
+    chan_sheng_nian column on this same table duplicates these values unreliably and must not
+    be used. Compare to shu_ju.xing_hao, which encodes the same kind of year as a two-digit
+    offset from 1900 on a different table.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: guo_jia
-  summary: country — sheng_chan.guo_jia
-  body: Means 'country' (obfuscated to 'guo_jia').
+- physical_name: guo_jia
+  summary: guo_jia is the numeric country-of-origin code for the car produced on this row.
+  body: >
+    Integer from 1 to 3 (sample values 3, 1, 2), joined to guo_jia.yuan_di to look up the
+    country name — USA, Japan, or Europe. The guo_jia_id column on this same table duplicates
+    these values unreliably and must not be used for this join.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: sheng_chan_bian_hao
-  summary: sheng_chan_bian_hao — sheng_chan.sheng_chan_bian_hao
-  body: 'Physical column ''sheng_chan_bian_hao''. DECOY column: not a real business
-    field. Fabricated to mimic ''ID''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: sheng_chan_bian_hao
+  summary: sheng_chan_bian_hao, an integer column on the sheng_chan table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ID''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: guo_jia_id
-  summary: guo_jia_id — sheng_chan.guo_jia_id
-  body: 'Physical column ''guo_jia_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''country''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: guo_jia_id
+  summary: guo_jia_id, an integer column on the sheng_chan table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''country''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: chan_sheng_nian
-  summary: chan_sheng_nian — sheng_chan.chan_sheng_nian
-  body: 'Physical column ''chan_sheng_nian''. DECOY column: not a real business field.
-    Fabricated to mimic ''model_year''. Corruption operator ''sparse_perturb'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: chan_sheng_nian
+  summary: chan_sheng_nian, an integer column on the sheng_chan table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''model_year''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per car''s production record: its model year (nian_fen) and an origin-country
-  reference (guo_jia). Keyed by id; the country reference joins to guo_jia.yuan_di.'
+    - information_schema

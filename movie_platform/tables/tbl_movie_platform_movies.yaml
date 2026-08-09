@@ -2,222 +2,141 @@ asset_type: table
 id: movie_platform.movies
 schema: movie_platform
 physical_name: movies
-summary: 'movies (movies): movie_id, movie_title, movie_release_year, movie_url, movie_title_language,
-  movie_popularity, movie_image_url, director_id, director_name, director_url'
+summary: movies holds one row per film on Mubi, with its title, release year, director, and how many users love it.
+body: >
+  Grain: one row per film, keyed by movie_id. This is the table to start from for any question
+  about a film's title, release year, director, or popularity. Join to ratings on movie_id (one
+  film to many ratings) to bring in what users scored it and wrote about it.
 columns:
-- asset_type: column
-  physical_name: movie_id
-  summary: movie_id — movies.movie_id
-  body: Means 'movie_id' (obfuscated to 'movie_id').
+- physical_name: movie_id
+  summary: The unique identifier for a movie, movie_id.
+  body: >
+    A numeric id, unique per row in this table, for example 214352 or 144532. Join to
+    ratings.movie_id to bring in every rating left on this film.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: movie_title
-  summary: movie_title — movies.movie_title
-  body: Means 'movie_title' (obfuscated to 'movie_title').
+- physical_name: movie_title
+  summary: The title of a movie, movie_title.
+  body: >
+    Free-text title, for example "The Years", "Andaz", or "Zoo". Titles are almost always unique
+    in the loaded sample, but treat a title as a convenience lookup rather than a guaranteed key.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: movie_release_year
-  summary: movie_release_year — movies.movie_release_year
-  body: Four-digit calendar year the movie was released.
+- physical_name: movie_release_year
+  summary: The year a movie was released, movie_release_year.
+  body: >
+    A four-digit year, spanning roughly 1921 to 2020 in the loaded sample. Decade phrasings
+    translate to a range: "in the 70s" or "between 1970 and 1980" means movie_release_year
+    BETWEEN 1970 AND 1979 (or 1980 if the question's upper bound is inclusive); "the first
+    movie" or "the oldest movie" is the smallest value here.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: movie_url
-  summary: movie_url — movies.movie_url
-  body: Means 'movie_url' (obfuscated to 'movie_url').
+- physical_name: movie_url
+  summary: The web address of a movie's page on Mubi, movie_url.
+  body: >
+    A full URL such as 'http://mubi.com/films/zoo-1988', built from the movie's title. Not a
+    business identifier; use movie_id or movie_title instead when a question is asking which
+    film, not which page.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: movie_title_language
-  summary: movie_title_language — movies.movie_title_language
-  body: Means 'movie_title_language' (obfuscated to 'movie_title_language').
+- physical_name: movie_title_language
+  summary: The language a movie's title is recorded in, movie_title_language.
+  body: >
+    Holds the single value 'en' for every row in this schema; titles are always stored in
+    English regardless of the film's original language. Not useful for filtering, since there is
+    nothing to distinguish.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: movie_popularity
-  summary: movie_popularity — movies.movie_popularity
-  body: Popularity count = number of Mubi users who love the movie; higher means more
-    popular.
+- physical_name: movie_popularity
+  summary: The number of Mubi users who have marked a movie as loved, movie_popularity.
+  body: >
+    A non-negative integer count, mostly small (0 to a few dozen in the loaded sample) with a
+    long tail of far more popular films; business language sets thresholds well above the
+    sample's own range, for example "popularity of more than 13,000" or "between 400 and 500"
+    both mean direct comparisons against movie_popularity. The film with MAX(movie_popularity)
+    is the most popular.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: movie_image_url
-  summary: movie_image_url — movies.movie_image_url
-  body: Means 'movie_image_url' (obfuscated to 'movie_image_url').
+- physical_name: movie_image_url
+  summary: The web address of a movie's poster image, movie_image_url.
+  body: >
+    A full image URL under images.mubicdn.net, null for roughly two-thirds of the loaded sample.
+    Cosmetic; not useful for filtering or grouping.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: director_id
-  summary: director_id — movies.director_id
-  body: Means 'director_id' (obfuscated to 'director_id').
+- physical_name: director_id
+  summary: The identifier of a movie's director, director_id.
+  body: >
+    A numeric id stored as text, for example '86055' or '39253'; shared across every film the
+    same director made. Use alongside director_name to identify a director by name rather than
+    by this id.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: director_name
-  summary: director_name — movies.director_name
-  body: Means 'director_name' (obfuscated to 'director_name').
+- physical_name: director_name
+  summary: The name of a movie's director, director_name.
+  body: >
+    Free text, for example "Sara Fgaier", "David Dhawan", or "Tobe Hooper"; a small number of
+    rows list multiple names separated by a comma for co-directed films. The director credited
+    with the most films is the one with the highest COUNT(movie_id) grouped by director_name or
+    director_id.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: director_url
-  summary: director_url — movies.director_url
-  body: Means 'director_url' (obfuscated to 'director_url').
+- physical_name: director_url
+  summary: The web address of a director's page on Mubi, director_url.
+  body: >
+    A full URL such as 'http://mubi.com/cast/sara-fgaier', built from the director's name. Not a
+    business identifier; use director_id or director_name instead when a question is asking
+    which director, not which page.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: movie_key
-  summary: movie_key — movies.movie_key
-  body: 'Physical column ''movie_key''. DECOY column: not a real business field. Fabricated
-    to mimic ''movie_id''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: movie_key
+  summary: movie_key, a numeric column on the movies table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''movie_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: director_ref_id
-  summary: director_ref_id — movies.director_ref_id
-  body: 'Physical column ''director_ref_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''director_id''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: director_ref_id
+  summary: director_ref_id, a text column on the movies table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''director_id''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: director_full_name
-  summary: director_full_name — movies.director_full_name
-  body: 'Physical column ''director_full_name''. DECOY column: not a real business
-    field. Fabricated to mimic ''director_name''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: director_full_name
+  summary: director_full_name, a text column on the movies table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''director_name''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per movie in the catalog (grain: movie_id). Holds title, release year,
-  popularity, and its director''s id/name/url. Do not confuse with ratings (per-user
-  scores of these movies) or lists (user collections that reference movies).'
+    - information_schema

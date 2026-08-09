@@ -2,56 +2,44 @@ asset_type: table
 id: movielens.calificaciones
 schema: movielens
 physical_name: calificaciones
-summary: 'u2base (calificaciones): userid, movieid, rating'
+summary: calificaciones records the ratings users have left for movies, one row per user
+  rating a movie.
+body: >
+  One row per rating event, linking a usuario to a pelicula through id_usuario and
+  id_pelicula. A given user rates a given movie at most once, so the pair of ids identifies a
+  row. Not to be confused with peliculas_actores or peliculas_directores, which record cast
+  and crew rather than opinions, or with the quality scores kept on actores and directores,
+  which come from a different scale.
 columns:
-- asset_type: column
-  physical_name: id_usuario
-  summary: userid — calificaciones.id_usuario
-  body: Means 'userid' (obfuscated to 'id_usuario').
+- physical_name: id_usuario
+  summary: The identifier of the user who left the rating, id_usuario.
+  body: >
+    Foreign key to usuarios.id_usuario. Join to usuarios to bring in the rating user's age,
+    gender, and occupation.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_pelicula
-  summary: movieid — calificaciones.id_pelicula
-  body: Means 'movieid' (obfuscated to 'id_pelicula').
+- physical_name: id_pelicula
+  summary: The identifier of the movie being rated, id_pelicula.
+  body: >
+    Foreign key to peliculas.id_pelicula. Join to peliculas to bring in the rated movie's
+    year, country, language, and running time.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: calificacion
-  summary: rating — calificaciones.calificacion
-  body: User rating as text on a 1-5 scale; 5 is the highest rating, 1 is the lowest.
+- physical_name: calificacion
+  summary: The rating a user gave a movie, calificacion.
+  body: >
+    Stored as text but numeric in value, on a scale from 1 (lowest, least satisfied) to 5
+    (highest, most satisfied); a higher value always means a more positive rating. The share
+    of a movie's ratings equal to 1 is used as a measure of negative critical reception.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Rating fact table (the u2base link). One row per user rating of a movie, joining
-  a user (id_usuario) to a movie (id_pelicula) with the rating value (calificacion).
+    - information_schema

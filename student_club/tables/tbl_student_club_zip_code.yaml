@@ -2,162 +2,100 @@ asset_type: table
 id: student_club.zip_code
 schema: student_club
 physical_name: zip_code
-summary: 'zip_code (zip_code): zip_code, type, city, county, state, short_state'
+summary: zip_code holds one row per US ZIP code, with its city, county, state, and postal type,
+  used to look up a member's hometown.
+body: >
+  Grain: one row per ZIP code, keyed by zip_code. Join member.zip to this table's zip_code
+  column to look up a member's hometown city, county, or state. type distinguishes Standard
+  postal codes from PO Box or Unique ones assigned to individual organizations; most member
+  hometowns are Standard.
 columns:
-- asset_type: column
-  physical_name: zip_code
-  summary: zip_code — zip_code.zip_code
-  body: Means 'zip_code' (obfuscated to 'zip_code').
+- physical_name: zip_code
+  summary: The five-digit US ZIP code itself, zip_code.
+  body: >
+    Unique per row in this table. Join member.zip to this column to bring in a member's
+    hometown city, county, and state.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: type
-  summary: type — zip_code.type
-  body: ZIP code classification, e.g. 'Standard', 'PO Box'.
+- physical_name: type
+  summary: The kind of ZIP code, type.
+  body: >
+    One of Standard (an ordinary postal code most people recognize), PO Box (assigned to post
+    office boxes), or Unique (assigned to an individual organization). "ZIP codes that have
+    post office boxes" means type = 'PO Box'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: city
-  summary: city — zip_code.city
-  body: Means 'city' (obfuscated to 'city').
+- physical_name: city
+  summary: The city a ZIP code belongs to, city.
+  body: >
+    Free text such as Groton, Unity, or Elkin. A member's hometown city is looked up here via
+    member.zip.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: county
-  summary: county — zip_code.county
-  body: Means 'county' (obfuscated to 'county').
+- physical_name: county
+  summary: The county a ZIP code belongs to, county.
+  body: >
+    Free text such as Middlesex County or Waldo County. Null for a small number of rows. A
+    member's hometown county is looked up here via member.zip.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: state
-  summary: state — zip_code.state
-  body: Means 'state' (obfuscated to 'state').
+- physical_name: state
+  summary: The full state name a ZIP code belongs to, state.
+  body: >
+    Free text such as Massachusetts, Maine, or North Carolina. A member's hometown state is
+    looked up here via member.zip.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: short_state
-  summary: short_state — zip_code.short_state
-  body: Two-letter state abbreviation for the ZIP code.
+- physical_name: short_state
+  summary: The two-letter state abbreviation a ZIP code belongs to, short_state.
+  body: >
+    For example MA, ME, or NC, matching state one for one.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: postal_code_value
-  summary: postal_code_value — zip_code.postal_code_value
-  body: 'Physical column ''postal_code_value''. DECOY column: not a real business
-    field. Fabricated to mimic ''zip_code''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: postal_code_value
+  summary: postal_code_value, a numeric column in this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''zip_code''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: city_name
-  summary: city_name — zip_code.city_name
-  body: 'Physical column ''city_name''. DECOY column: not a real business field. Fabricated
-    to mimic ''city''. Corruption operator ''sparse_cat_remap'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: city_name
+  summary: city_name, a text column on the zip_code table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''city''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: county_name
-  summary: county_name — zip_code.county_name
-  body: 'Physical column ''county_name''. DECOY column: not a real business field.
-    Fabricated to mimic ''county''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: county_name
+  summary: county_name, a text column on the zip_code table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''county''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Reference table of ZIP codes (grain: ZIP code). Provides the city, county,
-  state, and ZIP type used to resolve each member''s hometown.'
+    - information_schema

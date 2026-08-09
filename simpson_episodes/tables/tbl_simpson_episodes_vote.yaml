@@ -2,136 +2,87 @@ asset_type: table
 id: simpson_episodes.vote
 schema: simpson_episodes
 physical_name: vote
-summary: 'Vote (vote): episode_id, stars, votes, percent'
+summary: vote records, for each Simpsons episode, how many viewers gave it each star score from 1 to 10.
+body: >
+  Grain: one row per (episode, star score), ten rows per episode. etoiles is the star score (1 is
+  worst, 10 is best); votes is the number of viewers who gave that score; pourcentage is that
+  count's share of the episode's total votes across all ten star levels. Distinct from
+  episode.votes and episode.note, which record the episode's overall vote count and average
+  rating rather than the per-star breakdown. id_episode_vote, nb_etoiles, and nb_votes sit on
+  this table but are not dependable for analysis.
 columns:
-- asset_type: column
-  physical_name: id_episode
-  summary: episode_id — vote.id_episode
-  body: Means 'episode_id' (obfuscated to 'id_episode').
+- physical_name: id_episode
+  summary: The episode a star-score row belongs to, id_episode.
+  body: >
+    Foreign key to episode.id_episode; each episode has exactly ten rows here, one per star level
+    1 through 10.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: etoiles
-  summary: stars — vote.etoiles
-  body: Star level of the vote bucket, 1-10 (1 = worst, 10 = best / maximum).
+- physical_name: etoiles
+  summary: The star score this row counts votes for, etoiles.
+  body: >
+    Integer star rating from 1 to 10; 1 is the lowest (worst) score and 10 is the highest (best),
+    per this dataset's star classification scale. See the star rating scale term.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: votes
-  summary: votes — vote.votes
-  body: Number of votes cast at this star level for the episode.
+- physical_name: votes
+  summary: The number of viewers who gave this star score, votes.
+  body: >
+    Integer count of votes at this specific star level — 25, 57, and 191 are examples from this
+    sample. Distinct from episode.votes, which totals every vote for the episode across all ten
+    star levels.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pourcentage
-  summary: percent — vote.pourcentage
-  body: Percentage of the episode's voters that gave this star level.
+- physical_name: pourcentage
+  summary: This star score's share of the episode's total votes, pourcentage.
+  body: >
+    Decimal percentage, computed as this row's votes divided by the sum of votes across all ten
+    star levels for the same episode, times 100. The ten pourcentage values for one episode sum
+    to approximately 100.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_episode_vote
-  summary: id_episode_vote — vote.id_episode_vote
-  body: 'Physical column ''id_episode_vote''. DECOY column: not a real business field.
-    Fabricated to mimic ''episode_id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: id_episode_vote
+  summary: id_episode_vote, a text column on the vote table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''episode_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nb_etoiles
-  summary: nb_etoiles — vote.nb_etoiles
-  body: 'Physical column ''nb_etoiles''. DECOY column: not a real business field.
-    Fabricated to mimic ''stars''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: nb_etoiles
+  summary: nb_etoiles, a numeric column on the vote table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''stars''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nb_votes
-  summary: nb_votes — vote.nb_votes
-  body: 'Physical column ''nb_votes''. DECOY column: not a real business field. Fabricated
-    to mimic ''votes''. Corruption operator ''sparse_perturb'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: nb_votes
+  summary: nb_votes, a numeric column on the vote table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''votes''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Per-star vote breakdown for an episode: one row per (episode, star level) giving
-  how many votes (votes) and what percent of voters (pourcentage) gave that star count.
-  Distinct from episode.votes, which is the episode-wide total.'
+    - information_schema

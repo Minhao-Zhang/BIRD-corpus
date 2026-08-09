@@ -2,182 +2,115 @@ asset_type: table
 id: food_inspection_2.jian_cha
 schema: food_inspection_2
 physical_name: jian_cha
-summary: 'inspection (jian_cha): inspection_id, inspection_date, inspection_type,
-  results, employee_id, license_no, followup_to'
+summary: jian_cha holds one row per health inspection performed at a Chicago food establishment, with its date, type, result, and inspecting employee.
+body: >
+  Grain: one row per inspection, keyed by jian_cha_id. Join to ji_gou on xu_ke_zheng_hao to bring
+  in the inspected establishment's identity and address, to yuan_gong on yuan_gong_id to bring in
+  the inspecting employee, and to wei_gui on jian_cha_id to add every violation recorded during
+  the inspection. gen_jin_jian_cha_id, when set, points back to another row's jian_cha_id in this
+  same table — the earlier inspection this one follows up on — not to a different table.
 columns:
-- asset_type: column
-  physical_name: jian_cha_id
-  summary: inspection_id — jian_cha.jian_cha_id
-  body: Means 'inspection_id' (obfuscated to 'jian_cha_id').
+- physical_name: jian_cha_id
+  summary: The unique identifier for a health inspection, jian_cha_id.
+  body: >
+    Numeric inspection id, one value per row in this table. Join key to wei_gui.jian_cha_id to
+    bring in the violations recorded during the same inspection. Sample values include 154554,
+    205223, and 422264.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jian_cha_ri_qi
-  summary: inspection_date — jian_cha.jian_cha_ri_qi
-  body: Inspection date; year/month filters use the YYYY / YYYY-MM prefix.
+- physical_name: jian_cha_ri_qi
+  summary: The date a health inspection was performed, jian_cha_ri_qi.
+  body: >
+    Calendar date in yyyy-mm-dd format, ranging from 2010-01-06 to 2017-02-17 in the sample.
+    Filter by year or month with a LIKE pattern on the leading digits, for example '2010-04%' for
+    April 2010.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jian_cha_lei_xing
-  summary: inspection_type — jian_cha.jian_cha_lei_xing
-  body: Inspection type, e.g. 'Canvass', 'Complaint', 'License', 'License Re-Inspection',
-    'Short Form Complaint'.
+- physical_name: jian_cha_lei_xing
+  summary: The type of health inspection performed, jian_cha_lei_xing.
+  body: >
+    Free text inspection type, such as License, Complaint, Canvass, Canvass Re-Inspection, or
+    Complaint Re-Inspection; about 16 distinct values in the sample.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jie_guo
-  summary: results — jian_cha.jie_guo
-  body: 'Inspection result: e.g. ''Pass'', ''Fail'', ''Pass w/ Conditions'', ''Out
-    of Business''.'
+- physical_name: jie_guo
+  summary: The outcome, or result, recorded for a health inspection, jie_guo.
+  body: >
+    One of Pass, Pass w/ Conditions, Fail, Out of Business, Business Not Located, No Entry, or
+    Not Ready. Business language treats an inspection as passed, or quality verified, when
+    jie_guo is Pass or Pass w/ Conditions together; Fail alone is a failed inspection.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: yuan_gong_id
-  summary: employee_id — jian_cha.yuan_gong_id
-  body: Means 'employee_id' (obfuscated to 'yuan_gong_id').
+- physical_name: yuan_gong_id
+  summary: The identifier of the employee who conducted a health inspection, yuan_gong_id.
+  body: >
+    Numeric employee id, join key to yuan_gong.yuan_gong_id to bring in the inspecting employee's
+    name and title. Sample values include 112202, 143902, and 117743.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xu_ke_zheng_hao
-  summary: license_no — jian_cha.xu_ke_zheng_hao
-  body: Means 'license_no' (obfuscated to 'xu_ke_zheng_hao').
+- physical_name: xu_ke_zheng_hao
+  summary: The license number of the establishment that a health inspection was performed at, xu_ke_zheng_hao.
+  body: >
+    Numeric license id, join key to ji_gou.xu_ke_zheng_hao to bring in the inspected
+    establishment's name, address, and risk level.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: gen_jin_jian_cha_id
-  summary: followup_to — jian_cha.gen_jin_jian_cha_id
-  body: Id of the follow-up inspection for this inspection, if any.
+- physical_name: gen_jin_jian_cha_id
+  summary: The inspection id that a health inspection is a follow-up to, gen_jin_jian_cha_id.
+  body: >
+    Numeric id pointing back to another row's jian_cha_id in this same table — the earlier,
+    parent inspection this one follows up on. Null (about 409 of the sampled rows) means the
+    inspection has no follow-up; when set, the pair (gen_jin_jian_cha_id, jian_cha_id) links the
+    parent inspection to its child.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jian_cha_yuan_gong_bian_hao
-  summary: jian_cha_yuan_gong_bian_hao — jian_cha.jian_cha_yuan_gong_bian_hao
-  body: 'Physical column ''jian_cha_yuan_gong_bian_hao''. DECOY column: not a real
-    business field. Fabricated to mimic ''employee_id''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+- physical_name: jian_cha_yuan_gong_bian_hao
+  summary: jian_cha_yuan_gong_bian_hao, an integer column on the jian_cha table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''employee_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jian_cha_bian_hao
-  summary: jian_cha_bian_hao — jian_cha.jian_cha_bian_hao
-  body: 'Physical column ''jian_cha_bian_hao''. DECOY column: not a real business
-    field. Fabricated to mimic ''inspection_id''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: jian_cha_bian_hao
+  summary: jian_cha_bian_hao, an integer column on the jian_cha table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''inspection_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xu_ke_hao
-  summary: xu_ke_hao — jian_cha.xu_ke_hao
-  body: 'Physical column ''xu_ke_hao''. DECOY column: not a real business field. Fabricated
-    to mimic ''license_no''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: xu_ke_hao
+  summary: xu_ke_hao, an integer column on the jian_cha table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''license_no''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per inspection event. Links an establishment (by license number) to
-  the inspecting employee, with the inspection date, type, result, and a pointer to
-  any follow-up inspection.
+    - information_schema

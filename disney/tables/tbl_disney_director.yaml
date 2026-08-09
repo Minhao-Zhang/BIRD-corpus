@@ -2,88 +2,66 @@ asset_type: table
 id: disney.director
 schema: disney
 physical_name: director
-summary: 'director (director): name, director'
+summary: director records who directed each Disney movie, one row per movie-director pairing.
+body: >
+  Grain: one row per movie, naming its director; a director with many movies appears on
+  multiple rows (29 distinct directors across the table's 56 movies — more rows for the same
+  director means a more productive director). nombre is the movie title, matched as exact text
+  against actores_voz.pelicula, peliculas_recaudacion_total.titulo_pelicula, and
+  personajes.titulo_pelicula — this schema has no numeric movie id. nombre_completo and
+  director_principal on this table duplicate nombre and director unreliably and must not be
+  used.
 columns:
-- asset_type: column
-  physical_name: nombre
-  summary: name — director.nombre
-  body: The movie title; used as the join key to titulo_pelicula despite meaning 'name'.
-    Not the director's name.
+- physical_name: nombre
+  summary: nombre is the title of the Disney movie a director credit belongs to.
+  body: >
+    Free text movie title (sample values: The Black Cauldron, Brother Bear, Zootopia, The
+    Princess and the Frog, The Fox and the Hound), one per row. Matched as exact text against
+    actores_voz.pelicula, peliculas_recaudacion_total.titulo_pelicula, and
+    personajes.titulo_pelicula since there is no shared numeric id. The nombre_completo column
+    on this same table duplicates it unreliably and must not be used.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: director
-  summary: director — director.director
-  body: Means 'director' (obfuscated to 'director').
+- physical_name: director
+  summary: director names the person who directed the movie on this row.
+  body: >
+    Free text name (sample values: Ted Berman, Robert Walker, Byron Howard, Ron Clements, Art
+    Stevens); one person can direct many movies, so this column has fewer distinct values (29)
+    than there are rows (56). Wolfgang Reitherman, Ben Sharpsteen, Chris Buck, Jack Kinney,
+    Roger Allers, Will Finn, and Gary Trousdale are examples named directly in business
+    questions. The director_principal column on this same table duplicates it unreliably and
+    must not be used.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre_completo
-  summary: nombre_completo — director.nombre_completo
-  body: 'Physical column ''nombre_completo''. DECOY column: not a real business field.
-    Fabricated to mimic ''name''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: nombre_completo
+  summary: nombre_completo, a text column on the director table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''name''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: director_principal
-  summary: director_principal — director.director_principal
-  body: 'Physical column ''director_principal''. DECOY column: not a real business
-    field. Fabricated to mimic ''director''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: director_principal
+  summary: director_principal, a text column on this schema's movie-credits table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''director''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Maps each movie to its director. The nombre column holds the movie title (the
-  join key) despite its literal meaning 'name', and director holds the director's
-  name.
+    - information_schema

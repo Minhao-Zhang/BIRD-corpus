@@ -1,20 +1,28 @@
 asset_type: schema
 id: food_inspection
 name: food_inspection
-summary: 'food_inspection: 3 tables — businesses, inspections, violations'
+summary: >-
+  food_inspection tracks San Francisco food service businesses (eateries), their owners, the
+  health inspections each receives with a numeric score, and the violations found, by risk
+  category.
+body: >
+  Three tables carry the real data: betriebe (one row per business: name, address, owner,
+  certificate and tax numbers), inspektionen (one row per health inspection: date, type, and a
+  1-100 score where 100 means the business met every standard), and verstaesse (one row per
+  violation found: date, risk category, and description). All three key on betrieb_id.
+  betriebsangaben and mangelmeldungen look like a second copy of the business and violation
+  data but are not dependable for analysis; none of their columns should be used to answer a
+  question. City names in betriebe.stadt are spelled inconsistently (SF, S.F., SAN FRANCISCO,
+  San Francisco all occur for the same city), so match city filters loosely rather than by
+  exact string equality alone.
+rules:
+- Answer business, inspection, and violation questions from betriebe, inspektionen, and
+  verstaesse only. Never select, filter, or join on a column from betriebsangaben or
+  mangelmeldungen — every column in those two tables is unreliable for analysis.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A food-safety regulatory database for restaurants and food establishments. It
-  tracks each business and its owner, the health inspections it undergoes (with a
-  numeric score and inspection type), and the violations found (each with a risk category
-  and description).
-rules:
-- Inspections (inspektionen) and violations (verstaesse) both link to a business only
-  through betrieb_id; there is no direct inspection-to-violation key, so they are
-  related only via their shared business.
+    - information_schema

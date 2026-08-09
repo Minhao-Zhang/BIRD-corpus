@@ -2,446 +2,240 @@ asset_type: table
 id: legislator.lishi
 schema: legislator
 physical_name: lishi
-summary: 'historical (lishi): ballotpedia_id, bioguide, bioguide_previous_id, birthday_bio,
-  cspan_id, fec_id, first_name, gender_bio, google_entity_id_id, govtrack_id, house_history_alternate_id,
-  house_history_id, icpsr_id, last_name, lis_id, maplight_id, mid…'
+summary: 'lishi: one row per historical U.S. legislator, holding biography, name, birth date, religion,
+  and cross-reference identifiers.'
+body: One row per person who has ever served in the U.S. House or Senate, whether or not still serving.
+  Distinct from xianzai, which holds only currently serving legislators, and from dangqian_renyuan, which
+  mirrors xianzai but is not dependable. Join to lishi_renqi on bioguide_id to reach each legislator's
+  individual terms of service, and to shehui_meiti for their official social media accounts.
 columns:
-- asset_type: column
-  physical_name: ballotpedia_id
-  summary: ballotpedia_id — lishi.ballotpedia_id
-  body: Means 'ballotpedia_id' (obfuscated to 'ballotpedia_id').
+- physical_name: ballotpedia_id
+  summary: The Ballotpedia.org profile page title for the legislator (ballotpedia_id).
+  body: Matches the page title on ballotpedia.org, with spaces kept as spaces rather than underscores.
+    Null or empty means the legislator has no Ballotpedia profile. Not to be confused with lishi_ballotpedia_bianhao
+    in this same table, which is not dependable.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: bioguide_id
-  summary: bioguide — lishi.bioguide_id
-  body: Means 'bioguide' (obfuscated to 'bioguide_id').
+- physical_name: bioguide_id
+  summary: The unique alphanumeric identifier the Biographical Directory of Congress assigns to the legislator
+    (bioguide_id).
+  body: Format is one letter followed by six digits, for example A000055 or M000639. This is the primary
+    key for joining a legislator to their terms in lishi_renqi and to their social media accounts in shehui_meiti.
+    Not to be confused with lishi_bioguide_bianhao in this same table, which is not dependable and must
+    not be used as a join key.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: qianren_bioguide_id
-  summary: bioguide_previous_id — lishi.qianren_bioguide_id
-  body: Means 'bioguide_previous_id' (obfuscated to 'qianren_bioguide_id').
+- physical_name: qianren_bioguide_id
+  summary: An earlier bioguide identifier once assigned to this legislator, replaced by the current one
+    (qianren_bioguide_id).
+  body: Populated only for the rare legislator whose bioguide identifier changed over time; empty for
+    everyone else, and empty for every row sampled from this table. Not to be confused with qianren_bioguide_bianhao
+    in this same table, which is not dependable.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: chusheng_riqi
-  summary: birthday_bio — lishi.chusheng_riqi
-  body: Date of birth (birthday), stored as text 'YYYY-MM-DD'.
+- physical_name: chusheng_riqi
+  summary: The legislator's date of birth (chusheng_riqi).
+  body: Stored as a calendar date in YYYY-MM-DD format, for example 1946-05-27. The same field also appears
+    on xianzai for currently serving legislators. Not to be confused with dangqian_renyuan's chusheng_shijian
+    or xianzai's shengri_riqi, which are not dependable.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cspan_id
-  summary: cspan_id — lishi.cspan_id
-  body: Means 'cspan_id' (obfuscated to 'cspan_id').
+- physical_name: cspan_id
+  summary: The numeric identifier for the legislator on C-SPAN's video website (cspan_id).
+  body: A plain digit string, for example 1002201. Null or empty means the legislator has no C-SPAN account.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fec_id
-  summary: fec_id — lishi.fec_id
-  body: Means 'fec_id' (obfuscated to 'fec_id').
+- physical_name: fec_id
+  summary: The list of identifiers for the legislator in Federal Election Commission filings (fec_id).
+  body: Stored as a bracketed, comma-separated list of ID strings, for example ['H0GA04023']; a legislator
+    can carry more than one FEC id across different campaigns. Null or empty means the legislator has
+    never registered with the FEC.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ming
-  summary: first_name — lishi.ming
-  body: Means 'first_name' (obfuscated to 'ming').
+- physical_name: ming
+  summary: The legislator's first name (ming).
+  body: A plain given name, for example William or Gerrit. Pairs with xing (last name) and zhongjian_ming
+    (middle name); guanfang_quanming carries the combined official form.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xingbie
-  summary: gender_bio — lishi.xingbie
-  body: 'Gender code: ''M'' = male, ''F'' = female.'
+- physical_name: xingbie
+  summary: The legislator's recorded gender (xingbie).
+  body: 'A single letter: F for female or M for male. No other values are recorded.'
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: google_entity_id
-  summary: google_entity_id_id — lishi.google_entity_id
-  body: Means 'google_entity_id_id' (obfuscated to 'google_entity_id').
+- physical_name: google_entity_id
+  summary: The Google Knowledge Graph entity identifier for the legislator (google_entity_id).
+  body: A string beginning kg:/m/ or kg:/g/, for example kg:/m/0126_6. Null or empty means Google has
+    not matched the legislator to a knowledge graph entity.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: govtrack_id
-  summary: govtrack_id — lishi.govtrack_id
-  body: Means 'govtrack_id' (obfuscated to 'govtrack_id').
+- physical_name: govtrack_id
+  summary: The numeric identifier for the legislator on GovTrack.us (govtrack_id).
+  body: A whole number, typically between 300000 and 412999 for legislators tracked by this dataset, for
+    example 407613. Every legislator in this table carries one.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zhuyuan_lishi_jiaohuan_id
-  summary: house_history_alternate_id — lishi.zhuyuan_lishi_jiaohuan_id
-  body: Means 'house_history_alternate_id' (obfuscated to 'zhuyuan_lishi_jiaohuan_id').
+- physical_name: zhuyuan_lishi_jiaohuan_id
+  summary: An alternate identifier for the legislator on the House's historical member directory (zhuyuan_lishi_jiaohuan_id).
+  body: Used only for a small number of legislators whose zhuyuan_lishi_id needed a second, alternate
+    value; empty for everyone else, and empty for every row sampled from this table.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zhuyuan_lishi_id
-  summary: house_history_id — lishi.zhuyuan_lishi_id
-  body: Means 'house_history_id' (obfuscated to 'zhuyuan_lishi_id').
+- physical_name: zhuyuan_lishi_id
+  summary: The numeric identifier for the legislator on the House's historical member directory at history.house.gov
+    (zhuyuan_lishi_id).
+  body: Stored as a decimal number, for example 10355.0. Present only for legislators who served in the
+    House; null for Senate-only legislators.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: icpsr_id
-  summary: icpsr_id — lishi.icpsr_id
-  body: Means 'icpsr_id' (obfuscated to 'icpsr_id').
+- physical_name: icpsr_id
+  summary: The numeric identifier for the legislator on Keith Poole's VoteView.com, based on an Interuniversity
+    Consortium for Political and Social Research numbering scheme (icpsr_id).
+  body: Stored as a decimal number, for example 15015.0. Null or empty means the legislator has no VoteView.com
+    account.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xing
-  summary: last_name — lishi.xing
-  body: Means 'last_name' (obfuscated to 'xing').
+- physical_name: xing
+  summary: The legislator's last name (xing).
+  body: A plain surname, for example Smith or de Lugo. Pairs with ming (first name); guanfang_quanming
+    carries the combined official form.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lis_id
-  summary: lis_id — lishi.lis_id
-  body: Means 'lis_id' (obfuscated to 'lis_id').
+- physical_name: lis_id
+  summary: The alphanumeric identifier for the legislator used in Senate roll call vote records (lis_id).
+  body: Format is the letter S followed by three digits, for example S129. Present only for legislators
+    who have attended a Senate roll call vote; null for House-only legislators.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: maplight_id
-  summary: maplight_id — lishi.maplight_id
-  body: Means 'maplight_id' (obfuscated to 'maplight_id').
+- physical_name: maplight_id
+  summary: The numeric identifier for the legislator on maplight.org (maplight_id).
+  body: Stored as text, for example 599.0. Null or empty means the legislator has no maplight.org account.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zhongjian_ming
-  summary: middle_name — lishi.zhongjian_ming
-  body: Means 'middle_name' (obfuscated to 'zhongjian_ming').
+- physical_name: zhongjian_ming
+  summary: The legislator's middle name (zhongjian_ming).
+  body: A middle name or initial, for example M. S. or Knox. Frequently null when no middle name is on
+    record.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: huaming
-  summary: nickname_name — lishi.huaming
-  body: Means 'nickname_name' (obfuscated to 'huaming').
+- physical_name: huaming
+  summary: The legislator's nickname (huaming).
+  body: The informal first name a legislator commonly goes by, for example Norm or Lindy, when it differs
+    from ming. Frequently null.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: guanfang_quanming
-  summary: official_full_name — lishi.guanfang_quanming
-  body: Official full name of the legislator, as opposed to separate first (ming)
-    and last (xing) name fields.
+- physical_name: guanfang_quanming
+  summary: The legislator's full official name as used publicly (guanfang_quanming).
+  body: A single text value combining title, first, middle and last name where applicable, for example
+    Melvin L. Watt or Mary L. Landrieu. Can also be approximated by concatenating ming and xing. Not to
+    be confused with dangqian_renyuan's guanfang_quanming_full, which is not dependable.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: opensecrets_id
-  summary: opensecrets_id — lishi.opensecrets_id
-  body: Means 'opensecrets_id' (obfuscated to 'opensecrets_id').
+- physical_name: opensecrets_id
+  summary: The alphanumeric identifier for the legislator on OpenSecrets.org (opensecrets_id).
+  body: Format is the letter N followed by eight digits, for example N00004644. Null or empty means the
+    legislator has no OpenSecrets.org account.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zongjiao
-  summary: religion_bio — lishi.zongjiao
-  body: Means 'religion_bio' (obfuscated to 'zongjiao').
+- physical_name: zongjiao
+  summary: The legislator's self-reported religious affiliation (zongjiao).
+  body: Free text, for example Presbyterian, Roman Catholic, Lutheran, Baptist, or Unknown. Null when
+    no religion has been recorded.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: houzhui
-  summary: suffix_name — lishi.houzhui
-  body: Means 'suffix_name' (obfuscated to 'houzhui').
+- physical_name: houzhui
+  summary: The suffix appended to the legislator's name (houzhui).
+  body: 'One of a small set of values: Jr., Sr., II, or III. Null when the legislator''s name carries
+    no suffix.'
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: thomas_id
-  summary: thomas_id — lishi.thomas_id
-  body: Means 'thomas_id' (obfuscated to 'thomas_id').
+- physical_name: thomas_id
+  summary: The numeric identifier for the legislator on thomas.gov and beta.congress.gov (thomas_id).
+  body: A plain digit string, for example 1910. Null or empty means the legislator has no account on either
+    site.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: votesmart_id
-  summary: votesmart_id — lishi.votesmart_id
-  body: Means 'votesmart_id' (obfuscated to 'votesmart_id').
+- physical_name: votesmart_id
+  summary: The numeric identifier for the legislator on VoteSmart.org (votesmart_id).
+  body: Stored as a decimal number, for example 1535.0. Null or empty means the legislator has no VoteSmart.org
+    account.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: wikidata_id
-  summary: wikidata_id — lishi.wikidata_id
-  body: Means 'wikidata_id' (obfuscated to 'wikidata_id').
+- physical_name: wikidata_id
+  summary: The Wikidata entity identifier for the legislator (wikidata_id).
+  body: Format is the letter Q followed by digits, for example Q935734. Null or empty means the legislator
+    has no Wikidata entry. Not to be confused with dangqian_renyuan's wikidata_qid, which is not dependable.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: wikipedia_id
-  summary: wikipedia_id — lishi.wikipedia_id
-  body: Means 'wikipedia_id' (obfuscated to 'wikipedia_id').
+- physical_name: wikipedia_id
+  summary: The title of the legislator's Wikipedia page (wikipedia_id).
+  body: Free text matching the page title, for example William Medill or Gerrit Smith. A populated value
+    is the dataset's proxy for the legislator being notable enough to have a page; null means no page
+    was matched, not necessarily that the legislator lacks recognition. Not to be confused with dangqian_renyuan's
+    wikipedia_page, which is not dependable.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lishi_bioguide_bianhao
-  summary: lishi_bioguide_bianhao — lishi.lishi_bioguide_bianhao
-  body: 'Physical column ''lishi_bioguide_bianhao''. DECOY column: not a real business
-    field. Fabricated to mimic ''bioguide_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: lishi_bioguide_bianhao
+  summary: lishi_bioguide_bianhao, a column on the lishi table.
+  body: Values in this column are not dependable and do not correspond to the business facts the lishi
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. In particular, it
+    must not be used as a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''bioguide_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lishi_ballotpedia_bianhao
-  summary: lishi_ballotpedia_bianhao — lishi.lishi_ballotpedia_bianhao
-  body: 'Physical column ''lishi_ballotpedia_bianhao''. DECOY column: not a real business
-    field. Fabricated to mimic ''ballotpedia_id''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: lishi_ballotpedia_bianhao
+  summary: lishi_ballotpedia_bianhao, a column on the lishi table.
+  body: Values in this column are not dependable and do not correspond to the business facts the lishi
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ballotpedia_id''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: qianren_bioguide_bianhao
-  summary: qianren_bioguide_bianhao — lishi.qianren_bioguide_bianhao
-  body: 'Physical column ''qianren_bioguide_bianhao''. DECOY column: not a real business
-    field. Fabricated to mimic ''bioguide_previous_id''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: qianren_bioguide_bianhao
+  summary: qianren_bioguide_bianhao, a column on the lishi table.
+  body: Values in this column are not dependable and do not correspond to the business facts the lishi
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''bioguide_previous_id''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Historical (past) legislators, one row per person keyed by bioguide_id. Same
-  shape as xianzai (name, gender, birthday, religion, external IDs) but for people
-  no longer serving.
+    - information_schema

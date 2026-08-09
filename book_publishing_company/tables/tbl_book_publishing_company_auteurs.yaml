@@ -2,208 +2,124 @@ asset_type: table
 id: book_publishing_company.auteurs
 schema: book_publishing_company
 physical_name: auteurs
-summary: 'authors (auteurs): au_id, lname, fname, phone, address, city, state, zip,
-  contract'
+summary: auteurs is the roster of book authors under contract with the publishing company, one row per author.
+body: >
+  One row per author, identified by id_auteur. An author may co-write multiple titles; the link
+  to titres runs through titres_auteurs, which records each author's royalty share and billing
+  order on a title. contrat marks whether the author is currently under contract. Do not confuse
+  this table with auteurs_oeuvres, whose contributor records are not dependable.
 columns:
-- asset_type: column
-  physical_name: id_auteur
-  summary: au_id — auteurs.id_auteur
-  body: Means 'au_id' (obfuscated to 'id_auteur').
+- physical_name: id_auteur
+  summary: id_auteur, the unique identifier for an author, used to link an author to their titles.
+  body: >
+    A hyphenated code shaped like a US Social Security number, e.g. 172-32-1176 or 998-72-3567.
+    Primary key of auteurs; titres_auteurs.id_auteur should match one row here. Do not substitute
+    identifiant_auteur, which is unreliable for analysis.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nom_famille
-  summary: lname — auteurs.nom_famille
-  body: Means 'lname' (obfuscated to 'nom_famille').
+- physical_name: nom_famille
+  summary: nom_famille, an author's family or last name, recorded on the auteurs table.
+  body: >
+    Free-text surname, e.g. Gringlesby, O'Leary, or del Castillo. Combine with prenom to form an
+    author's full name; there is no separate full-name column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prenom
-  summary: fname — auteurs.prenom
-  body: Means 'fname' (obfuscated to 'prenom').
+- physical_name: prenom
+  summary: prenom, an author's given or first name, recorded on the auteurs table.
+  body: >
+    Free-text first name, e.g. Heather, Burt, or Akiko. Do not confuse with prenom_usuel, which
+    is unreliable for analysis.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: telephone
-  summary: phone — auteurs.telephone
-  body: Means 'phone' (obfuscated to 'telephone').
+- physical_name: telephone
+  summary: telephone, the contact phone number on file for an author.
+  body: >
+    Formatted as an area code and a local number, e.g. 415 935-4228. Not validated against any
+    other table; used to reach the author directly.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: adresse
-  summary: address — auteurs.adresse
-  body: Means 'address' (obfuscated to 'adresse').
+- physical_name: adresse
+  summary: adresse, the street-level mailing address recorded for an author.
+  body: >
+    Free-text street address, e.g. 22 Cleveland Av. #14 or PO Box 792. Paired with ville,
+    province and code_postal for the author's full postal address. Do not confuse with
+    adresse_postale, which is unreliable for analysis.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ville
-  summary: city — auteurs.ville
-  body: Means 'city' (obfuscated to 'ville').
+- physical_name: ville
+  summary: ville, the city an author lives in, recorded on the auteurs table.
+  body: >
+    Free-text city name, e.g. San Jose or Walnut Creek. Paired with province and code_postal for
+    the author's full address.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: province
-  summary: state — auteurs.province
-  body: State/province code (e.g. 'CA').
+- physical_name: province
+  summary: province, the two-letter state code for an author's mailing address.
+  body: >
+    A two-letter US state abbreviation, e.g. CA, TN, or UT. A filter naming a state resolves to
+    province equalling that code.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: code_postal
-  summary: zip — auteurs.code_postal
-  body: Means 'zip' (obfuscated to 'code_postal').
+- physical_name: code_postal
+  summary: code_postal, the postal or zip code for an author's mailing address.
+  body: >
+    A five-digit US zip code, e.g. 94595 or 95688. Paired with adresse, ville and province.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: contrat
-  summary: contract — auteurs.contrat
-  body: 'Contract flag stored as text: ''1'' means the author is on contract, ''0''
-    means not on contract.'
+- physical_name: contrat
+  summary: contrat, whether an author currently holds a signed contract with the publisher.
+  body: >
+    A flag: 0 means the author is not on contract, 1 means the author is on contract. Every
+    sampled author in this corpus reads 0, so a filter expecting 1 returns no rows in the sample
+    even though the column is meaningful in general.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: identifiant_auteur
-  summary: identifiant_auteur — auteurs.identifiant_auteur
-  body: 'Physical column ''identifiant_auteur''. DECOY column: not a real business
-    field. Fabricated to mimic ''au_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: identifiant_auteur
+  summary: identifiant_auteur, a text column on the auteurs table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''au_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: adresse_postale
-  summary: adresse_postale — auteurs.adresse_postale
-  body: 'Physical column ''adresse_postale''. DECOY column: not a real business field.
-    Fabricated to mimic ''address''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: adresse_postale
+  summary: adresse_postale, a text column on the auteurs table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''address''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prenom_usuel
-  summary: prenom_usuel — auteurs.prenom_usuel
-  body: 'Physical column ''prenom_usuel''. DECOY column: not a real business field.
-    Fabricated to mimic ''au_fname''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: prenom_usuel
+  summary: prenom_usuel, a text column on the auteurs table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''au_fname''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Authors of the published titles. Grain: one row per author (id_auteur). Holds
-  name, address, contract flag, and location; linked to titles via the titres_auteurs
-  bridge.'
+    - information_schema

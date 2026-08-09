@@ -2,195 +2,121 @@ asset_type: table
 id: cs_semester.prof
 schema: cs_semester
 physical_name: prof
-summary: 'prof (prof): prof_id, gender, first_name, last_name, email, popularity,
-  teachingability, graduate_from'
+summary: The prof table holds one row per CS department professor, with name, contact email,
+  gender, popularity, teaching ability, and the school they graduated from.
+body: >
+  Grain is one row per professor (10 rows in this dataset). prof_id is the primary key; join
+  to RA.prof_id to see which students a professor advises as research assistants. There is no
+  direct link from prof to course or registration in this schema — a professor's teaching load
+  is not tracked here, only their popularity and teaching-ability ratings. professor_ref_id,
+  contact_email, and given_name look like alternate copies of prof_id, email, and first_name
+  but are unreliable and must not be used.
 columns:
-- asset_type: column
-  physical_name: prof_id
-  summary: prof_id — prof.prof_id
-  body: Means 'prof_id' (obfuscated to 'prof_id').
+- physical_name: prof_id
+  summary: The unique id of a professor, prof_id.
+  body: >
+    Primary key of this table, sample values 1 through 10. Join to RA.prof_id to find every
+    student this professor advises.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: gender
-  summary: gender — prof.gender
-  body: Professor gender, text 'Male' or 'Female'.
+- physical_name: gender
+  summary: The professor's gender, gender.
+  body: 'Text values "Male" or "Female".'
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: first_name
-  summary: first_name — prof.first_name
-  body: Means 'first_name' (obfuscated to 'first_name').
+- physical_name: first_name
+  summary: The professor's first name, first_name.
+  body: >
+    Sample values Zhihua, Merwyn, Bernhard, Sauveur, Mateo. A professor's full name is
+    first_name followed by last_name — see term_cs_semester_prof_full_name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: last_name
-  summary: last_name — prof.last_name
-  body: Means 'last_name' (obfuscated to 'last_name').
+- physical_name: last_name
+  summary: The professor's last name, last_name.
+  body: >
+    Sample values Zhou, Conkay, Molen, Skyme, Medmore. Combined with first_name to form the
+    professor's full name — see term_cs_semester_prof_full_name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: email
-  summary: email — prof.email
-  body: Means 'email' (obfuscated to 'email').
+- physical_name: email
+  summary: The professor's email address, email.
+  body: >
+    Institutional address, for example zzhihua@hku.hk, mconkay3@ucla.edu, or
+    sskyme5@columbia.edu. The domain reflects where the professor currently holds an account
+    and is not necessarily graduate_from.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: popularity
-  summary: popularity — prof.popularity
-  body: Professor popularity, integer; higher means more popular, MAX(popularity)
-    the most popular.
+- physical_name: popularity
+  summary: The professor's popularity rating, popularity.
+  body: >
+    An integer rating; a higher value means the professor is more popular. See
+    term_cs_semester_popularity for how "most popular professor" and similar phrasings resolve
+    to this column.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: teachingability
-  summary: teachingability — prof.teachingability
-  body: Teaching ability, integer; higher is better, '1' is the lowest teaching ability.
+- physical_name: teachingability
+  summary: The professor's teaching-ability rating, teachingability.
+  body: >
+    An integer from 1 to 5; a higher value means better teaching ability, read as the
+    professor's lectures having better quality. See term_cs_semester_teaching_ability and
+    metric_cs_semester_average_teaching_ability for the average and above-average boundary.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: graduate_from
-  summary: graduate_from — prof.graduate_from
-  body: Name of the university the professor graduated from (e.g. Ivy League schools
-    such as Harvard University, Yale University).
+- physical_name: graduate_from
+  summary: The school the professor graduated from, graduate_from.
+  body: >
+    Free-text institution name, for example "Beijing Polytechnic University," "Carnegie Mellon
+    University," "Princeton University," "University of Pennsylvania," or "ETH Zurich". See
+    term_cs_semester_ivy_league for the fixed list of eight Ivy League schools matched against
+    this column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: professor_ref_id
-  summary: professor_ref_id — prof.professor_ref_id
-  body: 'Physical column ''professor_ref_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''prof_id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: professor_ref_id
+  summary: professor_ref_id, a numeric column on the prof table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''prof_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: contact_email
-  summary: contact_email — prof.contact_email
-  body: 'Physical column ''contact_email''. DECOY column: not a real business field.
-    Fabricated to mimic ''email''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: contact_email
+  summary: contact_email, a text column on the prof table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''email''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: given_name
-  summary: given_name — prof.given_name
-  body: 'Physical column ''given_name''. DECOY column: not a real business field.
-    Fabricated to mimic ''first_name''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: given_name
+  summary: given_name, a text column on the prof table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''first_name''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per professor, with name, gender, email, graduating university, popularity
-  and teaching ability. Advisors of research assistants are found here via RA.prof_id.
+    - information_schema

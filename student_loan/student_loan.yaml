@@ -1,22 +1,29 @@
 asset_type: schema
 id: student_loan
 name: student_loan
-summary: 'student_loan: 10 tables — bool, disabled, male, person, filed_for_bankrupcy,
-  unemployed, no_payment_due, enlist, enrolled, longest_absense_from_school'
+summary: student_loan tracks conditions relevant to a student loan discharge or deferment
+  decision — disability, unemployment, bankruptcy, enlistment, school absence, and payment-due
+  status.
+body: >
+  Every table keys on ming_cheng, a free-text student identifier such as student295 — there are
+  no numeric surrogate keys anywhere in this schema. ren_wu is the full student roster; can_ji,
+  nan_xing, shi_ye, shen_qing_po_chan, zhu_ce, zhu_ce_ru_xue, zui_chang_que_ke, and wu_xu_zhi_fu
+  each record one condition (disability, being male, unemployment, bankruptcy, enlistment,
+  school enrollment, school absence, and loan payment-due status) by listing the ming_cheng
+  values it applies to; a student's absence from a condition table means that condition does not
+  apply to them. Payment-due status uses a small two-table code pattern: bu_er is a two-row
+  lookup spelling out the literal codes pos and neg, and wu_xu_zhi_fu.bu_er stores one of those
+  codes per student. nan_ren, renwu_xiang, and xiao_er look like copies of nan_xing, ren_wu, and
+  bu_er but are not dependable for analysis.
+rules:
+- Never select, filter, or join on a column from nan_ren, renwu_xiang, or xiao_er — every column
+  in those three tables is unreliable for analysis. Use nan_xing, ren_wu, and bu_er instead.
+- Determine a student's gender from membership in nan_xing.ming_cheng (present means male,
+  absent means female) — there is no table listing female students by name.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'Tracks a student-loan population as a set of characteristic tables: each table
-  lists the student names sharing an attribute (disabled, male, unemployed, filed
-  for bankruptcy, payment due). Enlistment, school enrollment, and school-absence
-  records join to these on student name.'
-rules:
-- Every table keys on the student name (ming_cheng); a student's traits are found
-  by whether their name appears in a given attribute table.
-- 'Gender is derived: a student is male if their name is in nan_xing, otherwise female
-  (there is no explicit female table).'
+    - information_schema

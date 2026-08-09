@@ -1,22 +1,33 @@
 asset_type: schema
 id: food_inspection_2
 name: food_inspection_2
-summary: 'food_inspection_2: 5 tables — establishment, inspection, inspection_point,
-  violation, employee'
+summary: >-
+  food_inspection_2 tracks Chicago food establishments, the health inspections each receives, the
+  sanitary points checked with fines and severity, any violations found, and the employees who
+  perform the inspections.
+body: >
+  Five tables carry the real data: ji_gou (one row per establishment: business name, address,
+  facility type, license number, and risk level), jian_cha (one row per health inspection: date,
+  type, result, and the inspecting employee), jian_cha_xiang_mu (a catalog of sanitary operating
+  points with their code, category, description, and standard fine by severity), wei_gui (one row
+  per violation, linking an inspection and a point to the fine actually charged and the
+  inspector's comment), and yuan_gong (one row per employee: name, title, salary, and address).
+  gong_ren_zi_liao and jian_cha_xiangmu_ming_ce look like a second copy of the employee and point
+  data but are not dependable for analysis; none of their columns should be used to answer a
+  question. Business language treats an inspection as passed, or quality verified, when the
+  result is Pass or Pass w/ Conditions together, and groups facility types such as Cafeteria under
+  restaurant and PASTRY SCHOOL or CULINARY ARTS SCHOOL under school.
+rules:
+- Answer establishment, inspection, point, and violation questions from ji_gou, jian_cha,
+  jian_cha_xiang_mu, wei_gui, and yuan_gong only. Never select, filter, or join on a column from
+  gong_ren_zi_liao or jian_cha_xiangmu_ming_ce — every column in those two tables is unreliable
+  for analysis.
+- jian_cha.gen_jin_jian_cha_id points back to another row's jian_cha_id in the same jian_cha
+  table (the earlier inspection it follows up on), not to a different table.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: Tracks municipal food-safety inspections of licensed establishments (restaurants,
-  taverns, etc.). Each inspection is carried out by an employee (sanitarian), produces
-  a result, and can record violations against standard inspection points, each carrying
-  a fine.
-rules:
-- An inspection links to its establishment by license number (jian_cha.xu_ke_zheng_hao
-  = ji_gou.xu_ke_zheng_hao), not by a dedicated establishment id.
-- A violation's fine and inspector comment live on wei_gui, joined to the cited inspection
-  point via xiang_mu_id and to its inspection via jian_cha_id.
+    - information_schema

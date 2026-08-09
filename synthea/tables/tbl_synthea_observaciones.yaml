@@ -2,182 +2,110 @@ asset_type: table
 id: synthea.observaciones
 schema: synthea
 physical_name: observaciones
-summary: 'observations (observaciones): DATE, PATIENT, ENCOUNTER, CODE, DESCRIPTION,
-  VALUE, UNITS'
+summary: observaciones records one clinical measurement, a vital sign or a lab
+  result, taken for a patient.
+body: >
+  One row per measurement. A single fact spans three columns together: descripcion names what was
+  measured, valor holds the number, and unidades holds its unit, so "body height of patient X is
+  166.03 cm" is descripcion='Body Height', valor=166.03, unidades='cm' in one row. Joins to
+  pacientes and encuentros on id_paciente and id_encuentro. observacion_paciente_id,
+  codigo_observacion, and fecha_observacion sit alongside id_paciente, codigo, and fecha but do
+  not track the same values and must not be used.
 columns:
-- asset_type: column
-  physical_name: fecha
-  summary: DATE — observaciones.fecha
-  body: Means 'DATE' (obfuscated to 'fecha').
+- physical_name: fecha
+  summary: fecha, the date a measurement was taken.
+  body: >
+    A date, for example 2017-10-31, ranging from 2007 to 2018. Never null.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_paciente
-  summary: PATIENT — observaciones.id_paciente
-  body: Means 'PATIENT' (obfuscated to 'id_paciente').
+- physical_name: id_paciente
+  summary: id_paciente, the patient the measurement was taken from.
+  body: >
+    A UUID string, for example "3da6d2e5-1587-4df7-aaac-c18306e2b3da". Joins to
+    pacientes.id_paciente.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_encuentro
-  summary: ENCOUNTER — observaciones.id_encuentro
-  body: Means 'ENCOUNTER' (obfuscated to 'id_encuentro').
+- physical_name: id_encuentro
+  summary: id_encuentro, the encounter at which the measurement was taken.
+  body: >
+    A UUID string, for example "f894d4ba-e828-403d-a05b-ee253dd6d9c2". Joins to encuentros.id.
+    Null for roughly 23% of rows, whose measurement was not tied to a specific visit.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo
-  summary: CODE — observaciones.codigo
-  body: Means 'CODE' (obfuscated to 'codigo').
+- physical_name: codigo
+  summary: codigo, the coded identifier for the kind of measurement.
+  body: >
+    A text code, for example "8480-6" or "29463-7" (LOINC-style codes), sometimes numeric such as
+    "233604007". Pairs one-to-one with descripcion in this table.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: descripcion
-  summary: DESCRIPTION — observaciones.descripcion
-  body: Type of observation measured, e.g. 'Body Height', 'Body Weight', 'Body Mass
-    Index', 'Systolic Blood Pressure', 'Diastolic Blood Pressure', 'Total Cholesterol',
-    'Calcium'.
+- physical_name: descripcion
+  summary: descripcion, the name of the measurement or observation.
+  body: >
+    Free text such as "Body Height", "Body Weight", "Body Mass Index", "Systolic Blood Pressure",
+    or "Diastolic Blood Pressure". This is what a question naming a vital sign or lab test filters
+    on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: valor
-  summary: VALUE — observaciones.valor
-  body: Numeric value of the observation; its meaning depends on descripcion and its
-    unit is in unidades.
+- physical_name: valor
+  summary: valor, the numeric result of a measurement.
+  body: >
+    A decimal number, for example 55.563423 or 0.0, observed from 0 up to about 100 depending on
+    what descripcion names. Interpret it together with unidades; the same number means different
+    things for a weight in kg versus a percentage.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: unidades
-  summary: UNITS — observaciones.unidades
-  body: Unit of the observation value, e.g. 'cm', 'kg', 'kg/m2', 'mmHg'.
+- physical_name: unidades
+  summary: unidades, the unit of measure for valor.
+  body: >
+    Free text such as "kg", "cm", "mmol/L", "mg/dL", "%", "years", or "{count}". Always read
+    alongside descripcion and valor as one fact, not on its own.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: observacion_paciente_id
-  summary: observacion_paciente_id — observaciones.observacion_paciente_id
-  body: 'Physical column ''observacion_paciente_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''PATIENT''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: observacion_paciente_id
+  summary: observacion_paciente_id, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''PATIENT''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_observacion
-  summary: codigo_observacion — observaciones.codigo_observacion
-  body: 'Physical column ''codigo_observacion''. DECOY column: not a real business
-    field. Fabricated to mimic ''CODE''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: codigo_observacion
+  summary: codigo_observacion, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CODE''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_observacion
-  summary: fecha_observacion — observaciones.fecha_observacion
-  body: 'Physical column ''fecha_observacion''. DECOY column: not a real business
-    field. Fabricated to mimic ''DATE''. Corruption operator ''sparse_date_offset'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: fecha_observacion
+  summary: fecha_observacion, a date column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: date
   logical_type: date
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''DATE''.
-      Corruption operator ''sparse_date_offset'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per clinical observation (vital sign or lab). Grain: single observation.
-  descripcion is what was measured (e.g. ''Body Weight''); valor is the numeric value;
-  unidades is its unit; fecha is the date.'
+    - information_schema

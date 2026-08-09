@@ -1,26 +1,29 @@
 asset_type: schema
 id: superhero
 name: superhero
-summary: 'superhero: 10 tables — alignment, attribute, colour, gender, hero_attribute,
-  hero_power, race, superhero, superpower, publisher'
+summary: superhero catalogs comic-book superheroes and tracks each hero's alignment, gender, race, publisher, height, weight, eye/hair/skin colour, scored attributes, and superpowers.
+body: >
+  One central table, superheld, holds one row per superhero and carries foreign keys out to five
+  small lookup tables: ausrichtung (alignment: Good, Bad, Neutral), geschlecht (gender), rasse
+  (race or species), verlag (publisher), and farbe (colour names, referenced three times for eye,
+  hair, and skin colour). Two link tables, held_eigenschaft and held_kraft, each connect a hero to
+  many rows of a second kind of fact: held_eigenschaft scores a hero on named attributes such as
+  Strength and Speed, and held_kraft lists the named superpowers a hero has. Every table in this
+  schema carries a small set of extra columns whose names look like a duplicate of the real
+  identifier or label next to them (a second id, a "_fk" or "_ref" suffix, a renamed label
+  column); those are marked unreliable on the column itself and must not be used for lookups,
+  filters, or joins. Three tables (held_faehigkeit, held_merkmal, merkmal_typ) are unreliable in
+  their entirety.
+rules:
+- Join a hero to alignment, gender, race, publisher, or colour only through the plain id columns
+  named in joins/ (ausrichtung_id, geschlecht_id, rasse_id, verlag_id, augenfarbe_id,
+  haarfarbe_id, hautfarbe_id); never through a column marked reliability.status = suspect.
+- Treat gr_e_cm = 0 and gewicht_kg = 0 as a missing height or weight, not a real zero, when
+  computing an average, minimum, or maximum.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'A superhero reference database: superheroes with their physical traits (height,
-  weight, eye/hair/skin colour), demographics (gender, race, alignment) and publisher,
-  plus the superpowers each hero has and their measured attributes (e.g. Strength,
-  Speed, Durability). Used to answer questions about heroes, their powers, attributes,
-  and publishers.'
-rules:
-- A superhero links to its publisher, race, gender and alignment via superheld.verlag_id/rasse_id/geschlecht_id/ausrichtung_id
-  = the referenced table's id.
-- 'Eye, hair and skin colour of a hero are three separate references into farbe: augenfarbe_id
-  (eye), haarfarbe_id (hair), hautfarbe_id (skin), each = farbe.id.'
-- 'A hero''s powers and attributes are many-to-many bridges: held_kraft (held_id ->
-  superheld.id, kraft_id -> superkraft.id) and held_eigenschaft (held_id -> superheld.id,
-  eigenschaft_id -> eigenschaft.id).'
+    - information_schema

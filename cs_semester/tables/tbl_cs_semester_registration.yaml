@@ -2,139 +2,89 @@ asset_type: table
 id: cs_semester.registration
 schema: cs_semester
 physical_name: registration
-summary: 'registration (registration): course_id, student_id, grade, sat'
+summary: The registration table records one row per student's enrollment in a course, with the
+  grade earned and a satisfaction rating.
+body: >
+  Grain is one row per student-course enrollment (101 rows in this dataset). Join to
+  student.student_id for the student's name, GPA, and type, and to course.course_id for the
+  course's name, credit weight, and difficulty. A missing grade means the student failed the
+  course, not a data gap. registered_course_id, registered_student_id, and letter_grade look
+  like alternate copies of course_id, student_id, and grade but are unreliable and must not be
+  used.
 columns:
-- asset_type: column
-  physical_name: course_id
-  summary: course_id — registration.course_id
-  body: Means 'course_id' (obfuscated to 'course_id').
+- physical_name: course_id
+  summary: The course this enrollment is in, course_id.
+  body: Join to course.course_id to bring in the course's name, credit weight, and difficulty.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: student_id
-  summary: student_id — registration.student_id
-  body: Means 'student_id' (obfuscated to 'student_id').
+- physical_name: student_id
+  summary: The student who enrolled, student_id.
+  body: >
+    Join to student.student_id to bring in the student's name, GPA, and type. A student can
+    have many registration rows, one per course taken.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: grade
-  summary: grade — registration.grade
-  body: Letter grade text ('A' excellent, 'B', 'C', 'D'). A NULL or empty grade means
-    the student failed to pass the course.
+- physical_name: grade
+  summary: The letter grade a student earned in a course, grade.
+  body: >
+    One of 'A' (excellent, worth 4 grade points), 'B' (good, worth 3), 'C' (fair, worth 2), or
+    'D' (poorly pass, worth 1); null or empty means the student failed to pass the course.
+    "Got a C," "an excellent grade," and "a good student" in this dataset all mean an exact
+    match on this column's letter. Weighted with course.credit to compute a semester GPA — see
+    metric_cs_semester_semester_gpa. See term_cs_semester_course_grade for the full mapping.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: sat
-  summary: sat — registration.sat
-  body: Student's satisfaction degree with the course, integer scale; higher is more
-    satisfied, 1 is least satisfied.
+- physical_name: sat
+  summary: The student's satisfaction rating for the course, sat.
+  body: >
+    An integer from 1 to 5; a higher value means more satisfied. sat = 1 is the least
+    satisfaction recorded. See term_cs_semester_satisfaction and
+    metric_cs_semester_average_satisfaction.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: registered_course_id
-  summary: registered_course_id — registration.registered_course_id
-  body: 'Physical column ''registered_course_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''course_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: registered_course_id
+  summary: registered_course_id, a numeric column on the registration table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''course_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: registered_student_id
-  summary: registered_student_id — registration.registered_student_id
-  body: 'Physical column ''registered_student_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''student_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: registered_student_id
+  summary: registered_student_id, a numeric column on the registration table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''student_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: letter_grade
-  summary: letter_grade — registration.letter_grade
-  body: 'Physical column ''letter_grade''. DECOY column: not a real business field.
-    Fabricated to mimic ''grade''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: letter_grade
+  summary: letter_grade, a text column on the registration table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''grade''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per student-course enrollment, holding the letter grade and the student's
-  satisfaction (sat) with that course. Grain is enrollment; a student appears once
-  per course taken.
+    - information_schema

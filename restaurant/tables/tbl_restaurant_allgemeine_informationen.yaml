@@ -2,154 +2,100 @@ asset_type: table
 id: restaurant.allgemeine_informationen
 schema: restaurant
 physical_name: allgemeine_informationen
-summary: 'generalinfo (allgemeine_informationen): id_restaurant, label, food_type,
-  city, review'
+summary: allgemeine_informationen holds one row per restaurant, recording its name, food type, city, and customer review rating.
+body: >
+  Grain: one row per restaurant, keyed by restaurant_id. This is the table to start from for
+  any question about a restaurant's identity, cuisine, or rating. It is easily confused with
+  betrieb_informationen, a table of restaurant-like records that looks similar but is not
+  dependable for analysis; use this table instead. Join to standort on restaurant_id
+  (one row per restaurant on both sides) to add a restaurant's street address, and to
+  geografisch on stadt (many restaurants share a city) to add its county and region.
 columns:
-- asset_type: column
-  physical_name: restaurant_id
-  summary: id_restaurant — allgemeine_informationen.restaurant_id
-  body: Means 'id_restaurant' (obfuscated to 'restaurant_id').
+- physical_name: restaurant_id
+  summary: The unique identifier for a restaurant, restaurant_id.
+  body: >
+    A numeric id, unique per row in this table (the loaded sample has no repeats). Join to
+    standort.restaurant_id to bring in the same restaurant's street address.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: bezeichnung
-  summary: label — allgemeine_informationen.bezeichnung
-  body: Restaurant label/name in lowercase text, e.g. 'a & w root beer', 'sanuki restaurant';
-    matched exactly or with LIKE for word searches.
+- physical_name: bezeichnung
+  summary: The name of a restaurant, bezeichnung.
+  body: >
+    Free-text restaurant name, for example nations, lee's cafe, chef wang, pastavino, or
+    thai bai. Called "restaurant name" or "diner name" in business language. Not unique: a
+    chain such as Baskin Robbins can have more than one row.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: speisen_typ
-  summary: food_type — allgemeine_informationen.speisen_typ
-  body: Food/cuisine type as a lowercase text code, e.g. 'mexican', 'chinese', 'indian',
-    'greek', 'chicken', 'bar', '24 hour diner', 'american'.
+- physical_name: speisen_typ
+  summary: The food type or cuisine served at a restaurant, speisen_typ.
+  body: >
+    One of roughly 56 cuisine or category labels in the sample, such as chinese, italian,
+    thai, cafe, burgers, or bar; a few values like "24 hour diner" describe a dining format
+    rather than a cuisine. One entry is misspelled "ameraican" instead of "american" — when a
+    question asks about American food, check both spellings.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: stadt
-  summary: city — allgemeine_informationen.stadt
-  body: Means 'city' (obfuscated to 'stadt').
+- physical_name: stadt
+  summary: The city where a restaurant is located, stadt.
+  body: >
+    Lowercase city name, for example fairfield, oakland, san ramon, danville, or san jose
+    (89 distinct in the sample). Join to geografisch.stadt for the restaurant's county and
+    region, and expect it to match standort.stadt for the same restaurant.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: bewertung
-  summary: review — allgemeine_informationen.bewertung
-  body: 'Review rating as a real number (e.g. 1.7, 2, 2.7, 4); higher is more popular.
-    Filters seen: < 3, = 2, > 4; aggregations MIN/MAX/AVG.'
+- physical_name: bewertung
+  summary: A restaurant's customer review rating, bewertung.
+  body: >
+    Decimal rating from 0.0 to 5.0 (the sample spans about 1.5 to 4.4). A higher rating tracks
+    a more popular, more highly regarded restaurant. Common phrasings: "more than 4 star" or
+    "scored over 4" means bewertung > 4; not having "obtained a minimum of 3" means
+    bewertung < 3.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: stadtname
-  summary: stadtname — allgemeine_informationen.stadtname
-  body: 'Physical column ''stadtname''. DECOY column: not a real business field. Fabricated
-    to mimic ''city''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: stadtname
+  summary: stadtname, a text column on the allgemeine_informationen table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''city''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lokal_id
-  summary: lokal_id — allgemeine_informationen.lokal_id
-  body: 'Physical column ''lokal_id''. DECOY column: not a real business field. Fabricated
-    to mimic ''id_restaurant''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: lokal_id
+  summary: lokal_id, a numeric column on the allgemeine_informationen table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''id_restaurant''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: gerichtstyp
-  summary: gerichtstyp — allgemeine_informationen.gerichtstyp
-  body: 'Physical column ''gerichtstyp''. DECOY column: not a real business field.
-    Fabricated to mimic ''food_type''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: gerichtstyp
+  summary: gerichtstyp, a text column on the allgemeine_informationen table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''food_type''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per restaurant (general info): its label/name, food type, and review
-  rating, keyed by restaurant_id, with the city it is in. Grain is one restaurant.
-  Do not confuse with the location table, which holds the street address.'
+    - information_schema

@@ -2,176 +2,110 @@ asset_type: table
 id: works_cycles.CurrencyRate
 schema: works_cycles
 physical_name: CurrencyRate
-summary: 'CurrencyRate (CurrencyRate): CurrencyRateID, CurrencyRateDate, FromCurrencyCode,
-  ToCurrencyCode, AverageRate, EndOfDayRate, ModifiedDate'
+summary: CurrencyRate records the daily exchange rate between currency pairs used across the
+  works_cycles bicycle manufacturing schema.
+body: >
+  One row per currency pair per day. FromCurrencyCode is always USD in this data, so a row
+  expresses how many units of ToCurrencyCode one US dollar buys on CurrencyRateDate. Join
+  ToCurrencyCode to Currency for the currency's full name. Easily confused with SalesTaxRate,
+  which is a jurisdiction's tax percentage rather than a currency conversion rate.
 columns:
-- asset_type: column
-  physical_name: CurrencyRateID
-  summary: CurrencyRateID — CurrencyRate.CurrencyRateID
-  body: Means 'CurrencyRateID' (obfuscated to 'CurrencyRateID').
+- physical_name: CurrencyRateID
+  summary: CurrencyRateID identifies a single row of the CurrencyRate table.
+  body: >
+    Surrogate integer primary key, observed from 1 to 99 in this sample. Uniquely identifies one
+    currency pair's rate on one date.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: CurrencyRateDate
-  summary: CurrencyRateDate — CurrencyRate.CurrencyRateDate
-  body: Means 'CurrencyRateDate' (obfuscated to 'CurrencyRateDate').
+- physical_name: CurrencyRateDate
+  summary: CurrencyRateDate is the date the exchange rate in this row was obtained.
+  body: >
+    Timestamp, observed between 2011-05-31 and 2011-07-08 in this sample. One date can have
+    several rows, one per currency pair converted from USD that day.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: FromCurrencyCode
-  summary: FromCurrencyCode — CurrencyRate.FromCurrencyCode
-  body: Means 'FromCurrencyCode' (obfuscated to 'FromCurrencyCode').
+- physical_name: FromCurrencyCode
+  summary: FromCurrencyCode is the currency an exchange rate converts out of.
+  body: >
+    Three-letter ISO currency code; every sampled row holds "USD", since rates in this data are
+    always quoted from US dollars. Join to Currency.CurrencyCode for the currency name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ToCurrencyCode
-  summary: ToCurrencyCode — CurrencyRate.ToCurrencyCode
-  body: Means 'ToCurrencyCode' (obfuscated to 'ToCurrencyCode').
+- physical_name: ToCurrencyCode
+  summary: ToCurrencyCode is the currency an exchange rate converts into.
+  body: >
+    Three-letter ISO currency code, for example "ARS", "AUD", "BRL", or "CNY"; 13 distinct codes
+    observed in this sample. Join to Currency.CurrencyCode for the currency name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: AverageRate
-  summary: AverageRate — CurrencyRate.AverageRate
-  body: Average exchange rate for the day for the currency pair.
+- physical_name: AverageRate
+  summary: AverageRate is the mean exchange rate for the day between FromCurrencyCode and
+    ToCurrencyCode.
+  body: >
+    Decimal rate, observed from 0.6149 to 9.4649 in this sample, meaning one unit of
+    FromCurrencyCode buys this many units of ToCurrencyCode on average that day. Distinct from
+    EndOfDayRate, which is the closing rate rather than the day's average.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: EndOfDayRate
-  summary: EndOfDayRate — CurrencyRate.EndOfDayRate
-  body: Means 'EndOfDayRate' (obfuscated to 'EndOfDayRate').
+- physical_name: EndOfDayRate
+  summary: EndOfDayRate is the closing exchange rate for the day between FromCurrencyCode and
+    ToCurrencyCode.
+  body: >
+    Decimal rate, observed from 0.614 to 9.4749 in this sample. Represents the rate at market
+    close rather than the day's average, which is AverageRate.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ModifiedDate
-  summary: ModifiedDate — CurrencyRate.ModifiedDate
-  body: Means 'ModifiedDate' (obfuscated to 'ModifiedDate').
+- physical_name: ModifiedDate
+  summary: ModifiedDate records when a CurrencyRate row was last updated.
+  body: >
+    Timestamp, observed between 2011-05-31 and 2011-07-08 in this sample. Reflects the last edit
+    to the row rather than the rate's own effective date, which is CurrencyRateDate.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: avg_exchange_rate
-  summary: avg_exchange_rate — CurrencyRate.avg_exchange_rate
-  body: 'Physical column ''avg_exchange_rate''. DECOY column: not a real business
-    field. Fabricated to mimic ''AverageRate''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+- physical_name: avg_exchange_rate
+  summary: avg_exchange_rate, a decimal column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: real
   logical_type: decimal
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''AverageRate''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: currency_rate_timestamp
-  summary: currency_rate_timestamp — CurrencyRate.currency_rate_timestamp
-  body: 'Physical column ''currency_rate_timestamp''. DECOY column: not a real business
-    field. Fabricated to mimic ''CurrencyRateDate''. Corruption operator ''sparse_date_offset'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: currency_rate_timestamp
+  summary: currency_rate_timestamp, a datetime column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CurrencyRateDate''.
-      Corruption operator ''sparse_date_offset'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: currency_rate_identifier
-  summary: currency_rate_identifier — CurrencyRate.currency_rate_identifier
-  body: 'Physical column ''currency_rate_identifier''. DECOY column: not a real business
-    field. Fabricated to mimic ''CurrencyRateID''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: currency_rate_identifier
+  summary: currency_rate_identifier, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CurrencyRateID''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: Daily exchange rates between a from- and to-currency, with average and end-of-day
-  rate.
+    - train_final.jsonl

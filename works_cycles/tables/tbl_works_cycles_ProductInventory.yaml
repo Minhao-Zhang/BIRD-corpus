@@ -2,177 +2,109 @@ asset_type: table
 id: works_cycles.ProductInventory
 schema: works_cycles
 physical_name: ProductInventory
-summary: 'ProductInventory (ProductInventory): ProductID, LocationID, Shelf, Bin,
-  Quantity, rowguid, ModifiedDate'
+summary: ProductInventory tracks how much of each product sits at each warehouse location in the
+  works_cycles bicycle manufacturing schema.
+body: >
+  One row per product per storage location. Shelf and Bin narrow the location down to a specific
+  spot within LocationID. Join ProductID to Product for the item's name and LocationID to the
+  location reference table for the warehouse's name. Easily confused with TransactionHistory,
+  which records individual inventory movements over time rather than the current on-hand
+  quantity.
 columns:
-- asset_type: column
-  physical_name: ProductID
-  summary: ProductID — ProductInventory.ProductID
-  body: Means 'ProductID' (obfuscated to 'ProductID').
+- physical_name: ProductID
+  summary: ProductID identifies the product being counted on a ProductInventory row.
+  body: >
+    Integer foreign key to Product, observed from 1 to 999 in this sample. A given product can
+    have several rows here, one per storage location it is held at.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: LocationID
-  summary: LocationID — ProductInventory.LocationID
-  body: Means 'LocationID' (obfuscated to 'LocationID').
+- physical_name: LocationID
+  summary: LocationID identifies the warehouse or storage area a ProductInventory row is counted
+    at.
+  body: >
+    Integer foreign key to a location reference, observed from 1 to 7 in this sample across 13
+    distinct values. Combine with Shelf and Bin to pinpoint exact placement.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Shelf
-  summary: Shelf — ProductInventory.Shelf
-  body: Means 'Shelf' (obfuscated to 'Shelf').
+- physical_name: Shelf
+  summary: Shelf is the storage compartment within a location for a ProductInventory row.
+  body: >
+    Short text such as "A", "C", or "N/A"; 20 distinct values observed in this sample. "N/A"
+    indicates the location does not use shelf-level tracking.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Bin
-  summary: Bin — ProductInventory.Bin
-  body: Means 'Bin' (obfuscated to 'Bin').
+- physical_name: Bin
+  summary: Bin is the storage container on a shelf for a ProductInventory row.
+  body: >
+    Integer bin number, observed from 0 to 9 in this sample across 51 distinct values. Narrows a
+    Shelf down to a specific container.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Quantity
-  summary: Quantity — ProductInventory.Quantity
-  body: Means 'Quantity' (obfuscated to 'Quantity').
+- physical_name: Quantity
+  summary: Quantity is the number of units of a product on hand at a location.
+  body: >
+    Integer count, observed from 0 to 99 in this sample, defaulting to 0 when no stock is
+    recorded. The current on-hand balance, not a cumulative total received or shipped.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rowguid
-  summary: rowguid — ProductInventory.rowguid
-  body: Means 'rowguid' (obfuscated to 'rowguid').
+- physical_name: rowguid
+  summary: rowguid is the globally unique identifier assigned to a ProductInventory record.
+  body: >
+    A GUID string generated when the row was created. Used by replication tooling rather than by
+    business queries; ProductID and LocationID together identify the row for business purposes.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ModifiedDate
-  summary: ModifiedDate — ProductInventory.ModifiedDate
-  body: Means 'ModifiedDate' (obfuscated to 'ModifiedDate').
+- physical_name: ModifiedDate
+  summary: ModifiedDate records when a ProductInventory row was last updated.
+  body: >
+    Timestamp, observed between 2008-03-31 and 2014-08-12 in this sample. Reflects the last
+    change to the stored quantity or location, not when the product was first stocked.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: inventory_location_id
-  summary: inventory_location_id — ProductInventory.inventory_location_id
-  body: 'Physical column ''inventory_location_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''LocationID''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: inventory_location_id
+  summary: inventory_location_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''LocationID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: inventory_product_id
-  summary: inventory_product_id — ProductInventory.inventory_product_id
-  body: 'Physical column ''inventory_product_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''ProductID''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: inventory_product_id
+  summary: inventory_product_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ProductID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: inventory_bin_number
-  summary: inventory_bin_number — ProductInventory.inventory_bin_number
-  body: 'Physical column ''inventory_bin_number''. DECOY column: not a real business
-    field. Fabricated to mimic ''Bin''. Corruption operator ''sparse_perturb'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: inventory_bin_number
+  summary: inventory_bin_number, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Bin''. Corruption
-      operator ''sparse_perturb'': values are altered. Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: On-hand inventory by location. Grain is ProductID + LocationID, with quantity,
-  bin and shelf.
+    - train_final.jsonl

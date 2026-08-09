@@ -2,129 +2,86 @@ asset_type: table
 id: movie_platform.ratings_users
 schema: movie_platform
 physical_name: ratings_users
-summary: 'ratings_users (ratings_users): user_id, rating_date_utc, user_trialist,
-  user_subscriber, user_avatar_image_url, user_cover_image_url, user_eligible_for_trial,
-  user_has_payment_method'
+summary: ratings_users holds one row per rating, repeating the rating user's account status and profile images at the moment they rated that movie.
+body: >
+  Grain: one row per rating, matching the grain of ratings rather than being one row per
+  distinct user. It is easily confused with ratings, which carries the score and written
+  critique rather than the rating user's account status; use ratings for what the rating says
+  and this table for who made it and what kind of account they had at the time. There is no
+  rating_id here, so join to ratings and to lists_users by user_id rather than by a shared
+  rating key.
 columns:
-- asset_type: column
-  physical_name: user_id
-  summary: user_id — ratings_users.user_id
-  body: Means 'user_id' (obfuscated to 'user_id').
+- physical_name: user_id
+  summary: The identifier of the user this status snapshot belongs to, user_id.
+  body: >
+    A large numeric user id assigned by Mubi, for example 41579158 or 68654088; the same id
+    space as ratings.user_id and lists_users.user_id. Join to ratings.user_id to bring in this
+    user's scores and critiques.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rating_date_utc
-  summary: rating_date_utc — ratings_users.rating_date_utc
-  body: Means 'rating_date_utc' (obfuscated to 'rating_date_utc').
+- physical_name: rating_date_utc
+  summary: The date a rating was made, rating_date_utc.
+  body: >
+    Text date formatted 'YYYY-MM-DD', for example '2017-06-10'. A date-only counterpart to
+    ratings.rating_timestamp_utc for the same rating.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: user_trialist
-  summary: user_trialist — ratings_users.user_trialist
-  body: Means 'user_trialist' (obfuscated to 'user_trialist').
+- physical_name: user_trialist
+  summary: Whether the rating user was on a free trial when they rated a movie, user_trialist.
+  body: >
+    1 means the user was a trialist at the moment they made this rating, 0 means they were not.
+    Distinct from user_eligible_for_trial, which marks whether they qualified for a trial rather
+    than whether they were on one.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: user_subscriber
-  summary: user_subscriber — ratings_users.user_subscriber
-  body: Means 'user_subscriber' (obfuscated to 'user_subscriber').
+- physical_name: user_subscriber
+  summary: Whether the rating user held a subscription when they rated a movie, user_subscriber.
+  body: >
+    1 means the user was a subscriber at the moment they made this rating, 0 means they were
+    not.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: user_avatar_image_url
-  summary: user_avatar_image_url — ratings_users.user_avatar_image_url
-  body: Means 'user_avatar_image_url' (obfuscated to 'user_avatar_image_url').
+- physical_name: user_avatar_image_url
+  summary: The web address of the rating user's profile picture, user_avatar_image_url.
+  body: >
+    A full image URL, either under assets.mubicdn.net/images/avatars or, for accounts linked to
+    Facebook, graph.facebook.com. Cosmetic; not useful for filtering or grouping.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: user_cover_image_url
-  summary: user_cover_image_url — ratings_users.user_cover_image_url
-  body: Means 'user_cover_image_url' (obfuscated to 'user_cover_image_url').
+- physical_name: user_cover_image_url
+  summary: The web address of the rating user's profile cover image, user_cover_image_url.
+  body: >
+    A full image URL under assets.mubicdn.net/images/cover_images, null for most users in the
+    loaded sample. Cosmetic; not useful for filtering or grouping.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: user_eligible_for_trial
-  summary: user_eligible_for_trial — ratings_users.user_eligible_for_trial
-  body: Means 'user_eligible_for_trial' (obfuscated to 'user_eligible_for_trial').
+- physical_name: user_eligible_for_trial
+  summary: Whether the rating user qualified for a free trial when they rated a movie, user_eligible_for_trial.
+  body: >
+    1 means the user was eligible for a trial at the moment they made this rating, 0 means they
+    were not. Distinct from user_trialist, which marks whether they were actually on a trial
+    rather than whether they qualified for one.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: user_has_payment_method
-  summary: user_has_payment_method — ratings_users.user_has_payment_method
-  body: Means 'user_has_payment_method' (obfuscated to 'user_has_payment_method').
+- physical_name: user_has_payment_method
+  summary: Whether the rating user was a paying subscriber when they rated a movie, user_has_payment_method.
+  body: >
+    1 means the user had a payment method on file, i.e. was a paying subscriber, at the moment
+    they made this rating; 0 means they did not.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Denormalized rater profile snapshot: the rating date and the rater''s profile
-  images and status flags. Not referenced by the sample questions; prefer ratings
-  for scores and movies for titles.'
+    - information_schema

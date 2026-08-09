@@ -2,150 +2,91 @@ asset_type: table
 id: books.direccion
 schema: books
 physical_name: direccion
-summary: 'address (direccion): address_id, street_number, street_name, city, country_id'
+summary: direccion stores every physical address in the books store, one row per street address.
+body: >
+  Grain: one row per address. id_direccion is the primary key; numero_calle, nombre_calle and
+  ciudad give the street number, street name and city, and id_pais points to the address's
+  country. A customer's own addresses are linked through cliente_direccion, not through a column
+  on this table, and an order's delivery address is linked through pedido.id_direccion_destino.
+  direccion_id, pais_id and localidad on this same table are not dependable and should not be used.
 columns:
-- asset_type: column
-  physical_name: id_direccion
-  summary: address_id — direccion.id_direccion
-  body: Means 'address_id' (obfuscated to 'id_direccion').
+- physical_name: id_direccion
+  summary: id_direccion, the surrogate key that identifies an address.
+  body: >
+    Integer primary key, one row per address. Sampled ids run from three to four digits (937, 292,
+    684, 707, 761). Referenced by cliente_direccion.id_direccion and pedido.id_direccion_destino.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: numero_calle
-  summary: street_number — direccion.numero_calle
-  body: Means 'street_number' (obfuscated to 'numero_calle').
+- physical_name: numero_calle
+  summary: numero_calle, the street number portion of the address.
+  body: >
+    Text, even though the values are numeric-looking strings (82563, 9011, 1, 56061, 44850).
+    Combine with nombre_calle to build the street line of a full address.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre_calle
-  summary: street_name — direccion.nombre_calle
-  body: Means 'street_name' (obfuscated to 'nombre_calle').
+- physical_name: nombre_calle
+  summary: nombre_calle, the street name portion of the address.
+  body: >
+    Free text (Carioca Lane, Thackeray Crossing, Orin Circle). Combine with numero_calle to build
+    the street line of a full address.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ciudad
-  summary: city — direccion.ciudad
-  body: Means 'city' (obfuscated to 'ciudad').
+- physical_name: ciudad
+  summary: ciudad, the city portion of the address.
+  body: >
+    Free text (Glória do Goitá, Al Quţayfah, Zhangjiang, Horokhiv). Use this column, not localidad,
+    for city lookups and filters.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_pais
-  summary: country_id — direccion.id_pais
-  body: Means 'country_id' (obfuscated to 'id_pais').
+- physical_name: id_pais
+  summary: id_pais, the country this address belongs to.
+  body: >
+    Foreign key to pais.id_pais. 83 distinct countries appear across sampled addresses. Join to
+    pais to filter or display addresses by country name.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: direccion_id
-  summary: direccion_id — direccion.direccion_id
-  body: 'Physical column ''direccion_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''address_id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: direccion_id
+  summary: direccion_id, an integer column on the direccion table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list or a filter, or as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''address_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pais_id
-  summary: pais_id — direccion.pais_id
-  body: 'Physical column ''pais_id''. DECOY column: not a real business field. Fabricated
-    to mimic ''country_id''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: pais_id
+  summary: pais_id, an integer column on the direccion table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list or a filter, or as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''country_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: localidad
-  summary: localidad — direccion.localidad
-  body: 'Physical column ''localidad''. DECOY column: not a real business field. Fabricated
-    to mimic ''city''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: localidad
+  summary: localidad, a text column on the direccion table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''city''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: One row per physical address (street, city, country). Referenced by customer
-  addresses and by order destinations.
+    - train_final.jsonl

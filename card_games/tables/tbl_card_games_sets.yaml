@@ -2,379 +2,197 @@ asset_type: table
 id: card_games.sets
 schema: card_games
 physical_name: sets
-summary: 'sets (sets): id, baseSetSize, block, booster, code, isFoilOnly, isForeignOnly,
-  isNonFoilOnly, isOnlineOnly, isPartialPreview, keyruneCode, mcmId, mcmIdExtras,
-  mcmName, mtgoCode, name, parentCode, releaseDate, tcgplayerGroupId, totalSetSize,
-  type'
+summary: 'sets catalogs Magic: The Gathering expansions and other releases, one row per set, with its
+  block, release date, and booster composition.'
+body: One row per set, identified by the short code column rather than the row-numbering id. Joins to
+  cards and set_translations on code = setCode. set_code, set_id, and base_set_count sit alongside code,
+  id, and baseSetSize but are not dependable and must not be used to answer questions.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — sets.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: id, the surrogate row number MTGJSON assigns to a set.
+  body: Bigint, unique per row, ranging from 1 to 99 in the sample; not the set's public identifier --
+    use code for that.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: baseSetSize
-  summary: baseSetSize — sets.baseSetSize
-  body: Number of cards in the base set.
+- physical_name: baseSetSize
+  summary: baseSetSize, the number of cards in a set's original numbered checklist.
+  body: Integer, 0 to 96 in the sample; counts only the set's base print run, excluding promotional and
+    supplemental cards that totalSetSize also counts.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: block
-  summary: block — sets.block
-  body: Block the set belongs to, e.g. 'Commander', 'Ice Age', 'Ravnica'.
+- physical_name: block
+  summary: block, the multi-set storyline block a set was released as part of.
+  body: Free text such as Alara, Ice Age, Tempest; null for sets released as standalone products or after
+    Wizards retired the block structure (249 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: booster
-  summary: booster — sets.booster
-  body: Means 'booster' (obfuscated to 'booster').
+- physical_name: booster
+  summary: booster, the composition and odds of a set's standard booster pack.
+  body: A nested object describing each booster-pack sheet, its card slots, and the weighted probability
+    of each configuration; null for sets that were never sold in randomized boosters (382 of 500 sampled
+    rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: code
-  summary: code — sets.code
-  body: Means 'code' (obfuscated to 'code').
+- physical_name: code
+  summary: code, the short uppercase identifier for a set.
+  body: An uppercase code such as ZNR or 10E, unique per set; joins to cards.setCode and set_translations.setCode.
+    This is the set's real-world identifier, distinct from the row-numbering id column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isFoilOnly
-  summary: isFoilOnly — sets.isFoilOnly
-  body: Means 'isFoilOnly' (obfuscated to 'isFoilOnly').
+- physical_name: isFoilOnly
+  summary: isFoilOnly, whether every card in a set was printed only in foil.
+  body: 0 or 1; 1 marks sets such as certain promotional or judge-only releases that never had a non-foil
+    print run.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isForeignOnly
-  summary: isForeignOnly — sets.isForeignOnly
-  body: 1 means the set is only available outside the United States.
+- physical_name: isForeignOnly
+  summary: isForeignOnly, whether a set was distributed only outside the United States.
+  body: 0 or 1; 1 marks sets sold exclusively in non-US markets and never released domestically.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isNonFoilOnly
-  summary: isNonFoilOnly — sets.isNonFoilOnly
-  body: Means 'isNonFoilOnly' (obfuscated to 'isNonFoilOnly').
+- physical_name: isNonFoilOnly
+  summary: isNonFoilOnly, whether every card in a set was printed only in non-foil.
+  body: 0 or 1; 1 marks sets that had no foil print run at all.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isOnlineOnly
-  summary: isOnlineOnly — sets.isOnlineOnly
-  body: Means 'isOnlineOnly' (obfuscated to 'isOnlineOnly').
+- physical_name: isOnlineOnly
+  summary: isOnlineOnly, whether a set was released only in digital game clients.
+  body: 0 or 1; 1 marks sets such as certain Magic Online-exclusive releases that never appeared on paper,
+    at the set level rather than the individual-card level cards.isOnlineOnly tracks.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isPartialPreview
-  summary: isPartialPreview — sets.isPartialPreview
-  body: Means 'isPartialPreview' (obfuscated to 'isPartialPreview').
+- physical_name: isPartialPreview
+  summary: isPartialPreview, whether a set's card list is still incomplete because the set has not fully
+    released yet.
+  body: 0 or 1; 1 marks a set still being spoiled, whose card data in this table may be missing rows or
+    fields until the full release lands.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: keyruneCode
-  summary: keyruneCode — sets.keyruneCode
-  body: Means 'keyruneCode' (obfuscated to 'keyruneCode').
+- physical_name: keyruneCode
+  summary: keyruneCode, the code used to render a set's expansion-symbol icon.
+  body: Free text such as DEFAULT, V13, DCI; usually matches code but can diverge for sets that reuse
+    another set's icon artwork.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mcmId
-  summary: mcmId — sets.mcmId
-  body: Means 'mcmId' (obfuscated to 'mcmId').
+- physical_name: mcmId
+  summary: mcmId, the Magic Card Market identifier for a set.
+  body: Integer, null when the set is not catalogued on Magic Card Market (317 of 500 sampled rows); distinct
+    from cards.mcmId, which identifies an individual card printing rather than the set.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mcmIdExtras
-  summary: mcmIdExtras — sets.mcmIdExtras
-  body: Means 'mcmIdExtras' (obfuscated to 'mcmIdExtras').
+- physical_name: mcmIdExtras
+  summary: mcmIdExtras, the Magic Card Market identifier for a set's second, split listing.
+  body: Integer, populated only for sets Magic Card Market split into two separate listings (490 of 500
+    sampled rows are null); holds the identifier of that second listing.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mcmName
-  summary: mcmName — sets.mcmName
-  body: Means 'mcmName' (obfuscated to 'mcmName').
+- physical_name: mcmName
+  summary: mcmName, the name Magic Card Market uses for a set, when it differs from MTGJSON's own name.
+  body: Free text such as Worldwake or "Grand Prix Promos"; null when Magic Card Market does not list
+    the set under its own name (317 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mtgoCode
-  summary: mtgoCode — sets.mtgoCode
-  body: 'Set code on Magic: The Gathering Online; NULL or empty means the set is not
-    on MTGO.'
+- physical_name: mtgoCode
+  summary: mtgoCode, the code a set uses inside the Magic Online client.
+  body: Free text such as V13 or EX; null when a set never appeared on Magic Online (360 of 500 sampled
+    rows), meaning the set does not appear in Magic Online at all.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: name
-  summary: name — sets.name
-  body: Means 'name' (obfuscated to 'name').
+- physical_name: name
+  summary: name, the full public name of a set.
+  body: Free text such as Worldwake or "Zendikar Rising"; the human-facing counterpart to the short code
+    column. Unique per row in this sample.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: parentCode
-  summary: parentCode — sets.parentCode
-  body: Means 'parentCode' (obfuscated to 'parentCode').
+- physical_name: parentCode
+  summary: parentCode, the code of the main set that a supplemental or promotional set variant belongs
+    to.
+  body: An uppercase code such as ZNR or CON; populated only for sets that are variants of another set,
+    such as promotional or guild-kit releases (362 of 500 sampled rows are null for standalone sets).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: releaseDate
-  summary: releaseDate — sets.releaseDate
-  body: Means 'releaseDate' (obfuscated to 'releaseDate').
+- physical_name: releaseDate
+  summary: releaseDate, the date a set was released.
+  body: ISO 8601 date ranging from 1993-08-05 to 2021-03-19 in the sample; use this, not any row-order
+    column, to sort sets chronologically.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tcgplayerGroupId
-  summary: tcgplayerGroupId — sets.tcgplayerGroupId
-  body: Means 'tcgplayerGroupId' (obfuscated to 'tcgplayerGroupId').
+- physical_name: tcgplayerGroupId
+  summary: tcgplayerGroupId, the TCGplayer marketplace group identifier for a set.
+  body: Integer, null when the set has no TCGplayer grouping (263 of 500 sampled rows); groups every card
+    in the set for marketplace browsing on TCGplayer.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: totalSetSize
-  summary: totalSetSize — sets.totalSetSize
-  body: Total number of cards in the set (base plus extras).
+- physical_name: totalSetSize
+  summary: totalSetSize, the total number of cards associated with a set, including promotional and supplemental
+    cards.
+  body: Integer, 0 to 96 in the sample; includes cards baseSetSize excludes, such as promotional and supplemental
+    product cards, though it excludes separately tracked Alchemy modifications.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: type
-  summary: type — sets.type
-  body: Set type, e.g. 'expansion', 'commander'.
+- physical_name: type
+  summary: type, the category of product a set represents.
+  body: Free text drawn from values such as expansion, core, promo, funny, masterpiece; distinguishes
+    a mainline expansion from supplemental or novelty products.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: set_code
-  summary: set_code — sets.set_code
-  body: 'Physical column ''set_code''. DECOY column: not a real business field. Fabricated
-    to mimic ''code''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: set_code
+  summary: set_code, a text column on the sets table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as
+    a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''code''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: set_id
-  summary: set_id — sets.set_id
-  body: 'Physical column ''set_id''. DECOY column: not a real business field. Fabricated
-    to mimic ''id''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: set_id
+  summary: set_id, an integer column on the sets table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as
+    a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''id''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: base_set_count
-  summary: base_set_count — sets.base_set_count
-  body: 'Physical column ''base_set_count''. DECOY column: not a real business field.
-    Fabricated to mimic ''baseSetSize''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: base_set_count
+  summary: base_set_count, an integer column on the sets table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''baseSetSize''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per card set / expansion (grain = set). Holds set name, code, block,
-  type, release date, and the card-count fields baseSetSize and totalSetSize; joined
-  to cards on code = cards.setCode.
+    - information_schema

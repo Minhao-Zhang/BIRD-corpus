@@ -2,149 +2,92 @@ asset_type: table
 id: works_cycles.EmployeePayHistory
 schema: works_cycles
 physical_name: EmployeePayHistory
-summary: 'EmployeePayHistory (EmployeePayHistory): BusinessEntityID, RateChangeDate,
-  Rate, PayFrequency, ModifiedDate'
+summary: EmployeePayHistory records the pay rate an employee has received over time in the
+  works_cycles bicycle manufacturing schema.
+body: >
+  One row per pay rate change; a new row is added each time an employee's rate changes, rather
+  than updating the old row in place. Join BusinessEntityID to Employee for the employee. The
+  current rate is the row with the most recent RateChangeDate for a given BusinessEntityID, since
+  there is no EndDate column to mark it directly.
 columns:
-- asset_type: column
-  physical_name: BusinessEntityID
-  summary: BusinessEntityID — EmployeePayHistory.BusinessEntityID
-  body: Means 'BusinessEntityID' (obfuscated to 'BusinessEntityID').
+- physical_name: BusinessEntityID
+  summary: BusinessEntityID identifies the employee an EmployeePayHistory row describes.
+  body: >
+    Integer foreign key to Employee, 290 distinct values observed in this sample. An employee can
+    have several rows here, one per rate change.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: RateChangeDate
-  summary: RateChangeDate — EmployeePayHistory.RateChangeDate
-  body: Means 'RateChangeDate' (obfuscated to 'RateChangeDate').
+- physical_name: RateChangeDate
+  summary: RateChangeDate is when a pay rate on an EmployeePayHistory row took effect.
+  body: >
+    Timestamp, observed between 2006-06-30 and 2013-07-14 in this sample. The most recent
+    RateChangeDate for a given employee marks their current rate.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Rate
-  summary: Rate — EmployeePayHistory.Rate
-  body: Hourly pay rate of the employee, in currency units.
+- physical_name: Rate
+  summary: Rate is the hourly pay rate on an EmployeePayHistory row.
+  body: >
+    Decimal currency amount per hour, observed from 9.86 to 40.8654 in this sample. Applies
+    whether the employee is paid hourly or salaried; multiply by hours and PayFrequency's period
+    to reconstruct a paycheck amount.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: PayFrequency
-  summary: PayFrequency — EmployeePayHistory.PayFrequency
-  body: 1 = salary received monthly; 2 = salary received biweekly (the highest frequency).
+- physical_name: PayFrequency
+  summary: PayFrequency is the pay cycle code on an EmployeePayHistory row.
+  body: >
+    Integer code: 1 = paid monthly, 2 = paid biweekly. Only these two values observed in this
+    sample.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ModifiedDate
-  summary: ModifiedDate — EmployeePayHistory.ModifiedDate
-  body: Means 'ModifiedDate' (obfuscated to 'ModifiedDate').
+- physical_name: ModifiedDate
+  summary: ModifiedDate records when an EmployeePayHistory row was last updated.
+  body: >
+    Timestamp, observed between 2007-11-21 and 2014-06-30 in this sample. Reflects the last edit
+    to the row, not RateChangeDate.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: emp_pay_history_entity_id
-  summary: emp_pay_history_entity_id — EmployeePayHistory.emp_pay_history_entity_id
-  body: 'Physical column ''emp_pay_history_entity_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''BusinessEntityID''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+- physical_name: emp_pay_history_entity_id
+  summary: emp_pay_history_entity_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''BusinessEntityID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: emp_pay_history_modified_at
-  summary: emp_pay_history_modified_at — EmployeePayHistory.emp_pay_history_modified_at
-  body: 'Physical column ''emp_pay_history_modified_at''. DECOY column: not a real
-    business field. Fabricated to mimic ''ModifiedDate''. Corruption operator ''sparse_date_offset'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: emp_pay_history_modified_at
+  summary: emp_pay_history_modified_at, a datetime column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ModifiedDate''.
-      Corruption operator ''sparse_date_offset'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pay_history_frequency
-  summary: pay_history_frequency — EmployeePayHistory.pay_history_frequency
-  body: 'Physical column ''pay_history_frequency''. DECOY column: not a real business
-    field. Fabricated to mimic ''PayFrequency''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: pay_history_frequency
+  summary: pay_history_frequency, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''PayFrequency''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: History of employee pay. Grain is BusinessEntityID + RateChangeDate; holds hourly
-  pay Rate and PayFrequency.
+    - train_final.jsonl

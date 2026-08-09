@@ -2,165 +2,85 @@ asset_type: table
 id: mondial_geo.cheng_shi
 schema: mondial_geo
 physical_name: cheng_shi
-summary: 'City (cheng_shi): Name, Country, Province, Population, Longitude, Latitude'
+summary: cheng_shi lists the world's cities, one row per city, on the cheng_shi table.
+body: 'Grain: one row per city. City names are not unique on their own — the same ming_chen can recur
+  in several countries or provinces, so guo_jia and sheng_fen disambiguate which city a row refers to.
+  A country''s capital is also a row here, referenced from guo_jia.shou_du and sheng_fen.shou_du by name
+  rather than by a foreign key. Joins to guo_jia on guo_jia, to sheng_fen on (guo_jia, sheng_fen), and
+  to wei_yu/wei_yu_shang on ming_chen for the bodies of water and islands a city sits on.'
 columns:
-- asset_type: column
-  physical_name: ming_chen
-  summary: Name — cheng_shi.ming_chen
-  body: Means 'Name' (obfuscated to 'ming_chen').
+- physical_name: ming_chen
+  summary: ming_chen is the name of a city recorded in cheng_shi.
+  body: Text city name, e.g. 'Paris' or 'Cook Islands'. Not unique across countries; pair with guo_jia
+    and sheng_fen to identify one city.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: guo_jia
-  summary: Country — cheng_shi.guo_jia
-  body: Means 'Country' (obfuscated to 'guo_jia').
+- physical_name: guo_jia
+  summary: guo_jia names the country a city in cheng_shi belongs to.
+  body: Foreign key to guo_jia.dai_ma, a short country code rather than the country's full name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: sheng_fen
-  summary: Province — cheng_shi.sheng_fen
-  body: Name of the province the city is in.
+- physical_name: sheng_fen
+  summary: sheng_fen names the province a city in cheng_shi belongs to.
+  body: Text province name matching sheng_fen.ming_chen for the same guo_jia.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ren_kou
-  summary: Population — cheng_shi.ren_kou
-  body: City population (count of residents in that city, bigint).
+- physical_name: ren_kou
+  summary: ren_kou is the population recorded for a city.
+  body: Whole-number head count. Compare with sheng_fen.ren_kou (province population) and guo_jia.ren_kou
+    (country population) — the three are independent counts, not a roll-up chain.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jing_du
-  summary: Longitude — cheng_shi.jing_du
-  body: Means 'Longitude' (obfuscated to 'jing_du').
+- physical_name: jing_du
+  summary: jing_du is the geographic longitude of a city.
+  body: Decimal degrees, negative west of the prime meridian. Pairs with wei_du for a full coordinate.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: wei_du
-  summary: Latitude — cheng_shi.wei_du
-  body: Means 'Latitude' (obfuscated to 'wei_du').
+- physical_name: wei_du
+  summary: wei_du is the geographic latitude of a city.
+  body: Decimal degrees, negative south of the equator. Pairs with jing_du for a full coordinate.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cheng_shi_guo
-  summary: cheng_shi_guo — cheng_shi.cheng_shi_guo
-  body: 'Physical column ''cheng_shi_guo''. DECOY column: not a real business field.
-    Fabricated to mimic ''Country''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: cheng_shi_guo
+  summary: cheng_shi_guo is a text column carried on this table for internal bookkeeping.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Country''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cheng_shi_ming
-  summary: cheng_shi_ming — cheng_shi.cheng_shi_ming
-  body: 'Physical column ''cheng_shi_ming''. DECOY column: not a real business field.
-    Fabricated to mimic ''Name''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: cheng_shi_ming
+  summary: cheng_shi_ming is a text column carried on this table for internal bookkeeping.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Name''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cheng_shi_sheng
-  summary: cheng_shi_sheng — cheng_shi.cheng_shi_sheng
-  body: 'Physical column ''cheng_shi_sheng''. DECOY column: not a real business field.
-    Fabricated to mimic ''Province''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: cheng_shi_sheng
+  summary: cheng_shi_sheng is a text column carried on this table for internal bookkeeping.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Province''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per city (grain = city). Each city belongs to a country (guo_jia) and
-  a province (sheng_fen) and carries its own population and coordinates. Distinct
-  from a country's capital, which is named in guo_jia.shou_du.
+    - information_schema

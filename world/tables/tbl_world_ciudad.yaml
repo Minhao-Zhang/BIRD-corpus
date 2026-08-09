@@ -2,149 +2,100 @@ asset_type: table
 id: world.ciudad
 schema: world
 physical_name: ciudad
-summary: 'City (ciudad): ID, Name, CountryCode, District, Population'
+summary: ciudad holds one row per city, carrying its name, country, district, and population.
+body: >
+  Grain: one row per city, keyed by id. codigo_pais matches pais.codigo, attaching each city
+  to its country; the same codigo_pais value also matches rows in idioma_pais for the
+  languages spoken in that country. pais.capital points back to a row here by id to name a
+  country's capital city. Within ciudad itself, only id, nombre, codigo_pais, distrito, and
+  poblacion are dependable — codigo_nacional, provincia, and identificador_ciudad duplicate
+  codigo_pais, distrito, and id unreliably and must not be used.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: ID — ciudad.id
-  body: Means 'ID' (obfuscated to 'id').
+- physical_name: id
+  summary: id is the row key that identifies one city in ciudad.
+  body: >
+    Positive integer, unique per row (sample values 3629, 1382, 825, 1753, 4005). Referenced
+    by pais.capital to name a country's capital city. Do not use identificador_ciudad for this
+    purpose, it is unreliable.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre
-  summary: Name — ciudad.nombre
-  body: Means 'Name' (obfuscated to 'nombre').
+- physical_name: nombre
+  summary: nombre is the name of a city.
+  body: >
+    Free text (sample values Sotši, Esfahan, Talisay, Kasuga, Clarksville). Not unique on its
+    own — the same city name can appear for cities in different countries, so filter by
+    codigo_pais as well when a name alone is ambiguous.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_pais
-  summary: CountryCode — ciudad.codigo_pais
-  body: Country code of the country this city belongs to; joins to pais.codigo.
+- physical_name: codigo_pais
+  summary: codigo_pais is the country code a city belongs to.
+  body: >
+    Three-letter country code (sample values RUS, IRN, PHL, JPN, USA), matching pais.codigo
+    and the codigo_pais column on idioma_pais. Do not use codigo_nacional for this join, it is
+    unreliable.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: distrito
-  summary: District — ciudad.distrito
-  body: District/state the city is located in, e.g. 'England', 'Santa Catarina'.
+- physical_name: distrito
+  summary: distrito is the district, state, or administrative area a city is located in.
+  body: >
+    Free text, over three hundred distinct values (sample values Krasnodar, Esfahan, Central
+    Visayas, Fukuoka, Tennessee); can be blank when no district is recorded. Finer-grained
+    than a country and unrelated to pais.region, which describes the country as a whole
+    rather than a subdivision within it.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: poblacion
-  summary: Population — ciudad.poblacion
-  body: City population (count of residents in that city).
+- physical_name: poblacion
+  summary: poblacion is the population of a city.
+  body: >
+    Whole-number count of people (sample values 358600, 1266072, 148110, up to 99891, down to
+    100079 in this sample). This is the city-level count; pais.poblacion holds the total
+    population of the whole country instead, and the two should not be confused or summed
+    together. A higher value means a more crowded city.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_nacional
-  summary: codigo_nacional — ciudad.codigo_nacional
-  body: 'Physical column ''codigo_nacional''. DECOY column: not a real business field.
-    Fabricated to mimic ''CountryCode''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: codigo_nacional
+  summary: codigo_nacional, a text column on the ciudad table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CountryCode''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: provincia
-  summary: provincia — ciudad.provincia
-  body: 'Physical column ''provincia''. DECOY column: not a real business field. Fabricated
-    to mimic ''District''. Corruption operator ''sparse_cat_remap'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: provincia
+  summary: provincia, a text column on the ciudad table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''District''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: identificador_ciudad
-  summary: identificador_ciudad — ciudad.identificador_ciudad
-  body: 'Physical column ''identificador_ciudad''. DECOY column: not a real business
-    field. Fabricated to mimic ''ID''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: identificador_ciudad
+  summary: identificador_ciudad, an integer column on the ciudad table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ID''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per city (grain = city). Each city belongs to exactly one country via
-  codigo_pais and sits in a district. Carries the city's own population.
+    - information_schema

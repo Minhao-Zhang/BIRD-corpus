@@ -2,137 +2,85 @@ asset_type: table
 id: books.linea_pedido
 schema: books
 physical_name: linea_pedido
-summary: 'order_line (linea_pedido): line_id, order_id, book_id, price'
+summary: linea_pedido lists the individual books on every order in the books store, one row per book on an order.
+body: >
+  Grain: one row per book within an order, so an order of three different books has three rows
+  here. id_linea is the primary key, id_pedido points to the order, id_libro points to the book,
+  and precio is what the customer paid for that book on that order. Join to pedido on id_pedido
+  and to libro on id_libro. The same book can appear at a different precio on different orders,
+  since shipping method, seasonal discounts and quantity can all affect the price charged.
+  libro_linea_id, pedido_linea_id and linea_id on this same table are not dependable and should
+  not be used.
 columns:
-- asset_type: column
-  physical_name: id_linea
-  summary: line_id — linea_pedido.id_linea
-  body: Means 'line_id' (obfuscated to 'id_linea').
+- physical_name: id_linea
+  summary: id_linea, the surrogate key that identifies an order line.
+  body: >
+    Integer primary key, one row per book on an order. Sampled ids run to four digits (5953, 2070,
+    6683, 1111, 1190). Never null.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_pedido
-  summary: order_id — linea_pedido.id_pedido
-  body: Means 'order_id' (obfuscated to 'id_pedido').
+- physical_name: id_pedido
+  summary: id_pedido, the order this line belongs to.
+  body: >
+    Foreign key to pedido.id_pedido. Join to pedido to bring in the order date, customer or
+    shipping details for a given line.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_libro
-  summary: book_id — linea_pedido.id_libro
-  body: Means 'book_id' (obfuscated to 'id_libro').
+- physical_name: id_libro
+  summary: id_libro, the book on this order line.
+  body: >
+    Foreign key to libro.id_libro. Join to libro for the title, page count or publisher of the
+    book on this line.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: precio
-  summary: price — linea_pedido.precio
-  body: Price paid for a book on an order line, in dollars (real). Basis for total
-    price, average price, cheapest (MIN) and most-expensive (MAX) prices.
+- physical_name: precio
+  summary: precio, the price charged for this book on this order.
+  body: >
+    Decimal currency amount, sampled values from about 0.08 to 19.68. This is a per-line price,
+    not a per-book list price, so summing it across an order's lines gives the order's total.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: libro_linea_id
-  summary: libro_linea_id — linea_pedido.libro_linea_id
-  body: 'Physical column ''libro_linea_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''book_id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: libro_linea_id
+  summary: libro_linea_id, an integer column on the linea_pedido table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list or a filter, or as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''book_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pedido_linea_id
-  summary: pedido_linea_id — linea_pedido.pedido_linea_id
-  body: 'Physical column ''pedido_linea_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''order_id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: pedido_linea_id
+  summary: pedido_linea_id, an integer column on the linea_pedido table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list or a filter, or as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''order_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: linea_id
-  summary: linea_id — linea_pedido.linea_id
-  body: 'Physical column ''linea_id''. DECOY column: not a real business field. Fabricated
-    to mimic ''line_id''. Corruption operator ''sparse_perturb'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: linea_id
+  summary: linea_id, an integer column on the linea_pedido table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''line_id''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: 'Order lines: the individual priced book entries within orders. This is where
-  the per-book price (precio) lives; used for revenue, cheapest/most-expensive, and
-  best-seller questions.'
+    - train_final.jsonl

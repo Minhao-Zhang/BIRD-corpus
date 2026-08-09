@@ -2,263 +2,169 @@ asset_type: table
 id: thrombosis_prediction.untersuchung
 schema: thrombosis_prediction
 physical_name: untersuchung
-summary: 'Examination (untersuchung): ID, Examination Date, aCL IgG, aCL IgM, ANA,
-  ANA Pattern, aCL IgA, Diagnosis, KCT, RVVT, LAC, Symptoms, Thrombosis'
+summary: The untersuchung table records one antiphospholipid-syndrome clinical examination per row for a patient (untersuchung).
+body: >
+  Grain: one row per antiphospholipid-specific examination performed on a patient on a given
+  date (untersuchungsdatum); a patient can have several examinations over time. Join to patient
+  and laboruntersuchung on the shared id column. thrombose is the diagnosed degree of thrombosis
+  most questions about this schema are ultimately asking about. datum_der_untersuchung,
+  untersuchungs_nr, and anamnese_id look like a duplicate date or duplicate identifier but are
+  not dependable; see each column's own note. befundprotokoll mirrors this table in shape but is
+  not a dependable source of examination data.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: ID — untersuchung.id
-  body: Means 'ID' (obfuscated to 'id').
+- physical_name: id
+  summary: The identifying patient id a clinical examination belongs to (id).
+  body: >
+    Foreign key to the id shared with patient and laboruntersuchung; one patient can have
+    several untersuchung rows, one per examination date.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: untersuchungsdatum
-  summary: Examination Date — untersuchung.untersuchungsdatum
-  body: Means 'Examination Date' (obfuscated to 'untersuchungsdatum').
+- physical_name: untersuchungsdatum
+  summary: The date an antiphospholipid-syndrome examination was performed (untersuchungsdatum).
+  body: >
+    A calendar date ranging from 1989-04-18 to 1998-04-17 in this dataset. Use this column, not
+    datum_der_untersuchung, to filter examinations to a year or date range.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: acl_igg
-  summary: aCL IgG — untersuchung.acl_igg
-  body: Anti-Cardiolipin antibody, IgG isotype concentration.
+- physical_name: acl_igg
+  summary: The anti-cardiolipin antibody IgG concentration measured in an examination (acl_igg).
+  body: >
+    A decimal concentration; this dataset does not document a numeric normal-range cutoff for
+    it, and business phrasing "anti-Cardiolipin" without naming an immunoglobulin class more
+    often refers to acl_igm than to this column. Sample values range from 0.0 to 977.5.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: acl_igm
-  summary: aCL IgM — untersuchung.acl_igm
-  body: Anti-Cardiolipin antibody, IgM isotype concentration.
+- physical_name: acl_igm
+  summary: The anti-cardiolipin antibody IgM concentration measured in an examination (acl_igm).
+  body: >
+    A decimal concentration; this is the column business phrasing "anti-Cardiolipin" resolves
+    to when no immunoglobulin class is named. This dataset does not document a numeric
+    normal-range cutoff for it. Sample values range from 0.0 to 96.7.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ana
-  summary: ANA — untersuchung.ana
-  body: Anti-nucleus antibody (ANA) concentration.
+- physical_name: ana
+  summary: The anti-nucleus antibody concentration measured in an examination (ana).
+  body: >
+    An integer titer such as 0, 16, 64, 256, or 1024; this dataset does not document a numeric
+    normal-range cutoff, though 0 is the negative case. Distinct from ana_muster, which records
+    the staining pattern rather than the titer.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ana_muster
-  summary: ANA Pattern — untersuchung.ana_muster
-  body: ANA staining pattern code, e.g. 'P', 'S'.
+- physical_name: ana_muster
+  summary: The staining pattern observed on the ANA examination sheet (ana_muster).
+  body: >
+    Single-letter or comma-separated codes such as P for peripheral, S for speckled, D, or N; a
+    row can combine more than one pattern. A question about a peripheral pattern or a pattern
+    of only S is a text comparison against this column, not against ana.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: acl_iga
-  summary: aCL IgA — untersuchung.acl_iga
-  body: Anti-Cardiolipin antibody, IgA isotype concentration.
+- physical_name: acl_iga
+  summary: The anti-cardiolipin antibody IgA concentration measured in an examination (acl_iga).
+  body: >
+    An integer concentration; this dataset does not document a numeric normal-range cutoff for
+    it. Sample values in this dataset range from 0 to several hundred.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: diagnose
-  summary: Diagnosis — untersuchung.diagnose
-  body: Means 'Diagnosis' (obfuscated to 'diagnose').
+- physical_name: diagnose
+  summary: The disease or diseases diagnosed for a patient at the time of an examination (diagnose).
+  body: >
+    Free text naming one or more diagnosed conditions, such as systemic lupus erythematosus,
+    rheumatoid arthritis, mixed connective tissue disease, or Behcet's disease; a row can list
+    more than one diagnosis. This is a separate diagnose column from the one on patient — the
+    two can disagree if a diagnosis changed between recording points.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kct
-  summary: KCT — untersuchung.kct
-  body: Means 'KCT' (obfuscated to 'kct').
+- physical_name: kct
+  summary: The kaolin clotting time result, one measure of the degree of coagulation (kct).
+  body: >
+    A plus sign is positive, a minus sign is negative. "Positive measure of degree of
+    coagulation" can mean this column alone, or this column, rvvt, or lac each being positive
+    — check whether a question names one test or coagulation generally.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rvvt
-  summary: RVVT — untersuchung.rvvt
-  body: Means 'RVVT' (obfuscated to 'rvvt').
+- physical_name: rvvt
+  summary: The Russell's viper venom time result, one measure of the degree of coagulation (rvvt).
+  body: >
+    A plus sign is positive, a minus sign is negative; used together with kct and lac to judge
+    overall degree of coagulation.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lac
-  summary: LAC — untersuchung.lac
-  body: Means 'LAC' (obfuscated to 'lac').
+- physical_name: lac
+  summary: The lupus anticoagulant test result, one measure of the degree of coagulation (lac).
+  body: >
+    A plus sign is positive, a minus sign is negative; used together with kct and rvvt to judge
+    overall degree of coagulation.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: symptome
-  summary: Symptoms — untersuchung.symptome
-  body: Observed symptoms/signs; NULL means no symptom observed.
+- physical_name: symptome
+  summary: Other symptoms observed for a patient at an examination (symptome).
+  body: >
+    Free text describing clinical findings such as a stroke, embolism, or infarction event;
+    null means no other symptoms were recorded. "Does not have any symptom" resolves to this
+    column being null.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: thrombose
-  summary: Thrombosis — untersuchung.thrombose
-  body: 'Degree of thrombosis: 1 = most severe, 2 = severe, 0 = none.'
+- physical_name: thrombose
+  summary: The diagnosed degree of thrombosis for a patient at an examination (thrombose).
+  body: >
+    An integer code: 0 means no thrombosis (negative); 1 is the most serious positive case; 2
+    is severe; 3 is mild. Most questions about this schema are ultimately asking about this
+    column. "Severe thrombosis" can mean a value of 2 alone, or a value of 1 or 2 together —
+    check whether a question means severe specifically or any serious case.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: datum_der_untersuchung
-  summary: datum_der_untersuchung — untersuchung.datum_der_untersuchung
-  body: 'Physical column ''datum_der_untersuchung''. DECOY column: not a real business
-    field. Fabricated to mimic ''Examination Date''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+- physical_name: datum_der_untersuchung
+  summary: datum_der_untersuchung, a date column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This
+    column must not be used to join to any other table.
   physical_type: date
   logical_type: date
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Examination
-      Date''. Corruption operator ''permute'': values are altered (permuted — breaks
-      joins/row lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: untersuchungs_nr
-  summary: untersuchungs_nr — untersuchung.untersuchungs_nr
-  body: 'Physical column ''untersuchungs_nr''. DECOY column: not a real business field.
-    Fabricated to mimic ''ID''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: untersuchungs_nr
+  summary: untersuchungs_nr, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This
+    column must not be used to join to any other table.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ID''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: anamnese_id
-  summary: anamnese_id — untersuchung.anamnese_id
-  body: 'Physical column ''anamnese_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''ANA''. Corruption operator ''sparse_perturb'': values are
-    altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: anamnese_id
+  summary: anamnese_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ANA''. Corruption
-      operator ''sparse_perturb'': values are altered. Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Special examination results; grain is one examination on a date (untersuchungsdatum)
-  for a patient. Holds thrombosis degree, diagnosis, symptoms, ANA and anti-Cardiolipin
-  antibodies, and coagulation markers (KCT/LAC/RVVT). Distinct from the routine laboruntersuchung
-  lab panel.
+    - information_schema

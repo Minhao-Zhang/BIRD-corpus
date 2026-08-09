@@ -2,73 +2,57 @@ asset_type: table
 id: authors.PaperAuthor
 schema: authors
 physical_name: PaperAuthor
-summary: 'PaperAuthor (PaperAuthor): PaperId, AuthorId, Name, Affiliation'
+summary: PaperAuthor holds one row per author credited on a paper, linking Paper to Author.
+body: >
+  Grain: one row per (paper, author) credit, so a paper with three authors has three rows here.
+  Bridges Paper (join on PaperId = Id) and Author (join on AuthorId = Id); a paper can have more
+  than one author, and co-authorship between two authors is derived by finding pairs of
+  PaperAuthor rows that share a PaperId. Name and Affiliation on this table are recorded exactly
+  as printed on that specific paper and can differ from the same person's Name and Affiliation
+  on the Author table.
 columns:
-- asset_type: column
-  physical_name: PaperId
-  summary: PaperId — PaperAuthor.PaperId
-  body: Means 'PaperId' (obfuscated to 'PaperId').
+- physical_name: PaperId
+  summary: The paper an author credit belongs to, PaperId.
+  body: >
+    Foreign key to Paper.Id. Join to Paper on PaperId = Id to reach the paper's title, year, and
+    venue.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: AuthorId
-  summary: AuthorId — PaperAuthor.AuthorId
-  body: Means 'AuthorId' (obfuscated to 'AuthorId').
+- physical_name: AuthorId
+  summary: The author credited on a paper, AuthorId.
+  body: >
+    Foreign key to Author.Id. Join to Author on AuthorId = Id to reach the author's canonical
+    name and affiliation; two PaperAuthor rows sharing a PaperId identify co-authors of the same
+    paper.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Name
-  summary: Name — PaperAuthor.Name
-  body: Author's name exactly as printed on that paper; the same author may appear
-    written different ways across papers.
+- physical_name: Name
+  summary: An author's name as printed on a specific paper, Name.
+  body: >
+    Free-text name exactly as it appeared on the paper, for example ADAM G. JONES, Kazuo Iwama,
+    or Gudmundur Jokulsson; can differ in spelling, case, or form from the same person's Name on
+    the Author table. Business phrasings like "written by X" or "papers of X" filter this
+    column, sometimes with a LIKE pattern such as "%Jun du%" for an approximate spelling.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Affiliation
-  summary: Affiliation — PaperAuthor.Affiliation
-  body: Author's affiliation exactly as printed on that paper (may differ from the
-    canonical Author.Affiliation).
+- physical_name: Affiliation
+  summary: An author's affiliation as printed on a specific paper, Affiliation.
+  body: >
+    Free-text organization exactly as it appeared on the paper, for example "Kyushu University
+    812 Fukuoka Japan 812 Fukuoka Japan" or Nanjing University; blank or null when none was
+    printed (336 of 500 sampled rows). Can differ from the same person's Affiliation on the
+    Author table, and multiple affiliations are sometimes packed into one value separated by
+    "|".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Co-authorship bridge, one row per (PaperId, AuthorId) pair, capturing the Name
-  and Affiliation as written on that paper. A paper can have many authors; used to
-  answer who wrote a paper and how many co-authors it has.
+    - information_schema

@@ -2,50 +2,39 @@ asset_type: table
 id: student_loan.bu_er
 schema: student_loan
 physical_name: bu_er
-summary: 'bool (bu_er): name'
+summary: bu_er is the two-row lookup table spelling out the boolean codes, pos and neg, that
+  other student_loan tables reuse to mark a yes-or-no condition.
+body: >
+  Grain: one row per boolean code — exactly two rows exist. Other tables, most directly
+  wu_xu_zhi_fu.bu_er, store one of these two literal strings directly rather than joining a
+  numeric key back to this table, so treat pos and neg as the fixed vocabulary rather than
+  expecting a surrogate id. Confusable with xiao_er, a similarly two-valued table that is not
+  dependable for analysis.
 columns:
-- asset_type: column
-  physical_name: ming_cheng
-  summary: name — bu_er.ming_cheng
-  body: Means 'name' (obfuscated to 'ming_cheng').
+- physical_name: ming_cheng
+  summary: The literal boolean value stored by this lookup row, ming_cheng, either pos or neg.
+  body: >
+    Exactly two rows exist, one with ming_cheng equal to pos and one equal to neg. A table that
+    records a yes-or-no condition, such as wu_xu_zhi_fu.bu_er, copies this literal string rather
+    than referencing a surrogate key: pos means the condition holds, neg means it does not.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ming_zi
-  summary: ming_zi — bu_er.ming_zi
-  body: 'Physical column ''ming_zi''. DECOY column: not a real business field. Fabricated
-    to mimic ''name''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: ming_zi
+  summary: ming_zi, a text column on the bu_er table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''name''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Lookup of boolean-style labels; keyed by name. Rarely queried directly on its
-  own.
+    - information_schema

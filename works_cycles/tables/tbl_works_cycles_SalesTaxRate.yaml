@@ -2,176 +2,117 @@ asset_type: table
 id: works_cycles.SalesTaxRate
 schema: works_cycles
 physical_name: SalesTaxRate
-summary: 'SalesTaxRate (SalesTaxRate): SalesTaxRateID, StateProvinceID, TaxType, TaxRate,
-  Name, rowguid, ModifiedDate'
+summary: SalesTaxRate lists the sales tax percentage that applies in each state or province, by tax type, for works_cycles orders.
+body: >
+  SalesTaxRate is the tax-rate reference table for the sales module: one row per state or
+  province and tax-type combination. It is not transactional, so it never grows with orders; a
+  sales order computes its tax by looking up the matching row here for the ship-to or store
+  location. It joins outward through StateProvinceID to the person schema's state/province
+  table, and its TaxType column has to be read alongside TaxRate to know which kind of sale the
+  percentage covers.
 columns:
-- asset_type: column
-  physical_name: SalesTaxRateID
-  summary: SalesTaxRateID — SalesTaxRate.SalesTaxRateID
-  body: Means 'SalesTaxRateID' (obfuscated to 'SalesTaxRateID').
+- physical_name: SalesTaxRateID
+  summary: SalesTaxRateID is the surrogate primary key of this table.
+  body: >
+    A bigint identity value that uniquely numbers each sales tax rate record. It has no business
+    meaning beyond being the row's own identifier; use it to reference or join to a specific tax
+    rate definition rather than to Name or StateProvinceID alone.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: StateProvinceID
-  summary: StateProvinceID — SalesTaxRate.StateProvinceID
-  body: Means 'StateProvinceID' (obfuscated to 'StateProvinceID').
+- physical_name: StateProvinceID
+  summary: StateProvinceID identifies the state or province this tax rate applies to.
+  body: >
+    A foreign key into the person schema's state/province reference table. Each state or
+    province can carry more than one row here, one per TaxType, so this column alone does not
+    uniquely identify a rate; pair it with TaxType to get a single applicable percentage.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: TaxType
-  summary: TaxType — SalesTaxRate.TaxType
-  body: Means 'TaxType' (obfuscated to 'TaxType').
+- physical_name: TaxType
+  summary: TaxType classifies which kind of sale a given tax rate covers.
+  body: >
+    A small integer code: 1 means the rate applies to retail transactions, 2 means it applies to
+    wholesale transactions, and 3 means it applies to all sales, both retail and wholesale.
+    Combine with StateProvinceID to select the one rate that governs a particular order.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: TaxRate
-  summary: TaxRate — SalesTaxRate.TaxRate
-  body: Means 'TaxRate' (obfuscated to 'TaxRate').
+- physical_name: TaxRate
+  summary: TaxRate is the tax percentage charged for this state, province, and tax type.
+  body: >
+    A decimal percentage, not a fraction, stored as a real number such as 7.25, 7.0, 10.0, 8.8,
+    or 7.5. Multiply an amount by TaxRate / 100 to get the tax owed. It varies by
+    StateProvinceID and TaxType, so the same jurisdiction can appear more than once with
+    different rates.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Name
-  summary: Name — SalesTaxRate.Name
-  body: Means 'Name' (obfuscated to 'Name').
+- physical_name: Name
+  summary: Name is the descriptive label printed for this sales tax rate.
+  body: >
+    Free text such as "Tennessese State Sales Tax", "Canadian GST", "Washington State Sales
+    Tax", or "Taxable Supply". When the value contains a "+" it indicates the sale is charged
+    under more than one type of tax combined into a single line.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rowguid
-  summary: rowguid — SalesTaxRate.rowguid
-  body: Means 'rowguid' (obfuscated to 'rowguid').
+- physical_name: rowguid
+  summary: rowguid is the globally unique identifier assigned to this tax rate record.
+  body: >
+    A UUID such as ECBA1BAB-A7A6-4CC2-8D0F-C094A38E5C0E, generated when the row is created and
+    used only to support merge replication between database copies. It plays no role in ordinary
+    reporting or joins.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ModifiedDate
-  summary: ModifiedDate — SalesTaxRate.ModifiedDate
-  body: Means 'ModifiedDate' (obfuscated to 'ModifiedDate').
+- physical_name: ModifiedDate
+  summary: ModifiedDate is the timestamp of the last update to this tax rate record.
+  body: >
+    A datetime defaulting to the load date; in this table nearly every row carries the same
+    timestamp, 2008-04-30, because the reference data was loaded once and rarely changes
+    afterward.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tax_rate_state_province_id
-  summary: tax_rate_state_province_id — SalesTaxRate.tax_rate_state_province_id
-  body: 'Physical column ''tax_rate_state_province_id''. DECOY column: not a real
-    business field. Fabricated to mimic ''StateProvinceID''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+- physical_name: tax_rate_state_province_id
+  summary: tax_rate_state_province_id is an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It has the
+    shape of a foreign key but must never be used to join to another table.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''StateProvinceID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tax_rate_modified_at
-  summary: tax_rate_modified_at — SalesTaxRate.tax_rate_modified_at
-  body: 'Physical column ''tax_rate_modified_at''. DECOY column: not a real business
-    field. Fabricated to mimic ''ModifiedDate''. Corruption operator ''sparse_date_offset'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: tax_rate_modified_at
+  summary: tax_rate_modified_at is a datetime column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ModifiedDate''.
-      Corruption operator ''sparse_date_offset'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tax_rate_name
-  summary: tax_rate_name — SalesTaxRate.tax_rate_name
-  body: 'Physical column ''tax_rate_name''. DECOY column: not a real business field.
-    Fabricated to mimic ''Name''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: tax_rate_name
+  summary: tax_rate_name is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Name''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Sales tax rates by state/province and tax type.
+    - information_schema

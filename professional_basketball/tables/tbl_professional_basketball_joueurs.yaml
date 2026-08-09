@@ -2,448 +2,267 @@ asset_type: table
 id: professional_basketball.joueurs
 schema: professional_basketball
 physical_name: joueurs
-summary: 'players (joueurs): playerID, useFirst, first_name, middleName, name, nameGiven,
-  fullGivenName, nameSuffix, nameNick, pos, firstseason, lastseason, height, weight,
-  college, collegeOther, birthDate, birthCity, birthState, birthCountry, highSchool,
-  hsC…'
+summary: joueurs is the biographical roster of professional basketball players, one row per
+  player, covering name, position, physical measurements, and birthplace.
+body: >
+  One row per player, keyed by id_joueur. Holds the facts that do not change season to season:
+  name and nicknames, playing position, height and weight, college, high school, birth and death
+  dates and places. Season-by-season performance lives elsewhere: join to joueurs_equipes on
+  id_joueur for regular-team-season stats, to joueurs_match_des_etoiles for All-Star appearances,
+  to recompenses_joueurs for awards, and to repechage for the player's draft record. Do not
+  confuse this table's nom (a player's last name) with equipes.nom, which is a team's full name.
 columns:
-- asset_type: column
-  physical_name: id_joueur
-  summary: playerID — joueurs.id_joueur
-  body: Means 'playerID' (obfuscated to 'id_joueur').
+- physical_name: id_joueur
+  summary: id_joueur is the player's unique identifier used across every player-related table.
+  body: >
+    A short alphanumeric code built from the player's surname and given-name initials plus a
+    sequence digit, e.g. 'bassbo01', 'berrybi01', 'hughere01'. Stable for one player across every
+    season and team; the join key to joueurs_equipes, joueurs_match_des_etoiles,
+    recompenses_joueurs and repechage.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: utiliser_prenom
-  summary: useFirst — joueurs.utiliser_prenom
-  body: Means 'useFirst' (obfuscated to 'utiliser_prenom').
+- physical_name: utiliser_prenom
+  summary: utiliser_prenom is the first name the player commonly goes by, if different from
+    prenom.
+  body: >
+    Free text such as 'Bob', 'Bill', 'Rex'; null when the player's usual first name is the same
+    as prenom or is not separately recorded (about 22% of rows are null).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prenom
-  summary: first_name — joueurs.prenom
-  body: Means 'first_name' (obfuscated to 'prenom').
+- physical_name: prenom
+  summary: prenom is the player's given (first) name.
+  body: >
+    Free text, e.g. 'Bob', 'Bill', 'Rex', 'Roy', 'Kaleb'. Combine with deuxieme_prenom and nom to
+    build a player's full name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: deuxieme_prenom
-  summary: middleName — joueurs.deuxieme_prenom
-  body: Means 'middleName' (obfuscated to 'deuxieme_prenom').
+- physical_name: deuxieme_prenom
+  summary: deuxieme_prenom is the player's middle name.
+  body: >
+    Free text, e.g. 'Keith', 'Dennis', 'Lynn'; null for a large share of players (about 44% of
+    rows) whose middle name is not on record.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nom
-  summary: name — joueurs.nom
-  body: Means 'name' (obfuscated to 'nom').
+- physical_name: nom
+  summary: nom is the player's last (family) name.
+  body: >
+    Free text, e.g. 'Bass', 'Berry', 'Hughes', 'Cox', 'Canales'. This is a surname, not a team
+    name; equipes.nom is the analogous full team name in the teams table.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nom_donne
-  summary: nameGiven — joueurs.nom_donne
-  body: Means 'nameGiven' (obfuscated to 'nom_donne').
+- physical_name: nom_donne
+  summary: nom_donne is a rarely populated alternate given name recorded for the player.
+  body: >
+    Free text, populated for only a handful of players (496 of 500 sampled rows are null); the
+    populated values duplicate prenom-like content ('Willie', 'Mike', 'Robert', 'Ed').
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nom_complet_donne
-  summary: fullGivenName — joueurs.nom_complet_donne
-  body: Means 'fullGivenName' (obfuscated to 'nom_complet_donne').
+- physical_name: nom_complet_donne
+  summary: nom_complet_donne is a rarely populated full birth name for the player.
+  body: >
+    Free text, populated for only a handful of players (497 of 500 sampled rows are null), e.g.
+    'Warren Edward Armstrong'; not reliable enough to use as a general full-name source.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: suffixe_nom
-  summary: nameSuffix — joueurs.suffixe_nom
-  body: Means 'nameSuffix' (obfuscated to 'suffixe_nom').
+- physical_name: suffixe_nom
+  summary: suffixe_nom is the generational suffix attached to the player's name.
+  body: >
+    Short values such as 'Jr.', 'Sr.', 'II', 'III'; null when the player has no such suffix
+    (about 94% of rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: surnom
-  summary: nameNick — joueurs.surnom
-  body: Means 'nameNick' (obfuscated to 'surnom').
+- physical_name: surnom
+  summary: surnom is the player's nickname.
+  body: >
+    Free text such as 'Boob', 'Jim', 'Greg', 'Bob', 'Eddie'; null for roughly half the players
+    (270 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: poste
-  summary: pos — joueurs.poste
-  body: 'Position code: ''C'' center, ''F'' forward, ''G'' guard, and hybrids such
-    as ''F-C'', ''G-F''.'
+- physical_name: poste
+  summary: poste is the position or positions the player is listed at.
+  body: >
+    A short code: 'C' (center), 'F' (forward), 'G' (guard), or a hyphenated combination such as
+    'G-F' or 'F-C-G' for a player listed at more than one position. Null for about 8% of rows.
+    Use LIKE matching (e.g. poste LIKE '%F%') to find players who play a given position among
+    combinations.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: premiere_saison
-  summary: firstseason — joueurs.premiere_saison
-  body: Means 'firstseason' (obfuscated to 'premiere_saison').
+- physical_name: premiere_saison
+  summary: premiere_saison is the player's first season, when recorded.
+  body: >
+    An integer season indicator; in this table it is populated as 0 for essentially every player
+    sampled and carries no further detail worth relying on for career-span analysis.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: derniere_saison
-  summary: lastseason — joueurs.derniere_saison
-  body: Means 'lastseason' (obfuscated to 'derniere_saison').
+- physical_name: derniere_saison
+  summary: derniere_saison is the player's last season, when recorded.
+  body: >
+    An integer season indicator; like premiere_saison it is populated as 0 for essentially every
+    player sampled, so it is not useful for computing career length.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: taille
-  summary: height — joueurs.taille
-  body: Player height, in inches.
+- physical_name: taille
+  summary: taille is the player's height in inches.
+  body: >
+    A decimal inch measurement; observed values run 0.0 (not recorded) to 88.0. Combine with
+    poids to compute body-mass-index style ratios.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: poids
-  summary: weight — joueurs.poids
-  body: Player weight, in pounds.
+- physical_name: poids
+  summary: poids is the player's weight in pounds.
+  body: >
+    An integer pound measurement; 0 or null means the weight was not recorded. Observed values run
+    up to 305. Sample values: 150, 190, 210, 155.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: universite
-  summary: college — joueurs.universite
-  body: College the player attended.
+- physical_name: universite
+  summary: universite is the college the player is best known to have attended.
+  body: >
+    Free text, e.g. 'Texas', 'Miami (FL)', 'Voorhees'; null or 'none?' when the player did not
+    attend college or the record is missing (about 9% of rows null).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: autre_universite
-  summary: collegeOther — joueurs.autre_universite
-  body: Means 'collegeOther' (obfuscated to 'autre_universite').
+- physical_name: autre_universite
+  summary: autre_universite is a college the player transferred from before universite.
+  body: >
+    Free text such as 'Wisconsin', 'Wichita', 'Sam Houston State'; populated only for the players
+    who are on record as having transferred colleges (about 84% of rows null).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: date_naissance
-  summary: birthDate — joueurs.date_naissance
-  body: Birth date.
+- physical_name: date_naissance
+  summary: date_naissance is the player's date of birth.
+  body: >
+    ISO-format date text, e.g. '1950-01-22', '1908-03-27'; a value of '0000-00-00' means the
+    birth date was not recorded rather than a real date.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ville_naissance
-  summary: birthCity — joueurs.ville_naissance
-  body: Means 'birthCity' (obfuscated to 'ville_naissance').
+- physical_name: ville_naissance
+  summary: ville_naissance is the city where the player was born.
+  body: >
+    Free text such as 'Columbus', 'Harvey', 'Meriden'; null when not recorded (about 32% of
+    rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: province_naissance
-  summary: birthState — joueurs.province_naissance
-  body: Means 'birthState' (obfuscated to 'province_naissance').
+- physical_name: province_naissance
+  summary: province_naissance is the state or province where the player was born.
+  body: >
+    A short code such as 'GA', 'LA', 'CT', 'MD', 'TN'; null when the player was born outside a
+    state/province system that is recorded here or the value is missing (about 36% of rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pays_naissance
-  summary: birthCountry — joueurs.pays_naissance
-  body: Birth country, e.g. 'USA'.
+- physical_name: pays_naissance
+  summary: pays_naissance is the country where the player was born.
+  body: >
+    A three-letter country code such as 'USA', 'UKR', 'YUG', 'ARG', 'NGR'; null for about 32% of
+    rows where birth country was not recorded.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ecole_secondaire
-  summary: highSchool — joueurs.ecole_secondaire
-  body: High school the player attended.
+- physical_name: ecole_secondaire
+  summary: ecole_secondaire is the high school the player attended.
+  body: >
+    Free text such as 'Lamar', 'Oshkosh', 'Columbus', 'Helen Cox'; null or 'none' when not
+    recorded (about 26% of rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ville_secondaire
-  summary: hsCity — joueurs.ville_secondaire
-  body: Means 'hsCity' (obfuscated to 'ville_secondaire').
+- physical_name: ville_secondaire
+  summary: ville_secondaire is the city of the player's high school.
+  body: >
+    Free text such as 'Houston', 'Oshkosh', 'Columbus', 'Harvey'; null when not recorded (about
+    25% of rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: province_secondaire
-  summary: hsState — joueurs.province_secondaire
-  body: Means 'hsState' (obfuscated to 'province_secondaire').
+- physical_name: province_secondaire
+  summary: province_secondaire is the state or province of the player's high school.
+  body: >
+    A short code such as 'TX', 'WI', 'GA', 'LA', 'CT'; null when not recorded (about 26% of
+    rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pays_secondaire
-  summary: hsCountry — joueurs.pays_secondaire
-  body: Means 'hsCountry' (obfuscated to 'pays_secondaire').
+- physical_name: pays_secondaire
+  summary: pays_secondaire is the country of the player's high school.
+  body: >
+    A three-letter country code, mostly 'USA' with rarer 'NGR', 'CAN', 'KOR'; null when not
+    recorded (about 26% of rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: date_deces
-  summary: deathDate — joueurs.date_deces
-  body: Death date; a value of '0000-00-00' (or null) indicates the player is still
-    alive.
+- physical_name: date_deces
+  summary: date_deces is the player's date of death, if applicable.
+  body: >
+    ISO-format date text, e.g. '1999-06-24', '1992-08-03'; a value of '0000-00-00' means the
+    player is (or was, as of the source snapshot) still alive, not that the death date is unknown.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ethnicite
-  summary: race — joueurs.ethnicite
-  body: Race code, e.g. 'B' for black.
+- physical_name: ethnicite
+  summary: ethnicite is the player's recorded race code.
+  body: >
+    A single-letter code: 'B' for Black, 'W' for White, 'O' for other; null or empty means not
+    recorded (about 8% of rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: code_joueur
-  summary: code_joueur — joueurs.code_joueur
-  body: 'Physical column ''code_joueur''. DECOY column: not a real business field.
-    Fabricated to mimic ''playerID''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: code_joueur
+  summary: code_joueur is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''playerID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ville_natale
-  summary: ville_natale — joueurs.ville_natale
-  body: 'Physical column ''ville_natale''. DECOY column: not a real business field.
-    Fabricated to mimic ''birthCity''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: ville_natale
+  summary: ville_natale is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''birthCity''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pays_natale
-  summary: pays_natale — joueurs.pays_natale
-  body: 'Physical column ''pays_natale''. DECOY column: not a real business field.
-    Fabricated to mimic ''birthCountry''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: pays_natale
+  summary: pays_natale is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''birthCountry''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: 'Player biographical master: one row per player (id_joueur) with name parts,
-  physical attributes (height taille, weight poids), position, race, birth and school
-  details. Career per-season stats are NOT here — they are in joueurs_equipes.'
+    - train_final.jsonl

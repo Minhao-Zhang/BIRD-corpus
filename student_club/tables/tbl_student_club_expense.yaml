@@ -2,181 +2,107 @@ asset_type: table
 id: student_club.expense
 schema: student_club
 physical_name: expense
-summary: 'expense (expense): expense_id, expense_description, expense_date, cost,
-  approved, link_to_member, link_to_budget'
+summary: expense holds one row per individual purchase a student club member made against a
+  budget line.
+body: >
+  Grain: one row per expense, keyed by expense_id. Join link_to_budget to budget.budget_id
+  (many expenses can share one budget line) to see which category and event an expense was
+  charged to, and link_to_member to member.member_id to see who incurred it. budget.spent for
+  a given budget line is the sum of cost across the expense rows joined to it.
 columns:
-- asset_type: column
-  physical_name: expense_id
-  summary: expense_id — expense.expense_id
-  body: Means 'expense_id' (obfuscated to 'expense_id').
+- physical_name: expense_id
+  summary: The unique identifier for an expense, expense_id.
+  body: A unique record id, one per row in this table.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: expense_description
-  summary: expense_description — expense.expense_description
-  body: Free-text description of what was purchased, e.g. 'Pizza', 'Posters', 'Post
-    Cards, Posters'.
+- physical_name: expense_description
+  summary: A short description of what an expense purchased, expense_description.
+  body: >
+    Free text such as Posters, Pizza, or "Water, chips, cookies". About a dozen distinct values
+    in the sample; used to identify the kind of expense a question asks about, for example
+    "total cost of the pizzas" filters this column to 'Pizza'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: expense_date
-  summary: expense_date — expense.expense_date
-  body: Expense date as a text string in 'YYYY-MM-DD' form; characters 6-7 give the
-    month.
+- physical_name: expense_date
+  summary: The date an expense was incurred, expense_date.
+  body: >
+    Formatted YYYY-MM-DD. The 5th and 6th characters give the month, which is how a question
+    restricting to a particular month is expressed against this column.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cost
-  summary: cost — expense.cost
-  body: 'Money: cost of this single expense, in USD.'
+- physical_name: cost
+  summary: The dollar amount of an expense, cost.
+  body: >
+    Dollar amount. Comparisons like "spent more than a hundred dollars on an expense" or
+    "incurred less than 50 USD" filter directly on this column; "had spent more than average on
+    each expense" compares it to AVG(cost) over the same group.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: approved
-  summary: approved — expense.approved
-  body: Approval flag stored as text 'true'/'false'; 'true' means the expense was
+- physical_name: approved
+  summary: Whether an expense was approved, approved.
+  body: >
+    True or false. Nearly every row in the sample is true; false means the expense was not
     approved.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: link_to_member
-  summary: link_to_member — expense.link_to_member
-  body: Means 'link_to_member' (obfuscated to 'link_to_member').
+- physical_name: link_to_member
+  summary: The member who incurred an expense, link_to_member.
+  body: A foreign key matching member.member_id.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: link_to_budget
-  summary: link_to_budget — expense.link_to_budget
-  body: Means 'link_to_budget' (obfuscated to 'link_to_budget').
+- physical_name: link_to_budget
+  summary: The budget line an expense was charged against, link_to_budget.
+  body: >
+    A foreign key matching budget.budget_id. Join to budget.budget_id to see the category and
+    event an expense belongs to.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: expense_budget_link
-  summary: expense_budget_link — expense.expense_budget_link
-  body: 'Physical column ''expense_budget_link''. DECOY column: not a real business
-    field. Fabricated to mimic ''link_to_budget''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+- physical_name: expense_budget_link
+  summary: expense_budget_link, a text column on the expense table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''link_to_budget''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: expense_member_link
-  summary: expense_member_link — expense.expense_member_link
-  body: 'Physical column ''expense_member_link''. DECOY column: not a real business
-    field. Fabricated to mimic ''link_to_member''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: expense_member_link
+  summary: expense_member_link, a text column on the expense table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''link_to_member''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: approval_status
-  summary: approval_status — expense.approval_status
-  body: 'Physical column ''approval_status''. DECOY column: not a real business field.
-    Fabricated to mimic ''approved''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: approval_status
+  summary: approval_status, a text column on the expense table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''approved''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per individual expense (grain: expense). Records cost, description,
-  date, approval flag, the incurring member, and the budget line it is charged to.'
+    - information_schema

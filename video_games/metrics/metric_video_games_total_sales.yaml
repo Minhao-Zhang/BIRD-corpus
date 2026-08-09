@@ -2,18 +2,21 @@ asset_type: metric
 id: metric_video_games_total_sales
 name: total sales
 base_table: video_games.ventes_region
-expression: SUM(nombre_ventes)
-summary: 'total sales: SUM(nombre_ventes) of units sold (in units of 100,000)'
-body: Sum of units sold; multiply by 100000 for the true number of games sold. Filter
-  by region (nom_region) or group by id_jeu_plateforme.
-dimensions:
-- video_games.ventes_region.id_region
-- video_games.ventes_region.id_jeu_plateforme
-confidence: 0.8
+expression: MULTIPLY(SUM(nombre_ventes), 100000)
+summary: "total sales: the total number of copies sold, summing nombre_ventes across the
+  selected rows and scaling to actual units."
+body: >
+  SUM(nombre_ventes) over ventes_region, optionally filtered or joined down to a single game,
+  platform, region, or year, then multiplied by 100000 to convert the stored figure into an
+  actual copy count. "Total number of sales", "total number of games sold", and "sales" all name
+  this same aggregate. "The most popular", "the most sales", and "highest number of games sold on
+  all platforms" ask for MAX over the grouped sums rather than a single ungrouped total; "3
+  largest numbers of games sold" additionally orders the grouped sums descending and keeps the
+  top three. Do not substitute volume_ventes, a separate, unreliable copy on ventes_region.
 audit:
   provenance:
     source: curator
     status: draft
-    version: inference-1
+    version: rebuild-1
     source_refs:
     - train_final.jsonl

@@ -1,26 +1,31 @@
 asset_type: schema
 id: car_retails
 name: car_retails
-summary: 'car_retails: 8 tables — offices, productlines, customers, orders, orderdetails,
-  employees, payments, products'
+summary: >-
+  car_retails tracks a scale-model vehicle retailer's operations: customers, sales offices,
+  employees and their reporting lines, orders and their line items, payments, and a product
+  catalog grouped into named product lines.
+body: >
+  clients places commandes, each broken into details_commande line items against produits;
+  clients also makes paiements. employes staff bureaux offices and report up a management
+  chain through rend_compte_a; a clients row names its sales representative through
+  numero_employe_commercial. produits are grouped by categories_produits.categorie_produit.
+  articles_commerciaux and reglements_clients look like product and payment rosters but are
+  not dependable for analysis, and several individual columns across the other tables restate
+  a real fact under a different name without being dependable themselves.
+rules:
+- Join clients, commandes, details_commande, paiements, employes, bureaux, and produits only
+  on numero_client, numero_commande, code_produit, numero_employe, code_bureau, and
+  categorie_produit. Never join on a column named client_id, id_client, id_client_paiement,
+  id_employe, id_employe_commercial, id_superviseur, code_agence, id_bureau, reference_produit,
+  sku_produit, or type_produit; every one of them is unreliable.
+- Answer product and payment questions from produits and paiements. Never select, filter, or
+  join on a column from articles_commerciaux or reglements_clients; every column in those two
+  tables is unreliable for analysis.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'A car-model retailer''s sales operation: customers place orders of scale-model
-  products, each order broken into line items; payments are recorded against customers,
-  products belong to product lines, and employees (sales reps) working out of offices
-  serve the customers.'
-rules:
-- Order/line value is computed on order line items as quantite_commandee * prix_unitaire,
-  never from a product's catalog price.
-- Expected (theoretical) profit uses product MSRP minus buy price (prix_catalogue
-  - prix_achat); realized/actual profit uses the sold line unit price minus buy price
-  (prix_unitaire - prix_achat).
-- A customer's sales representative is the employee whose numero_employe equals the
-  customer's numero_employe_commercial; a sales rep is specifically titre_poste =
-  'Sales Rep'.
+    - information_schema

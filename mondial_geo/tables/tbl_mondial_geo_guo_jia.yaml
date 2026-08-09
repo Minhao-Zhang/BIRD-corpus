@@ -2,165 +2,86 @@ asset_type: table
 id: mondial_geo.guo_jia
 schema: mondial_geo
 physical_name: guo_jia
-summary: 'Country (guo_jia): Name, Code, Capital, Province, Area, Population'
+summary: guo_jia is the master list of the world's countries, one row per country, on the guo_jia table.
+body: 'Grain: one row per country. The primary key for every other table''s country reference is dai_ma,
+  a short code, not ming_chen. sheng_fen and shou_du here name the province and city of the country''s
+  capital only — for a country''s full list of provinces or cities, join sheng_fen.guo_jia or cheng_shi.guo_jia
+  instead. Population, area and other demographic detail also live on dedicated tables (ren_kou, jing_ji)
+  that carry richer per-country statistics than the headline mian_ji/ren_kou columns stored here.'
 columns:
-- asset_type: column
-  physical_name: ming_chen
-  summary: Name — guo_jia.ming_chen
-  body: Full country name, e.g. 'United States', 'Japan', 'Bosnia and Herzegovina'.
+- physical_name: ming_chen
+  summary: ming_chen is the name of a country recorded in guo_jia.
+  body: Text country name, e.g. 'Canada' or 'France'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: dai_ma
-  summary: Code — guo_jia.dai_ma
-  body: Short country code (text key), e.g. 'TJ' for Tajikistan, 'MNE'. Primary key;
-    other tables' guo_jia columns join to this.
+- physical_name: dai_ma
+  summary: dai_ma is the short code identifying a country in guo_jia.
+  body: Text code such as 'CDN' or 'F'. This, not ming_chen, is the column every other table's country
+    foreign key points to.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: shou_du
-  summary: Capital — guo_jia.shou_du
-  body: Name of the country's capital city.
+- physical_name: shou_du
+  summary: shou_du is the name of a country's capital city.
+  body: Text city name matching a row in cheng_shi. A small number of countries have no recorded capital.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: sheng_fen
-  summary: Province — guo_jia.sheng_fen
-  body: Name of the province in which the country's capital lies.
+- physical_name: sheng_fen
+  summary: sheng_fen is the province a country's capital belongs to.
+  body: Text province name matching sheng_fen.ming_chen. Names only the capital's province, not the country's
+    full set of provinces.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mian_ji
-  summary: Area — guo_jia.mian_ji
-  body: Total country area, a real number in square kilometers.
+- physical_name: mian_ji
+  summary: mian_ji is the total area of a country.
+  body: Decimal square kilometers, ranging from under one to nearly ten million for the largest countries.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ren_kou
-  summary: Population — guo_jia.ren_kou
-  body: Total country population (count of people, bigint).
+- physical_name: ren_kou
+  summary: ren_kou is the population of a country.
+  body: Whole-number head count. See also ren_kou.ren_kou_zeng_zhang_lv on the population table for the
+    growth rate rather than the headcount.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: guo_jia_mianji
-  summary: guo_jia_mianji — guo_jia.guo_jia_mianji
-  body: 'Physical column ''guo_jia_mianji''. DECOY column: not a real business field.
-    Fabricated to mimic ''Area''. Corruption operator ''sparse_perturb'': values are
-    altered. Do NOT use it to answer questions.'
+- physical_name: guo_jia_mianji
+  summary: guo_jia_mianji is a decimal-number column carried on this table for internal bookkeeping.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: real
   logical_type: decimal
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Area''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: guo_jia_shou
-  summary: guo_jia_shou — guo_jia.guo_jia_shou
-  body: 'Physical column ''guo_jia_shou''. DECOY column: not a real business field.
-    Fabricated to mimic ''Capital''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: guo_jia_shou
+  summary: guo_jia_shou is a text column carried on this table for internal bookkeeping.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Capital''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: guo_jia_daima
-  summary: guo_jia_daima — guo_jia.guo_jia_daima
-  body: 'Physical column ''guo_jia_daima''. DECOY column: not a real business field.
-    Fabricated to mimic ''Code''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: guo_jia_daima
+  summary: guo_jia_daima is a text column carried on this table for internal bookkeeping.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Code''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per country (grain = country), keyed by its short code dai_ma (e.g.
-  'TJ' for Tajikistan). Holds the full country name, total area, total population,
-  capital city name and the capital's province. Most other tables join to it via dai_ma.
+    - information_schema

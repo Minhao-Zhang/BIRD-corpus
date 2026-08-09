@@ -1,25 +1,49 @@
 asset_type: schema
 id: works_cycles
 name: works_cycles
-summary: 'works_cycles: 65 tables — Address, AddressType, BillOfMaterials, BusinessEntity,
-  BusinessEntityAddress, BusinessEntityContact, ContactType, CountryRegion, CountryRegionCurrency,
-  CreditCard, Culture, Currency, CurrencyRate, Customer, Department, Docu…'
+summary: works_cycles is a bicycle manufacturer's operational database - product catalog and
+  bill of materials, vendor purchasing, manufacturing work orders, sales orders, customers,
+  territories, and employee records.
+body: >
+  Covers a bicycle manufacturer end to end: Product and its category/subcategory/model hierarchy
+  describe what is made, with BillOfMaterials recording which components assemble into which
+  finished product. ProductVendor and PurchaseOrderHeader/PurchaseOrderDetail cover buying parts
+  from outside vendors; WorkOrder and WorkOrderRouting cover building product in-house through a
+  sequence of manufacturing steps at a Location. SalesOrderHeader/SalesOrderDetail record what
+  customers bought, with Customer, SalesPerson, SalesTerritory and SpecialOffer describing who
+  bought it, who sold it, where, and under what discount. Person and Employee describe people;
+  BusinessEntity is the shared identity that Person, Employee, Vendor, and Store all extend, so
+  the same BusinessEntityID can be looked up across all four to find contact details, addresses,
+  and phone numbers on the shared BusinessEntityAddress/BusinessEntityContact/EmailAddress
+  tables. A customer account is either an individual (Customer.PersonID set) or a store account
+  (Customer.StoreID set), not both. Several tables track a value over time rather than holding
+  only the current value: ProductCostHistory, ProductListPriceHistory, EmployeePayHistory,
+  EmployeeDepartmentHistory, and SalesTerritoryHistory each hold one row per effective-dated
+  period, and the current period is the row whose EndDate is null. TransactionHistory and
+  TransactionHistoryArchive share the same grain (one row per inventory transaction) but differ
+  only in retention: the Archive table holds older, moved-off transactions. Eight tables -
+  individual_contact, item_descriptions, product_images, product_manuals, purchase_order_items,
+  retail_outlet, scrap_reason_codes, and state_tax_rates - duplicate the column shape of a real
+  table under a different name but hold no dependable data in any column; use Person,
+  ProductDescription, ProductPhoto, ProductDocument, PurchaseOrderDetail, Store, ScrapReason, and
+  SalesTaxRate respectively instead. A number of otherwise-reliable tables also carry a small
+  handful of individually unreliable columns alongside their real ones; those are marked suspect
+  on the column itself rather than on the whole table.
+rules:
+- Do not use individual_contact, item_descriptions, product_images, product_manuals,
+  purchase_order_items, retail_outlet, scrap_reason_codes, or state_tax_rates to answer any
+  question; no column on these eight tables holds dependable data. Use Person,
+  ProductDescription, ProductPhoto, ProductDocument, PurchaseOrderDetail, Store, ScrapReason, and
+  SalesTaxRate respectively instead.
+- BusinessEntityID is the shared key across Person, Employee, Vendor, and Store; join to
+  BusinessEntityAddress, BusinessEntityContact, or EmailAddress on BusinessEntityID regardless of
+  which of the four kinds of entity is being described.
+- A Customer row describes either an individual or a store account, never both; check whether
+  PersonID or StoreID is populated before joining onward to Person or Store.
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'The Adventure Works Cycles operations database: a bicycle manufacturer and
-  retailer. It covers products and their bills of materials, manufacturing work orders,
-  inventory, vendors and purchasing, sales orders and special offers, customers and
-  reviews, and human resources (employees, departments, pay and shift history).'
-rules:
-- Employee, Person, EmployeePayHistory, EmployeeDepartmentHistory and other person-scoped
-  tables all share the same person key BusinessEntityID.
-- The current standard cost or current list price is the ProductCostHistory / ProductListPriceHistory
-  row whose EndDate IS NULL.
-- In TransactionHistory and TransactionHistoryArchive, TransactionType = 'P' is a
-  purchase, 'S' a sale, and 'W' a work order.
+    - train_final.jsonl

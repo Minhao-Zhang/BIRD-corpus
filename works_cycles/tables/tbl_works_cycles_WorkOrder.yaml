@@ -2,220 +2,133 @@ asset_type: table
 id: works_cycles.WorkOrder
 schema: works_cycles
 physical_name: WorkOrder
-summary: 'WorkOrder (WorkOrder): WorkOrderID, ProductID, OrderQty, StockedQty, ScrappedQty,
-  StartDate, EndDate, DueDate, ScrapReasonID, ModifiedDate'
+summary: WorkOrder tracks each manufacturing job to build a quantity of a product in the
+  works_cycles bicycle manufacturing schema.
+body: >
+  One row per manufacturing job. StockedQty is computed as OrderQty minus ScrappedQty, the
+  quantity that failed inspection; ScrapReasonID explains why units were scrapped when any were.
+  Join WorkOrderID to WorkOrderRouting for the sequence of operations used to build the order, and
+  ProductID to Product for the item being built. Easily confused with PurchaseOrderHeader, which
+  records an order placed with an outside vendor rather than a job run on the company's own
+  production floor.
 columns:
-- asset_type: column
-  physical_name: WorkOrderID
-  summary: WorkOrderID — WorkOrder.WorkOrderID
-  body: Means 'WorkOrderID' (obfuscated to 'WorkOrderID').
+- physical_name: WorkOrderID
+  summary: WorkOrderID identifies a single WorkOrder record.
+  body: >
+    Surrogate integer primary key, observed from 10021 to 9872 in this sample. Referenced by
+    WorkOrderID on WorkOrderRouting.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ProductID
-  summary: ProductID — WorkOrder.ProductID
-  body: Means 'ProductID' (obfuscated to 'ProductID').
+- physical_name: ProductID
+  summary: ProductID names the product being built on a WorkOrder.
+  body: >
+    Integer foreign key to Product, observed from 3 to 999 in this sample across 151 distinct
+    values.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: OrderQty
-  summary: OrderQty — WorkOrder.OrderQty
-  body: Means 'OrderQty' (obfuscated to 'OrderQty').
+- physical_name: OrderQty
+  summary: OrderQty is the quantity of product a WorkOrder was created to build.
+  body: >
+    Integer quantity, observed from 1 to 2596 in this sample. The target output before accounting
+    for any scrapped units.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: StockedQty
-  summary: StockedQty — WorkOrder.StockedQty
-  body: Means 'StockedQty' (obfuscated to 'StockedQty').
+- physical_name: StockedQty
+  summary: StockedQty is the quantity from a WorkOrder that was successfully built and put into
+    inventory.
+  body: >
+    Integer quantity computed as OrderQty minus ScrappedQty, observed from 1 to 2596 in this
+    sample. The usable output of the job.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ScrappedQty
-  summary: ScrappedQty — WorkOrder.ScrappedQty
-  body: Quantity of the manufactured product that was scrapped/rejected.
+- physical_name: ScrappedQty
+  summary: ScrappedQty is the quantity from a WorkOrder that failed inspection.
+  body: >
+    Integer quantity, observed from 0 to 14 in this sample. Units counted here reduce
+    StockedQty below OrderQty.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: StartDate
-  summary: StartDate — WorkOrder.StartDate
-  body: Means 'StartDate' (obfuscated to 'StartDate').
+- physical_name: StartDate
+  summary: StartDate is when work began on a WorkOrder.
+  body: >
+    Timestamp, observed between 2011-06-05 and 2014-06-02 in this sample.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: EndDate
-  summary: EndDate — WorkOrder.EndDate
-  body: Means 'EndDate' (obfuscated to 'EndDate').
+- physical_name: EndDate
+  summary: EndDate is when work finished on a WorkOrder.
+  body: >
+    Timestamp, observed between 2011-06-23 and 2014-06-15 in this sample. Matches ModifiedDate on
+    every sampled row.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: DueDate
-  summary: DueDate — WorkOrder.DueDate
-  body: Means 'DueDate' (obfuscated to 'DueDate').
+- physical_name: DueDate
+  summary: DueDate is when a WorkOrder was expected to be complete.
+  body: >
+    Timestamp, observed between 2011-06-16 and 2014-06-13 in this sample. Compare against EndDate
+    to judge whether the job finished on time.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ScrapReasonID
-  summary: ScrapReasonID — WorkOrder.ScrapReasonID
-  body: Means 'ScrapReasonID' (obfuscated to 'ScrapReasonID').
+- physical_name: ScrapReasonID
+  summary: ScrapReasonID explains why units were scrapped on a WorkOrder.
+  body: >
+    Integer foreign key to ScrapReason, observed from 1 to 14 in this sample; null on the vast
+    majority of rows (496 of 500 sampled), since most work orders scrap nothing.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ModifiedDate
-  summary: ModifiedDate — WorkOrder.ModifiedDate
-  body: Means 'ModifiedDate' (obfuscated to 'ModifiedDate').
+- physical_name: ModifiedDate
+  summary: ModifiedDate records when a WorkOrder row was last updated.
+  body: >
+    Timestamp, observed between 2011-06-23 and 2014-06-15 in this sample. Matches EndDate on
+    every sampled row.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: workorder_product_id
-  summary: workorder_product_id — WorkOrder.workorder_product_id
-  body: 'Physical column ''workorder_product_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''ProductID''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: workorder_product_id
+  summary: workorder_product_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ProductID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: workorder_scrap_reason_id
-  summary: workorder_scrap_reason_id — WorkOrder.workorder_scrap_reason_id
-  body: 'Physical column ''workorder_scrap_reason_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''ScrapReasonID''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: workorder_scrap_reason_id
+  summary: workorder_scrap_reason_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ScrapReasonID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: workorder_due_date
-  summary: workorder_due_date — WorkOrder.workorder_due_date
-  body: 'Physical column ''workorder_due_date''. DECOY column: not a real business
-    field. Fabricated to mimic ''DueDate''. Corruption operator ''sparse_date_offset'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: workorder_due_date
+  summary: workorder_due_date, a datetime column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''DueDate''.
-      Corruption operator ''sparse_date_offset'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: Manufacturing work orders. One row per WorkOrderID with product, ordered quantity,
-  scrapped quantity, scrap reason, and start/end/due dates.
+    - train_final.jsonl

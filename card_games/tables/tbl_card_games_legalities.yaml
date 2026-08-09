@@ -2,136 +2,76 @@ asset_type: table
 id: card_games.legalities
 schema: card_games
 physical_name: legalities
-summary: 'legalities (legalities): id, format, status, uuid'
+summary: legalities records, per format, whether a card printing in the card_games database is legal,
+  banned, or restricted in tournament play.
+body: One row per card printing per format it has a ruling in; a printing legal in many formats has many
+  rows. Joins back to cards on uuid. legality_uuid, tournament_format, and legality_id sit alongside uuid,
+  format, and id but are not dependable and must not be used to answer questions.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — legalities.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: id, the surrogate row number for a card's legality ruling in one format.
+  body: Bigint, unique per row, ranging from 10023 to 98437 in the sample; identifies this legality record,
+    not the card itself -- join on uuid for that.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: format
-  summary: format — legalities.format
-  body: Play format the legality applies to, e.g. 'commander', 'vintage', 'legacy',
-    'premodern', 'pauper'.
+- physical_name: format
+  summary: format, the constructed or limited format a legality status applies to.
+  body: Free text such as vintage, commander, pauper, duel; drawn from 15 tournament formats observed
+    in the sample. Each card printing has one row per format it has a ruling in.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: status
-  summary: status — legalities.status
-  body: 'Legality of the card in the format: ''Legal'', ''Banned'', or ''Restricted''.'
+- physical_name: status
+  summary: status, whether a card may be played in the format given by this row.
+  body: One of legal, banned, restricted; the sample shows only Legal and Banned. Restricted, when present,
+    means at most one copy is allowed rather than the normal four.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: uuid
-  summary: uuid — legalities.uuid
-  body: Means 'uuid' (obfuscated to 'uuid').
+- physical_name: uuid
+  summary: uuid, the card printing a legality status describes.
+  body: A UUID matching cards.uuid; join on this column to attach a card's rules text and name to its
+    per-format legal, banned, or restricted status. A card printing has one legalities row per format
+    it is ruled on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: legality_uuid
-  summary: legality_uuid — legalities.legality_uuid
-  body: 'Physical column ''legality_uuid''. DECOY column: not a real business field.
-    Fabricated to mimic ''uuid''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: legality_uuid
+  summary: legality_uuid, a text column on the legalities table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as
+    a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''uuid''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tournament_format
-  summary: tournament_format — legalities.tournament_format
-  body: 'Physical column ''tournament_format''. DECOY column: not a real business
-    field. Fabricated to mimic ''format''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: tournament_format
+  summary: tournament_format, a text column on the legalities table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''format''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: legality_id
-  summary: legality_id — legalities.legality_id
-  body: 'Physical column ''legality_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''id''. Corruption operator ''sparse_perturb'': values are
-    altered. Do NOT use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: legality_id
+  summary: legality_id, an integer column on the legalities table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''id''. Corruption
-      operator ''sparse_perturb'': values are altered. Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Tournament-format legality of a card (grain = card x format). Joined to cards
-  on uuid; the format column names the play format and status says whether the card
-  is Legal, Banned, or Restricted in it.
+    - information_schema

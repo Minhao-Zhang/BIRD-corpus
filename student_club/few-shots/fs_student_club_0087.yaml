@@ -1,22 +1,21 @@
 asset_type: few_shot
 id: fs_student_club_0087
 schema: student_club
-sql: SELECT DISTINCT "T2"."category", "T1"."type" FROM "student_club"."event" AS "T1"
-  INNER JOIN "student_club"."budget" AS "T2" ON "T1"."event_id" = "T2"."link_to_event"
-  WHERE "T1"."location" = 'MU 215' AND "T2"."spent" = 0 AND "T1"."type" = 'Guest Speaker'
-summary: What are the budget category of the events located at MU 215 and a guest
-  speaker type with a 0 budget spent?
-body: 'Question: What are the budget category of the events located at MU 215 and
-  a guest speaker type with a 0 budget spent?
+sql: SELECT "T2"."member_id" FROM "student_club"."expense" AS "T1" INNER JOIN "student_club"."member"
+  AS "T2" ON "T1"."link_to_member" = "T2"."member_id" INNER JOIN "student_club"."budget" AS "T3" ON "T1"."link_to_budget"
+  = "T3"."budget_id" INNER JOIN "student_club"."event" AS "T4" ON "T3"."link_to_event" = "T4"."event_id"
+  GROUP BY "T2"."member_id" HAVING COUNT(DISTINCT "T4"."event_id") > 1 ORDER BY SUM("T1"."cost") DESC
+  NULLS LAST LIMIT 1
+summary: Among the members who incurred expenses in more than one event, who paid the most amount?
+body: 'Question: Among the members who incurred expenses in more than one event, who paid the most amount?
 
   SQL:
 
-  SELECT DISTINCT "T2"."category", "T1"."type" FROM "student_club"."event" AS "T1"
-  INNER JOIN "student_club"."budget" AS "T2" ON "T1"."event_id" = "T2"."link_to_event"
-  WHERE "T1"."location" = ''MU 215'' AND "T2"."spent" = 0 AND "T1"."type" = ''Guest
-  Speaker'''
-complexity: medium
-confidence: 0.55
+  SELECT "T2"."member_id" FROM "student_club"."expense" AS "T1" INNER JOIN "student_club"."member" AS
+  "T2" ON "T1"."link_to_member" = "T2"."member_id" INNER JOIN "student_club"."budget" AS "T3" ON "T1"."link_to_budget"
+  = "T3"."budget_id" INNER JOIN "student_club"."event" AS "T4" ON "T3"."link_to_event" = "T4"."event_id"
+  GROUP BY "T2"."member_id" HAVING COUNT(DISTINCT "T4"."event_id") > 1 ORDER BY SUM("T1"."cost") DESC
+  NULLS LAST LIMIT 1'
 audit:
   provenance:
     source: gold
@@ -24,4 +23,4 @@ audit:
     version: harvest-1
     source_refs:
     - train_final.jsonl
-  evidence: gold train Q 1427; 1 question(s) share this shape
+  evidence: train question 1451

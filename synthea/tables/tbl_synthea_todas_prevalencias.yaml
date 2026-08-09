@@ -2,166 +2,103 @@ asset_type: table
 id: synthea.todas_prevalencias
 schema: synthea
 physical_name: todas_prevalencias
-summary: 'all_prevalences (todas_prevalencias): ITEM, POPULATION TYPE, OCCURRENCES,
-  POPULATION COUNT, PREVALENCE RATE, PREVALENCE PERCENTAGE'
+summary: todas_prevalencias holds population-wide prevalence statistics for a
+  disease, medication, or other health item.
+body: >
+  One row per item (a disease, procedure, or medication) tracked for prevalence, independent of
+  any single patient. Joins to condiciones by matching elemento to descripcion when a question
+  asks for the prevalence of a diagnosed condition; not every condiciones.descripcion value has a
+  matching row here, and not every elemento here names a condition. elemento_clave,
+  num_ocurrencias, and poblacion_total sit alongside elemento, ocurrencias, and
+  cantidad_poblacion but do not track the same values and must not be used.
 columns:
-- asset_type: column
-  physical_name: elemento
-  summary: ITEM — todas_prevalencias.elemento
-  body: The item name (a condition description) this prevalence row is about; join
-    key to condiciones.descripcion.
+- physical_name: elemento
+  summary: elemento, the name of the disease, medication, or item this row tracks prevalence
+    for.
+  body: >
+    Free text, for example "Allergy To Fish" or "Duloxetine 20 Mg [Cymbalta]"; may name a
+    condition, a medication, or another tracked item. Matches condiciones.descripcion for
+    condition rows.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tipo_poblacion
-  summary: POPULATION TYPE — todas_prevalencias.tipo_poblacion
-  body: Means 'POPULATION TYPE' (obfuscated to 'tipo_poblacion').
+- physical_name: tipo_poblacion
+  summary: tipo_poblacion, the population category this row's statistics are drawn from.
+  body: >
+    Always "LIVING" in this dataset; the column exists but carries no variation to filter on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ocurrencias
-  summary: OCCURRENCES — todas_prevalencias.ocurrencias
-  body: Means 'OCCURRENCES' (obfuscated to 'ocurrencias').
+- physical_name: ocurrencias
+  summary: ocurrencias, the count of occurrences of an item across the tracked population.
+  body: >
+    An integer, for example 25 or 0, ranging up to about 92. Numerator for tasa_prevalencia and
+    porcentaje_prevalencia: dividing this by cantidad_poblacion gives the rate.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cantidad_poblacion
-  summary: POPULATION COUNT — todas_prevalencias.cantidad_poblacion
-  body: Means 'POPULATION COUNT' (obfuscated to 'cantidad_poblacion').
+- physical_name: cantidad_poblacion
+  summary: cantidad_poblacion, the size of the population an item's prevalence is measured
+    against.
+  body: >
+    An integer; every sampled row carries the same value, 1000, as the denominator for
+    tasa_prevalencia and porcentaje_prevalencia.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tasa_prevalencia
-  summary: PREVALENCE RATE — todas_prevalencias.tasa_prevalencia
-  body: Prevalence rate of the item in the population.
+- physical_name: tasa_prevalencia
+  summary: tasa_prevalencia, the prevalence rate of an item as a fraction.
+  body: >
+    A decimal from 0 to 1, for example 0.025, equal to ocurrencias divided by
+    cantidad_poblacion. Multiply by 100 to get porcentaje_prevalencia.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: porcentaje_prevalencia
-  summary: PREVALENCE PERCENTAGE — todas_prevalencias.porcentaje_prevalencia
-  body: Prevalence percentage of the item in the population (e.g. 18.8 means 18.8%).
+- physical_name: porcentaje_prevalencia
+  summary: porcentaje_prevalencia, the prevalence percentage of an item.
+  body: >
+    A decimal, for example 2.5, equal to tasa_prevalencia multiplied by 100. This is what a
+    question stating "a prevalence percentage of X%" filters on.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: elemento_clave
-  summary: elemento_clave — todas_prevalencias.elemento_clave
-  body: 'Physical column ''elemento_clave''. DECOY column: not a real business field.
-    Fabricated to mimic ''ITEM''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: elemento_clave
+  summary: elemento_clave, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ITEM''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: num_ocurrencias
-  summary: num_ocurrencias — todas_prevalencias.num_ocurrencias
-  body: 'Physical column ''num_ocurrencias''. DECOY column: not a real business field.
-    Fabricated to mimic ''OCCURRENCES''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: num_ocurrencias
+  summary: num_ocurrencias, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''OCCURRENCES''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: poblacion_total
-  summary: poblacion_total — todas_prevalencias.poblacion_total
-  body: 'Physical column ''poblacion_total''. DECOY column: not a real business field.
-    Fabricated to mimic ''POPULATION COUNT''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: poblacion_total
+  summary: poblacion_total, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''POPULATION
-      COUNT''. Corruption operator ''sparse_perturb'': values are altered. Do NOT
-      use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per item (condition) at population level. Grain: item. Holds population
-  count, occurrences, prevalence rate and prevalence percentage; joins to condiciones
-  by name via elemento.'
+    - information_schema

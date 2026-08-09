@@ -2,249 +2,144 @@ asset_type: table
 id: beer_factory.kunden
 schema: beer_factory
 physical_name: kunden
-summary: 'customers (kunden): CustomerID, First, Last, StreetAddress, City, State,
-  ZipCode, Email, PhoneNumber, FirstPurchaseDate, SubscribedToEmailList, Gender'
+summary: kunden holds one row per customer, their name, contact details, address, gender, and first purchase date.
+body: >
+  Grain: one row per customer, keyed by kunde_id. Referenced by transaktion.kunde_id for
+  purchases and wurzelbier_bewertung.kunde_id for reviews. Ignore kunde_nummer, ort, and
+  email_adresse on this table; they look like kunde_id, stadt, and email but are not dependable
+  for analysis.
 columns:
-- asset_type: column
-  physical_name: kunde_id
-  summary: CustomerID — kunden.kunde_id
-  body: Means 'CustomerID' (obfuscated to 'kunde_id').
+- physical_name: kunde_id
+  summary: The unique identifier for a customer, kunde_id.
+  body: >
+    Primary key of kunden, one value per row. Referenced by transaktion.kunde_id and
+    wurzelbier_bewertung.kunde_id to attribute purchases and reviews to a customer. Sample
+    values range from 101811 to 999915.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: vorname
-  summary: First — kunden.vorname
-  body: Means 'First' (obfuscated to 'vorname').
+- physical_name: vorname
+  summary: A customer's first name, vorname.
+  body: >
+    Free text given name, for example Janet, Leila, or Ann. Combine with nachname for the
+    customer's full name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nachname
-  summary: Last — kunden.nachname
-  body: Means 'Last' (obfuscated to 'nachname').
+- physical_name: nachname
+  summary: A customer's last name, nachname.
+  body: >
+    Free text family name, for example Saville, Olson, or Spencer. Combine with vorname for the
+    customer's full name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: stra_enadresse
-  summary: StreetAddress — kunden.stra_enadresse
-  body: Means 'StreetAddress' (obfuscated to 'stra_enadresse').
+- physical_name: stra_enadresse
+  summary: The street address on file for a customer, stra_enadresse.
+  body: >
+    Free text street address, for example "4779 Mountain View Ave" or "6584 Roseville Rd".
+    Paired with stadt, bundesland, and postleitzahl for the customer's full mailing address.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: stadt
-  summary: City — kunden.stadt
-  body: Means 'City' (obfuscated to 'stadt').
+- physical_name: stadt
+  summary: The city where a customer lives, stadt.
+  body: >
+    Free text city name within the Sacramento, California area, for example Sacramento, Ryde,
+    Carmichael, or Fair Oaks (22 distinct cities in the sample).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: bundesland
-  summary: State — kunden.bundesland
-  body: Customer state as a code, e.g. 'CA'.
+- physical_name: bundesland
+  summary: The two-letter state code for a customer's address, bundesland.
+  body: Every sampled value is "CA" (California); the customer base is drawn from a single state.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: postleitzahl
-  summary: ZipCode — kunden.postleitzahl
-  body: Means 'ZipCode' (obfuscated to 'postleitzahl').
+- physical_name: postleitzahl
+  summary: The ZIP code of a customer's address, postleitzahl.
+  body: >
+    Five-digit US postal code, for example 94235 or 95865, ranging from 94203 to 95899 in the
+    sample.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: email
-  summary: Email — kunden.email
-  body: Means 'Email' (obfuscated to 'email').
+- physical_name: email
+  summary: A customer's email address, email.
+  body: >
+    Free text email address, for example janet_s@icloud.com. One value per customer; do not
+    confuse with email_adresse, an unreliable column on the same table.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: telefonnummer
-  summary: PhoneNumber — kunden.telefonnummer
-  body: Means 'PhoneNumber' (obfuscated to 'telefonnummer').
+- physical_name: telefonnummer
+  summary: A customer's phone number, telefonnummer.
+  body: >
+    Free text phone number formatted like "(916) 618-3768"; all sampled values share the 916
+    Sacramento area code.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: erstes_kaufdatum
-  summary: FirstPurchaseDate — kunden.erstes_kaufdatum
-  body: Date of the customer's first purchase (date).
+- physical_name: erstes_kaufdatum
+  summary: The date of a customer's first root beer purchase, erstes_kaufdatum.
+  body: >
+    Date in yyyy-mm-dd format, for example 2012-10-24, ranging from 2012-07-01 to 2013-09-18 in
+    the sample. Marks when a customer first appears as a buyer.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: newsletter_abonniert
-  summary: SubscribedToEmailList — kunden.newsletter_abonniert
-  body: Whether the customer opted into the email/newsletter list; text flag 'TRUE'/'FALSE'.
+- physical_name: newsletter_abonniert
+  summary: Whether a customer has opted into the email newsletter, newsletter_abonniert.
+  body: >
+    Text flag holding "TRUE" or "FALSE". "TRUE" means the customer permits the company to send
+    them regular marketing emails; treat it as a boolean when filtering.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: geschlecht
-  summary: Gender — kunden.geschlecht
-  body: Customer gender; 'M' = male, 'F' = female.
+- physical_name: geschlecht
+  summary: A customer's recorded gender, geschlecht.
+  body: Text flag holding "F" for female or "M" for male.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kunde_nummer
-  summary: kunde_nummer — kunden.kunde_nummer
-  body: 'Physical column ''kunde_nummer''. DECOY column: not a real business field.
-    Fabricated to mimic ''CustomerID''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: kunde_nummer
+  summary: kunde_nummer, a numeric column on the kunden table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CustomerID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ort
-  summary: ort — kunden.ort
-  body: 'Physical column ''ort''. DECOY column: not a real business field. Fabricated
-    to mimic ''City''. Corruption operator ''sparse_cat_remap'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: ort
+  summary: ort, a text column on the kunden table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''City''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: email_adresse
-  summary: email_adresse — kunden.email_adresse
-  body: 'Physical column ''email_adresse''. DECOY column: not a real business field.
-    Fabricated to mimic ''Email''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: email_adresse
+  summary: email_adresse, a text column on the kunden table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Email''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per customer (person who buys and/or reviews root beer), with name,
-  contact info, gender, home city/state, email-list opt-in, and first purchase date.
-  Distinct from wurzelbiermarke, which is a brand, not a person.
+    - information_schema

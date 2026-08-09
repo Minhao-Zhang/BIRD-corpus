@@ -2,18 +2,20 @@ asset_type: metric
 id: metric_video_games_average_sales
 name: average sales
 base_table: video_games.ventes_region
-expression: AVG(nombre_ventes)
-summary: 'average sales: AVG(nombre_ventes), mean units sold per game-platform per
-  region'
-body: Mean units sold; multiply by 100000 for the average number of games sold. Often
-  filtered by region (nom_region).
-dimensions:
-- video_games.ventes_region.id_region
-confidence: 0.8
+expression: MULTIPLY(AVG(nombre_ventes), 100000)
+summary: "average sales: the mean copies sold per row of nombre_ventes, scaled to actual units."
+body: >
+  AVG(nombre_ventes) over ventes_region, optionally filtered to a region, platform, or year, then
+  multiplied by 100000 to convert to an actual copy count. "Sales lesser than 30% of the average
+  number of sales" is a boundary condition comparing a row's SUM(nombre_ventes) against
+  MULTIPLY(AVG(nombre_ventes), 0.3). A percentage above or below this average is computed as
+  MULTIPLY(DIVIDE(SUBTRACT(row_value, AVG(nombre_ventes)), AVG(nombre_ventes)), 100). A regional
+  share, for instance North America's fraction of total sales, is DIVIDE(SUM(nombre_ventes)
+  filtered to that region, SUM(nombre_ventes) unfiltered).
 audit:
   provenance:
     source: curator
     status: draft
-    version: inference-1
+    version: rebuild-1
     source_refs:
     - train_final.jsonl

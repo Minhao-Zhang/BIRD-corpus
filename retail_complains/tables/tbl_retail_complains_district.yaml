@@ -2,137 +2,87 @@ asset_type: table
 id: retail_complains.district
 schema: retail_complains
 physical_name: district
-summary: 'district (district): district_id, city, state_abbrev, division'
+summary: district holds one US district per row, giving its city, state, and census division,
+  and sits between client and etat in the geography chain.
+body: >
+  Grain: one row per district, keyed by id_district. Every client belongs to exactly one
+  district, and every district belongs to exactly one state (etat) through abrev_etat. division
+  is a finer-grained census region than etat.region — a district's division (for example
+  'Pacific' or 'New England') is not the same value as its state's broader region (for example
+  'West' or 'Northeast'), so do not treat the two as interchangeable. Three columns on this
+  table (code_district, abrev_region, commune) look like real identifiers or a city name but
+  are not dependable and are marked individually below.
 columns:
-- asset_type: column
-  physical_name: id_district
-  summary: district_id — district.id_district
-  body: Means 'district_id' (obfuscated to 'id_district').
+- physical_name: id_district
+  summary: The unique identifier of a district, id_district.
+  body: >
+    A small integer, unique per row. Join to client.id_district and avis.id_district to bring
+    in every customer or review tied to this district.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ville
-  summary: city — district.ville
-  body: Means 'city' (obfuscated to 'ville').
+- physical_name: ville
+  summary: The main city of a district, ville.
+  body: >
+    A US city name, for example 'Denver' or 'Indianapolis'. This is the district's own city,
+    distinct from client.ville, which is one customer's own address city and can differ from
+    their district's.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: abrev_etat
-  summary: state_abbrev — district.abrev_etat
-  body: State abbreviation; the join key to etat.code_etat.
+- physical_name: abrev_etat
+  summary: The two-letter state abbreviation of a district, abrev_etat.
+  body: >
+    For example 'CO' or 'AL', matching etat.code_etat. Join to etat.code_etat to bring in the
+    full state name and its region.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: division
-  summary: division — district.division
-  body: 'Division/region name as text, e.g. ''Pacific'', ''Mountain'', ''South Atlantic''.
-    Note: questions often say ''region'' but mean this division field.'
+- physical_name: division
+  summary: The US census division of a district, division.
+  body: >
+    One of nine census divisions in the loaded sample, for example 'Mountain', 'New England',
+    or 'Pacific'. Finer-grained than etat.region; do not use the two interchangeably.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: code_district
-  summary: code_district — district.code_district
-  body: 'Physical column ''code_district''. DECOY column: not a real business field.
-    Fabricated to mimic ''district_id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: code_district
+  summary: code_district, a numeric column on the district table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''district_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: abrev_region
-  summary: abrev_region — district.abrev_region
-  body: 'Physical column ''abrev_region''. DECOY column: not a real business field.
-    Fabricated to mimic ''state_abbrev''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: abrev_region
+  summary: abrev_region, a text column on the district table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''state_abbrev''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: commune
-  summary: commune — district.commune
-  body: 'Physical column ''commune''. DECOY column: not a real business field. Fabricated
-    to mimic ''city''. Corruption operator ''sparse_cat_remap'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: commune
+  summary: commune, a text column on the district table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''city''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per district (geographic lookup): its city, division, and state abbreviation
-  (abrev_etat), keyed by id_district. Grain is one district. Bridges clients and reviews
-  to states/regions.'
+    - information_schema

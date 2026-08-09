@@ -1,23 +1,31 @@
 asset_type: schema
 id: codebase_comments
 name: codebase_comments
-summary: 'codebase_comments: 4 tables — Method, MethodParameter, Repo, Solution'
+summary: "codebase_comments profiles open-source GitHub repositories and the Visual Studio
+  solutions, methods and parameters mined from them, tracking each method comment and language
+  and each repository popularity signal: stars, forks and watchers."
+body: This corpus catalogs a sample of open-source .NET solutions harvested from GitHub for a
+  source-code-comment mining study. Repo holds one row per GitHub repository, keyed by Url, with
+  the community metrics Stars, Forks and Watchers plus the time the repository was downloaded
+  (ProcessedTime). Solution holds one row per Visual Studio solution (.sln) file found inside a
+  repository, linked back to Repo via RepoId, and records whether that solution needed to be
+  compiled before it could run (WasCompiled). Method holds one row per source-code method
+  sampled from a solution's codebase, linked to Solution via SolutionId, carrying the method's
+  fully qualified name, its raw and summarized comments, the language its comment is written in,
+  whether that comment is XML-doc formatted, and a linearized list of the other methods it
+  calls. MethodParameter holds one row per parameter declared by a method, linked to Method via
+  MethodId.
+rules:
+- Join Repo to Solution on Repo.Id = Solution.RepoId, and Solution to Method on Solution.Id =
+  Method.SolutionId; the columns repo_identifier, solution_identifier and solution_repo_id do
+  not carry this relationship and must not be used as join keys.
+- Solution.WasCompiled is 0 when the solution still needs to be compiled and 1 when it can run
+  without compiling; the polarity is opposite of what the name suggests, so do not assume 1
+  means the solution was already compiled.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: Catalog of open-source code repositories mined from GitHub, the solutions (project
-  files) each repository contains, and the methods within those solutions along with
-  their comments. Used to explore repository popularity, solution paths, and method-level
-  comment metadata.
-rules:
-- A repository (Repo) contains many solutions (Solution.RepoId = Repo.Id); a solution
-  contains many methods (Method.SolutionId = Solution.Id).
-- WasCompiled = 1 means the solution needs no compilation; WasCompiled = 0 means it
-  needs to be compiled.
-- CommentIsXml = 1 means the method comment is in XML format; CommentIsXml = 0 means
-  it is not.
+    - information_schema

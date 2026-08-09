@@ -1,19 +1,17 @@
 asset_type: few_shot
 id: fs_books_0100
 schema: books
-sql: SELECT COUNT(*) FROM "books"."libro" AS "T1" INNER JOIN "books"."libro_autor"
-  AS "T2" ON "T1"."id_libro" = "T2"."id_libro" INNER JOIN "books"."autor" AS "T3"
-  ON "T3"."id_autor" = "T2"."id_autor" WHERE "T3"."nombre_autor" = 'Orson Scott Card'
-summary: Count the number of books written by Orson Scott Card.
-body: 'Question: Count the number of books written by Orson Scott Card.
+sql: SELECT CAST(SUM(CASE WHEN "T1"."valor_estado" = 'Returned' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*),
+  0) FROM "books"."estado_pedido" AS "T1" INNER JOIN "books"."historial_pedido" AS "T2" ON "T1"."id_estado"
+  = "T2"."id_estado" WHERE TO_CHAR(CAST("T2"."fecha_estado" AS TIMESTAMP), 'YYYY') = '2022'
+summary: Among all orders updated in 2022, identify the percentage that has been returned.
+body: 'Question: Among all orders updated in 2022, identify the percentage that has been returned.
 
   SQL:
 
-  SELECT COUNT(*) FROM "books"."libro" AS "T1" INNER JOIN "books"."libro_autor" AS
-  "T2" ON "T1"."id_libro" = "T2"."id_libro" INNER JOIN "books"."autor" AS "T3" ON
-  "T3"."id_autor" = "T2"."id_autor" WHERE "T3"."nombre_autor" = ''Orson Scott Card'''
-complexity: complex
-confidence: 0.55
+  SELECT CAST(SUM(CASE WHEN "T1"."valor_estado" = ''Returned'' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*),
+  0) FROM "books"."estado_pedido" AS "T1" INNER JOIN "books"."historial_pedido" AS "T2" ON "T1"."id_estado"
+  = "T2"."id_estado" WHERE TO_CHAR(CAST("T2"."fecha_estado" AS TIMESTAMP), ''YYYY'') = ''2022'''
 audit:
   provenance:
     source: gold
@@ -21,4 +19,4 @@ audit:
     version: harvest-1
     source_refs:
     - train_final.jsonl
-  evidence: gold train Q train_5977; 1 question(s) share this shape
+  evidence: train question train_6058

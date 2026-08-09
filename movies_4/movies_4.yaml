@@ -1,23 +1,32 @@
 asset_type: schema
 id: movies_4
 name: movies_4
-summary: 'movies_4: 17 tables — country, department, gender, genre, keyword, language,
-  language_role, movie, movie_cast, movie_company, movie_crew, movie_genres, movie_keywords,
-  movie_languages, person, production_company, production_country'
+summary: movies_4 is a film catalog of movie titles, budgets, revenue, ratings, runtime, cast,
+  crew jobs, genres, keywords, spoken languages, production companies, and countries of
+  production.
+body: >
+  movie is the hub every bridge table joins to on movie_id: movie_cast and movie_crew name who
+  acted in or worked on a movie, movie_genres and movie_keywords classify it, movie_languages
+  records its original and spoken languages, and movie_company and production_country record who
+  produced it and where. person is shared by cast and crew rows. gender, genre, keyword,
+  language, language_role, department, and country are small reference lists joined by their own
+  id column. film_audio_languages, film_category, film_production_partners, and movie_tags look
+  like alternative versions of movie_languages, genre, movie_company or production_company, and
+  movie_keywords, but their rows are not dependable and must not be queried in their place. Every
+  real table also carries one or more unreliable twin columns whose name resembles a real id or
+  name column but whose values do not track it.
+rules:
+- Join dimension and bridge tables on their real id columns, for example movie.movie_id,
+  person.person_id, genre.genre_id, and country.country_id; never on a twin column such as
+  cast_movie_id, crew_person_id, genre_ref_id, category_id, or production_movie_id, which does
+  not track the real join.
+- Do not query film_audio_languages, film_category, film_production_partners, or movie_tags in
+  place of movie_languages, genre, movie_company, production_company, or movie_keywords; none of
+  their rows are dependable.
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A movie catalog database describing films and their production, cast, and crew.
-  Each movie has box-office and rating attributes and links to genres, keywords, spoken
-  languages, production companies, and production countries.
-rules:
-- A movie's genres, keywords, spoken languages, cast, crew, and production companies
-  are all reached through the movie_id bridge tables (movie_genres, movie_keywords,
-  movie_languages, movie_cast, movie_crew, movie_company).
-- 'Cast and crew roles are distinguished by role text, not by table: crew roles use
-  movie_crew.job (e.g. ''Director'', ''Producer'') while cast roles use movie_cast.character_name.'
+    - train_final.jsonl

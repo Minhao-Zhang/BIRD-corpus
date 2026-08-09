@@ -2,153 +2,106 @@ asset_type: table
 id: disney.personajes
 schema: disney
 physical_name: personajes
-summary: 'characters (personajes): movie_title, release_date, hero, villian, song'
+summary: personajes lists each Disney movie's hero, villain, and associated song.
+body: >
+  Grain: one row per movie (56 rows), naming its hero (heroe), villain (villano), and an
+  associated song (cancion), plus the movie's title and release date. Matches actores_voz (by
+  pelicula, or by personaje against heroe or villano), director.nombre, and
+  peliculas_recaudacion_total.titulo_pelicula on titulo_pelicula as exact text — there is no
+  shared numeric id. protagonista_principal, titulo_largometraje, and antagonista_principal on
+  this table are unreliable copies of heroe, titulo_pelicula, and villano and must not be used,
+  none of them as a join key.
 columns:
-- asset_type: column
-  physical_name: titulo_pelicula
-  summary: movie_title — personajes.titulo_pelicula
-  body: Means 'movie_title' (obfuscated to 'titulo_pelicula').
+- physical_name: titulo_pelicula
+  summary: titulo_pelicula is the title of the Disney movie a row of character and song data describes.
+  body: >
+    Free text movie title (sample values The Great Mouse Detective, The Many Adventures of
+    Winnie the Pooh, Dinosaur, Pinocchio, Brother Bear), one per row, matched as exact text
+    against actores_voz.pelicula, director.nombre, and peliculas_recaudacion_total.titulo_pelicula.
+    The titulo_largometraje column on this same table duplicates it unreliably and must not be
+    used for that matching.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_estreno
-  summary: release_date — personajes.fecha_estreno
-  body: Release date as free-form text, same mixed formats as peliculas_recaudacion_total.fecha_estreno.
+- physical_name: fecha_estreno
+  summary: fecha_estreno is the release date of the movie on this row.
+  body: >
+    Free text date in day-month-year form (sample values 2-Jul-86, 11-Mar-77, 19-May-00,
+    7-Feb-40, 1-Nov-03), a different format from the fecha_estreno column on
+    peliculas_recaudacion_total.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: heroe
-  summary: hero — personajes.heroe
-  body: The movie's hero / main protagonist character (e.g. 'Robin Hood', 'Elsa',
-    'Donald Duck').
+- physical_name: heroe
+  summary: heroe is the main character of the movie on this row.
+  body: >
+    Free text character name (sample values Basil, Winnie the Pooh, Aladar, Pinocchio, Kenai),
+    null for 4 of 56 rows. Matches actores_voz.personaje when that voice-cast row is for this
+    character. The protagonista_principal column on this same table duplicates it unreliably
+    and must not be used.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: villano
-  summary: villian — personajes.villano
-  body: The movie's villain character; NULL when the movie has no villain.
+- physical_name: villano
+  summary: villano is the villain of the movie on this row.
+  body: >
+    Free text character name (sample values Professor Ratigan, Kron, Stromboli, Denahi,
+    Chernabog), null for 10 of 56 rows — not every movie in this table has a recorded villain.
+    Matches actores_voz.personaje when that voice-cast row is for this character. The
+    antagonista_principal column on this same table duplicates it unreliably and must not be
+    used.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cancion
-  summary: song — personajes.cancion
-  body: Means 'song' (obfuscated to 'cancion').
+- physical_name: cancion
+  summary: cancion is a song associated with the movie on this row.
+  body: >
+    Free text song title (sample values The World's Greatest Criminal Mind, Winnie the Pooh,
+    When You Wish upon a Star, Look Through My Eyes, I'm Still Here), null for 9 of 56 rows when
+    no song is recorded.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: protagonista_principal
-  summary: protagonista_principal — personajes.protagonista_principal
-  body: 'Physical column ''protagonista_principal''. DECOY column: not a real business
-    field. Fabricated to mimic ''hero''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: protagonista_principal
+  summary: protagonista_principal, a text column on the personajes table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''hero''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: titulo_largometraje
-  summary: titulo_largometraje — personajes.titulo_largometraje
-  body: 'Physical column ''titulo_largometraje''. DECOY column: not a real business
-    field. Fabricated to mimic ''movie_title''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: titulo_largometraje
+  summary: titulo_largometraje, a text column on the personajes table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''movie_title''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: antagonista_principal
-  summary: antagonista_principal — personajes.antagonista_principal
-  body: 'Physical column ''antagonista_principal''. DECOY column: not a real business
-    field. Fabricated to mimic ''villian''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: antagonista_principal
+  summary: antagonista_principal, a text column on the personajes table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''villian''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per movie describing its characters and song: movie title, release
-  date, hero (main character), villain, and associated song. Grain is one movie. Overlaps
-  with peliculas_recaudacion_total on title but carries character/song attributes,
-  not box office.'
+    - information_schema

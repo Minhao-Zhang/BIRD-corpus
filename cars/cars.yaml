@@ -1,20 +1,29 @@
 asset_type: schema
 id: cars
 name: cars
-summary: 'cars: 4 tables — country, price, production, data'
+summary: >-
+  The cars database catalogs individual automobiles — name, country of origin, model year,
+  price, and specs like horsepower, weight, displacement, cylinders, acceleration, and fuel
+  efficiency — for comparing cars by era and performance.
+body: >
+  Three tables carry the real data, all keyed by the same numeric id for one car: jia_ge
+  (price in US dollars), sheng_chan (country of origin and model year), and shu_ju (name and
+  every technical spec — horsepower, weight, displacement, cylinders, acceleration, and mpg)
+  — one row per car in each. guo_jia is a small three-row lookup of country codes to names
+  (USA, Japan, Europe), joined from sheng_chan's country code. jia_ge_lishi and
+  sheng_chan_xinxi look like price and production tables but are not dependable for analysis;
+  none of their columns should be used to answer a question. Within sheng_chan itself, only
+  id, nian_fen, and guo_jia are dependable — its other columns duplicate those unreliably.
+rules:
+- Join a car's price, origin/year, and technical specs using the shared id column across
+  jia_ge, sheng_chan, and shu_ju — it is not declared as a foreign key anywhere.
+- Answer country-of-origin questions through guo_jia joined to sheng_chan.guo_jia only; never
+  use sheng_chan.guo_jia_id, guo_jia.yuan_chu, or guo_jia.guo_jia_ming, and never select from
+  jia_ge_lishi or sheng_chan_xinxi.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: Catalog of classic automobile models (roughly the 1970-1982 era) with their
-  price, technical specifications, model year, and country of origin. Supports questions
-  about pricing, performance, fuel efficiency, and production volume by country.
-rules:
-- A car's price (jia_ge), specifications (shu_ju), and production/year record (sheng_chan)
-  all share the same id, so they join one row per car on id.
-- A car's origin country is resolved by joining sheng_chan.guo_jia to guo_jia.yuan_di,
-  then reading the country name from guo_jia.guo_jia.
+    - information_schema

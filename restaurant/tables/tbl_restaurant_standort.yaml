@@ -2,139 +2,90 @@ asset_type: table
 id: restaurant.standort
 schema: restaurant
 physical_name: standort
-summary: 'location (standort): id_restaurant, street_num, street_name, city'
+summary: standort records each restaurant's street address — its street number, street name, and city.
+body: >
+  Grain: one row per restaurant, keyed by restaurant_id, matching allgemeine_informationen. It
+  is easily confused with restaurant_adresse, a table of address-like records that looks
+  similar but is not dependable for analysis; use standort instead. Join to
+  allgemeine_informationen on restaurant_id (one row per restaurant on both sides) to add the
+  restaurant's name, food type, and rating, and to geografisch on stadt to add its county and
+  region.
 columns:
-- asset_type: column
-  physical_name: restaurant_id
-  summary: id_restaurant — standort.restaurant_id
-  body: Means 'id_restaurant' (obfuscated to 'restaurant_id').
+- physical_name: restaurant_id
+  summary: The restaurant this street address belongs to, restaurant_id.
+  body: >
+    Matches allgemeine_informationen.restaurant_id one row per restaurant; join on this column
+    to combine a restaurant's identity and rating with its street address.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: hausnummer
-  summary: street_num — standort.hausnummer
-  body: Street (house) number as an integer, e.g. 56, 5352; used in address output
-    and range filters like < 500 or < 1000.
+- physical_name: hausnummer
+  summary: The street number of a restaurant's address, hausnummer.
+  body: >
+    Integer street number, for example 105, 9, or 2128 (about 80 of 500 sample rows are null).
+    Called "street number" in business language. Pair with stra_enname for the street portion
+    of the address.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: stra_enname
-  summary: street_name — standort.stra_enname
-  body: Street name in lowercase text, e.g. 'adeline st', 'irving', 'mission blvd';
-    often shortened, so match the exact stored form.
+- physical_name: stra_enname
+  summary: The street name of a restaurant's address, stra_enname.
+  body: >
+    Free text street name, for example "chestnut st", "walnut ave", or "drive" (about 61 of
+    500 sample rows are null; some values are just the road type, like "way" or "drive").
+    Called "street" or "street name" in business language. Combine with hausnummer and stadt
+    for the restaurant's full address.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: stadt
-  summary: city — standort.stadt
-  body: Means 'city' (obfuscated to 'stadt').
+- physical_name: stadt
+  summary: The city of a restaurant's street address, stadt.
+  body: >
+    Lowercase city name expected to match allgemeine_informationen.stadt for the same
+    restaurant (about 60 of 500 sample rows are null). Join to geografisch.stadt for the
+    restaurant's county and region.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: stadtteil
-  summary: stadtteil — standort.stadtteil
-  body: 'Physical column ''stadtteil''. DECOY column: not a real business field. Fabricated
-    to mimic ''city''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: stadtteil
+  summary: stadtteil, a text column on the standort table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''city''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: restaurant_nummer
-  summary: restaurant_nummer — standort.restaurant_nummer
-  body: 'Physical column ''restaurant_nummer''. DECOY column: not a real business
-    field. Fabricated to mimic ''id_restaurant''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: restaurant_nummer
+  summary: restaurant_nummer, a numeric column on the standort table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''id_restaurant''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: strassenname
-  summary: strassenname — standort.strassenname
-  body: 'Physical column ''strassenname''. DECOY column: not a real business field.
-    Fabricated to mimic ''street_name''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: strassenname
+  summary: strassenname, a text column on the standort table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''street_name''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per restaurant location (address): street name, street number, and
-  city, keyed by restaurant_id. Grain is one restaurant address. Holds where a restaurant
-  physically is; the general-info table holds rating and food type.'
+    - information_schema

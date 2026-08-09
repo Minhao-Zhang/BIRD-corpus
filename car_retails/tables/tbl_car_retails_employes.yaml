@@ -2,195 +2,111 @@ asset_type: table
 id: car_retails.employes
 schema: car_retails
 physical_name: employes
-summary: 'employees (employes): employeeNumber, lastName, firstName, extension, email,
-  officeCode, reportsTo, jobTitle'
+summary: employes lists each employee of the retailer, their job title, office, contact details, and management chain.
+body: >
+  One row per employee. numero_employe is the primary identifier that
+  clients.numero_employe_commercial, and this table's own rend_compte_a, reference;
+  code_bureau names the bureaux row where the employee works. id_employe, code_agence, and
+  id_superviseur look like the same facts restated but are not dependable and must not be used
+  to answer questions or as join keys.
 columns:
-- asset_type: column
-  physical_name: numero_employe
-  summary: employeeNumber — employes.numero_employe
-  body: Means 'employeeNumber' (obfuscated to 'numero_employe').
+- physical_name: numero_employe
+  summary: numero_employe, the employee's unique number.
+  body: >
+    Referenced by clients.numero_employe_commercial and by other employes rows'
+    rend_compte_a to record who reports to whom.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nom_famille
-  summary: lastName — employes.nom_famille
-  body: Means 'lastName' (obfuscated to 'nom_famille').
+- physical_name: nom_famille
+  summary: nom_famille, the employee's last name.
+  body: Combine with prenom for the employee's full name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: prenom
-  summary: firstName — employes.prenom
-  body: Means 'firstName' (obfuscated to 'prenom').
+- physical_name: prenom
+  summary: prenom, the employee's first name.
+  body: Combine with nom_famille for the employee's full name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: poste_telephonique
-  summary: extension — employes.poste_telephonique
-  body: Means 'extension' (obfuscated to 'poste_telephonique').
+- physical_name: poste_telephonique
+  summary: poste_telephonique, the employee's internal phone extension.
+  body: >
+    A short extension code such as x101, distinct from the office's main telephone number in
+    bureaux.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: email
-  summary: email — employes.email
-  body: Means 'email' (obfuscated to 'email').
+- physical_name: email
+  summary: email, the employee's work email address.
+  body: Follows a first-initial-and-last-name pattern at the company's domain.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: code_bureau
-  summary: officeCode — employes.code_bureau
-  body: Means 'officeCode' (obfuscated to 'code_bureau').
+- physical_name: code_bureau
+  summary: code_bureau, the office where the employee works.
+  body: Joins to bureaux.code_bureau.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rend_compte_a
-  summary: reportsTo — employes.rend_compte_a
-  body: The employee number (numero_employe) of this employee's supervisor / superior;
-    used for 'reports to' and 'staff of' relationships.
+- physical_name: rend_compte_a
+  summary: rend_compte_a, the employee number of this employee's manager.
+  body: >
+    Self-referencing: joins to this same table's numero_employe to find the manager's row.
+    Null for the employee at the top of the reporting chain, such as the company president.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: titre_poste
-  summary: jobTitle — employes.titre_poste
-  body: Job title. Observed values include 'Sales Rep' (sales representative), 'VP
-    Sales', and 'President'.
+- physical_name: titre_poste
+  summary: titre_poste, the employee's job title.
+  body: >
+    One of a small set of titles such as President, VP Sales, VP Marketing, Sales Manager
+    (NA), Sales Manager (EMEA), Sales Manager (APAC), or Sales Rep. A question about a sales
+    representative or a sale rep matches titre_poste equal to Sales Rep.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_employe
-  summary: id_employe — employes.id_employe
-  body: 'Physical column ''id_employe''. DECOY column: not a real business field.
-    Fabricated to mimic ''employeeNumber''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: id_employe
+  summary: id_employe, a numeric column on the employes table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''employeeNumber''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: code_agence
-  summary: code_agence — employes.code_agence
-  body: 'Physical column ''code_agence''. DECOY column: not a real business field.
-    Fabricated to mimic ''officeCode''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: code_agence
+  summary: code_agence, a text column on the employes table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''officeCode''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_superviseur
-  summary: id_superviseur — employes.id_superviseur
-  body: 'Physical column ''id_superviseur''. DECOY column: not a real business field.
-    Fabricated to mimic ''reportsTo''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: id_superviseur
+  summary: id_superviseur, a numeric column on the employes table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''reportsTo''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Employees. Grain: one row per employee (numero_employe). Holds name, job title,
-  email, office, and supervisor (rend_compte_a). Sales reps serve customers.'
+    - information_schema

@@ -2,206 +2,132 @@ asset_type: table
 id: works_cycles.Address
 schema: works_cycles
 physical_name: Address
-summary: 'Address (Address): AddressID, AddressLine1, AddressLine2, City, StateProvinceID,
-  PostalCode, SpatialLocation, rowguid, ModifiedDate'
+summary: Address holds the street, city, state, and postal location details used across the
+  works_cycles bicycle manufacturing schema.
+body: >
+  One row per distinct physical address (street lines, city, postal code, and state/province).
+  Referenced by BillToAddressID and ShipToAddressID on SalesOrderHeader, and linked to people,
+  stores, and vendors through the BusinessEntityAddress table rather than directly. StateProvinceID
+  ties each address into StateProvince for its state and country. Easily confused with
+  BusinessEntityAddress, which records which business entity an address belongs to and in what
+  role, not the location text itself.
 columns:
-- asset_type: column
-  physical_name: AddressID
-  summary: AddressID — Address.AddressID
-  body: Means 'AddressID' (obfuscated to 'AddressID').
+- physical_name: AddressID
+  summary: AddressID identifies a single address record in the Address table.
+  body: >
+    Surrogate integer primary key, observed from 104 to 897 in this sample. Every foreign key
+    that points at an address (BillToAddressID, ShipToAddressID, BusinessEntityAddress.AddressID)
+    refers back to this column.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: AddressLine1
-  summary: AddressLine1 — Address.AddressLine1
-  body: Means 'AddressLine1' (obfuscated to 'AddressLine1').
+- physical_name: AddressLine1
+  summary: AddressLine1 carries the primary street address text for an Address record.
+  body: >
+    Free text such as "8505 Fall Creek" or "Marketplatz 5492"; always populated. Holds the
+    building number and street name; a longer address that overflows this field continues in
+    AddressLine2.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: AddressLine2
-  summary: AddressLine2 — Address.AddressLine2
-  body: Second address line; a non-empty value marks an 'address that is too long'.
+- physical_name: AddressLine2
+  summary: AddressLine2 is the secondary street address line for an Address record.
+  body: >
+    Free text such as suite or department labels ("Unit G12", "# 113", "Einkaufsabteilung");
+    populated on only a small fraction of rows (13 of 500 sampled). A non-null value here means
+    the full address did not fit in AddressLine1 alone.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: City
-  summary: City — Address.City
-  body: Means 'City' (obfuscated to 'City').
+- physical_name: City
+  summary: City names the municipality of an Address record.
+  body: >
+    Free text city name, for example "Seaford", "Oxford", or "Kassel"; spans both US and
+    international cities. Combine with StateProvinceID for a state and country, since city names
+    alone are not unique.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: StateProvinceID
-  summary: StateProvinceID — Address.StateProvinceID
-  body: Means 'StateProvinceID' (obfuscated to 'StateProvinceID').
+- physical_name: StateProvinceID
+  summary: StateProvinceID links an Address record to its state or province.
+  body: >
+    Integer foreign key into StateProvince, observed from 1 to 79 in this sample across 32
+    distinct values. Use it, not a raw text match on City, to roll an address up to state,
+    region, or country.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: PostalCode
-  summary: PostalCode — Address.PostalCode
-  body: Means 'PostalCode' (obfuscated to 'PostalCode').
+- physical_name: PostalCode
+  summary: PostalCode records the postal or ZIP code of an Address record.
+  body: >
+    Free text, since formats vary by country: five-digit US ZIP codes ("98201"), UK postcodes
+    ("OX1"), and others. Do not assume a fixed length or a numeric type when filtering on it.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: SpatialLocation
-  summary: SpatialLocation — Address.SpatialLocation
-  body: Means 'SpatialLocation' (obfuscated to 'SpatialLocation').
+- physical_name: SpatialLocation
+  summary: SpatialLocation stores the geographic coordinates of an Address record.
+  body: >
+    A binary-encoded geography point (well-known binary hex, for example starting
+    "0x00000000010100000..."), carrying the address's longitude and latitude pair. Not a
+    human-readable field; decode it before using it in analysis.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rowguid
-  summary: rowguid — Address.rowguid
-  body: Means 'rowguid' (obfuscated to 'rowguid').
+- physical_name: rowguid
+  summary: rowguid is the globally unique identifier assigned to an Address record.
+  body: >
+    A GUID string, for example "7037203A-3E92-46E0-86BA-3931E34200A6", generated when the row was
+    created. Used by replication tooling rather than by business queries; AddressID is the key to
+    join on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ModifiedDate
-  summary: ModifiedDate — Address.ModifiedDate
-  body: Means 'ModifiedDate' (obfuscated to 'ModifiedDate').
+- physical_name: ModifiedDate
+  summary: ModifiedDate records when an Address record was last updated.
+  body: >
+    Timestamp, observed between 2006-06-23 and 2014-06-29 in this sample. Updated whenever any
+    field on the row changes, so it reflects the last edit, not the address's creation date.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: address_identifier
-  summary: address_identifier — Address.address_identifier
-  body: 'Physical column ''address_identifier''. DECOY column: not a real business
-    field. Fabricated to mimic ''AddressID''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: address_identifier
+  summary: address_identifier, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''AddressID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: state_province_ref
-  summary: state_province_ref — Address.state_province_ref
-  body: 'Physical column ''state_province_ref''. DECOY column: not a real business
-    field. Fabricated to mimic ''StateProvinceID''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: state_province_ref
+  summary: state_province_ref, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''StateProvinceID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: street_address_1
-  summary: street_address_1 — Address.street_address_1
-  body: 'Physical column ''street_address_1''. DECOY column: not a real business field.
-    Fabricated to mimic ''AddressLine1''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: street_address_1
+  summary: street_address_1, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''AddressLine1''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: Postal addresses with two address lines, city, postal code and state/province.
+    - train_final.jsonl

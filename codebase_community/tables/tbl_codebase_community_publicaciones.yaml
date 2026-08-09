@@ -2,379 +2,233 @@ asset_type: table
 id: codebase_community.publicaciones
 schema: codebase_community
 physical_name: publicaciones
-summary: 'posts (publicaciones): Id, PostTypeId, AcceptedAnswerId, CreaionDate, Score,
-  ViewCount, Body, OwnerUserId, LasActivityDate, Title, Tags, AnswerCount, CommentCount,
-  FavoriteCount, LastEditorUserId, LastEditDate, CommunityOwnedDate, ParentId, ClosedDa…'
+summary: publicaciones holds every question and answer in the community, one row per post with its title, body, score, view and vote counts, owner, and edit history pointers.
+body: >
+  Grain: one row per post, keyed by id. There is no separate table for questions and answers;
+  both live here and are told apart by id_tipo_publicacion, with an answer's parent question
+  reached through id_padre joining back to publicaciones.id. id_propietario and id_ultimo_editor
+  join to usuarios.id. A question's chosen answer is id_respuesta_aceptada, itself a
+  publicaciones.id. Comments on a post are in comentarios, not here, and edit history is in
+  historial_publicaciones, not here. id_publicacion_2, id_editor_final, and id_duenio look like
+  id, id_ultimo_editor, and id_propietario but are not dependable for analysis.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: Id — publicaciones.id
-  body: Means 'Id' (obfuscated to 'id').
+- physical_name: id
+  summary: The unique identifier for a post, id.
+  body: >
+    Primary key of publicaciones, one row per question or answer. Referenced by comentarios,
+    historial_publicaciones, votos, enlaces_publicaciones, and etiquetas, and by id_padre and
+    id_respuesta_aceptada on this same table.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_tipo_publicacion
-  summary: PostTypeId — publicaciones.id_tipo_publicacion
-  body: Means 'PostTypeId' (obfuscated to 'id_tipo_publicacion').
+- physical_name: id_tipo_publicacion
+  summary: The kind of post a row represents, id_tipo_publicacion.
+  body: >
+    Numeric code distinguishing a question from an answer and from a handful of internal post
+    kinds; 1 marks a question and 2 marks an answer, which together make up almost all rows. The
+    remaining codes cover wiki and tag-explanation posts, matching id_publicacion_extracto and
+    id_publicacion_wiki on etiquetas.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_respuesta_aceptada
-  summary: AcceptedAnswerId — publicaciones.id_respuesta_aceptada
-  body: Means 'AcceptedAnswerId' (obfuscated to 'id_respuesta_aceptada').
+- physical_name: id_respuesta_aceptada
+  summary: The accepted answer for a question, id_respuesta_aceptada.
+  body: >
+    Self-referencing foreign key to publicaciones.id, set only on question rows that have
+    accepted one of their answers. Most sampled questions have no accepted answer, so this
+    column is null on the majority of rows.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_creacion
-  summary: CreaionDate — publicaciones.fecha_creacion
-  body: Means 'CreaionDate' (obfuscated to 'fecha_creacion').
+- physical_name: fecha_creacion
+  summary: The timestamp when a post was created, fecha_creacion.
+  body: >
+    Timestamp in UTC, ranging from 2010-07-19 19:33:19 to 2014-08-14 04:00:46 in the sample.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: puntuacion
-  summary: Score — publicaciones.puntuacion
-  body: Score of the post.
+- physical_name: puntuacion
+  summary: The vote score of a post, puntuacion.
+  body: >
+    Integer score, upvotes minus downvotes; sampled values run from -1 to 23. Higher is better
+    received by the community.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cantidad_vistas
-  summary: ViewCount — publicaciones.cantidad_vistas
-  body: View count of the post; treated as popularity. 'Most popular' / 'highest popularity'
-    = MAX(cantidad_vistas).
+- physical_name: cantidad_vistas
+  summary: The number of times a post has been viewed, cantidad_vistas.
+  body: >
+    Integer view count, tracked mainly on questions; roughly 80% of sampled rows are null
+    because answers do not carry their own view count. A higher value means a more popular post.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: contenido
-  summary: Body — publicaciones.contenido
-  body: Means 'Body' (obfuscated to 'contenido').
+- physical_name: contenido
+  summary: The body text of a post, contenido.
+  body: >
+    HTML-formatted text of the question or answer, for example a paragraph recommending a
+    package or explaining a formula. This is what "content" or "body" means when a question
+    asks what a post says.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_propietario
-  summary: OwnerUserId — publicaciones.id_propietario
-  body: Owner user id; references usuarios.id.
+- physical_name: id_propietario
+  summary: The user who authored a post, id_propietario.
+  body: >
+    Foreign key to usuarios.id. A value of -1 marks a post imported without a known author
+    rather than null; about 8% of sampled rows are null instead.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_ultima_actividad
-  summary: LasActivityDate — publicaciones.fecha_ultima_actividad
-  body: Means 'LasActivityDate' (obfuscated to 'fecha_ultima_actividad').
+- physical_name: fecha_ultima_actividad
+  summary: The timestamp of the most recent activity on a post, fecha_ultima_actividad.
+  body: >
+    Timestamp in UTC, ranging from 2010-07-19 19:33:19 to 2014-09-09 08:42:42 in the sample.
+    Updated by new answers, edits, or comments, so it can be later than fecha_creacion.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: titulo
-  summary: Title — publicaciones.titulo
-  body: Means 'Title' (obfuscated to 'titulo').
+- physical_name: titulo
+  summary: The title of a post, titulo.
+  body: >
+    Free text title, present only on question rows; roughly 80% of sampled rows are null because
+    answers have no title of their own.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: etiquetas
-  summary: Tags — publicaciones.etiquetas
-  body: Free-text tag string on the post, formatted with angle brackets, e.g. '<humor>'.
+- physical_name: etiquetas
+  summary: The tags attached to a post, etiquetas.
+  body: >
+    Free text list of tag names wrapped in angle brackets, for example "<r><algorithms>", present
+    only on question rows; roughly 80% of sampled rows are null because answers carry no tags of
+    their own. Match against etiquetas.nombre_etiqueta to resolve individual tag names.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cantidad_respuestas
-  summary: AnswerCount — publicaciones.cantidad_respuestas
-  body: Number of answers on the post.
+- physical_name: cantidad_respuestas
+  summary: The number of answers a post has received, cantidad_respuestas.
+  body: >
+    Integer count, tracked only on question rows; roughly 80% of sampled rows are null because
+    answers do not have their own answer count.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cantidad_comentarios
-  summary: CommentCount — publicaciones.cantidad_comentarios
-  body: Number of comments on the post.
+- physical_name: cantidad_comentarios
+  summary: The number of comments left on a post, cantidad_comentarios.
+  body: >
+    Integer count, present on both questions and answers; sampled values run from 0 to 9. This
+    is a stored counter on the post row, not a live COUNT of matching comentarios rows, so the
+    two can disagree if the counter has not been refreshed.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cantidad_favoritos
-  summary: FavoriteCount — publicaciones.cantidad_favoritos
-  body: Number of times the post was favorited; 'most valuable post' = MAX(cantidad_favoritos).
+- physical_name: cantidad_favoritos
+  summary: The number of times a post has been marked a favorite, cantidad_favoritos.
+  body: >
+    Integer count, mostly null in the sample (about 90% of rows) and populated mainly on
+    question rows. A higher count means the post is judged more valuable by the community.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_ultimo_editor
-  summary: LastEditorUserId — publicaciones.id_ultimo_editor
-  body: User id of the last editor; references usuarios.id.
+- physical_name: id_ultimo_editor
+  summary: The user who last edited a post, id_ultimo_editor.
+  body: >
+    Foreign key to usuarios.id, null when a post has never been edited (roughly 57% of sampled
+    rows). A value of -1 marks an automated edit rather than a specific user.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_ultima_edicion
-  summary: LastEditDate — publicaciones.fecha_ultima_edicion
-  body: Means 'LastEditDate' (obfuscated to 'fecha_ultima_edicion').
+- physical_name: fecha_ultima_edicion
+  summary: The timestamp of the most recent edit to a post, fecha_ultima_edicion.
+  body: >
+    Timestamp in UTC, ranging from 2010-08-07 10:06:32 to 2014-08-21 19:29:36 in the sample,
+    null when the post has never been edited.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_propiedad_comunidad
-  summary: CommunityOwnedDate — publicaciones.fecha_propiedad_comunidad
-  body: Means 'CommunityOwnedDate' (obfuscated to 'fecha_propiedad_comunidad').
+- physical_name: fecha_propiedad_comunidad
+  summary: The timestamp a post became community-owned, fecha_propiedad_comunidad.
+  body: >
+    Timestamp in UTC, null on the great majority of sampled rows; set only for the small share
+    of posts made community wiki, ranging from 2010-07-19 19:33:19 to 2012-03-12 17:25:11 in the
+    sample.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_padre
-  summary: ParentId — publicaciones.id_padre
-  body: Parent post id. NULL indicates a root post; otherwise it references the parent
-    post's id.
+- physical_name: id_padre
+  summary: The question a post answers, id_padre.
+  body: >
+    Self-referencing foreign key to publicaciones.id. Null means the row is a root post (a
+    question); a non-null value means the row is an answer to the question with that id.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha_cierre
-  summary: ClosedDate — publicaciones.fecha_cierre
-  body: Date the post was closed; NULL means the post is not (well-)finished/closed.
+- physical_name: fecha_cierre
+  summary: The timestamp a post was closed, fecha_cierre.
+  body: >
+    Timestamp in UTC, null on almost all sampled rows because most posts stay open. Null means
+    the post is not well-finished (still open); a non-null value, ranging from 2010-10-25
+    23:52:05 to 2013-11-29 10:18:11 in the sample, means it has been closed.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre_propietario
-  summary: OwnerDisplayName — publicaciones.nombre_propietario
-  body: Means 'OwnerDisplayName' (obfuscated to 'nombre_propietario').
+- physical_name: nombre_propietario
+  summary: The display name recorded for a post's author at posting time, nombre_propietario.
+  body: >
+    Free text snapshot of the author's display name, mostly null in the sample; populated values
+    include "Branson" and "Tzippy". Prefer joining id_propietario to usuarios.nombre_mostrado for
+    the current name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre_ultimo_editor
-  summary: LastEditorDisplayName — publicaciones.nombre_ultimo_editor
-  body: Means 'LastEditorDisplayName' (obfuscated to 'nombre_ultimo_editor').
+- physical_name: nombre_ultimo_editor
+  summary: The display name recorded for a post's last editor at edit time, nombre_ultimo_editor.
+  body: >
+    Free text snapshot of the last editor's display name, null on almost all sampled rows.
+    Prefer joining id_ultimo_editor to usuarios.nombre_mostrado for the current name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_publicacion_2
-  summary: id_publicacion_2 — publicaciones.id_publicacion_2
-  body: 'Physical column ''id_publicacion_2''. DECOY column: not a real business field.
-    Fabricated to mimic ''Id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: id_publicacion_2
+  summary: id_publicacion_2, a numeric column on the publicaciones table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Id''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_editor_final
-  summary: id_editor_final — publicaciones.id_editor_final
-  body: 'Physical column ''id_editor_final''. DECOY column: not a real business field.
-    Fabricated to mimic ''LastEditorUserId''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: id_editor_final
+  summary: id_editor_final, a numeric column on the publicaciones table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''LastEditorUserId''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_duenio
-  summary: id_duenio — publicaciones.id_duenio
-  body: 'Physical column ''id_duenio''. DECOY column: not a real business field. Fabricated
-    to mimic ''OwnerUserId''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: id_duenio
+  summary: id_duenio, a numeric column on the publicaciones table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''OwnerUserId''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per post (grain: post); both questions and answers. Root posts have
-  id_padre NULL; answers point to a parent. Carries denormalized counters (view/favorite/comment/answer
-  counts), score, title, body, tags and owner/last-editor references.'
+    - information_schema

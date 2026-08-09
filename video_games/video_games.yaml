@@ -1,21 +1,39 @@
 asset_type: schema
 id: video_games
 name: video_games
-summary: 'video_games: 8 tables — publisher, genre, game, game_publisher, game_platform,
-  platform, region, region_sales'
+summary: The video_games database catalogs published games, their publishers, genres, and
+  hardware platforms, with regional sales figures for North America, Europe, Japan, and other
+  markets.
+body: >
+  editeur (publisher), genre, jeu (game), plateforme (platform), and region are the five lookup
+  and entity tables; jeu_editeur links each game to its publisher, jeu_plateforme links a
+  game-publisher pair to a platform and release year, and ventes_region records how many copies
+  a game-platform release sold in each region. A game reaches its platform and publisher only
+  through jeu_editeur and jeu_plateforme -- jeu itself carries no direct foreign key to either.
+
+  Every entity table also carries a second, unreliable id column and, where the entity has a
+  name, a second, unreliable name column: editeur has id_editeur_pk and raison_sociale_editeur;
+  genre has id_genre_ref and libelle_genre; jeu has id_categorie, jeu_id, and titre_jeu;
+  jeu_editeur has id_jeu_ref, id_lien_jeu_editeur, and id_editeur_ref; jeu_plateforme has
+  id_assoc_jeu_editeur, id_jeu_plateforme_2, and id_console; plateforme has id_plateforme_ref and
+  libelle_plateforme; region has id_region_pk and libelle_region; and ventes_region has
+  id_jeu_sur_plateforme, id_region_ref, and volume_ventes. None of these should be read, filtered
+  on, or joined on. The support_jeu and zone_geographique tables are themselves not dependable at
+  all -- use plateforme and region instead.
+
+  ventes_region.nombre_ventes is recorded in units of 100,000; multiply by 100000 to get the
+  actual number of copies sold.
+rules:
+  - Join a game to its publisher and platform through jeu_editeur and jeu_plateforme -- jeu
+    carries no direct foreign key to editeur or plateforme.
+  - Use plateforme and region for platform and region lookups; support_jeu and zone_geographique
+    are not dependable and must not be used.
+  - ventes_region.nombre_ventes is stored in units of 100,000; multiply by 100000 for the actual
+    number of copies sold.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A video-game sales database. It catalogs games, their genres and publishers,
-  the platforms each game was released on (with a release year), and the number of
-  units sold per game-platform in each geographic region.
-rules:
-- 'Sales are stored in units of 100,000: the actual number of games sold = nombre_ventes
-  * 100000 (e.g. nombre_ventes = 3.5 means 350,000 units).'
-- A game reaches a platform through jeu -> jeu_editeur -> jeu_plateforme; regional
-  sales attach to a game-platform row, not directly to the game.
+    - information_schema

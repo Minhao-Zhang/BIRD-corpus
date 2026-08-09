@@ -2,278 +2,174 @@ asset_type: table
 id: movie_platform.lists
 schema: movie_platform
 physical_name: lists
-summary: 'lists (lists): user_id, list_id, list_title, list_movie_number, list_update_timestamp_utc,
-  list_creation_timestamp_utc, list_followers, list_url, list_comments, list_description,
-  list_cover_image_url, list_first_image_url, list_second_image_url, lis…'
+summary: lists holds one row per movie list a Mubi user has curated, with its title, follower and comment counts, and how many movies it contains.
+body: >
+  Grain: one row per list, keyed by list_id. This is the table to start from for any question
+  about a list's title, size, popularity, or description. It is easily confused with lists_users,
+  which repeats one row per list but carries the creating user's subscription status at the
+  moment they made it rather than facts about the list itself. Join to lists_users on list_id to
+  add that status, and to ratings or ratings_users on user_id to see the same user's ratings.
 columns:
-- asset_type: column
-  physical_name: user_id
-  summary: user_id — lists.user_id
-  body: Means 'user_id' (obfuscated to 'user_id').
+- physical_name: user_id
+  summary: The identifier of the Mubi user who created a list, user_id.
+  body: >
+    A large numeric user id assigned by Mubi, for example 59354490 or 22336946; not sequential
+    and not reused across users. Join to lists_users.user_id, ratings.user_id, or
+    ratings_users.user_id to bring in the same user's other activity.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_id
-  summary: list_id — lists.list_id
-  body: Means 'list_id' (obfuscated to 'list_id').
+- physical_name: list_id
+  summary: The unique identifier for a list, list_id.
+  body: >
+    A numeric id, unique per row in this table, for example 1906, 2348, or 3684. Join to
+    lists_users.list_id (also one row per list) to bring in the creating user's status snapshot.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_title
-  summary: list_title — lists.list_title
-  body: Means 'list_title' (obfuscated to 'list_title').
+- physical_name: list_title
+  summary: The title a user gave a list, list_title.
+  body: >
+    Free-text title, for example "Comedy", "George Lucas", or "Best". Titles are not unique:
+    generic names like "Comedy" or "Favourites" recur across many different lists and users.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_movie_number
-  summary: list_movie_number — lists.list_movie_number
-  body: Number of movies added to the list.
+- physical_name: list_movie_number
+  summary: The count of movies a list contains, list_movie_number.
+  body: >
+    A non-negative integer, mostly small (single digits to a few dozen) with a long tail of
+    much larger lists; business language sets thresholds against it directly, for example "at
+    least 200 movies" means list_movie_number > 200 and "less than 50 movies" means
+    list_movie_number < 50.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_update_timestamp_utc
-  summary: list_update_timestamp_utc — lists.list_update_timestamp_utc
-  body: UTC timestamp (text) when the list was last updated.
+- physical_name: list_update_timestamp_utc
+  summary: The UTC timestamp when a list was last updated, list_update_timestamp_utc.
+  body: >
+    Text timestamp formatted 'YYYY-MM-DD HH:MM:SS', for example '2009-12-17 09:46:56'. The list
+    that has gone longest without a change is the one with the smallest (earliest) value here,
+    i.e. MIN(list_update_timestamp_utc). Always at or after list_creation_timestamp_utc for the
+    same row.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_creation_timestamp_utc
-  summary: list_creation_timestamp_utc — lists.list_creation_timestamp_utc
-  body: UTC timestamp (text) when the list was created.
+- physical_name: list_creation_timestamp_utc
+  summary: The UTC timestamp when a list was first created, list_creation_timestamp_utc.
+  body: >
+    Text timestamp formatted 'YYYY-MM-DD HH:MM:SS', for example '2009-12-16 15:00:32'. The
+    oldest list is the smallest value here. lists_users carries the same moment as a
+    date-only column, list_creation_date_utc.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_followers
-  summary: list_followers — lists.list_followers
-  body: Number of followers the list has.
+- physical_name: list_followers
+  summary: The number of Mubi users following a list, list_followers.
+  body: >
+    A small non-negative integer, for example 0, 2, 1, or 4 in the loaded sample, though larger
+    lists can draw many more. A list "with at least one follower" means list_followers >= 1; the
+    most-followed list is the one with MAX(list_followers).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_url
-  summary: list_url — lists.list_url
-  body: Means 'list_url' (obfuscated to 'list_url').
+- physical_name: list_url
+  summary: The web address of a list's page on Mubi, list_url.
+  body: >
+    A full URL such as 'http://mubi.com/lists/comedy' or 'http://mubi.com/lists/george-lucas',
+    built from the list's title. Not a business identifier; use list_id or list_title instead
+    when a question is really asking which list, not which page.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_comments
-  summary: list_comments — lists.list_comments
-  body: Means 'list_comments' (obfuscated to 'list_comments').
+- physical_name: list_comments
+  summary: The number of comments left on a list, list_comments.
+  body: >
+    A small non-negative integer, for example 0, 1, or 2 in the loaded sample. Distinct from
+    list_description, which is the list's own write-up rather than replies to it.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_description
-  summary: list_description — lists.list_description
-  body: Means 'list_description' (obfuscated to 'list_description').
+- physical_name: list_description
+  summary: The write-up a user attached to a list, list_description.
+  body: >
+    HTML-formatted free text, for example '<p>FUN</p>' or a numbered ranking of films; mostly
+    null (empty for the large majority of lists in the sample). Distinct from list_comments,
+    which counts replies rather than holding the list's own text.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_cover_image_url
-  summary: list_cover_image_url — lists.list_cover_image_url
-  body: Means 'list_cover_image_url' (obfuscated to 'list_cover_image_url').
+- physical_name: list_cover_image_url
+  summary: The web address of a list's cover image, list_cover_image_url.
+  body: >
+    A full image URL under assets.mubicdn.net, for example one ending
+    '/image/3339/image-large.jpg?1481126957'. Cosmetic; not useful for filtering or grouping.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_first_image_url
-  summary: list_first_image_url — lists.list_first_image_url
-  body: Means 'list_first_image_url' (obfuscated to 'list_first_image_url').
+- physical_name: list_first_image_url
+  summary: The web address of the first movie thumbnail shown for a list, list_first_image_url.
+  body: >
+    A full image URL under assets.mubicdn.net, similar in form to list_cover_image_url but at a
+    smaller size. Cosmetic; not useful for filtering or grouping.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_second_image_url
-  summary: list_second_image_url — lists.list_second_image_url
-  body: Means 'list_second_image_url' (obfuscated to 'list_second_image_url').
+- physical_name: list_second_image_url
+  summary: The web address of the second movie thumbnail shown for a list, list_second_image_url.
+  body: >
+    A full image URL under assets.mubicdn.net, null for lists with fewer than two movies shown
+    (about three quarters of the loaded sample). Cosmetic; not useful for filtering or grouping.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_third_image_url
-  summary: list_third_image_url — lists.list_third_image_url
-  body: Means 'list_third_image_url' (obfuscated to 'list_third_image_url').
+- physical_name: list_third_image_url
+  summary: The web address of the third movie thumbnail shown for a list, list_third_image_url.
+  body: >
+    A full image URL under assets.mubicdn.net, null for lists with fewer than three movies shown
+    (most of the loaded sample). Cosmetic; not useful for filtering or grouping.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_key
-  summary: list_key — lists.list_key
-  body: 'Physical column ''list_key''. DECOY column: not a real business field. Fabricated
-    to mimic ''list_id''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: list_key
+  summary: list_key, a numeric column on the lists table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''list_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: creator_user_id
-  summary: creator_user_id — lists.creator_user_id
-  body: 'Physical column ''creator_user_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''user_id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: creator_user_id
+  summary: creator_user_id, a numeric column on the lists table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''user_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_comment_count
-  summary: list_comment_count — lists.list_comment_count
-  body: 'Physical column ''list_comment_count''. DECOY column: not a real business
-    field. Fabricated to mimic ''list_comments''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: list_comment_count
+  summary: list_comment_count, a numeric column on the lists table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''list_comments''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per user-created movie list (grain: list_id). Holds title, description,
-  cover/preview images, follower count, number of movies in the list, and creation/update
-  timestamps. Joins to lists_users on list_id/user_id.'
+    - information_schema

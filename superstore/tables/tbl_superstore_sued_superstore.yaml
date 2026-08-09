@@ -2,250 +2,154 @@ asset_type: table
 id: superstore.sued_superstore
 schema: superstore
 physical_name: sued_superstore
-summary: 'south_superstore (sued_superstore): Row ID, Order ID, Order Date, Ship Date,
-  Ship Mode, Customer ID, Region, Product ID, Sales, Quantity, Discount, Profit'
+summary: sued_superstore holds one row per order line shipped from the store's South
+  region, recording the product, customer, ship mode, dates, quantity, discount,
+  sales and profit for that line.
+body: >
+  Grain: one row per order line in the South region; an order can span several lines, one per
+  product. Confusable with superstore_sued, a separate table in this schema whose columns are
+  not dependable, and with ost_superstore, west_superstore and zentral_superstore, which record
+  the same fields for the East, West and Central regions. region is always 'South' here.
+  produkt_id joins to the produkt table for product attributes, and kunde_id joins to the
+  personen table for customer attributes. kunde_nummer_sued, artikel_id_sued and nachlass on
+  this table are not dependable; use kunde_id, produkt_id and rabatt instead.
 columns:
-- asset_type: column
-  physical_name: zeile_id
-  summary: Row ID — sued_superstore.zeile_id
-  body: Means 'Row ID' (obfuscated to 'zeile_id').
+- physical_name: zeile_id
+  summary: zeile_id, the row identifier for each order line in the sued_superstore
+    table.
+  body: >
+    An integer surrogate key, one value per order line and not shared with the other regional
+    order tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: bestellung_id
-  summary: Order ID — sued_superstore.bestellung_id
-  body: Means 'Order ID' (obfuscated to 'bestellung_id').
+- physical_name: bestellung_id
+  summary: bestellung_id, the order identifier for the order line in the sued_superstore
+    table.
+  body: A text code such as 'CA-2016-142755', shared by every line of the same order.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: bestelldatum
-  summary: Order Date — sued_superstore.bestelldatum
-  body: Means 'Order Date' (obfuscated to 'bestelldatum').
+- physical_name: bestelldatum
+  summary: bestelldatum, the date the order was placed, for the sued_superstore
+    table.
+  body: >
+    An ISO calendar date (yyyy-mm-dd) spanning 2013 through 2018. Use this column, not
+    versanddatum, for a question about when an order was placed.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: versanddatum
-  summary: Ship Date — sued_superstore.versanddatum
-  body: Means 'Ship Date' (obfuscated to 'versanddatum').
+- physical_name: versanddatum
+  summary: versanddatum, the date the order line was shipped, for the sued_superstore
+    table.
+  body: An ISO calendar date (yyyy-mm-dd), on or after bestelldatum for the same line.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: versandart
-  summary: Ship Mode — sued_superstore.versandart
-  body: Means 'Ship Mode' (obfuscated to 'versandart').
+- physical_name: versandart
+  summary: versandart, the shipping method used for the order line in the sued_superstore
+    table.
+  body: >
+    One of First Class, Second Class, Standard Class or Same Day. First Class is the fastest of
+    the three non-same-day speeds and Standard Class the slowest.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kunde_id
-  summary: Customer ID — sued_superstore.kunde_id
-  body: Means 'Customer ID' (obfuscated to 'kunde_id').
+- physical_name: kunde_id
+  summary: kunde_id, the customer identifier on the order line in the sued_superstore
+    table.
+  body: >
+    A text code such as 'CS-12355'. Join to the personen table on kunde_id to reach the
+    customer's name, segment and address.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: region
-  summary: Region — sued_superstore.region
-  body: Means 'Region' (obfuscated to 'region').
+- physical_name: region
+  summary: region, the sales region recorded on the order line in the sued_superstore
+    table.
+  body: >
+    Always 'South' in this table. Query ost_superstore, west_superstore or zentral_superstore
+    for the East, West or Central regions.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: produkt_id
-  summary: Product ID — sued_superstore.produkt_id
-  body: Means 'Product ID' (obfuscated to 'produkt_id').
+- physical_name: produkt_id
+  summary: produkt_id, the product identifier on the order line in the sued_superstore
+    table.
+  body: >
+    A text code whose prefix encodes the product's category. Join to the produkt table on
+    produkt_id to reach the product's name, category and sub-category.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: umsatz
-  summary: Sales — sued_superstore.umsatz
-  body: Means 'Sales' (obfuscated to 'umsatz').
+- physical_name: umsatz
+  summary: umsatz, the sales amount for the order line in the sued_superstore table.
+  body: >
+    The dollar sales value of the line, after any discount; the pre-discount price is
+    umsatz / (1 - rabatt).
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: menge
-  summary: Quantity — sued_superstore.menge
-  body: Means 'Quantity' (obfuscated to 'menge').
+- physical_name: menge
+  summary: menge, the quantity of units ordered on the order line in the sued_superstore
+    table.
+  body: A small positive integer, typically one to nine units per line in this table.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rabatt
-  summary: Discount — sued_superstore.rabatt
-  body: Means 'Discount' (obfuscated to 'rabatt').
+- physical_name: rabatt
+  summary: rabatt, the discount rate applied to the order line in the sued_superstore
+    table.
+  body: A fraction between 0 and 1, where 0 means no discount.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: gewinn
-  summary: Profit — sued_superstore.gewinn
-  body: Means 'Profit' (obfuscated to 'gewinn').
+- physical_name: gewinn
+  summary: gewinn, the profit the company earned on the order line in the sued_superstore
+    table.
+  body: Can be negative, marking a line that lost money.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kunde_nummer_sued
-  summary: kunde_nummer_sued — sued_superstore.kunde_nummer_sued
-  body: 'Physical column ''kunde_nummer_sued''. DECOY column: not a real business
-    field. Fabricated to mimic ''Customer ID''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: kunde_nummer_sued
+  summary: kunde_nummer_sued, a text column on the sued_superstore table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts this
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key; it must
+    not be used to join tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Customer
-      ID''. Corruption operator ''permute'': values are altered (permuted — breaks
-      joins/row lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: artikel_id_sued
-  summary: artikel_id_sued — sued_superstore.artikel_id_sued
-  body: 'Physical column ''artikel_id_sued''. DECOY column: not a real business field.
-    Fabricated to mimic ''Product ID''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: artikel_id_sued
+  summary: artikel_id_sued, a text column on the sued_superstore table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts this
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key; it must
+    not be used to join tables.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Product
-      ID''. Corruption operator ''permute'': values are altered (permuted — breaks
-      joins/row lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nachlass
-  summary: nachlass — sued_superstore.nachlass
-  body: 'Physical column ''nachlass''. DECOY column: not a real business field. Fabricated
-    to mimic ''Discount''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: nachlass
+  summary: nachlass, a numeric column on the sued_superstore table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts this
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: real
   logical_type: decimal
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Discount''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'South-region sales order lines: one row per product line on an order, with
-  sales, profit, quantity, discount, ship mode and order/ship dates. Grain = order
-  line. Not the decoy superstore_sued.'
+    - information_schema

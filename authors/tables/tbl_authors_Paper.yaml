@@ -2,101 +2,79 @@ asset_type: table
 id: authors.Paper
 schema: authors
 physical_name: Paper
-summary: 'Paper (Paper): Id, Title, Year, ConferenceId, JournalId, Keyword'
+summary: Paper holds one row per research paper, with its title, publication year, keyword topics, and the conference or journal it appeared in.
+body: >
+  Grain: one row per paper, keyed by Id. A paper is a preprint that was never formally published
+  when Year = 0 and, correspondingly, both ConferenceId = 0 and JournalId = 0; a nonzero
+  ConferenceId marks a conference paper and a nonzero JournalId a journal article, and a paper
+  carries at most one of the two. Join to Conference on ConferenceId = Id and to Journal on
+  JournalId = Id to reach the publication venue, and to PaperAuthor on Id = PaperId (one paper to
+  many rows) to reach every credited author. Easily confused with PaperAuthor, which is the
+  paper-author bridge, not the paper's own record.
 columns:
-- asset_type: column
-  physical_name: Id
-  summary: Id — Paper.Id
-  body: Means 'Id' (obfuscated to 'Id').
+- physical_name: Id
+  summary: The unique identifier for a paper, Id.
+  body: >
+    Numeric primary key of Paper; the sample runs low and dense (1, 2, 3, ...), unlike the
+    larger, non-contiguous ids used elsewhere in this schema. Join to PaperAuthor.PaperId to find
+    every author credited on this paper.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Title
-  summary: Title — Paper.Title
-  body: Full title of the paper; matched exactly when a specific paper is named.
+- physical_name: Title
+  summary: The title of a paper, Title.
+  body: >
+    Free-text title, for example "FIBER: A Generalized Framework for Auto-tuning Software" or
+    "Stitching videos streamed by mobile phones in real-time" (41 of 500 sampled rows are null).
+    Business language calls this the paper's name; match it exactly when a question quotes the
+    full title.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Year
-  summary: Year — Paper.Year
-  body: Publication year (integer). A value of 0 means the paper is preprinted or
-    not published.
+- physical_name: Year
+  summary: The year a paper was published, Year.
+  body: >
+    Four-digit year, for example 2009, 2007, or 1963; 0 marks a paper that is a preprint or was
+    never published (commonly phrased "preprinted", "not published", or excluded by filtering
+    Year != 0). Range filters are common, for example Year BETWEEN 2008 AND 2011 for "published
+    from 2008 to 2011".
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ConferenceId
-  summary: ConferenceId — Paper.ConferenceId
-  body: Foreign key to Conference.Id. 0 means the paper was not presented at a conference.
+- physical_name: ConferenceId
+  summary: The conference a paper was published at, ConferenceId.
+  body: >
+    Foreign key to Conference.Id; 0 means the paper was not published at a conference. Combined
+    with JournalId = 0, ConferenceId = 0 marks a preprint or otherwise unpublished paper.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: JournalId
-  summary: JournalId — Paper.JournalId
-  body: Foreign key to Journal.Id. 0 or -1 indicates an invalid / missing journal
-    (not published in a journal).
+- physical_name: JournalId
+  summary: The journal a paper was published in, JournalId.
+  body: >
+    Foreign key to Journal.Id; 0 means the paper was not published in a journal, and some gold
+    queries additionally exclude -1 as a defensive "valid journal id" check even though the
+    loaded sample's minimum value is 0. Combined with ConferenceId = 0, JournalId = 0 marks a
+    preprint or otherwise unpublished paper; ConferenceId != 0 with JournalId = 0 marks a
+    conference paper that was never also journal-published.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Keyword
-  summary: Keyword — Paper.Keyword
-  body: Topic / subject keyword of the paper (what the paper is 'about').
+- physical_name: Keyword
+  summary: The keyword or topic tags of a paper, Keyword.
+  body: >
+    Free-text list of topical phrases, for example "mobile video capturing|real-time|video
+    stitching" or "Nonlocal diffusion; Convection-diffusion; Asymptotic behaviour", delimited
+    inconsistently by pipes or semicolons (392 of 500 sampled rows are null). Business language
+    calls this the paper's topic or subject; similar keyword values represent similar research
+    fields.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per paper/article (Id): its Title, Keyword (topic), publication Year,
-  and the conference (ConferenceId) and/or journal (JournalId) it appeared in. Year/Id
-  of 0 encode preprint or missing values.'
+    - information_schema

@@ -2,1127 +2,604 @@ asset_type: table
 id: card_games.cards
 schema: card_games
 physical_name: cards
-summary: 'cards (cards): id, artist, asciiName, availability, borderColor, cardKingdomFoilId,
-  cardKingdomId, colorIdentity, colorIndicator, colors, convertedManaCost, duelDeck,
-  edhrecRank, faceConvertedManaCost, faceName, flavorName, flavorText, frameEffects,…'
+summary: 'cards is the Magic: The Gathering card-printing catalog: one row per printed card version, holding
+  its rules text, mana cost, artwork credit, and every external marketplace or database identifier.'
+body: 'One row per card printing, not per unique card name: a card reprinted across many sets gets one
+  row per printing, each with its own uuid. Distinguish a printing (this table''s grain) from a card concept,
+  which is grouped by name or by scryfallOracleId across printings. Joins to sets and set_translations
+  on setCode, and to foreign_data, legalities, and rulings on uuid. card_uuid, illustrator, and set_tag
+  sit alongside uuid, artist, and setCode but are not dependable and must not be used to answer questions.'
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — cards.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: id, the surrogate row number MTGJSON assigns to a card printing in this table.
+  body: Bigint, unique per row, ranging from 102 to 9887 in the sample. Not the card's stable identifier
+    across databases -- use uuid for that; id only orders rows within this load of the table.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: artist
-  summary: artist — cards.artist
-  body: Means 'artist' (obfuscated to 'artist').
+- physical_name: artist
+  summary: artist, the name of the person credited for a card printing's illustration.
+  body: Free text, for example "Mark Tedin" or "Daniel Gelon". Multiple printings of the same card can
+    carry different artist values when the art was redone; 229 distinct artists appear in the sample.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: asciiName
-  summary: asciiName — cards.asciiName
-  body: Means 'asciiName' (obfuscated to 'asciiName').
+- physical_name: asciiName
+  summary: asciiName, the card's name re-rendered in plain ASCII when the printed name uses non-ASCII
+    characters.
+  body: Free text such as "El-Hajjaj". Populated only for the small number of cards whose printed name
+    needs special Unicode characters such as accents or apostrophes; null for every other card, which
+    is why 499 of 500 sampled rows are null.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: availability
-  summary: availability — cards.availability
-  body: Comma-separated list of platforms the card is printed on, e.g. 'paper', 'mtgo',
-    'arena', or combinations like 'mtgo,paper' / 'arena,mtgo'.
+- physical_name: availability
+  summary: availability, the set of platforms a card printing can be obtained on.
+  body: 'A comma-separated list drawn from arena, dreamcast, mtgo, paper, shandalar, for example "mtgo,paper"
+    or "arena,mtgo,paper". Filter with LIKE, not equality, when a card must be available on one platform
+    among several: availability = ''mtgo'' misses rows where mtgo is combined with other values.'
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: borderColor
-  summary: borderColor — cards.borderColor
-  body: 'Card border color. Common values: ''black'', ''white'', ''borderless'', ''silver'',
-    ''gold''.'
+- physical_name: borderColor
+  summary: borderColor, the color printed around the edge of a card frame.
+  body: One of black, borderless, gold, silver, white; the sample shows only white, black, gold. Gold
+    and silver borders mark special commemorative or un-set printings rather than tournament-legal cards.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cardKingdomFoilId
-  summary: cardKingdomFoilId — cards.cardKingdomFoilId
-  body: Card Kingdom retailer id for the foil version. Both this and cardKingdomId
-    non-null defines an 'incredibly powerful' foil.
+- physical_name: cardKingdomFoilId
+  summary: cardKingdomFoilId, the Card Kingdom marketplace listing identifier for the foil printing of
+    a card.
+  body: Free text holding a numeric store identifier, null for printings Card Kingdom does not stock in
+    foil (441 of 500 sampled rows). When this value and cardKingdomId are both populated, the dataset's
+    own commonsense note treats the printing as highly sought after.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cardKingdomId
-  summary: cardKingdomId — cards.cardKingdomId
-  body: Card Kingdom retailer id for the non-foil card. Combined with cardKingdomFoilId
-    (both non-null) it marks a card as 'powerful'.
+- physical_name: cardKingdomId
+  summary: cardKingdomId, the Card Kingdom marketplace listing identifier for the non-foil printing of
+    a card.
+  body: Free text numeric store identifier, null when Card Kingdom does not list the printing (333 of
+    500 sampled rows). Paired with cardKingdomFoilId to test whether both the foil and non-foil listings
+    exist.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: colorIdentity
-  summary: colorIdentity — cards.colorIdentity
-  body: Means 'colorIdentity' (obfuscated to 'colorIdentity').
+- physical_name: colorIdentity
+  summary: colorIdentity, the full set of colors a card contributes to a Commander deck's color identity.
+  body: A list drawn from W, U, B, R, G covering every color that appears in the card's mana cost, color
+    indicator, and rules text; null when a card is colorless. Broader than colors, which ignores the rules
+    text.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: colorIndicator
-  summary: colorIndicator — cards.colorIndicator
-  body: Means 'colorIndicator' (obfuscated to 'colorIndicator').
+- physical_name: colorIndicator
+  summary: colorIndicator, the explicit color symbol printed on a card face to override its natural color.
+  body: A list drawn from W, U, B, R, G, populated only for the rare cards that print a colored dot to
+    state their color when the mana cost alone would not make it clear; 497 of 500 sampled rows are null.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: colors
-  summary: colors — cards.colors
-  body: 'Card color(s) as single-letter codes: W (white), U (blue), B (black), R (red),
-    G (green).'
+- physical_name: colors
+  summary: colors, the colors of a card as determined by its mana cost and color indicator.
+  body: A list drawn from W, U, B, R, G; null for colorless cards and for a small number of cards whose
+    text includes the word Devoid. Narrower than colorIdentity, which also counts colors mentioned only
+    in the rules text.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: convertedManaCost
-  summary: convertedManaCost — cards.convertedManaCost
-  body: Total (converted) mana cost as a number, e.g. 0, 5.
+- physical_name: convertedManaCost
+  summary: convertedManaCost, the total generic-plus-colored mana value of a card's casting cost.
+  body: A real number, 0.0 to 9.0 in the sample; a higher value means the card costs more mana overall.
+    Equivalent to what current rules call mana value; use it, not a hand count of manaCost symbols, when
+    comparing casting cost across cards.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: duelDeck
-  summary: duelDeck — cards.duelDeck
-  body: Means 'duelDeck' (obfuscated to 'duelDeck').
+- physical_name: duelDeck
+  summary: duelDeck, which side of a two-player Duel Decks product a card was printed for.
+  body: One letter, a or b, marking one of the two preconstructed decks in a Duel Decks release; null
+    for cards outside that product line (496 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: edhrecRank
-  summary: edhrecRank — cards.edhrecRank
-  body: Popularity rank of the card on EDHREC; lower number means more popular.
+- physical_name: edhrecRank
+  summary: edhrecRank, a card's popularity ranking on the EDHREC Commander deck-building site.
+  body: Integer; a lower number means the card is played more often in submitted Commander decks. Null
+    for cards EDHREC has not ranked (35 of 500 sampled rows). Not related to the tabletop rarity or price
+    of the card.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: faceConvertedManaCost
-  summary: faceConvertedManaCost — cards.faceConvertedManaCost
-  body: Means 'faceConvertedManaCost' (obfuscated to 'faceConvertedManaCost').
+- physical_name: faceConvertedManaCost
+  summary: faceConvertedManaCost, the mana value of just one face or half of a multi-part card.
+  body: A real number, populated only for split, flip, or meld cards where each face has its own cost;
+    486 of 500 sampled rows are null for cards with a single face. A higher value means that face costs
+    more mana on its own.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: faceName
-  summary: faceName — cards.faceName
-  body: Means 'faceName' (obfuscated to 'faceName').
+- physical_name: faceName
+  summary: faceName, the name printed on one face of a card that has more than one name or side.
+  body: Free text, populated only for split, flip, adventure, and meld cards (482 of 500 sampled rows
+    are null); the whole card's combined name is still held in name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: flavorName
-  summary: flavorName — cards.flavorName
-  body: Means 'flavorName' (obfuscated to 'flavorName').
+- physical_name: flavorName
+  summary: flavorName, an alternate storyline name a special promotional printing uses in place of the
+    card's real name.
+  body: Free text; every sampled row is null, so no promotional alternate name is present in this slice
+    of the data. When populated it is cosmetic only and carries no game function.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: flavorText
-  summary: flavorText — cards.flavorText
-  body: Means 'flavorText' (obfuscated to 'flavorText').
+- physical_name: flavorText
+  summary: flavorText, the italicized narrative passage printed below a card's rules text.
+  body: Free text, often a quotation attributed to a character, for example a line ending in a character's
+    name. Purely flavor, with no effect on gameplay; null when a printing carries no flavor text (306
+    of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: frameEffects
-  summary: frameEffects — cards.frameEffects
-  body: Means 'frameEffects' (obfuscated to 'frameEffects').
+- physical_name: frameEffects
+  summary: frameEffects, the visual frame treatments applied to a card's printed border and layout.
+  body: A comma-separated list drawn from values such as legendary, extendedart, showcase, sunmoondfc;
+    a card can carry more than one, for example "legendary,etched". Cosmetic only; most printings carry
+    none, so 493 of 500 sampled rows are null.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: frameVersion
-  summary: frameVersion — cards.frameVersion
-  body: Card frame style, given by year, e.g. '1993', '2003', '2015'.
+- physical_name: frameVersion
+  summary: frameVersion, the generation of card frame design a printing uses.
+  body: One of 1993, 1997, 2003, 2015, or future; the sample shows only 1993, 2015, 1997, 2003. Tracks
+    Magic's four historical frame redesigns, not the release year of the specific set.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: hand
-  summary: hand — cards.hand
-  body: Means 'hand' (obfuscated to 'hand').
+- physical_name: hand
+  summary: hand, the modifier a card applies to a player's starting maximum hand size.
+  body: 'Free text: a plus or minus character followed by an integer, for example +1 or -1. Commonsense
+    reading from the dataset is that a plus value raises the maximum hand size, a minus value lowers it,
+    and 0 leaves it unchanged. Populated only for Vanguard-style cards that modify hand size (494 of 500
+    sampled rows are null).'
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: hasAlternativeDeckLimit
-  summary: hasAlternativeDeckLimit — cards.hasAlternativeDeckLimit
-  body: Means 'hasAlternativeDeckLimit' (obfuscated to 'hasAlternativeDeckLimit').
+- physical_name: hasAlternativeDeckLimit
+  summary: hasAlternativeDeckLimit, whether a card is exempt from the normal four-copy deck limit.
+  body: 0 or 1, where 1 allows a deck to run more than four copies, for example basic lands or cards like
+    Relentless Rats; every row sampled here is 0.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: hasContentWarning
-  summary: hasContentWarning — cards.hasContentWarning
-  body: 1 if the card carries a content warning, else 0.
+- physical_name: hasContentWarning
+  summary: hasContentWarning, whether Wizards of the Coast has flagged a printing for sensitive content.
+  body: 0 or 1; a printing marked 1 may also have missing or degraded card data alongside the sensitive-content
+    flag, per the publisher's own guidance.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: hasFoil
-  summary: hasFoil — cards.hasFoil
-  body: Means 'hasFoil' (obfuscated to 'hasFoil').
+- physical_name: hasFoil
+  summary: hasFoil, whether a card printing exists in a foil finish.
+  body: 0 or 1, where 1 means at least one foil copy of this printing was produced; independent of hasNonFoil,
+    since a printing can exist in one finish, the other, or both.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: hasNonFoil
-  summary: hasNonFoil — cards.hasNonFoil
-  body: Means 'hasNonFoil' (obfuscated to 'hasNonFoil').
+- physical_name: hasNonFoil
+  summary: hasNonFoil, whether a card printing exists in a non-foil finish.
+  body: 0 or 1, where 1 means at least one standard, non-foil copy of this printing was produced; independent
+    of hasFoil, since a printing can exist in one finish, the other, or both.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isAlternative
-  summary: isAlternative — cards.isAlternative
-  body: Means 'isAlternative' (obfuscated to 'isAlternative').
+- physical_name: isAlternative
+  summary: isAlternative, whether a printing is an alternate version of a card that already has an original
+    printing in the same set.
+  body: 0 or 1; 1 marks cards such as alternate-art or showcase treatments that duplicate an original
+    printing's game text under a different visual presentation.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isFullArt
-  summary: isFullArt — cards.isFullArt
-  body: Means 'isFullArt' (obfuscated to 'isFullArt').
+- physical_name: isFullArt
+  summary: isFullArt, whether a card's illustration covers the entire face of the card.
+  body: 0 or 1; 1 marks full-art treatments where artwork extends to the card's edges instead of sitting
+    inside a bordered frame.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isOnlineOnly
-  summary: isOnlineOnly — cards.isOnlineOnly
-  body: 1 if the card is only available for online games, else 0.
+- physical_name: isOnlineOnly
+  summary: isOnlineOnly, whether a card printing was released only in digital game clients.
+  body: 0 or 1; 1 marks printings that never appeared on paper, distinct from the set-level isOnlineOnly
+    flag on the sets table, which describes an entire release.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isOversized
-  summary: isOversized — cards.isOversized
-  body: 1 if the card is oversized, else 0.
+- physical_name: isOversized
+  summary: isOversized, whether a card was printed at a larger-than-standard physical size.
+  body: 0 or 1; 1 marks oversized promotional or Vanguard-style prints, which are legal for reference
+    but not for shuffling into a tournament deck.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isPromo
-  summary: isPromo — cards.isPromo
-  body: 1 if the card is a promotional printing, else 0.
+- physical_name: isPromo
+  summary: isPromo, whether a card printing was distributed as a promotional item rather than through
+    normal boosters.
+  body: 0 or 1; 1 marks prerelease, tournament, and other promotional prints, which the promoTypes column
+    further categorizes.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isReprint
-  summary: isReprint — cards.isReprint
-  body: 1 if the card has been reprinted, else 0.
+- physical_name: isReprint
+  summary: isReprint, whether a card printing repeats a card that already appeared in an earlier set.
+  body: 0 or 1; 1 means the same card name and rules text were printed before this release. A card can
+    be reprinted many times, each getting its own row with its own uuid.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isReserved
-  summary: isReserved — cards.isReserved
-  body: Means 'isReserved' (obfuscated to 'isReserved').
+- physical_name: isReserved
+  summary: isReserved, whether a card is on Wizards of the Coast's Reserved List.
+  body: 0 or 1; 1 marks cards Wizards has committed never to reprint, regardless of how many times isReprint
+    might otherwise apply to older printings of the same name.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isStarter
-  summary: isStarter — cards.isStarter
-  body: Means 'isStarter' (obfuscated to 'isStarter').
+- physical_name: isStarter
+  summary: isStarter, whether a printing was included in a starter or introductory deck product.
+  body: 0 or 1; 1 marks cards bundled into beginner-oriented products such as Planeswalker or Brawl decks
+    rather than sold in random boosters.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isStorySpotlight
-  summary: isStorySpotlight — cards.isStorySpotlight
-  body: 1 if the card is a Story Spotlight card, else 0.
+- physical_name: isStorySpotlight
+  summary: isStorySpotlight, whether a printing was chosen to highlight that set's storyline.
+  body: 0 or 1; 1 marks a small, curated subset of cards per set whose art or flavor text was selected
+    to advance the narrative; every row in this sample is 0.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isTextless
-  summary: isTextless — cards.isTextless
-  body: 1 if the card has no text; a card that 'has a text box' is isTextless = 0.
+- physical_name: isTextless
+  summary: isTextless, whether a card printing omits its rules text box.
+  body: 0 or 1; 1 means the printing has no text box at all, common on some promotional and Un-set cards,
+    while 0 means it prints a text box even if that box happens to be empty.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: isTimeshifted
-  summary: isTimeshifted — cards.isTimeshifted
-  body: Means 'isTimeshifted' (obfuscated to 'isTimeshifted').
+- physical_name: isTimeshifted
+  summary: isTimeshifted, whether a card belongs to a timeshifted subset within its set.
+  body: 0 or 1; 1 marks cards printed with an older frameVersion than the rest of their set, a device
+    Wizards has used in sets such as Time Spiral.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: keywords
-  summary: keywords — cards.keywords
-  body: Means 'keywords' (obfuscated to 'keywords').
+- physical_name: keywords
+  summary: keywords, the named abilities a card's rules text invokes.
+  body: A comma-separated list drawn from Magic's keyword ability vocabulary, for example Flying, Defender,
+    or "Flying,Haste"; null when a card's text uses no keyworded ability (382 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: layout
-  summary: layout — cards.layout
-  body: Means 'layout' (obfuscated to 'layout').
+- physical_name: layout
+  summary: layout, the physical card layout a printing uses.
+  body: One of the MTGJSON layout values such as normal, aftermath, flip, planar, or vanguard; a token
+    card always carries the value token. Determines how many faces and how much of the row's face-specific
+    data, such as faceName and side, is populated.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: leadershipSkills
-  summary: leadershipSkills — cards.leadershipSkills
-  body: Means 'leadershipSkills' (obfuscated to 'leadershipSkills').
+- physical_name: leadershipSkills
+  summary: leadershipSkills, which command-zone formats a card is legal to lead as a commander.
+  body: A small object of three booleans keyed brawl, commander, and oathbreaker; null for the large majority
+    of cards that cannot serve as a commander in any format (486 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: life
-  summary: life — cards.life
-  body: Means 'life' (obfuscated to 'life').
+- physical_name: life
+  summary: life, the modifier a card applies to a player's starting life total.
+  body: 'Free text: a plus or minus character followed by an integer, for example -2. Used only on Vanguard-style
+    cards (494 of 500 sampled rows are null); a minus value lowers the starting life total by that amount.'
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: loyalty
-  summary: loyalty — cards.loyalty
-  body: Means 'loyalty' (obfuscated to 'loyalty').
+- physical_name: loyalty
+  summary: loyalty, the starting loyalty counters a planeswalker card enters play with.
+  body: Free text integer such as 4 or 7, populated only for cards whose types include Planeswalker (495
+    of 500 sampled rows are null); an empty value on a planeswalker means the starting loyalty is unknown
+    rather than zero.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: manaCost
-  summary: manaCost — cards.manaCost
-  body: Unconverted mana cost as a symbolic string, e.g. '{2}{U}{U}'.
+- physical_name: manaCost
+  summary: manaCost, the printed casting cost of a card written as bracketed mana symbols.
+  body: Free text such as "{3}{G}" or "{X}{U}{U}", one bracketed token per generic or colored mana symbol.
+    This is the unconverted cost; read convertedManaCost for its numeric total. Null for cards with no
+    mana cost, such as most lands (80 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mcmId
-  summary: mcmId — cards.mcmId
-  body: Means 'mcmId' (obfuscated to 'mcmId').
+- physical_name: mcmId
+  summary: mcmId, the Magic Card Market listing identifier for a card printing.
+  body: Free text numeric identifier used to look up the printing on the Magic Card Market marketplace;
+    null when the printing is not listed there (264 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mcmMetaId
-  summary: mcmMetaId — cards.mcmMetaId
-  body: Means 'mcmMetaId' (obfuscated to 'mcmMetaId').
+- physical_name: mcmMetaId
+  summary: mcmMetaId, the Magic Card Market identifier for a card's meta-product grouping across printings.
+  body: Free text numeric identifier grouping a card's listings on Magic Card Market independent of which
+    specific printing; null when no such grouping exists for the printing (389 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mtgArenaId
-  summary: mtgArenaId — cards.mtgArenaId
-  body: Means 'mtgArenaId' (obfuscated to 'mtgArenaId').
+- physical_name: mtgArenaId
+  summary: mtgArenaId, the MTG Arena client identifier for a card printing.
+  body: Free text numeric identifier used inside the MTG Arena digital client; null for printings that
+    never appeared in Arena (455 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mtgjsonV4Id
-  summary: mtgjsonV4Id — cards.mtgjsonV4Id
-  body: Means 'mtgjsonV4Id' (obfuscated to 'mtgjsonV4Id').
+- physical_name: mtgjsonV4Id
+  summary: mtgjsonV4Id, the identifier a printing carried under MTGJSON's earlier v4 data format.
+  body: A UUID retained for cross-referencing older MTGJSON exports; every row carries one, but it should
+    not be treated as the current identifier -- use uuid for that.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mtgoFoilId
-  summary: mtgoFoilId — cards.mtgoFoilId
-  body: Means 'mtgoFoilId' (obfuscated to 'mtgoFoilId').
+- physical_name: mtgoFoilId
+  summary: mtgoFoilId, the Magic Online catalog identifier for the foil printing of a card.
+  body: Free text numeric identifier used inside the Magic Online client for the foil version; null when
+    no foil version exists on Magic Online (408 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mtgoId
-  summary: mtgoId — cards.mtgoId
-  body: Means 'mtgoId' (obfuscated to 'mtgoId').
+- physical_name: mtgoId
+  summary: mtgoId, the Magic Online catalog identifier for the non-foil printing of a card.
+  body: Free text numeric identifier used inside the Magic Online client for the non-foil version; null
+    for printings never released on Magic Online (340 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: multiverseId
-  summary: multiverseId — cards.multiverseId
-  body: Means 'multiverseId' (obfuscated to 'multiverseId').
+- physical_name: multiverseId
+  summary: multiverseId, the Gatherer website identifier for a card printing.
+  body: Free text numeric identifier used to look the printing up on Wizards' Gatherer card database;
+    null for printings Gatherer never catalogued, mostly digital-only or very old releases (330 of 500
+    sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: name
-  summary: name — cards.name
-  body: Means 'name' (obfuscated to 'name').
+- physical_name: name
+  summary: name, the printed name of the card.
+  body: 'Free text such as Braingeyser or Stone Rain. Not unique: the same card name recurs once per printing,
+    so counting distinct cards requires DISTINCT name, while counting printings can use the row itself.
+    Cards with multiple faces, such as split or meld cards, join both face names with a delimiter here.'
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: number
-  summary: number — cards.number
-  body: Means 'number' (obfuscated to 'number').
+- physical_name: number
+  summary: number, the collector number printed on a card within its set.
+  body: Free text, usually numeric but sometimes alphanumeric for special printings, for example 50 or
+    we328sb. Unique within a set together with setCode, but the same number can recur across different
+    sets.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: originalReleaseDate
-  summary: originalReleaseDate — cards.originalReleaseDate
-  body: Means 'originalReleaseDate' (obfuscated to 'originalReleaseDate').
+- physical_name: originalReleaseDate
+  summary: originalReleaseDate, the date a promotional card first appeared, when that predates its set's
+    own release.
+  body: Free text date in ISO 8601 form, populated only for promotional cards issued outside a normal
+    set's release window, such as Secret Lair Drop cards (441 of 500 sampled rows are null).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: originalText
-  summary: originalText — cards.originalText
-  body: Means 'originalText' (obfuscated to 'originalText').
+- physical_name: originalText
+  summary: originalText, the rules text exactly as it was printed on a card's original release.
+  body: Free text; differs from the current text column when Magic's rules wording has since been updated
+    for clarity or a rules change. Null when the printing's original wording was never captured separately
+    (346 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: originalType
-  summary: originalType — cards.originalType
-  body: The type text as originally printed, e.g. 'Summon - Angel', 'Creature - Elf'.
+- physical_name: originalType
+  summary: originalType, a card's type line exactly as it was printed on the original release.
+  body: Free text such as "Summon - Wizard"; differs from the current type column when Wizards has since
+    renamed a type, Summon becoming Creature for instance. Null when no separate original wording was
+    recorded (331 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: otherFaceIds
-  summary: otherFaceIds — cards.otherFaceIds
-  body: Means 'otherFaceIds' (obfuscated to 'otherFaceIds').
+- physical_name: otherFaceIds
+  summary: otherFaceIds, the uuid values of a card's other faces or counterpart pieces.
+  body: A comma-separated list of uuid values pointing at sibling rows in this same table, for example
+    the other half of a transform or meld card; null for single-faced cards (482 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: power
-  summary: power — cards.power
-  body: Creature power, stored as text. '*' denotes unknown/infinite power; NULL also
-    means unknown. Not numeric because of special symbols.
+- physical_name: power
+  summary: power, the printed power of a creature card.
+  body: Free text, usually a small integer such as 2 or 5; an asterisk means the power is defined by a
+    rule on the card rather than a fixed number, and a null value means the card is not a creature and
+    has no power at all (336 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: printings
-  summary: printings — cards.printings
-  body: Means 'printings' (obfuscated to 'printings').
+- physical_name: printings
+  summary: printings, every set code a card's name has ever appeared in.
+  body: A comma-separated list of uppercase set codes. Unlike setCode, which names the set of this one
+    row, printings spans the card's entire reprint history across all rows sharing its name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: promoTypes
-  summary: promoTypes — cards.promoTypes
-  body: Means 'promoTypes' (obfuscated to 'promoTypes').
+- physical_name: promoTypes
+  summary: promoTypes, the categories of promotional distribution a printing was issued through.
+  body: A comma-separated list drawn from values such as prerelease, datestamped, fnm, tourney; null for
+    cards sold in normal boosters rather than distributed as a promotion (422 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: purchaseUrls
-  summary: purchaseUrls — cards.purchaseUrls
-  body: Means 'purchaseUrls' (obfuscated to 'purchaseUrls').
+- physical_name: purchaseUrls
+  summary: purchaseUrls, marketplace links for buying a card printing.
+  body: A small object keyed by marketplace name, such as cardKingdom or tcgplayer, mapping to a purchase
+    link; not every marketplace key is present for every printing, and 215 of 500 sampled rows have none
+    at all.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rarity
-  summary: rarity — cards.rarity
-  body: Print rarity, e.g. 'common', 'uncommon', 'rare', 'mythic'.
+- physical_name: rarity
+  summary: rarity, the printed rarity tier of a card.
+  body: One of common, uncommon, rare, mythic; determines how often the printing appears in a booster
+    pack, from most common to rarest.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: scryfallId
-  summary: scryfallId — cards.scryfallId
-  body: Means 'scryfallId' (obfuscated to 'scryfallId').
+- physical_name: scryfallId
+  summary: scryfallId, the Scryfall database identifier for a card printing.
+  body: A UUID used to look this exact printing up on the Scryfall card-image and pricing service; unique
+    per row, distinct from scryfallOracleId, which groups printings by rules text rather than by printing.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: scryfallIllustrationId
-  summary: scryfallIllustrationId — cards.scryfallIllustrationId
-  body: Means 'scryfallIllustrationId' (obfuscated to 'scryfallIllustrationId').
+- physical_name: scryfallIllustrationId
+  summary: scryfallIllustrationId, the Scryfall identifier for the specific artwork used on a printing.
+  body: A UUID identifying one piece of art; two different printings that reuse the same illustration
+    share this value even though their scryfallId values differ.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: scryfallOracleId
-  summary: scryfallOracleId — cards.scryfallOracleId
-  body: Means 'scryfallOracleId' (obfuscated to 'scryfallOracleId').
+- physical_name: scryfallOracleId
+  summary: scryfallOracleId, the Scryfall identifier shared by every printing of a card with the same
+    rules text.
+  body: A UUID that stays constant across reprints of a card, unlike scryfallId, which is unique to one
+    specific printing; use this one to group all printings of the same card by current rules text.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: setCode
-  summary: setCode — cards.setCode
-  body: Means 'setCode' (obfuscated to 'setCode').
+- physical_name: setCode
+  summary: setCode, the set a card printing belongs to.
+  body: An uppercase code such as ZNR or 4ED matching sets.code; join on this column to bring in the set's
+    name, block, and release date. Every card row has exactly one setCode.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: side
-  summary: side — cards.side
-  body: Which face of a multi-faced card this row is. NULL means the card does not
-    have multiple faces on the same card; non-null means it does.
+- physical_name: side
+  summary: side, which face of a multi-faced card this row's face-specific data belongs to.
+  body: One letter, a, b, or c, ordering the faces of a split, flip, transform, or meld card; null when
+    a card has only a single, unnamed side (482 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: subtypes
-  summary: subtypes — cards.subtypes
-  body: Means 'subtypes' (obfuscated to 'subtypes').
+- physical_name: subtypes
+  summary: subtypes, the card subtypes printed after the em dash on a card's type line.
+  body: A comma-separated list such as "Human,Wizard" or Zombie, drawn from the portion of the type line
+    after the em dash. Null when a card's type line has no subtypes (282 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: supertypes
-  summary: supertypes — cards.supertypes
-  body: Means 'supertypes' (obfuscated to 'supertypes').
+- physical_name: supertypes
+  summary: supertypes, the card supertypes printed before the main types on a card's type line.
+  body: A comma-separated list drawn from Basic, Legendary, Snow, World, Ongoing; null for the majority
+    of cards, which carry no supertype (468 of 500 sampled rows). Together with subtypes it makes up the
+    full list of a card's types.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tcgplayerProductId
-  summary: tcgplayerProductId — cards.tcgplayerProductId
-  body: Means 'tcgplayerProductId' (obfuscated to 'tcgplayerProductId').
+- physical_name: tcgplayerProductId
+  summary: tcgplayerProductId, the TCGplayer marketplace product identifier for a card printing.
+  body: Free text numeric identifier used to look the printing up on TCGplayer; null when the printing
+    has no TCGplayer listing (222 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: text
-  summary: text — cards.text
-  body: Means 'text' (obfuscated to 'text').
+- physical_name: text
+  summary: text, the current rules text printed on a card.
+  body: Free text; this is the up-to-date oracle wording, while originalText preserves what was printed
+    at the time of the original release. Null when the printing has no rules text at all (24 of 500 sampled
+    rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: toughness
-  summary: toughness — cards.toughness
-  body: Creature toughness, stored as text (may hold symbols); can be values like
-    '99'.
+- physical_name: toughness
+  summary: toughness, the printed toughness of a creature card.
+  body: Free text, usually a small integer such as 2 or 7; an asterisk means toughness is defined by a
+    rule on the card rather than a fixed number, and null means the card is not a creature (336 of 500
+    sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: type
-  summary: type — cards.type
-  body: Means 'type' (obfuscated to 'type').
+- physical_name: type
+  summary: type, the full type line of a card as printed, including its supertypes and subtypes.
+  body: Free text such as "Creature -- Bear" or Land; the single combined line that supertypes, types,
+    and subtypes are individually parsed out of.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: types
-  summary: types — cards.types
-  body: Primary card type(s), e.g. 'Artifact', 'Creature'.
+- physical_name: types
+  summary: types, the core card types on a card's type line.
+  body: A comma-separated list drawn from the main Magic card types such as Creature, Land, Instant, Sorcery,
+    Enchantment. Excludes supertypes and subtypes, which are held separately.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: uuid
-  summary: uuid — cards.uuid
-  body: Means 'uuid' (obfuscated to 'uuid').
+- physical_name: uuid
+  summary: uuid, the stable identifier MTGJSON assigns to one specific card printing.
+  body: A UUID (version 5) unique to this row; unlike id, which is only a load-time row number, uuid is
+    meant to be stable across MTGJSON releases and is what foreign_data, legalities, and rulings join
+    back to.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: variations
-  summary: variations — cards.variations
-  body: Means 'variations' (obfuscated to 'variations').
+- physical_name: variations
+  summary: variations, the uuid values of a printing's other visually distinct versions within the same
+    set.
+  body: A comma-separated list of uuid values pointing at sibling rows that share this card's name and
+    set but differ in art or treatment; null when a printing has no such sibling (446 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: watermark
-  summary: watermark — cards.watermark
-  body: Means 'watermark' (obfuscated to 'watermark').
+- physical_name: watermark
+  summary: watermark, the faction or organization symbol printed faintly on a card's rules text box.
+  body: Free text such as izzet, boros, wotc; purely cosmetic, marking a card's story affiliation. Null
+    for the majority of printings, which carry no watermark (469 of 500 sampled rows).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: set_tag
-  summary: set_tag — cards.set_tag
-  body: 'Physical column ''set_tag''. DECOY column: not a real business field. Fabricated
-    to mimic ''setCode''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: set_tag
+  summary: set_tag, a text column on the cards table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as
+    a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''setCode''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: card_uuid
-  summary: card_uuid — cards.card_uuid
-  body: 'Physical column ''card_uuid''. DECOY column: not a real business field. Fabricated
-    to mimic ''uuid''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: card_uuid
+  summary: card_uuid, a text column on the cards table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as
+    a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''uuid''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: illustrator
-  summary: illustrator — cards.illustrator
-  body: 'Physical column ''illustrator''. DECOY column: not a real business field.
-    Fabricated to mimic ''artist''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: illustrator
+  summary: illustrator, a text column on the cards table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''artist''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per individual card printing (grain = card). The central table; carries
-  print attributes (name, artist, rarity, border color, mana cost, power/toughness,
-  frame version, flags) and joins to foreign_data, legalities and rulings on uuid,
-  and to sets on setCode = sets.code.
+    - information_schema

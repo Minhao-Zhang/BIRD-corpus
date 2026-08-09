@@ -2,50 +2,37 @@ asset_type: table
 id: talkingdata.applications_tous
 schema: talkingdata
 physical_name: applications_tous
-summary: 'app_all (applications_tous): app_id'
+summary: applications_tous holds one row per distinct application id referenced anywhere else in the talkingdata
+  schema.
+body: 'Grain: one row per application. This is the id-only dimension other app tables join back to through
+  id_application - etiquettes_applications for an app''s behaviour label, and evenements_applications_pertinents
+  for its per-event install and activity status. It carries no descriptive attributes of its own; look
+  up a category through categories_etiquettes and an install or activity flag through evenements_applications
+  or evenements_applications_pertinents.'
 columns:
-- asset_type: column
-  physical_name: id_application
-  summary: app_id — applications_tous.id_application
-  body: Means 'app_id' (obfuscated to 'id_application').
+- physical_name: id_application
+  summary: The unique identifier for an application, id_application.
+  body: A large signed integer, one value per row in this table (500 of 500 sampled rows distinct). Join
+    to etiquettes_applications.id_application for the app's behaviour label and to evenements_applications_pertinents.id_application
+    for its install and activity status per event.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: identifiant_application
-  summary: identifiant_application — applications_tous.identifiant_application
-  body: 'Physical column ''identifiant_application''. DECOY column: not a real business
-    field. Fabricated to mimic ''app_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: identifiant_application
+  summary: identifiant_application, a numeric column on the applications_tous table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as
+    a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''app_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Master list of all apps, one row per app_id (id_application). Reference/dimension
-  table for the app universe.
+    - information_schema

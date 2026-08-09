@@ -2,686 +2,382 @@ asset_type: table
 id: professional_basketball.joueurs_equipes
 schema: professional_basketball
 physical_name: joueurs_equipes
-summary: 'players_teams (joueurs_equipes): id, playerID, year, stint, tmID, league_id,
-  GP, GS, minutes, points, oRebounds, dRebounds, rebounds, assists, steals, blocks,
-  turnovers, PF, fgAttempted, fgMade, ftAttempted, ftMade, threeAttempted, threeMade,
-  PostGP…'
+summary: joueurs_equipes is the season box score for every player on every team, one row per
+  player per team per season, with regular-season and playoff totals side by side.
+body: >
+  One row per player per team per season per stint (id is the row's own surrogate key; passage
+  numbers separate stints with the same team in the same year, as with a mid-season trade). Each
+  row carries a full counting-stat line for the regular season (games, minutes, points, rebounds,
+  assists, shooting) and a matching set of "_playoffs"-suffixed columns for the post-season only.
+  Joins to joueurs on id_joueur for biographical data, to equipes on annee and id_equipe for team
+  context, and to joueurs_match_des_etoiles on id_joueur for the same player's All-Star
+  appearances (a separate, much smaller stat line, not a subset of this table). Do not confuse
+  this table with bilan_saison_equipe, a differently-named table that is not dependable for
+  player-season statistics; use joueurs_equipes for that instead.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — joueurs_equipes.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: id is the surrogate row key for this player-team-season-stint record.
+  body: >
+    An auto-generated integer unique to the row; it carries no business meaning beyond
+    identifying one player-team-season-stint combination. Sample values: 23751, 23746, 23748.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_joueur
-  summary: playerID — joueurs_equipes.id_joueur
-  body: Means 'playerID' (obfuscated to 'id_joueur').
+- physical_name: id_joueur
+  summary: id_joueur identifies the player this row's statistics belong to.
+  body: >
+    The player's stable code, matching joueurs.id_joueur, e.g. 'zunicma01', 'ziegeba01',
+    'zoetji01'. One player has one row per team per season per stint.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: annee
-  summary: year — joueurs_equipes.annee
-  body: Means 'year' (obfuscated to 'annee').
+- physical_name: annee
+  summary: annee is the season year this row's statistics were accumulated in.
+  body: >
+    A four-digit season year, observed 1937 to 2011 (samples: 1948, 1945, 1982, 2006, 1979).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: passage
-  summary: stint — joueurs_equipes.passage
-  body: Means 'stint' (obfuscated to 'passage').
+- physical_name: passage
+  summary: passage numbers a player's separate stints with a team within one season.
+  body: >
+    Starts at 0 or 1 for a player's first stint that year; higher values (2, 3) mark later
+    stints with the same team in the same season, most often after being released and re-signed.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_equipe
-  summary: tmID — joueurs_equipes.id_equipe
-  body: Means 'tmID' (obfuscated to 'id_equipe').
+- physical_name: id_equipe
+  summary: id_equipe is the abbreviated code of the team this stat line was recorded for.
+  body: >
+    A three-letter team code such as 'WSC', 'SHE', 'DET', matching equipes.id_equipe for the same
+    season. A player traded mid-season has one row per team.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_ligue
-  summary: league_id — joueurs_equipes.id_ligue
-  body: Means 'league_id' (obfuscated to 'id_ligue').
+- physical_name: id_ligue
+  summary: id_ligue is the league code the team competed in that season.
+  body: >
+    Mostly 'NBA' or 'ABA'; historical leagues 'NBL', 'PBLA' and 'NPBL' also appear in earlier
+    seasons.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: matchs_joues
-  summary: GP — joueurs_equipes.matchs_joues
-  body: Means 'GP' (obfuscated to 'matchs_joues').
+- physical_name: matchs_joues
+  summary: matchs_joues is the number of regular-season games the player appeared in.
+  body: >
+    An integer from 0 to 82 (the modern regular-season length); a value of 82 means the player
+    appeared in every game that season.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: matchs_commences
-  summary: GS — joueurs_equipes.matchs_commences
-  body: Means 'GS' (obfuscated to 'matchs_commences').
+- physical_name: matchs_commences
+  summary: matchs_commences is the number of regular-season games the player started.
+  body: >
+    An integer from 0 to 82; when matchs_commences equals matchs_joues, the player started every
+    game he appeared in.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: minutes
-  summary: minutes — joueurs_equipes.minutes
-  body: Means 'minutes' (obfuscated to 'minutes').
+- physical_name: minutes
+  summary: minutes is the player's total regular-season minutes played that season.
+  body: >
+    A non-negative minute count; sample values: 0, 30, 2740, 37, 466. Divide by matchs_joues for
+    minutes-per-game.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: points
-  summary: points — joueurs_equipes.points
-  body: Regular-season points scored by the player that season.
+- physical_name: points
+  summary: points is the player's total regular-season points scored that season.
+  body: >
+    A non-negative point count; sample values: 273, 5, 2, 1293, 12.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: orebounds
-  summary: oRebounds — joueurs_equipes.orebounds
-  body: Means 'oRebounds' (obfuscated to 'orebounds').
+- physical_name: orebounds
+  summary: orebounds is the player's total regular-season offensive rebounds.
+  body: >
+    A non-negative count; null or empty means no offensive rebounds recorded. Add to drebounds
+    to get rebonds. Sample values: 0, 3, 52, 2, 33.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: drebounds
-  summary: dRebounds — joueurs_equipes.drebounds
-  body: Means 'dRebounds' (obfuscated to 'drebounds').
+- physical_name: drebounds
+  summary: drebounds is the player's total regular-season defensive rebounds.
+  body: >
+    A non-negative count; null or empty means no defensive rebounds recorded. Add to orebounds to
+    get rebonds. Sample values: 0, 5, 326, 8, 29.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rebonds
-  summary: rebounds — joueurs_equipes.rebonds
-  body: Means 'rebounds' (obfuscated to 'rebonds').
+- physical_name: rebonds
+  summary: rebonds is the player's total regular-season rebounds, offensive plus defensive.
+  body: >
+    Equal to orebounds plus drebounds; sample values: 0, 8, 378, 10, 62.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: passes
-  summary: assists — joueurs_equipes.passes
-  body: Assists.
+- physical_name: passes
+  summary: passes is the player's total regular-season assists that season.
+  body: >
+    A non-negative count; sample values: 50, 0, 1, 298, 66.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: interceptions
-  summary: steals — joueurs_equipes.interceptions
-  body: Steals.
+- physical_name: interceptions
+  summary: interceptions is the player's total regular-season steals that season.
+  body: >
+    A non-negative count; sample values: 0, 1, 54, 26, 3.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: contres
-  summary: blocks — joueurs_equipes.contres
-  body: Blocks.
+- physical_name: contres
+  summary: contres is the player's total regular-season blocks that season.
+  body: >
+    A non-negative count; sample values: 0, 3, 18, 9, 13.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pertes_ballon
-  summary: turnovers — joueurs_equipes.pertes_ballon
-  body: Turnovers.
+- physical_name: pertes_ballon
+  summary: pertes_ballon is the player's total regular-season turnovers that season.
+  body: >
+    A non-negative count; sample values: 0, 4, 179, 43, 176.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fautes
-  summary: PF — joueurs_equipes.fautes
-  body: Means 'PF' (obfuscated to 'fautes').
+- physical_name: fautes
+  summary: fautes is the player's total regular-season personal fouls that season.
+  body: >
+    A non-negative count; sample values: 182, 0, 9, 138, 4.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tirs_tentes
-  summary: fgAttempted — joueurs_equipes.tirs_tentes
-  body: Means 'fgAttempted' (obfuscated to 'tirs_tentes').
+- physical_name: tirs_tentes
+  summary: tirs_tentes is the player's total regular-season field goal attempts.
+  body: >
+    A non-negative count; pair with tirs_reussis for a shooting percentage. Sample values: 323,
+    0, 5, 1010, 3.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tirs_reussis
-  summary: fgMade — joueurs_equipes.tirs_reussis
-  body: Means 'fgMade' (obfuscated to 'tirs_reussis').
+- physical_name: tirs_reussis
+  summary: tirs_reussis is the player's total regular-season field goals made.
+  body: >
+    A non-negative count, always less than or equal to tirs_tentes. Sample values: 98, 2, 1, 465,
+    5.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lancers_tentes
-  summary: ftAttempted — joueurs_equipes.lancers_tentes
-  body: Means 'ftAttempted' (obfuscated to 'lancers_tentes').
+- physical_name: lancers_tentes
+  summary: lancers_tentes is the player's total regular-season free throw attempts.
+  body: >
+    A non-negative count; pair with lancers_reussis for a free-throw percentage. A player with
+    lancers_tentes greater than 0 and lancers_tentes equal to lancers_reussis made every free
+    throw he attempted that season. Sample values: 109, 0, 203, 5, 43.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lancers_reussis
-  summary: ftMade — joueurs_equipes.lancers_reussis
-  body: Means 'ftMade' (obfuscated to 'lancers_reussis').
+- physical_name: lancers_reussis
+  summary: lancers_reussis is the player's total regular-season free throws made.
+  body: >
+    A non-negative count, always less than or equal to lancers_tentes. Sample values: 77, 1, 0,
+    161, 2.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tirs_trois_tentes
-  summary: threeAttempted — joueurs_equipes.tirs_trois_tentes
-  body: Means 'threeAttempted' (obfuscated to 'tirs_trois_tentes').
+- physical_name: tirs_trois_tentes
+  summary: tirs_trois_tentes is the player's total regular-season three-point attempts.
+  body: >
+    A non-negative count; pair with tirs_trois_reussis for a three-point percentage. Sample
+    values: 0, 498, 13, 5, 18.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tirs_trois_reussis
-  summary: threeMade — joueurs_equipes.tirs_trois_reussis
-  body: Means 'threeMade' (obfuscated to 'tirs_trois_reussis').
+- physical_name: tirs_trois_reussis
+  summary: tirs_trois_reussis is the player's total regular-season three-pointers made.
+  body: >
+    A non-negative count, always less than or equal to tirs_trois_tentes. Sample values: 0, 202,
+    3, 2, 4.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: matchs_playoffs
-  summary: PostGP — joueurs_equipes.matchs_playoffs
-  body: Means 'PostGP' (obfuscated to 'matchs_playoffs').
+- physical_name: matchs_playoffs
+  summary: matchs_playoffs is the number of playoff games the player appeared in that season.
+  body: >
+    An integer; 0 means the player's team did not make the playoffs, or the player did not
+    appear in any playoff game that year. Sample values: 9, 0, 4, 7, 1.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: matchs_commences_playoffs
-  summary: PostGS — joueurs_equipes.matchs_commences_playoffs
-  body: Means 'PostGS' (obfuscated to 'matchs_commences_playoffs').
+- physical_name: matchs_commences_playoffs
+  summary: matchs_commences_playoffs is the number of playoff games the player started that
+    season.
+  body: >
+    An integer no greater than matchs_playoffs. Sample values: 0, 7, 1, 5, 20.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: minutes_playoffs
-  summary: PostMinutes — joueurs_equipes.minutes_playoffs
-  body: Means 'PostMinutes' (obfuscated to 'minutes_playoffs').
+- physical_name: minutes_playoffs
+  summary: minutes_playoffs is the player's total playoff minutes played that season.
+  body: >
+    A non-negative minute count for the post-season only. Sample values: 0, 144, 4, 623, 37.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: points_playoffs
-  summary: PostPoints — joueurs_equipes.points_playoffs
-  body: Means 'PostPoints' (obfuscated to 'points_playoffs').
+- physical_name: points_playoffs
+  summary: points_playoffs is the player's total playoff points scored that season.
+  body: >
+    A non-negative point count for the post-season only. Sample values: 26, 0, 107, 72, 3.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rebonds_offensifs_playoffs
-  summary: PostoRebounds — joueurs_equipes.rebonds_offensifs_playoffs
-  body: Means 'PostoRebounds' (obfuscated to 'rebonds_offensifs_playoffs').
+- physical_name: rebonds_offensifs_playoffs
+  summary: rebonds_offensifs_playoffs is the player's total playoff offensive rebounds.
+  body: >
+    A non-negative count for the post-season only. Sample values: 0, 15, 2, 7, 5.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rebonds_defensifs_playoffs
-  summary: PostdRebounds — joueurs_equipes.rebonds_defensifs_playoffs
-  body: Means 'PostdRebounds' (obfuscated to 'rebonds_defensifs_playoffs').
+- physical_name: rebonds_defensifs_playoffs
+  summary: rebonds_defensifs_playoffs is the player's total playoff defensive rebounds.
+  body: >
+    A non-negative count for the post-season only. Sample values: 0, 1, 31, 20, 7.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rebonds_playoffs
-  summary: PostRebounds — joueurs_equipes.rebonds_playoffs
-  body: Means 'PostRebounds' (obfuscated to 'rebonds_playoffs').
+- physical_name: rebonds_playoffs
+  summary: rebonds_playoffs is the player's total playoff rebounds, offensive plus defensive.
+  body: >
+    Equal to rebonds_offensifs_playoffs plus rebonds_defensifs_playoffs. Sample values: 0, 24, 1,
+    46, 3.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: passes_playoffs
-  summary: PostAssists — joueurs_equipes.passes_playoffs
-  body: Means 'PostAssists' (obfuscated to 'passes_playoffs').
+- physical_name: passes_playoffs
+  summary: passes_playoffs is the player's total playoff assists that season.
+  body: >
+    A non-negative count for the post-season only. Sample values: 6, 0, 10, 5, 109.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: interceptions_playoffs
-  summary: PostSteals — joueurs_equipes.interceptions_playoffs
-  body: Means 'PostSteals' (obfuscated to 'interceptions_playoffs').
+- physical_name: interceptions_playoffs
+  summary: interceptions_playoffs is the player's total playoff steals that season.
+  body: >
+    A non-negative count for the post-season only. Sample values: 0, 29, 9, 6, 10.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: contres_playoffs
-  summary: PostBlocks — joueurs_equipes.contres_playoffs
-  body: Means 'PostBlocks' (obfuscated to 'contres_playoffs').
+- physical_name: contres_playoffs
+  summary: contres_playoffs is the player's total playoff blocks that season.
+  body: >
+    A non-negative count for the post-season only. Sample values: 0, 3, 4, 10, 6.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pertes_ballon_playoffs
-  summary: PostTurnovers — joueurs_equipes.pertes_ballon_playoffs
-  body: Means 'PostTurnovers' (obfuscated to 'pertes_ballon_playoffs').
+- physical_name: pertes_ballon_playoffs
+  summary: pertes_ballon_playoffs is the player's total playoff turnovers that season.
+  body: >
+    A non-negative count for the post-season only. Sample values: 0, 7, 43, 2, 10.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fautes_playoffs
-  summary: PostPF — joueurs_equipes.fautes_playoffs
-  body: Means 'PostPF' (obfuscated to 'fautes_playoffs').
+- physical_name: fautes_playoffs
+  summary: fautes_playoffs is the player's total playoff personal fouls that season.
+  body: >
+    A non-negative count for the post-season only. Sample values: 26, 0, 11, 55, 2.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tirs_tentes_playoffs
-  summary: PostfgAttempted — joueurs_equipes.tirs_tentes_playoffs
-  body: Means 'PostfgAttempted' (obfuscated to 'tirs_tentes_playoffs').
+- physical_name: tirs_tentes_playoffs
+  summary: tirs_tentes_playoffs is the player's total playoff field goal attempts.
+  body: >
+    A non-negative count for the post-season only. Sample values: 39, 0, 103, 2, 12.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tirs_reussis_playoffs
-  summary: PostfgMade — joueurs_equipes.tirs_reussis_playoffs
-  body: Means 'PostfgMade' (obfuscated to 'tirs_reussis_playoffs').
+- physical_name: tirs_reussis_playoffs
+  summary: tirs_reussis_playoffs is the player's total playoff field goals made.
+  body: >
+    A non-negative count, no greater than tirs_tentes_playoffs. Sample values: 7, 0, 45, 22, 1.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lancers_tentes_playoffs
-  summary: PostftAttempted — joueurs_equipes.lancers_tentes_playoffs
-  body: Means 'PostftAttempted' (obfuscated to 'lancers_tentes_playoffs').
+- physical_name: lancers_tentes_playoffs
+  summary: lancers_tentes_playoffs is the player's total playoff free throw attempts.
+  body: >
+    A non-negative count for the post-season only. Sample values: 19, 0, 27, 43, 12.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lancers_reussis_playoffs
-  summary: PostftMade — joueurs_equipes.lancers_reussis_playoffs
-  body: Means 'PostftMade' (obfuscated to 'lancers_reussis_playoffs').
+- physical_name: lancers_reussis_playoffs
+  summary: lancers_reussis_playoffs is the player's total playoff free throws made.
+  body: >
+    A non-negative count, no greater than lancers_tentes_playoffs. Sample values: 12, 0, 17, 28,
+    8.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tirs_trois_tentes_playoffs
-  summary: PostthreeAttempted — joueurs_equipes.tirs_trois_tentes_playoffs
-  body: Means 'PostthreeAttempted' (obfuscated to 'tirs_trois_tentes_playoffs').
+- physical_name: tirs_trois_tentes_playoffs
+  summary: tirs_trois_tentes_playoffs is the player's total playoff three-point attempts.
+  body: >
+    A non-negative count for the post-season only. Sample values: 0, 2, 11, 42, 3.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tirs_trois_reussis_playoffs
-  summary: PostthreeMade — joueurs_equipes.tirs_trois_reussis_playoffs
-  body: Means 'PostthreeMade' (obfuscated to 'tirs_trois_reussis_playoffs').
+- physical_name: tirs_trois_reussis_playoffs
+  summary: tirs_trois_reussis_playoffs is the player's total playoff three-pointers made.
+  body: >
+    A non-negative count, no greater than tirs_trois_tentes_playoffs. Sample values: 0, 1, 3, 11,
+    7.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: note
-  summary: note — joueurs_equipes.note
-  body: Means 'note' (obfuscated to 'note').
+- physical_name: note
+  summary: note is a free-text remark field for this player-team-season row.
+  body: >
+    Almost always null; the one repeated non-null value observed is 'C'. Not a coded field, and
+    too sparse to filter on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: joueur_associe
-  summary: joueur_associe — joueurs_equipes.joueur_associe
-  body: 'Physical column ''joueur_associe''. DECOY column: not a real business field.
-    Fabricated to mimic ''playerID''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: joueur_associe
+  summary: joueur_associe is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''playerID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: equipe_associe
-  summary: equipe_associe — joueurs_equipes.equipe_associe
-  body: 'Physical column ''equipe_associe''. DECOY column: not a real business field.
-    Fabricated to mimic ''tmID''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: equipe_associe
+  summary: equipe_associe is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not
+    be used as a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''tmID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rencontres_jouees
-  summary: rencontres_jouees — joueurs_equipes.rencontres_jouees
-  body: 'Physical column ''rencontres_jouees''. DECOY column: not a real business
-    field. Fabricated to mimic ''GP''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: rencontres_jouees
+  summary: rencontres_jouees is an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''GP''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: 'Player season line: one row per player per team per year and stint, with regular-season
-  and playoff box-score totals (points, rebounds, assists=passes, steals=interceptions,
-  blocks=contres, turnovers, shooting).'
+    - train_final.jsonl

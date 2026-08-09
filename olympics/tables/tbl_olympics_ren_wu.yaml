@@ -2,152 +2,94 @@ asset_type: table
 id: olympics.ren_wu
 schema: olympics
 physical_name: ren_wu
-summary: 'person (ren_wu): id, full_name, gender, height, weight'
+summary: 'ren_wu: the people who competed as athletes in the Olympic Games.'
+body: >
+  One row per person. Grain: one row per athlete, regardless of how many games editions or
+  events they took part in. Joins to yun_dong_hui_xuan_shou on id =
+  yun_dong_hui_xuan_shou.ren_wu_id to find which games editions, and at what age, a person
+  competed, and to ren_wu_qu_yu on id = ren_wu_qu_yu.ren_wu_id to find the region they
+  represent. Do not confuse ren_wu (a person, one row each) with yun_dong_hui_xuan_shou (a
+  person's participation in one games edition, many rows per person) or xuan_shou_bi_sai (a
+  person's participation in one event, many rows per person).
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — ren_wu.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: id, the unique identifier of a ren_wu record, the person who competed as an
+    athlete.
+  body: >
+    Numeric primary key. Referenced by yun_dong_hui_xuan_shou.ren_wu_id and
+    ren_wu_qu_yu.ren_wu_id.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: quan_ming
-  summary: full_name — ren_wu.quan_ming
-  body: Means 'full_name' (obfuscated to 'quan_ming').
+- physical_name: quan_ming
+  summary: quan_ming, the full name of the athlete who competed.
+  body: >
+    Free text name, typically a first and last name, for example 'James Clark' or 'Enrico
+    Colli'. Nearly unique per person: 499 distinct values across 500 sampled rows.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xing_bie
-  summary: gender — ren_wu.xing_bie
-  body: 'Gender code: ''M'' = male, ''F'' = female.'
+- physical_name: xing_bie
+  summary: xing_bie, the gender of the athlete, recorded as one of two categories.
+  body: "'M' for male or 'F' for female. No other values appear in the sampled data."
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: shen_gao
-  summary: height — ren_wu.shen_gao
-  body: Height of the athlete (integer, centimetres); MAX(shen_gao) identifies the
-    tallest.
+- physical_name: shen_gao
+  summary: shen_gao, the height of the athlete, recorded in centimetres.
+  body: >
+    Integer centimetres, observed range 0 to 206 in the sample. A value of 0 means the
+    height is missing, not that the person is zero centimetres tall; exclude 0 rows before
+    averaging or comparing this column.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ti_zhong
-  summary: weight — ren_wu.ti_zhong
-  body: Weight of the athlete (integer, kilograms); used in average-weight and BMI
-    calculations.
+- physical_name: ti_zhong
+  summary: ti_zhong, the weight of the athlete, recorded in kilograms.
+  body: >
+    Integer kilograms, observed range 0 to 99 in the sample. A value of 0 means the weight
+    is missing, not that the person is weightless; exclude 0 rows before averaging or
+    comparing this column.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: quan_ming_cheng
-  summary: quan_ming_cheng — ren_wu.quan_ming_cheng
-  body: 'Physical column ''quan_ming_cheng''. DECOY column: not a real business field.
-    Fabricated to mimic ''full_name''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
-  physical_type: text
-  logical_type: string
-  nullable: true
+- physical_name: quan_ming_cheng
+  summary: quan_ming_cheng, a text column on the ren_wu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''full_name''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: xing_bie_leibie
-  summary: xing_bie_leibie — ren_wu.xing_bie_leibie
-  body: 'Physical column ''xing_bie_leibie''. DECOY column: not a real business field.
-    Fabricated to mimic ''gender''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
   physical_type: text
   logical_type: string
   nullable: true
+- physical_name: xing_bie_leibie
+  summary: xing_bie_leibie, a text column on the ren_wu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''gender''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ren_shi_bian_hao
-  summary: ren_shi_bian_hao — ren_wu.ren_shi_bian_hao
-  body: 'Physical column ''ren_shi_bian_hao''. DECOY column: not a real business field.
-    Fabricated to mimic ''id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+  physical_type: text
+  logical_type: string
+  nullable: true
+- physical_name: ren_shi_bian_hao
+  summary: ren_shi_bian_hao, a numeric column on the ren_wu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+  reliability:
+    status: suspect
+    note: "Unreliable for analysis. Do not use this column to answer questions."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  reliability:
-    status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''id''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Person / athlete master: one row per individual with full name, height, weight,
-  and gender. Grain is one person; age is NOT here (it varies by Games and lives in
-  yun_dong_hui_xuan_shou).'
+    - information_schema

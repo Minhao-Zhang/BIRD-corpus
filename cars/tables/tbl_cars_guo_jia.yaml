@@ -2,87 +2,60 @@ asset_type: table
 id: cars.guo_jia
 schema: cars
 physical_name: guo_jia
-summary: 'country (guo_jia): origin, country'
+summary: guo_jia is a three-row lookup table naming the country behind each numeric origin code used elsewhere in the cars schema.
+body: >
+  Grain: one row per country of origin (three rows total). yuan_di is the numeric code
+  joined from sheng_chan.guo_jia; guo_jia is the country's display name, used in business
+  language like "American car" or "Japanese car." Easily confused with its own yuan_chu and
+  guo_jia_ming columns, which duplicate this information unreliably and must not be used.
 columns:
-- asset_type: column
-  physical_name: yuan_di
-  summary: origin — guo_jia.yuan_di
-  body: Numeric origin-country key that sheng_chan.guo_jia joins to.
+- physical_name: yuan_di
+  summary: yuan_di is the numeric code that uniquely identifies a country of origin in this lookup table.
+  body: >
+    Integer from 1 to 3, one distinct value per row (sample values 1, 2, 3). Referenced from
+    sheng_chan.guo_jia to attach a country name to a car's production record; do not use
+    sheng_chan.guo_jia_id for that join, it is unreliable.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: guo_jia
-  summary: country — guo_jia.guo_jia
-  body: 'Origin country name as text: ''USA'', ''Japan'' (also referred to as Asia),
-    ''Europe''.'
+- physical_name: guo_jia
+  summary: guo_jia holds the country name for the origin code on this row.
+  body: >
+    One of three text values: USA, Japan, or Europe (sample values Europe, USA, Japan). In
+    this dataset's convention, USA is also described as North America and Japan as Asia.
+    This is the column meant by phrases like "American car," "Japanese car," or "a car from
+    Europe." The guo_jia_ming column on this same table duplicates these values unreliably
+    and must not be used.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: yuan_chu
-  summary: yuan_chu — guo_jia.yuan_chu
-  body: 'Physical column ''yuan_chu''. DECOY column: not a real business field. Fabricated
-    to mimic ''origin''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: yuan_chu
+  summary: yuan_chu, an integer column on the guo_jia table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''origin''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: guo_jia_ming
-  summary: guo_jia_ming — guo_jia.guo_jia_ming
-  body: 'Physical column ''guo_jia_ming''. DECOY column: not a real business field.
-    Fabricated to mimic ''country''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: guo_jia_ming
+  summary: guo_jia_ming, a text column on the guo_jia table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''country''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Lookup of origin countries (e.g. USA, Japan, Europe). guo_jia holds the country
-  name; yuan_di is the numeric key that sheng_chan.guo_jia points to.
+    - information_schema

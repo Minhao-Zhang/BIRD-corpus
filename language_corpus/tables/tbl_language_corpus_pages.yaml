@@ -2,98 +2,76 @@ asset_type: table
 id: language_corpus.pages
 schema: language_corpus
 physical_name: pages
-summary: 'pages (pages): pid, lid, page, revision, title, words'
+summary: >-
+  pages is the table of Wikipedia articles included in the corpus, one row per page.
+body: >-
+  One row per Wikipedia page; id_page is the internal key pages_mots references, while page and
+  revision are the identifiers MediaWiki itself assigned to the page and to its revision. titre
+  is the page's title, and mots is the count of distinct words found on that page. Distinct from
+  langues.mots, which totals distinct words for a whole language rather than one page.
 columns:
-- asset_type: column
-  physical_name: id_page
-  summary: pid — pages.id_page
-  body: Means 'pid' (obfuscated to 'id_page').
+- physical_name: id_page
+  summary: >-
+    id_page is the internal identifier for a Wikipedia page row, referenced by pages_mots.
+  body: >-
+    A surrogate key assigned within this corpus; join to pages_mots.id_page to find which words
+    appear on this page.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_langue
-  summary: lid — pages.id_langue
-  body: Means 'lid' (obfuscated to 'id_langue').
+- physical_name: id_langue
+  summary: >-
+    id_langue identifies which language this Wikipedia page belongs to, matching
+    langues.id_langue.
+  body: >-
+    Always 1 in this corpus, the Catalan language; join to langues.id_langue for the language's
+    details.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: page
-  summary: page — pages.page
-  body: Wikipedia page number.
+- physical_name: page
+  summary: >-
+    page is the identifier MediaWiki itself assigned to this Wikipedia page.
+  body: >-
+    The source Wikipedia page id, distinct from id_page which is this corpus's own internal key
+    for the same row; values observed range from single digits up into the hundreds within the
+    scanned sample.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: revision
-  summary: revision — pages.revision
-  body: Wikipedia revision page id.
+- physical_name: revision
+  summary: >-
+    revision is the identifier MediaWiki assigned to the specific page revision captured here.
+  body: >-
+    The source Wikipedia revision id for the snapshot of the page recorded in this row; observed
+    values range from the low hundred-thousands up past twenty-eight million.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: titre
-  summary: title — pages.titre
-  body: Page title.
+- physical_name: titre
+  summary: >-
+    titre is the title of the Wikipedia page.
+  body: >-
+    Free-text page title in Catalan; sample titles include 'Àbac', 'Abadia' and 'Adam'. Titles
+    are case-sensitive and accented as they appear on Wikipedia, so a filter must match the exact
+    spelling.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mots
-  summary: words — pages.mots
-  body: Number of different words appearing on the page.
+- physical_name: mots
+  summary: >-
+    mots is the count of distinct words found on this Wikipedia page.
+  body: >-
+    An integer total of distinct word forms on this one page; observed sample values run from
+    about a hundred into the low thousands. Distinct from langues.mots, which totals distinct
+    words for the whole language rather than a single page.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per Wikipedia page: its page number, revision page id, title, owning
-  language, and mots = the number of different words on that page.'
+    - information_schema

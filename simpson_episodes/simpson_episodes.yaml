@@ -1,21 +1,34 @@
 asset_type: schema
 id: simpson_episodes
 name: simpson_episodes
-summary: 'simpson_episodes: 7 tables — episode, Credit, keyword, person, award, Character_Award,
-  Vote'
+summary: >-
+  simpson_episodes catalogs Simpsons TV episodes: air dates, ratings and vote counts, star-score
+  audience votes, keyword tags, cast and crew credits with roles, crew birth details, and awards
+  or nominations for episodes, people, and characters.
+body: >
+  Nine tables, keyed on the episode identifier id_episode (format 'S<season>-E<episode>'; every
+  row loaded here is season 20). episode carries one row per episode with its title, summary,
+  air date, IMDb-style rating (note) and vote count. generique carries one row per credited
+  person and role (cast, writers, directors, animation staff, and so on). mot_cle carries one row
+  per keyword tag on an episode. personne carries one row per named cast or crew member with
+  birth details, joined to generique and recompense by name rather than a numeric id. recompense
+  carries one row per award nomination or win, tied to an organisation, category, year, person,
+  and optionally an episode; recompense_personnage links an award record to the in-show character
+  it recognizes. vote carries ten rows per episode, one per star score from 1 (worst) to 10
+  (best), with the vote count and percentage share at each level. etiquette_episode and
+  notation_episode look like duplicates of mot_cle and vote but are not dependable for analysis.
+rules:
+- Join episode, generique, mot_cle, recompense, and vote on id_episode; never join on
+  id_fiche_episode, episode_ref_id, id_episode_ref, identifiant_episode, id_episode_vote, or
+  recompense_ref_id — every one of those is unreliable for analysis.
+- etiquette_episode and notation_episode are entirely unreliable — use mot_cle for episode
+  keywords and vote for star-score ratings instead.
+- generique.personne, recompense.personne, and personne.nom match by exact name text, not a
+  numeric key — there is no shared person id across these tables.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: Catalog of The Simpsons season-20 episodes with their ratings and star-level
-  vote breakdowns, the crew and cast credited on each episode, the keywords describing
-  them, and the awards (won or nominated) earned by people, episodes, and characters.
-rules:
-- Awards link to people via recompense.personne = personne.nom (name), not an id;
-  credits link the same way (generique.personne = personne.nom).
-- '''won'' means resultat = ''Winner'' and ''nominated'' means resultat = ''Nominee''
-  in the award table.'
+    - information_schema

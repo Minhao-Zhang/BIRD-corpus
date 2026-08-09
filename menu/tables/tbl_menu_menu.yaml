@@ -2,366 +2,218 @@ asset_type: table
 id: menu.menu
 schema: menu
 physical_name: menu
-summary: 'Menu (menu): id, name, sponsor, event, venue, place, physical_description,
-  occasion, notes, call_number, keywords, language, date, location, location_type,
-  currency, currency_symbol, status, page_count, dish_count'
+summary: menu is one row per physical menu document — its date, venue, sponsor, occasion, and currency — for a restaurant, hotel, ship, or event.
+body: >
+  One row per menu (a printed or handwritten document handed to a diner), not one row per
+  page or per dish. Its page and dish counts (nombre_pages, nombre_plats) are cached totals
+  and can drift from a COUNT of its actual pagemenu or elementmenu rows. Joins to pagemenu by
+  id = id_menu to reach a menu's individual pages, and from there to elementmenu and plat to
+  reach the dishes and prices printed on it. `lieu`, `endroit`, and `localisation` all record
+  place information but at different grains: `lieu` is a broad category, `endroit` is a
+  specific venue or route description, and `localisation` is the venue name.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — menu.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: id, the unique identifier of a menu.
+  body: >
+    A whole number, distinct per menu, referenced by pagemenu.id_menu to attach a menu's
+    pages to it.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nom
-  summary: name — menu.nom
-  body: Means 'name' (obfuscated to 'nom').
+- physical_name: nom
+  summary: nom, the name of the menu.
+  body: >
+    Free text, usually the restaurant, hotel, or ship name (for example 'Ritz Carlton' or
+    'Adams'' Restaurant'), often blank. When populated it means this menu carries special
+    dishes; a blank or empty value means the menu is general, with nothing special listed.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: parrain
-  summary: sponsor — menu.parrain
-  body: Sponsor of the menu. NULL means the menu is a DIY of the restaurant (no external
-    sponsor).
+- physical_name: parrain
+  summary: parrain, the sponsoring organization of a menu.
+  body: >
+    Free text naming the club, company, or organization that commissioned the menu, distinct
+    from the venue in localisation. Null or empty means the menu was not sponsored by an
+    outside organization — it was produced by the restaurant itself.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: evenement
-  summary: event — menu.evenement
-  body: Event that led to the menu's creation, e.g. 'LUNCH'.
+- physical_name: evenement
+  summary: evenement, the event a menu was created for.
+  body: >
+    Free text describing the occasion, most often a meal type (LUNCH, DINNER, BREAKFAST) or a
+    named event (for example 'FOURTH OF JULY DINNER'), sometimes bracketed like '[LUNCHEON]'.
+    Values are inconsistently cased and punctuated, so matching usually needs a
+    case-insensitive comparison.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: lieu
-  summary: venue — menu.lieu
-  body: Venue type the menu was made for, e.g. 'STEAMSHIP'.
+- physical_name: lieu
+  summary: lieu, the broad category of venue where a menu was used.
+  body: >
+    A short coded category such as COMMERCIAL, SOC (social), PATR (patriotic), or MIL
+    (military), sometimes trailing a semicolon. Coarser than localisation, which names the
+    specific venue.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: endroit
-  summary: place — menu.endroit
-  body: Means 'place' (obfuscated to 'endroit').
+- physical_name: endroit
+  summary: endroit, a free-text place description for a menu.
+  body: >
+    Free text describing where the menu was used, ranging from a city and state (for example
+    'ROANOKE, VA') to a ship or route description (for example 'ENROUTE NASHVILLE TO
+    WASHINGTON [DC]'). Complements localisation, which more often names the venue itself
+    rather than its geography.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: description_physique
-  summary: physical_description — menu.description_physique
-  body: Means 'physical_description' (obfuscated to 'description_physique').
+- physical_name: description_physique
+  summary: description_physique, the physical format of the menu document.
+  body: >
+    Free text describing the physical object — its shape, dimensions, illustrations, and
+    color, for example 'BROADSIDE; ILLUS; COL; 4.5X7;' or '25x20.5cm folded; 25x41cm open'.
+    Describes the artifact, not its contents.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: occasion
-  summary: occasion — menu.occasion
-  body: Means 'occasion' (obfuscated to 'occasion').
+- physical_name: occasion
+  summary: occasion, the specific occasion a menu marks.
+  body: >
+    Free text, more specific than evenement, for example 'SUNDAY DINNER', 'COMPLIMENTARY/TESTIMONIAL',
+    or '21ST ANNUAL MEETING', often trailing a semicolon.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: notes
-  summary: notes — menu.notes
-  body: Means 'notes' (obfuscated to 'notes').
+- physical_name: notes
+  summary: notes, free-text remarks about a menu.
+  body: >
+    Free text, for example 'DECORATED WITH EAGLE AND FLAG' or 'Railroad dining car menu' —
+    catch-all observations that do not fit the other descriptive columns.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: numero_appel
-  summary: call_number — menu.numero_appel
-  body: Call number for takeout/booking. NULL means the menu did not support taking
-    out or booking in advance.
+- physical_name: numero_appel
+  summary: numero_appel, the library call number of a menu.
+  body: >
+    A short identifier such as '1895-125' or '1943-0011_wotm', used to locate the physical or
+    scanned menu in the collection. Null means the menu does not support being taken out or
+    booked in advance.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mots_cles
-  summary: keywords — menu.mots_cles
-  body: Means 'keywords' (obfuscated to 'mots_cles').
+- physical_name: mots_cles
+  summary: mots_cles, keywords recorded for a menu.
+  body: Always empty in this dataset; no menu carries keyword values here.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: langue
-  summary: language — menu.langue
-  body: Means 'language' (obfuscated to 'langue').
+- physical_name: langue
+  summary: langue, the language a menu is written in.
+  body: Always empty in this dataset; no menu carries a language value here.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: date
-  summary: date — menu.date
-  body: Menu creation date, stored as an ISO date string like '1898-11-17'.
+- physical_name: date
+  summary: date, the calendar date a menu was created or served.
+  body: >
+    A date between 1856-01-01 and 1997-02-12 in this dataset. Used to filter menus by year,
+    decade, or an exact date such as '1898-11-17'.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: localisation
-  summary: location — menu.localisation
-  body: Location/place the menu was created for (e.g. 'Dutcher House', 'Manhattan
-    Hotel'). Same concept referred to as 'place' (endroit).
+- physical_name: localisation
+  summary: localisation, the venue name where a menu was used.
+  body: >
+    Free text naming the specific hotel, restaurant, ship, or hall (for example 'Sherry''s',
+    'Norddeutscher Lloyd Bremen', or 'Roanoke Hotel'). Never null in this dataset; blank-looking
+    venues instead read as bracketed placeholder text.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: type_localisation
-  summary: location_type — menu.type_localisation
-  body: Means 'location_type' (obfuscated to 'type_localisation').
+- physical_name: type_localisation
+  summary: type_localisation, the category of venue location.
+  body: Always empty in this dataset; no menu carries a value here.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: devise
-  summary: currency — menu.devise
-  body: Means 'currency' (obfuscated to 'devise').
+- physical_name: devise
+  summary: devise, the currency a menu's prices are listed in.
+  body: >
+    A currency name such as 'Dollars', 'Francs', 'Shillings', or 'Deutsche Marks'. Pairs with
+    symbole_devise, which gives the printed symbol for the same currency rather than its name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: symbole_devise
-  summary: currency_symbol — menu.symbole_devise
-  body: Means 'currency_symbol' (obfuscated to 'symbole_devise').
+- physical_name: symbole_devise
+  summary: symbole_devise, the currency symbol printed on a menu.
+  body: >
+    A short symbol or abbreviation such as '$', 'DM', 'Fr', or 'FF', paired with the currency
+    name in devise.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: statut
-  summary: status — menu.statut
-  body: Means 'status' (obfuscated to 'statut').
+- physical_name: statut
+  summary: statut, the cataloging status of a menu record.
+  body: A fixed value of 'complete' for every menu in this dataset; carries no distinguishing information.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre_pages
-  summary: page_count — menu.nombre_pages
-  body: Pre-computed page count for the menu.
+- physical_name: nombre_pages
+  summary: nombre_pages, the number of pages in a menu.
+  body: >
+    A cached page count, typically 1 to 20 in this dataset. May not exactly match a COUNT of
+    that menu's rows in pagemenu; prefer this column for "how many pages" questions unless the
+    question specifically asks about pagemenu rows.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre_plats
-  summary: dish_count — menu.nombre_plats
-  body: Pre-computed dish count for the menu.
+- physical_name: nombre_plats
+  summary: nombre_plats, the number of dishes listed on a menu.
+  body: >
+    A cached dish count, ranging from 0 to over 100 in this dataset. May not exactly match a
+    COUNT of that menu's rows in elementmenu; prefer this column for "how many dishes" questions
+    unless the question specifically asks about elementmenu rows.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: identifiant_menu
-  summary: identifiant_menu — menu.identifiant_menu
-  body: 'Physical column ''identifiant_menu''. DECOY column: not a real business field.
-    Fabricated to mimic ''id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: identifiant_menu
+  summary: identifiant_menu, an integer column on the menu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''id''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: numero_contact
-  summary: numero_contact — menu.numero_contact
-  body: 'Physical column ''numero_contact''. DECOY column: not a real business field.
-    Fabricated to mimic ''call_number''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: numero_contact
+  summary: numero_contact, a text column on the menu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''call_number''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: monnaie
-  summary: monnaie — menu.monnaie
-  body: 'Physical column ''monnaie''. DECOY column: not a real business field. Fabricated
-    to mimic ''currency''. Corruption operator ''sparse_cat_remap'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: monnaie
+  summary: monnaie, a text column on the menu table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''currency''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per physical menu. Grain: a single menu identified by id. Holds descriptive
-  attributes (nom, localisation/endroit, lieu, evenement, occasion, parrain, date,
-  langue, devise) plus rolled-up counts (nombre_pages, nombre_plats). Do not confuse
-  with pagemenu (its pages) or plat (dishes).'
+    - information_schema

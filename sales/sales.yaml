@@ -1,20 +1,32 @@
 asset_type: schema
 id: sales
 name: sales
-summary: 'sales: 4 tables — Customers, Employees, Products, Sales'
+summary: "The sales database records a bicycle retailer's product catalog and prices, its
+  customer and employee directories, and the individual sales transactions -- quantity,
+  product, customer, and salesperson -- that make up total revenue."
+body: >
+  kunden and mitarbeiter each hold one row per customer and per employee; verkaeufe holds one
+  row per sale and is the fact table that references both of them plus produkte, the product
+  catalog. A sale's monetary value is never stored directly: it is always menge (the quantity
+  sold) multiplied by produkte.preis.
+
+  Several columns and two whole tables in this schema look like alternate sources for the
+  same facts but are not dependable: kunden_nr, rufname, and familienname duplicate kunden's
+  own kundenid, vorname, and nachname; mitarbeiter_nr, mitarbeiter_rufname, and
+  mitarbeiter_familienname duplicate mitarbeiter's own identifying columns; produkt_nr,
+  bezeichnung, and verkaufspreis duplicate produkte's own identifying columns and price; and
+  the kunden_stammdaten and artikel_katalog tables are not dependable at all. None of these
+  should be read, filtered on, or joined on.
+rules:
+  - Compute a sale's monetary value as verkaeufe.menge multiplied by produkte.preis; never
+    substitute produkte.verkaufspreis or any value from artikel_katalog.
+  - Join customers, employees, and products to verkaeufe using kundenid, verkaeuferid against
+    mitarbeiterid, and produktid; never join using kunden_nr, mitarbeiter_nr, produkt_nr, or
+    any column on kunden_stammdaten or artikel_katalog.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A sales transaction database for a bicycle-parts retailer. It records each sale
-  linking a customer, a sales-person (employee) and a product, along with the quantity
-  sold; product prices drive revenue and cost calculations.
-rules:
-- A product priced at 0 (preis = 0) is a free gift / freebie, and is excluded when
-  asked for expensive/least-expensive products excluding gifts.
-- A person's full name is the first name, middle initial and last name together (vorname,
-  zweiter_initial, nachname); this applies to both customers and employees.
+    - information_schema

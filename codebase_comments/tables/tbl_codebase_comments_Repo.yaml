@@ -2,168 +2,97 @@ asset_type: table
 id: codebase_comments.Repo
 schema: codebase_comments
 physical_name: Repo
-summary: 'Repo (Repo): Id, Url, Stars, Forks, Watchers, ProcessedTime'
+summary: "Repo: one row per GitHub repository harvested for this corpus, with its address and
+  community popularity signals."
+body: "One row per repository, keyed by Id and by the unique Url it was downloaded from. Stars,
+  Forks and Watchers are the repository's community popularity signals as reported by GitHub at
+  harvest time; ProcessedTime records when that harvesting finished. A repository can own many
+  solutions, joined through Solution.RepoId. Do not use fork_count, repo_identifier or
+  star_count for analysis; they do not correspond to the business facts this table otherwise
+  records."
 columns:
-- asset_type: column
-  physical_name: Id
-  summary: Id — Repo.Id
-  body: Means 'Id' (obfuscated to 'Id').
+- physical_name: Id
+  summary: "Id: the surrogate integer key that uniquely identifies a repository."
+  body: "Primary key of Repo. Referenced by Solution.RepoId to attach a solution to the
+    repository that contains it."
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Url
-  summary: Url — Repo.Url
-  body: The repository's GitHub web address (also called github address or link),
-    e.g. 'https://github.com/wallerdev/htmlsharp.git'.
+- physical_name: Url
+  summary: "Url: the GitHub web address of a repository."
+  body: "The full https://github.com/<owner>/<repo>.git clone address, unique per repository in
+    the sampled rows, for example https://github.com/tordf/iLabs.git. Questions that name a
+    specific repository by its GitHub address filter on this column."
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Stars
-  summary: Stars — Repo.Stars
-  body: Number of stars; read as how many people like the repository. Higher = more
-    liked.
+- physical_name: Stars
+  summary: "Stars: the count of GitHub stars a repository has received."
+  body: "A non-negative integer reflecting how many GitHub users starred the repository at
+    harvest time; more stars indicates the repository is more liked. Sampled values range from 0
+    to the low tens. MAX(Stars) identifies the most-starred repository."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Forks
-  summary: Forks — Repo.Forks
-  body: Number of forks; also read as how many people follow the repository. Higher
-    = more followed.
+- physical_name: Forks
+  summary: "Forks: the count of GitHub forks a repository has received."
+  body: "A non-negative integer reflecting how many times the repository was forked at harvest
+    time; more forks indicates the repository is followed by more downstream developers. Sampled
+    values range from 0 to the low nineties. MAX(Forks) identifies the most-forked repository."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Watchers
-  summary: Watchers — Repo.Watchers
-  body: Number of watchers; read as repository popularity / how well-known it is.
-    Higher = more popular.
+- physical_name: Watchers
+  summary: "Watchers: the count of GitHub users watching a repository."
+  body: "A non-negative integer reflecting how many GitHub users were watching the repository at
+    harvest time; more watchers indicates the repository is more popular. Sampled values range
+    from 0 to the low tens. MAX(Watchers) identifies the most-watched repository."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ProcessedTime
-  summary: ProcessedTime — Repo.ProcessedTime
-  body: Time taken to process/download the repository, stored as a bigint magnitude.
+- physical_name: ProcessedTime
+  summary: "ProcessedTime: the timestamp recording when a repository finished being downloaded
+    and processed."
+  body: "A large integer .NET tick count (100-nanosecond intervals since 0001-01-01), not a Unix
+    timestamp. Distinct from Solution.ProcessedTime, which records processing time for an
+    individual solution rather than for the whole repository."
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fork_count
-  summary: fork_count — Repo.fork_count
-  body: 'Physical column ''fork_count''. DECOY column: not a real business field.
-    Fabricated to mimic ''Forks''. Corruption operator ''sparse_perturb'': values
-    are altered. Do NOT use it to answer questions.'
+- physical_name: fork_count
+  summary: "fork_count, an integer column on the Repo table."
+  body: "Values in this column are not dependable and do not correspond to the business facts
+    the table otherwise records. Do not use it in a SELECT list, a filter, or a join key."
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Forks''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: repo_identifier
-  summary: repo_identifier — Repo.repo_identifier
-  body: 'Physical column ''repo_identifier''. DECOY column: not a real business field.
-    Fabricated to mimic ''Id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: repo_identifier
+  summary: "repo_identifier, an integer column on the Repo table."
+  body: "Values in this column are not dependable and do not correspond to the business facts
+    the table otherwise records. Do not use it in a SELECT list, a filter, or a join key."
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Id''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: star_count
-  summary: star_count — Repo.star_count
-  body: 'Physical column ''star_count''. DECOY column: not a real business field.
-    Fabricated to mimic ''Stars''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: star_count
+  summary: "star_count, an integer column on the Repo table."
+  body: "Values in this column are not dependable and do not correspond to the business facts
+    the table otherwise records. Do not use it in a SELECT list, a filter, or a join key."
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Stars''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per GitHub repository. Grain: repository. Holds popularity counts (Forks,
-  Stars, Watchers), the GitHub Url, and ProcessedTime. Do not confuse with Solution
-  (files inside a repo).'
+    - information_schema

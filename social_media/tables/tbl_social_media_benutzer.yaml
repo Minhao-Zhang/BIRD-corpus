@@ -2,87 +2,59 @@ asset_type: table
 id: social_media.benutzer
 schema: social_media
 physical_name: benutzer
-summary: 'user (benutzer): UserID, Gender'
+summary: benutzer is the Twitter user table in social_media, one row per person who has
+  posted at least one tweet.
+body: >-
+  One row per Twitter user. benutzer_id is the user's identifier and is what tweet.benutzer_id
+  joins against; geschlecht records the user's gender. konto_id and geschlechtsangabe are
+  separate columns on this same table that are unreliable for analysis; see their own
+  definitions. Do not confuse this table with the location tables (standort, niederlassung),
+  which describe places rather than people.
 columns:
-- asset_type: column
-  physical_name: benutzer_id
-  summary: UserID — benutzer.benutzer_id
-  body: Means 'UserID' (obfuscated to 'benutzer_id').
+- physical_name: benutzer_id
+  summary: benutzer_id is the unique identifier of the Twitter user who owns this account.
+  body: >-
+    A text identifier prefixed with 'tw-' followed by digits, for example tw-9111822 or
+    tw-715597025404968960. Matches tweet.benutzer_id, which is how a tweet is linked to the
+    user who posted it. Unique per user.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: geschlecht
-  summary: Gender — benutzer.geschlecht
-  body: 'Gender of the user: ''Male'', ''Female'', or ''Unknown'' (users who do not
-    show their gender are ''Unknown'').'
+- physical_name: geschlecht
+  summary: geschlecht is the user's gender category, as recorded for the account.
+  body: >-
+    Values are Female, Male, Unisex, or Unknown; Unknown marks an account whose gender is not
+    shown. geschlechtsangabe is a separate, unreliable column on this table and should not be
+    used in place of this one.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: konto_id
-  summary: konto_id — benutzer.konto_id
-  body: 'Physical column ''konto_id''. DECOY column: not a real business field. Fabricated
-    to mimic ''UserID''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: konto_id
+  summary: konto_id, a text column on the benutzer table.
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''UserID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: geschlechtsangabe
-  summary: geschlechtsangabe — benutzer.geschlechtsangabe
-  body: 'Physical column ''geschlechtsangabe''. DECOY column: not a real business
-    field. Fabricated to mimic ''Gender''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: geschlechtsangabe
+  summary: geschlechtsangabe, a text column on the benutzer table.
+  body: >-
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Gender''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Users (Twitter accounts), one row per user_id (benutzer_id), holding the user's
-  gender (geschlecht). Joined to tweet on benutzer_id to attribute tweets to their
-  author. Do not confuse with the tweet's own author id.
+    - information_schema

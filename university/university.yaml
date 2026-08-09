@@ -1,22 +1,39 @@
 asset_type: schema
 id: university
 name: university
-summary: 'university: 6 tables — ranking_criteria, country, university_ranking_year,
-  ranking_system, university, university_year'
+summary: >-
+  The university schema ranks universities worldwide by ranking system and criterion, and
+  tracks each university's country, yearly enrollment, international and female student
+  shares, and student-staff ratio.
+body: >
+  Two chains carry the real data. On the ranking side: sistema_ranking (one row per ranking
+  system, such as the Times Higher Education World University Ranking, the Shanghai Ranking,
+  and the Center for World University Rankings) joins to criterio_ranking (one row per named
+  criterion under a system, such as Teaching, Alumni, or Publications Rank), which joins to
+  ranking_universidad_anio (one row per university, criterion, and year, carrying the
+  puntuacion score). On the institution side: pais (one row per country) joins to universidad
+  (one row per university, with its country), which joins to universidad_anio (one row per
+  university per year, carrying enrollment, the international and female student percentages,
+  and the student-staff ratio). catalogo_sistemas_ranking and historial_ranking_universidades
+  resemble a ranking-system list and a ranking history table but are not dependable for
+  analysis. Most real tables also carry an id_-prefixed twin of their own key or of a
+  neighbour's key (for example id_pais, id_universidad, id_criterio, id_sistema, id_sistema_rk,
+  id_criterio_ranking, id_universidad_ranking, id_pais_universidad); none of those is
+  maintained as a foreign key.
+rules:
+- Compute enrollment, gender share, international share, and student-staff ratio only from
+  universidad_anio, and ranking scores only from ranking_universidad_anio. Never answer a
+  ranking or enrollment question from catalogo_sistemas_ranking or historial_ranking_universidades
+  — every column in both tables is unreliable for analysis.
+- Join pais to universidad, universidad to universidad_anio, and sistema_ranking through
+  criterio_ranking to ranking_universidad_anio only on the plain key columns named in the join
+  assets. Never join on an id_-prefixed column such as id_pais, id_universidad, id_criterio,
+  id_sistema, id_sistema_rk, id_criterio_ranking, id_universidad_ranking, or
+  id_pais_universidad — none of them is a maintained foreign key.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A world university rankings database. It tracks universities, the countries
-  they are in, per-year enrollment and demographic figures, and the scores each university
-  earned each year against the criteria of various global ranking systems.
-rules:
-- A university's per-year figures (enrollment, demographics) live in universidad_anio
-  and its per-year ranking scores live in ranking_universidad_anio, both keyed by
-  year (anio) and university_id.
-- Every ranking criterion belongs to exactly one ranking system, and every score row
-  references both a university and a ranking criterion.
+    - information_schema

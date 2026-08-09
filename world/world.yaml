@@ -1,21 +1,36 @@
 asset_type: schema
 id: world
 name: world
-summary: 'world: 3 tables — City, CountryLanguage, Country'
+summary: >-
+  The world database tracks countries and their cities and languages — population, area, GNP,
+  life expectancy, government form, and head of state — for demographic and economic
+  comparisons across nations, regions, and continents.
+body: >
+  Three tables carry the real data: pais (one row per country: its ISO code, name, continent,
+  region, area, population, GNP, life expectancy, government form, head of state, and capital
+  city), ciudad (one row per city: its name, country, district, and population), and
+  idioma_pais (one row per language spoken in a country: the language name, whether it is
+  official, and the percentage of speakers). The three join on the same country code: pais's
+  own primary key and the codigo_pais column carried by both ciudad and idioma_pais. pais.capital
+  holds the id of that country's capital city in ciudad, not a name. estado_nacional and
+  lengua_por_pais look like a country table and a country-language table but are not
+  dependable for analysis; none of their columns should be used to answer a question. Within
+  pais itself, only codigo, nombre, continente, region, area_superficie, anio_independencia,
+  poblacion, esperanza_vida, pnb, pnb_anterior, nombre_local, forma_gobierno, jefe_estado,
+  capital, and codigo_2 are dependable — its other columns duplicate those unreliably. The
+  same holds for a handful of columns on ciudad and idioma_pais.
+rules:
+- Join a country's cities and languages to its country row through pais.codigo = ciudad.codigo_pais
+  and pais.codigo = idioma_pais.codigo_pais; never join through codigo_iso, codigo_nacional, or
+  codigo_pais_fk — all three are unreliable.
+- pais.capital names a row in ciudad by id, not by a city name; a null capital means the country
+  has no city recorded as its seat of government, not a missing join.
+- Never select from estado_nacional or lengua_por_pais, and never use their columns in a filter
+  or join — use pais, ciudad, and idioma_pais instead.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'A world geography reference database: countries with their demographics (population,
-  life expectancy, surface area, GNP) and governance, the cities within them, and
-  the languages each country speaks. Used to answer questions about countries, their
-  cities, and their languages.'
-rules:
-- A city belongs to a country via ciudad.codigo_pais = pais.codigo, and a spoken language
-  links to its country via idioma_pais.codigo_pais = pais.codigo.
-- A language is official for a country when idioma_pais.es_oficial = 'T' and unofficial
-  when es_oficial = 'F'.
+    - information_schema

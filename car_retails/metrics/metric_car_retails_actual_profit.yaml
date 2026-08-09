@@ -2,19 +2,18 @@ asset_type: metric
 id: metric_car_retails_actual_profit
 name: actual profit
 base_table: car_retails.details_commande
-expression: SUM(quantite_commandee * (prix_unitaire - prix_achat))
-summary: 'actual profit: SUM(quantite_commandee * (prix_unitaire - prix_achat)) over
-  sold lines (prix_achat via produits join)'
-body: Realized margin on sold lines; unit sold price minus product buy price, weighted
-  by quantity. Average actual profit uses AVG(prix_unitaire - prix_achat). Requires
-  join details_commande -> produits on code_produit.
-dimensions:
-- car_retails.details_commande.code_produit
-confidence: 0.8
+expression: SUBTRACT(prix_unitaire, produits.prix_achat)
+summary: 'actual profit: the realized margin on one order line, the price actually charged minus the product''s buy price.'
+body: >
+  SUBTRACT(prix_unitaire, prix_achat) computed after joining details_commande to produits on
+  code_produit, since prix_achat lives on produits rather than on details_commande itself.
+  Average this across an order's or a customer's lines for average actual profit. Distinct
+  from expected profit, which compares the catalog price rather than the price actually
+  charged.
 audit:
   provenance:
     source: curator
     status: draft
-    version: inference-1
+    version: rebuild-1
     source_refs:
     - train_final.jsonl

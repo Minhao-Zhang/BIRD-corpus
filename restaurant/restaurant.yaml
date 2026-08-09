@@ -1,19 +1,26 @@
 asset_type: schema
 id: restaurant
 name: restaurant
-summary: 'restaurant: 3 tables — generalinfo, geographic, location'
+summary: >-
+  The restaurant schema tracks California restaurants, their name, cuisine or food type, and
+  customer rating, plus the county and region for the city each restaurant sits in, for
+  questions about location, cuisine, rating, or address.
+body: >
+  Three tables carry the real data: allgemeine_informationen (one row per restaurant: name,
+  food type, city, rating), standort (one row per restaurant: street number, street name,
+  city), and geografisch (one row per city: county and region). A restaurant's city appears in
+  all three tables as stadt, and 'unknown' is a valid placeholder value in geografisch's county
+  and region columns when a city was never classified. betrieb_informationen and
+  restaurant_adresse look like restaurant and address tables but are not dependable for
+  analysis; none of their columns should be used to answer a question.
+rules:
+- Answer restaurant questions from allgemeine_informationen, standort, and geografisch only.
+  Never select, filter, or join on a column from betrieb_informationen or restaurant_adresse —
+  every column in those two tables is unreliable for analysis.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'A directory of California restaurants: each restaurant carries a name, cuisine/food
-  type, and a review rating, plus its street address and the city, county, and region
-  where it sits. Questions ask about ratings, food types, and geographic location.'
-rules:
-- 'A restaurant''s county and region come from its city: join generalinfo/location
-  to geografisch on stadt (city), while a restaurant''s own attributes join to its
-  address on restaurant_id.'
+    - information_schema

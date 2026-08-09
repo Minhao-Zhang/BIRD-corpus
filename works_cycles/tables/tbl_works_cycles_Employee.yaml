@@ -2,305 +2,183 @@ asset_type: table
 id: works_cycles.Employee
 schema: works_cycles
 physical_name: Employee
-summary: 'Employee (Employee): BusinessEntityID, NationalIDNumber, LoginID, OrganizationNode,
-  OrganizationLevel, JobTitle, BirthDate, MaritalStatus, Gender, HireDate, SalariedFlag,
-  VacationHours, SickLeaveHours, CurrentFlag, rowguid, ModifiedDate'
+summary: Employee holds the job, demographic, and leave-balance details for every worker in the
+  works_cycles bicycle manufacturing schema.
+body: >
+  One row per employee, keyed by BusinessEntityID. OrganizationNode places the employee in the
+  company's reporting hierarchy; JobTitle and OrganizationLevel describe their role and depth in
+  it. Join BusinessEntityID to Person for the employee's name and to EmployeeDepartmentHistory for
+  the departments and shifts they have worked. Easily confused with SalesPerson, which extends
+  only the subset of employees who work in sales with quota and commission fields.
 columns:
-- asset_type: column
-  physical_name: BusinessEntityID
-  summary: BusinessEntityID — Employee.BusinessEntityID
-  body: Means 'BusinessEntityID' (obfuscated to 'BusinessEntityID').
+- physical_name: BusinessEntityID
+  summary: BusinessEntityID identifies a single Employee record.
+  body: >
+    Surrogate integer primary key shared with Person, since every employee is also a person.
+    Referenced by Owner on Document, EmployeeID on PurchaseOrderHeader, and similar foreign keys
+    across the schema.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: NationalIDNumber
-  summary: NationalIDNumber — Employee.NationalIDNumber
-  body: Means 'NationalIDNumber' (obfuscated to 'NationalIDNumber').
+- physical_name: NationalIDNumber
+  summary: NationalIDNumber is the government identification number recorded for an Employee.
+  body: >
+    Text-typed number such as a social security number, observed from "10708100" to "999440576"
+    in this sample. A personal identifier, not a join key to other tables in this schema.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: LoginID
-  summary: LoginID — Employee.LoginID
-  body: Means 'LoginID' (obfuscated to 'LoginID').
+- physical_name: LoginID
+  summary: LoginID is the network account name of an Employee.
+  body: >
+    Free text such as "adventure-works\\david8", prefixed with the domain name. Unique per
+    employee in this sample.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: OrganizationNode
-  summary: OrganizationNode — Employee.OrganizationNode
-  body: Means 'OrganizationNode' (obfuscated to 'OrganizationNode').
+- physical_name: OrganizationNode
+  summary: OrganizationNode is the hierarchical path locating an Employee in the reporting
+    structure.
+  body: >
+    Path-like text such as "/6/1/9/" or "/3/4/", nearly unique per row. Encodes an employee's
+    position and their chain of managers; a shared prefix between two nodes means one manages the
+    other, directly or indirectly.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: OrganizationLevel
-  summary: OrganizationLevel — Employee.OrganizationLevel
-  body: Means 'OrganizationLevel' (obfuscated to 'OrganizationLevel').
+- physical_name: OrganizationLevel
+  summary: OrganizationLevel is the depth of an Employee in the reporting hierarchy.
+  body: >
+    Small integer derived from OrganizationNode, observed from 1 to 4 in this sample. A lower
+    number sits closer to the top of the organization.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: JobTitle
-  summary: JobTitle — Employee.JobTitle
-  body: Employee's job title / position.
+- physical_name: JobTitle
+  summary: JobTitle is the work title held by an Employee.
+  body: >
+    Free text, for example "Sales Representative", "Production Technician - WC20", or "Vice
+    President of Sales"; 67 distinct titles observed in this sample.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: BirthDate
-  summary: BirthDate — Employee.BirthDate
-  body: Means 'BirthDate' (obfuscated to 'BirthDate').
+- physical_name: BirthDate
+  summary: BirthDate is an Employee's date of birth.
+  body: >
+    Calendar date, observed between 1951-10-17 and 1991-05-31 in this sample. Combine with
+    HireDate to compute an employee's age when hired.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: MaritalStatus
-  summary: MaritalStatus — Employee.MaritalStatus
-  body: '''M'' = married, ''S'' = single.'
+- physical_name: MaritalStatus
+  summary: MaritalStatus records whether an Employee is married or single.
+  body: >
+    Single-letter code: "M" for married, "S" for single. The only two values observed in this
+    sample.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: Gender
-  summary: Gender — Employee.Gender
-  body: '''M'' = male, ''F'' = female.'
+- physical_name: Gender
+  summary: Gender records an Employee's gender.
+  body: >
+    Single-letter code: "M" for male, "F" for female. The only two values observed in this
+    sample.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: HireDate
-  summary: HireDate — Employee.HireDate
-  body: Means 'HireDate' (obfuscated to 'HireDate').
+- physical_name: HireDate
+  summary: HireDate is the date an Employee started working.
+  body: >
+    Calendar date, observed between 2006-06-30 and 2013-05-30 in this sample. Use with BirthDate
+    to compute age at hire, or on its own for tenure.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: SalariedFlag
-  summary: SalariedFlag — Employee.SalariedFlag
-  body: 1 = salaried and exempt from collective bargaining; 0 = not.
+- physical_name: SalariedFlag
+  summary: SalariedFlag classifies whether an Employee is paid a salary or an hourly wage.
+  body: >
+    Integer flag: 1 = salaried (exempt from collective bargaining), 0 = hourly (not exempt). Use
+    it to separate salaried staff from hourly production workers.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: VacationHours
-  summary: VacationHours — Employee.VacationHours
-  body: Number of vacation hours the employee has.
+- physical_name: VacationHours
+  summary: VacationHours is the number of vacation hours an Employee currently has available.
+  body: >
+    Integer hour count, observed from 0 to 99 in this sample. A running balance, not a per-period
+    accrual amount.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: SickLeaveHours
-  summary: SickLeaveHours — Employee.SickLeaveHours
-  body: Number of sick-leave hours the employee has (unused).
+- physical_name: SickLeaveHours
+  summary: SickLeaveHours is the number of sick leave hours an Employee currently has available.
+  body: >
+    Integer hour count, observed from 20 to 80 in this sample. A running balance, not a
+    per-period accrual amount.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: CurrentFlag
-  summary: CurrentFlag — Employee.CurrentFlag
-  body: 1 = active/current employee; 0 = not current.
+- physical_name: CurrentFlag
+  summary: CurrentFlag marks whether an Employee record is currently active.
+  body: >
+    Integer flag; every row in this sample holds 1 (active). Reserved for marking an employee
+    inactive without deleting their history.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rowguid
-  summary: rowguid — Employee.rowguid
-  body: Means 'rowguid' (obfuscated to 'rowguid').
+- physical_name: rowguid
+  summary: rowguid is the globally unique identifier assigned to an Employee record.
+  body: >
+    A GUID string generated when the row was created. Used by replication tooling rather than by
+    business queries; BusinessEntityID is the key to join on.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ModifiedDate
-  summary: ModifiedDate — Employee.ModifiedDate
-  body: Means 'ModifiedDate' (obfuscated to 'ModifiedDate').
+- physical_name: ModifiedDate
+  summary: ModifiedDate records when an Employee record was last updated.
+  body: >
+    Timestamp, observed between 2014-06-30 and 2014-12-26 in this sample. Reflects the last edit
+    to the row, not the hire date.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: employee_entity_id
-  summary: employee_entity_id — Employee.employee_entity_id
-  body: 'Physical column ''employee_entity_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''BusinessEntityID''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+- physical_name: employee_entity_id
+  summary: employee_entity_id, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''BusinessEntityID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: employee_birth_date
-  summary: employee_birth_date — Employee.employee_birth_date
-  body: 'Physical column ''employee_birth_date''. DECOY column: not a real business
-    field. Fabricated to mimic ''BirthDate''. Corruption operator ''sparse_date_offset'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: employee_birth_date
+  summary: employee_birth_date, a date column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: date
   logical_type: date
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''BirthDate''.
-      Corruption operator ''sparse_date_offset'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: employee_current_flag
-  summary: employee_current_flag — Employee.employee_current_flag
-  body: 'Physical column ''employee_current_flag''. DECOY column: not a real business
-    field. Fabricated to mimic ''CurrentFlag''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: employee_current_flag
+  summary: employee_current_flag, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CurrentFlag''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: Employees, keyed by BusinessEntityID (shared with Person). Holds job title,
-  gender, marital status, birth/hire dates, salaried/current flags, vacation and sick-leave
-  hours, and organization node.
+    - train_final.jsonl

@@ -2,225 +2,139 @@ asset_type: table
 id: movie_platform.lists_users
 schema: movie_platform
 physical_name: lists_users
-summary: 'lists_users (lists_users): user_id, list_id, list_update_date_utc, list_creation_date_utc,
-  user_trialist, user_subscriber, user_avatar_image_url, user_cover_image_url, user_eligible_for_trial,
-  user_has_payment_method'
+summary: lists_users holds one row per list, snapshotting the creating user's subscription, trial, and payment status at the moment they made that list.
+body: >
+  Grain: one row per list, keyed by list_id, matching the grain of lists rather than being one
+  row per distinct user. It is easily confused with lists, which carries the list's own title
+  and counts rather than the creator's account status; use lists for what the list is and this
+  table for who made it and what kind of account they had at the time. Join to lists on list_id
+  (one row per list on both sides) and to ratings_users or ratings on user_id to compare the
+  same user's status when they rated a movie.
 columns:
-- asset_type: column
-  physical_name: user_id
-  summary: user_id — lists_users.user_id
-  body: Means 'user_id' (obfuscated to 'user_id').
+- physical_name: user_id
+  summary: The identifier of the user who created a list, user_id.
+  body: >
+    A large numeric user id assigned by Mubi, for example 88063907 or 28506535; the same id
+    space as lists.user_id and ratings.user_id. Join to lists.user_id to bring in that user's
+    other lists, or to ratings.user_id for their ratings.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_id
-  summary: list_id — lists_users.list_id
-  body: Means 'list_id' (obfuscated to 'list_id').
+- physical_name: list_id
+  summary: The identifier of the list this status snapshot belongs to, list_id.
+  body: >
+    A numeric id, unique per row in this table, for example 15938 or 4004. Join to lists.list_id
+    (also one row per list) to bring in the list's title, size, and follower count.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_update_date_utc
-  summary: list_update_date_utc — lists_users.list_update_date_utc
-  body: UTC date (text) the list was last updated; used to find the most recently
-    updated list.
+- physical_name: list_update_date_utc
+  summary: The date a list was last updated, list_update_date_utc.
+  body: >
+    Text date formatted 'YYYY-MM-DD', for example '2020-04-26'. A date-only counterpart to
+    lists.list_update_timestamp_utc; the most recently updated list is the one with
+    MAX(list_update_date_utc).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_creation_date_utc
-  summary: list_creation_date_utc — lists_users.list_creation_date_utc
-  body: UTC date (text) the list was created; used to find a user's earliest/first
-    list.
+- physical_name: list_creation_date_utc
+  summary: The date a list was created, list_creation_date_utc.
+  body: >
+    Text date formatted 'YYYY-MM-DD', for example '2010-10-19'. A date-only counterpart to
+    lists.list_creation_timestamp_utc; the earliest (first-created) list is the one with
+    MIN(list_creation_date_utc).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: user_trialist
-  summary: user_trialist — lists_users.user_trialist
-  body: 'Flag: 1 = user was a trialist when they created the list, 0 = not.'
+- physical_name: user_trialist
+  summary: Whether the creating user was on a free trial when they made a list, user_trialist.
+  body: >
+    1 means the user was a trialist at the moment they created this list, 0 means they were not.
+    "Not a trialist" means user_trialist = 0. Distinct from user_eligible_for_trial, which marks
+    whether they qualified for a trial rather than whether they were on one.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: user_subscriber
-  summary: user_subscriber — lists_users.user_subscriber
-  body: 'Flag: 1 = user was a subscriber when they created the list, 0 = not.'
+- physical_name: user_subscriber
+  summary: Whether the creating user held a subscription when they made a list, user_subscriber.
+  body: >
+    1 means the user was a subscriber at the moment they created this list, 0 means they were
+    not. "Was a subscriber" means user_subscriber = 1.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: user_avatar_image_url
-  summary: user_avatar_image_url — lists_users.user_avatar_image_url
-  body: Means 'user_avatar_image_url' (obfuscated to 'user_avatar_image_url').
+- physical_name: user_avatar_image_url
+  summary: The web address of the creating user's profile picture, user_avatar_image_url.
+  body: >
+    A full image URL, either under assets.mubicdn.net/images/avatars or, for accounts linked to
+    Facebook, graph.facebook.com. Cosmetic; not useful for filtering or grouping.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: user_cover_image_url
-  summary: user_cover_image_url — lists_users.user_cover_image_url
-  body: Means 'user_cover_image_url' (obfuscated to 'user_cover_image_url').
+- physical_name: user_cover_image_url
+  summary: The web address of the creating user's profile cover image, user_cover_image_url.
+  body: >
+    A full image URL under assets.mubicdn.net/images/cover_images, null for most users in the
+    loaded sample. Cosmetic; not useful for filtering or grouping.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: user_eligible_for_trial
-  summary: user_eligible_for_trial — lists_users.user_eligible_for_trial
-  body: Means 'user_eligible_for_trial' (obfuscated to 'user_eligible_for_trial').
+- physical_name: user_eligible_for_trial
+  summary: Whether the creating user qualified for a free trial when they made a list, user_eligible_for_trial.
+  body: >
+    1 means the user was eligible for a trial at the moment they created this list, 0 means they
+    were not. Distinct from user_trialist, which marks whether they were actually on a trial
+    rather than whether they qualified for one.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: user_has_payment_method
-  summary: user_has_payment_method — lists_users.user_has_payment_method
-  body: 'Flag: ''1'' = user was a paying subscriber when they created the list, ''0''
-    = not (stored as text).'
+- physical_name: user_has_payment_method
+  summary: Whether the creating user was a paying subscriber when they made a list, user_has_payment_method.
+  body: >
+    1 means the user had a payment method on file, i.e. was a paying subscriber, at the moment
+    they created this list; 0 means they did not.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_ref_id
-  summary: list_ref_id — lists_users.list_ref_id
-  body: 'Physical column ''list_ref_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''list_id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: list_ref_id
+  summary: list_ref_id, a numeric column on the lists_users table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''list_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: member_user_id
-  summary: member_user_id — lists_users.member_user_id
-  body: 'Physical column ''member_user_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''user_id''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: member_user_id
+  summary: member_user_id, a numeric column on the lists_users table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''user_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: list_created_at_utc
-  summary: list_created_at_utc — lists_users.list_created_at_utc
-  body: 'Physical column ''list_created_at_utc''. DECOY column: not a real business
-    field. Fabricated to mimic ''list_creation_date_utc''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: list_created_at_utc
+  summary: list_created_at_utc, a text column on the lists_users table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''list_creation_date_utc''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Denormalized list-plus-creator table (grain: list_id). Repeats the list''s
-  dates and the creator''s profile images and status flags (subscriber, trialist,
-  payment method) as of when the list was created.'
+    - information_schema

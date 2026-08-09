@@ -1,27 +1,36 @@
 asset_type: schema
 id: mondial_geo
 name: mondial_geo
-summary: 'mondial_geo: 34 tables — encompasses, borders, City, Island, islandIn, geo_island,
-  geo_sea, geo_river, geo_estuary, geo_lake, geo_desert, geo_mountain, geo_source,
-  Country, Sea, River, mergesWith, Lake, economy, ethnicGroup, Target, Population,
-  Dese…'
+summary: "mondial_geo describes the world's countries and their provinces, cities and capitals,\
+  \ continents, mountains, rivers, lakes, seas, deserts and islands, plus each country's population,\
+  \ economy, politics, religion, language and organization memberships."
+body: >-
+  mondial_geo is a world-geography and demographics database in the tradition of the Mondial
+  project: one table per kind of entity (guo_jia for countries, cheng_shi for cities, sheng_fen
+  for provinces, zhou for continents, he/hu/hai for rivers/lakes/seas, shan/sha_mo/dao_yu for
+  mountains/deserts/islands, zu_zhi for international organizations), plus junction tables that
+  relate them (bao_kuo for country-continent overlap, bian_jie for borders, the di_li_* tables
+  for which country/province a river, lake, sea, desert or mountain touches, wei_yu/wei_yu_shang
+  for which water body or island a city sits on). guo_jia, ren_kou and jing_ji all key off a
+  country but hold different things: guo_jia is the country's identity and headline stats,
+  ren_kou holds demographic rates, jing_ji holds economic indicators. min_zu_zu, yu_yan and
+  zong_jiao share one shape (country, name, percentage) for ethnic groups, languages and religions
+  respectively, and are easy to swap by mistake. Several tables in this schema are not dependable
+  and hold no verified data at all (cheng_shi_xinxi, guo_jia_gaikuang, he_jiangkou, hui_yuan_zu,
+  jia_ting, sheng_fen_gaikuang, zheng_fu_zhengce, zong_jiao_xinxi); use their real counterparts
+  instead, named in each such table's own body.
+rules:
+- Join countries by guo_jia.dai_ma (the short country code), not by guo_jia.ming_chen (the
+  country name) — city, province and every fact table's country column is a code, not a name.
+- bian_jie (borders) stores each shared border twice, once per direction; deduplicate on the
+  unordered country pair before summing or counting border lengths.
+- guo_jia.sheng_fen and guo_jia.shou_du name only the country's capital's province and city, not
+  the country's full set of provinces or cities — use sheng_fen.guo_jia and cheng_shi.guo_jia for
+  that.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A world geography reference database (MONDIAL-style). It records countries with
-  their demographics, economy and politics, the provinces and cities within them,
-  the ethnic groups, languages and religions of their populations, the international
-  organizations they belong to, and physical geography such as rivers, lakes, seas,
-  islands, mountains and deserts, along with which countries/provinces each feature
-  is located in.
-rules:
-- Most detail tables identify their country through a guo_jia column that matches
-  guo_jia.dai_ma (the short country code); the human-readable country name is guo_jia.ming_chen.
-- 'The headcount of a demographic group in a country is its share times the country''s
-  population: population of an ethnic group / language / religion group = min_zu_zu|yu_yan|zong_jiao.bai_fen_bi
-  * guo_jia.ren_kou.'
+    - information_schema

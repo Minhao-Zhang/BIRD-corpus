@@ -2,672 +2,362 @@ asset_type: table
 id: european_football_2.atributos_jugador
 schema: european_football_2
 physical_name: atributos_jugador
-summary: 'Player_Attributes (atributos_jugador): id, player_fifa_api_id, player_api_id,
-  date, overall_rating, potential, preferred_foot, attacking_work_rate, defensive_work_rate,
-  crossing, finishing, heading_accuracy, short_passing, volleys, dribbling, curve,…'
+summary: 'The atributos_jugador table in european_football_2: one row per FIFA video-game skill rating
+  snapshot for a player on a given date.'
+body: One row per player per snapshot date (id), not one row per player; a player accumulates a new
+  row each time his FIFA ratings were refreshed, so aggregates like MAX or AVG over a rating column
+  span many snapshots unless a query filters to one fecha per player. Join to jugador on id_api_jugador
+  or id_api_fifa_jugador, not on id. Every skill rating below is an integer on a 0-100 scale, higher
+  is always better at that skill, and most were null before FIFA began tracking that attribute (roughly
+  the earliest snapshots of each player). The columns atributos_jugador_id, atributos_api_jugador_id,
+  and atributos_api_fifa_jugador_id mirror id, id_api_jugador, and id_api_fifa_jugador but hold unreliable
+  values; use the canonical columns instead.
 columns:
-- asset_type: column
-  physical_name: id
-  summary: id — atributos_jugador.id
-  body: Means 'id' (obfuscated to 'id').
+- physical_name: id
+  summary: The unique identifier for one player-attribute snapshot row (id).
+  body: Primary key of atributos_jugador. Not a player identifier by itself; a single player has one
+    row per snapshot date, so use id_api_jugador or id_api_fifa_jugador to group a player's rows together.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_api_fifa_jugador
-  summary: player_fifa_api_id — atributos_jugador.id_api_fifa_jugador
-  body: Means 'player_fifa_api_id' (obfuscated to 'id_api_fifa_jugador').
+- physical_name: id_api_fifa_jugador
+  summary: The FIFA video-game identifier of the player this snapshot rates (id_api_fifa_jugador).
+  body: Foreign key to jugador.id_api_fifa_jugador. One of two columns usable to join a snapshot back
+    to its player; the other is id_api_jugador.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_api_jugador
-  summary: player_api_id — atributos_jugador.id_api_jugador
-  body: Means 'player_api_id' (obfuscated to 'id_api_jugador').
+- physical_name: id_api_jugador
+  summary: The external match-provider identifier of the player this snapshot rates (id_api_jugador).
+  body: Foreign key to jugador.id_api_jugador. The join column most gold queries use to connect
+    atributos_jugador back to jugador and, from there, to partido's lineup columns.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fecha
-  summary: date — atributos_jugador.fecha
-  body: Date of the attribute snapshot (text); a player has multiple rows across dates.
+- physical_name: fecha
+  summary: The date this attribute snapshot was recorded (fecha).
+  body: A timestamp text value, ranging from 2007-02-22 to 2016-04-14 in this data. A player's ratings
+    change between snapshots as he ages, so comparing two players fairly usually means comparing
+    snapshots from the same or nearby fecha.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: calificacion_general
-  summary: overall_rating — atributos_jugador.calificacion_general
-  body: Overall rating on a 0-100 FIFA-style scale; higher is better.
+- physical_name: calificacion_general
+  summary: A player's overall FIFA rating (calificacion_general).
+  body: Integer, 0-100, combining every rated skill into one headline number. A higher value means a
+    stronger all-round player at that snapshot; this is what "rating" means unless a question names
+    a specific skill instead.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: potencial
-  summary: potential — atributos_jugador.potencial
-  body: Potential (future ceiling) rating on a 0-100 scale.
+- physical_name: potencial
+  summary: A player's potential FIFA rating (potencial).
+  body: Integer, 0-100, the ceiling FIFA projects the player could reach with development, as opposed
+    to calificacion_general which is the player's current rating. A higher value means more projected
+    room to improve; for an established veteran potencial and calificacion_general are often close or
+    equal.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pie_preferido
-  summary: preferred_foot — atributos_jugador.pie_preferido
-  body: Preferred foot when attacking; values 'left' or 'right'.
+- physical_name: pie_preferido
+  summary: A player's preferred kicking foot (pie_preferido).
+  body: 'Text, one of: left, right.'
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ritmo_trabajo_ataque
-  summary: attacking_work_rate — atributos_jugador.ritmo_trabajo_ataque
-  body: Attacking work rate; text values such as 'low', 'medium', 'high'.
+- physical_name: ritmo_trabajo_ataque
+  summary: A player's work rate when his team attacks (ritmo_trabajo_ataque).
+  body: 'Text, one of: high, medium, low. High means the player joins nearly every attacking move; medium
+    means he picks his moments to join in; low means he tends to hold his defensive position instead
+    of joining the attack.'
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ritmo_trabajo_defensa
-  summary: defensive_work_rate — atributos_jugador.ritmo_trabajo_defensa
-  body: Defensive work rate; text values such as 'low', 'medium', 'high' ('high' means
-    the player stays in position to defend during attacks).
+- physical_name: ritmo_trabajo_defensa
+  summary: A player's work rate when his team defends (ritmo_trabajo_defensa).
+  body: 'Text, one of: high, medium, low. High means the player tracks back and holds his defensive
+    position; medium means he picks which defensive actions to join; low means he tends to stay forward
+    for the counter-attack instead of tracking back.'
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: centros
-  summary: crossing — atributos_jugador.centros
-  body: Means 'crossing' (obfuscated to 'centros').
+- physical_name: centros
+  summary: A player's crossing rating (centros).
+  body: Integer, 0-100, measuring skill and tendency at delivering a long pass from a wide position toward
+    a teammate in the box. A higher value means a more effective crosser.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: remate
-  summary: finishing — atributos_jugador.remate
-  body: Means 'finishing' (obfuscated to 'remate').
+- physical_name: remate
+  summary: A player's finishing rating (remate).
+  body: Integer, 0-100, measuring accuracy and composure when shooting to score, as distinct from
+    potencia_tiro which measures the power behind the shot. A higher value means a more clinical finisher.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: precision_cabeza
-  summary: heading_accuracy — atributos_jugador.precision_cabeza
-  body: Means 'heading_accuracy' (obfuscated to 'precision_cabeza').
+- physical_name: precision_cabeza
+  summary: A player's heading accuracy rating (precision_cabeza).
+  body: Integer, 0-100, measuring accuracy when heading the ball, whether to score, clear, or pass. A
+    higher value means more reliable headers.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pase_corto
-  summary: short_passing — atributos_jugador.pase_corto
-  body: Means 'short_passing' (obfuscated to 'pase_corto').
+- physical_name: pase_corto
+  summary: A player's short passing rating (pase_corto).
+  body: Integer, 0-100, measuring accuracy on passes over short distance, as distinct from pase_largo
+    which covers longer passes. A higher value means crisper, more reliable short passing.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: volea
-  summary: volleys — atributos_jugador.volea
-  body: Means 'volleys' (obfuscated to 'volea').
+- physical_name: volea
+  summary: A player's volley rating (volea).
+  body: Integer, 0-100, measuring skill striking the ball out of the air before it touches the ground,
+    without controlling it first. A higher value means a more reliable volleyer.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: regate
-  summary: dribbling — atributos_jugador.regate
-  body: Means 'dribbling' (obfuscated to 'regate').
+- physical_name: regate
+  summary: A player's dribbling rating (regate).
+  body: Integer, 0-100, measuring close ball control while running with and turning with the ball past
+    opponents. A higher value means a more effective dribbler.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: curva
-  summary: curve — atributos_jugador.curva
-  body: Means 'curve' (obfuscated to 'curva').
+- physical_name: curva
+  summary: A player's curve rating (curva).
+  body: Integer, 0-100, measuring ability to bend the flight of the ball on passes and shots. A higher
+    value means more shot and pass swerve available to the player.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: precision_tiro_libre
-  summary: free_kick_accuracy — atributos_jugador.precision_tiro_libre
-  body: Means 'free_kick_accuracy' (obfuscated to 'precision_tiro_libre').
+- physical_name: precision_tiro_libre
+  summary: A player's free kick accuracy rating (precision_tiro_libre).
+  body: Integer, 0-100, measuring accuracy specifically on direct free kicks, as distinct from the general
+    remate finishing rating. A higher value means a more reliable free-kick taker.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pase_largo
-  summary: long_passing — atributos_jugador.pase_largo
-  body: Means 'long_passing' (obfuscated to 'pase_largo').
+- physical_name: pase_largo
+  summary: A player's long passing rating (pase_largo).
+  body: Integer, 0-100, measuring accuracy on passes that travel a long distance, as distinct from
+    pase_corto which covers short passes. A higher value means more reliable long-range distribution.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: control_balon
-  summary: ball_control — atributos_jugador.control_balon
-  body: Means 'ball_control' (obfuscated to 'control_balon').
+- physical_name: control_balon
+  summary: A player's ball control rating (control_balon).
+  body: Integer, 0-100, measuring ability to receive and settle the ball under pressure before the next
+    action. A higher value means a more secure first touch and closer control.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: aceleracion
-  summary: acceleration — atributos_jugador.aceleracion
-  body: Means 'acceleration' (obfuscated to 'aceleracion').
+- physical_name: aceleracion
+  summary: A player's acceleration rating (aceleracion).
+  body: Integer, 0-100, measuring how quickly the player reaches top speed from a standing start, as
+    distinct from velocidad_sprint which measures top speed itself. A higher value means a quicker burst.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: velocidad_sprint
-  summary: sprint_speed — atributos_jugador.velocidad_sprint
-  body: Means 'sprint_speed' (obfuscated to 'velocidad_sprint').
+- physical_name: velocidad_sprint
+  summary: A player's sprint speed rating (velocidad_sprint).
+  body: Integer, 0-100, measuring top running speed once at full pace, as distinct from aceleracion
+    which measures how quickly that pace is reached. A higher value means a faster player over distance.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: agilidad
-  summary: agility — atributos_jugador.agilidad
-  body: Means 'agility' (obfuscated to 'agilidad').
+- physical_name: agilidad
+  summary: A player's agility rating (agilidad).
+  body: Integer, 0-100, measuring how quickly the player changes direction or turns without losing control.
+    A higher value means a more nimble player.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: reacciones
-  summary: reactions — atributos_jugador.reacciones
-  body: Means 'reactions' (obfuscated to 'reacciones').
+- physical_name: reacciones
+  summary: A player's reactions rating (reacciones).
+  body: Integer, 0-100, measuring how quickly the player responds to events happening around him, such
+    as a loose ball or a sudden change of play. A higher value means a faster response time.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: equilibrio
-  summary: balance — atributos_jugador.equilibrio
-  body: Means 'balance' (obfuscated to 'equilibrio').
+- physical_name: equilibrio
+  summary: A player's balance rating (equilibrio).
+  body: Integer, 0-100, measuring ability to stay upright and in control of his body while running,
+    turning, or under physical challenge. A higher value means better balance.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: potencia_tiro
-  summary: shot_power — atributos_jugador.potencia_tiro
-  body: Means 'shot_power' (obfuscated to 'potencia_tiro').
+- physical_name: potencia_tiro
+  summary: A player's shot power rating (potencia_tiro).
+  body: Integer, 0-100, measuring the raw power behind a player's shot, as distinct from remate which
+    measures shot accuracy. A higher value means a harder-struck shot.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: salto
-  summary: jumping — atributos_jugador.salto
-  body: Means 'jumping' (obfuscated to 'salto').
+- physical_name: salto
+  summary: A player's jumping rating (salto).
+  body: Integer, 0-100, measuring vertical leap, most relevant when challenging for aerial balls. A higher
+    value means the player jumps higher.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: resistencia
-  summary: stamina — atributos_jugador.resistencia
-  body: Means 'stamina' (obfuscated to 'resistencia').
+- physical_name: resistencia
+  summary: A player's stamina rating (resistencia).
+  body: Integer, 0-100, measuring how well the player sustains his performance and physical output over
+    a full match. A higher value means less drop-off over 90 minutes.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: fuerza
-  summary: strength — atributos_jugador.fuerza
-  body: Means 'strength' (obfuscated to 'fuerza').
+- physical_name: fuerza
+  summary: A player's strength rating (fuerza).
+  body: Integer, 0-100, measuring physical power in shoulder-to-shoulder and ball-holding contests. A
+    higher value means the player is harder to knock off the ball.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: tiros_lejanos
-  summary: long_shots — atributos_jugador.tiros_lejanos
-  body: Means 'long_shots' (obfuscated to 'tiros_lejanos').
+- physical_name: tiros_lejanos
+  summary: A player's long shots rating (tiros_lejanos).
+  body: Integer, 0-100, measuring accuracy and power on shots taken from outside the penalty area. A
+    higher value means a more dangerous shooter from distance.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: agresividad
-  summary: aggression — atributos_jugador.agresividad
-  body: Means 'aggression' (obfuscated to 'agresividad').
+- physical_name: agresividad
+  summary: A player's aggression rating (agresividad).
+  body: Integer, 0-100, measuring intensity and physical assertiveness when contesting the ball or a
+    challenge. A higher value means a more physically assertive player.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: intercepciones
-  summary: interceptions — atributos_jugador.intercepciones
-  body: Means 'interceptions' (obfuscated to 'intercepciones').
+- physical_name: intercepciones
+  summary: A player's interceptions rating (intercepciones).
+  body: Integer, 0-100, measuring ability to read and cut out an opponent's pass before it reaches its
+    target. A higher value means a more effective interceptor.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: posicionamiento
-  summary: positioning — atributos_jugador.posicionamiento
-  body: Means 'positioning' (obfuscated to 'posicionamiento').
+- physical_name: posicionamiento
+  summary: A player's positioning rating (posicionamiento).
+  body: Integer, 0-100, measuring how well the player finds effective space on the pitch relative to
+    the play, particularly when attacking. A higher value means better positional sense.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: vision
-  summary: vision — atributos_jugador.vision
-  body: Means 'vision' (obfuscated to 'vision').
+- physical_name: vision
+  summary: A player's vision rating (vision).
+  body: Integer, 0-100, measuring ability to spot a teammate in space or anticipate a scoring opportunity
+    before it develops. A higher value means a more incisive passer of the game.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: penales
-  summary: penalties — atributos_jugador.penales
-  body: Means 'penalties' (obfuscated to 'penales').
+- physical_name: penales
+  summary: A player's penalty-taking rating (penales).
+  body: Integer, 0-100, measuring composure and accuracy specifically on penalty kicks. A higher value
+    means a more reliable penalty taker.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: marca
-  summary: marking — atributos_jugador.marca
-  body: Means 'marking' (obfuscated to 'marca').
+- physical_name: marca
+  summary: A player's marking rating (marca).
+  body: Integer, 0-100, measuring ability to track and stay close to an opposing attacker to deny them
+    space. A higher value means tighter marking.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: entrada_parado
-  summary: standing_tackle — atributos_jugador.entrada_parado
-  body: Means 'standing_tackle' (obfuscated to 'entrada_parado').
+- physical_name: entrada_parado
+  summary: A player's standing tackle rating (entrada_parado).
+  body: Integer, 0-100, measuring ability to win the ball with a tackle while remaining on his feet,
+    as distinct from entrada_deslizante which covers sliding tackles. A higher value means a cleaner
+    standing tackler.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: entrada_deslizante
-  summary: sliding_tackle — atributos_jugador.entrada_deslizante
-  body: Means 'sliding_tackle' (obfuscated to 'entrada_deslizante').
+- physical_name: entrada_deslizante
+  summary: A player's sliding tackle rating (entrada_deslizante).
+  body: Integer, 0-100, measuring ability to win the ball with a sliding tackle, as distinct from
+    entrada_parado which covers standing tackles. A higher value means a more effective sliding tackler.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: salto_portero
-  summary: gk_diving — atributos_jugador.salto_portero
-  body: Means 'gk_diving' (obfuscated to 'salto_portero').
+- physical_name: salto_portero
+  summary: A goalkeeper's diving rating (salto_portero).
+  body: Integer, 0-100, one of five goalkeeper-specific ratings and near-zero for outfield players.
+    Measures a goalkeeper's ability to reach shots by diving. A higher value means a better shot-stopper
+    on diving saves.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: manejo_portero
-  summary: gk_handling — atributos_jugador.manejo_portero
-  body: Means 'gk_handling' (obfuscated to 'manejo_portero').
+- physical_name: manejo_portero
+  summary: A goalkeeper's handling rating (manejo_portero).
+  body: Integer, 0-100, one of five goalkeeper-specific ratings and near-zero for outfield players.
+    Measures a goalkeeper's ability to hold on to the ball rather than parry it into danger. A higher
+    value means safer handling.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: saque_portero
-  summary: gk_kicking — atributos_jugador.saque_portero
-  body: Means 'gk_kicking' (obfuscated to 'saque_portero').
+- physical_name: saque_portero
+  summary: A goalkeeper's kicking rating (saque_portero).
+  body: Integer, 0-100, one of five goalkeeper-specific ratings and near-zero for outfield players.
+    Measures a goalkeeper's distribution off the ground and out of hand. A higher value means more
+    accurate distribution.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: posicionamiento_portero
-  summary: gk_positioning — atributos_jugador.posicionamiento_portero
-  body: Means 'gk_positioning' (obfuscated to 'posicionamiento_portero').
+- physical_name: posicionamiento_portero
+  summary: A goalkeeper's positioning rating (posicionamiento_portero).
+  body: Integer, 0-100, one of five goalkeeper-specific ratings and near-zero for outfield players.
+    Measures a goalkeeper's ability to position himself to cover the goal. A higher value means better
+    shot-stopping positioning.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: reflejos_portero
-  summary: gk_reflexes — atributos_jugador.reflejos_portero
-  body: Means 'gk_reflexes' (obfuscated to 'reflejos_portero').
+- physical_name: reflejos_portero
+  summary: A goalkeeper's reflexes rating (reflejos_portero).
+  body: Integer, 0-100, one of five goalkeeper-specific ratings and near-zero for outfield players.
+    Measures a goalkeeper's reaction speed on close-range and unexpected shots. A higher value means
+    quicker reflex saves.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: atributos_jugador_id
-  summary: atributos_jugador_id — atributos_jugador.atributos_jugador_id
-  body: 'Physical column ''atributos_jugador_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: atributos_jugador_id
+  summary: atributos_jugador_id, an integer column.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be
+    used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''id''. Corruption
-      operator ''permute'': values are altered (permuted — breaks joins/row lookups,
-      invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: atributos_api_jugador_id
-  summary: atributos_api_jugador_id — atributos_jugador.atributos_api_jugador_id
-  body: 'Physical column ''atributos_api_jugador_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''player_api_id''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: atributos_api_jugador_id
+  summary: atributos_api_jugador_id, an integer column.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be
+    used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''player_api_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: atributos_api_fifa_jugador_id
-  summary: atributos_api_fifa_jugador_id — atributos_jugador.atributos_api_fifa_jugador_id
-  body: 'Physical column ''atributos_api_fifa_jugador_id''. DECOY column: not a real
-    business field. Fabricated to mimic ''player_fifa_api_id''. Corruption operator
-    ''permute'': values are altered (permuted — breaks joins/row lookups, invisible
-    to aggregates). Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: atributos_api_fifa_jugador_id
+  summary: atributos_api_fifa_jugador_id, an integer column.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be
+    used as a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''player_fifa_api_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Player_Attributes: one dated snapshot (fecha) per player of FIFA-style skill
-  ratings (overall_rating, potential, crossing, finishing, work rates, preferred foot,
-  etc.). Grain = player-per-date; joins to jugador on id_api_jugador (or id_api_fifa_jugador).'
+    - information_schema

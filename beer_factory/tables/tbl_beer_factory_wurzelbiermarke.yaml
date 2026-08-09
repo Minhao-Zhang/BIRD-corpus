@@ -2,394 +2,211 @@ asset_type: table
 id: beer_factory.wurzelbiermarke
 schema: beer_factory
 physical_name: wurzelbiermarke
-summary: 'rootbeerbrand (wurzelbiermarke): BrandID, BrandName, FirstBrewedYear, BreweryName,
-  City, State, Country, Description, CaneSugar, CornSyrup, Honey, ArtificialSweetener,
-  Caffeinated, Alcoholic, AvailableInCans, AvailableInBottles, AvailableInKegs, Web…'
+summary: wurzelbiermarke holds one row per root beer brand, its brewery, ingredients, packaging, and pricing.
+body: >
+  Grain: one row per brand, keyed by marke_id (24 brands). Join to wurzelbier on marke_id for
+  units sold and to wurzelbier_bewertung on marke_id for reviews. Ignore marke_ref_id,
+  einzelhandel_preis_aktuell, and grosshandelspreis on this table; they look like marke_id,
+  aktueller_einzelhandelspreis, and gro_handelspreis but are not dependable for analysis.
 columns:
-- asset_type: column
-  physical_name: marke_id
-  summary: BrandID — wurzelbiermarke.marke_id
-  body: Means 'BrandID' (obfuscated to 'marke_id').
+- physical_name: marke_id
+  summary: The unique identifier for a root beer brand, marke_id.
+  body: >
+    Primary key of wurzelbiermarke, one row per brand (24 brands total). Matches
+    wurzelbier.marke_id and wurzelbier_bewertung.marke_id.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: markenname
-  summary: BrandName — wurzelbiermarke.markenname
-  body: Means 'BrandName' (obfuscated to 'markenname').
+- physical_name: markenname
+  summary: The name of a root beer brand, markenname.
+  body: >
+    Free text brand name, for example "A&W", "Barq's", "Dad's", or "Virgil's" (24 distinct
+    brands).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: erstes_braujaht
-  summary: FirstBrewedYear — wurzelbiermarke.erstes_braujaht
-  body: First year the brand was brewed (integer year); the minimum value marks the
-    brand with the longest history.
+- physical_name: erstes_braujaht
+  summary: The year a root beer brand was first brewed, erstes_braujaht.
+  body: >
+    Four-digit year, ranging from 1898 to 2009 in the sample. An earlier year means a much
+    longer brewed history; "longest history" refers to the brand with the minimum value here.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: brauerei_name
-  summary: BreweryName — wurzelbiermarke.brauerei_name
-  body: Means 'BreweryName' (obfuscated to 'brauerei_name').
+- physical_name: brauerei_name
+  summary: The brewery that makes a root beer brand, brauerei_name.
+  body: >
+    Free text company name, for example "AJ Stephans Beverages", "Abita Brewery", or
+    "Coca-Cola"; distinct from markenname, the name of the beverage itself.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: stadt
-  summary: City — wurzelbiermarke.stadt
-  body: Means 'City' (obfuscated to 'stadt').
+- physical_name: stadt
+  summary: The city where a brand's brewery is, stadt.
+  body: >
+    Free text city name, for example "Lodi", "Fall River", or "New Orleans"; one brand's value
+    is null.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: bundesland
-  summary: State — wurzelbiermarke.bundesland
-  body: Brewery/brand state as a code, e.g. 'CA'.
+- physical_name: bundesland
+  summary: The two-letter state code for a brand's brewery, bundesland.
+  body: >
+    For example "CA", "MA", or "WA"; one brand's value is null when its brewery is outside the
+    US.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: land
-  summary: Country — wurzelbiermarke.land
-  body: Country of the brewery, e.g. 'United States' (North America) or 'Australia'.
+- physical_name: land
+  summary: The country where a brand's brewery is, land.
+  body: >
+    Text value, either "United States" or "Australia"; "North America" as a continent refers to
+    the "United States" rows here.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: beschreibung
-  summary: Description — wurzelbiermarke.beschreibung
-  body: Means 'Description' (obfuscated to 'beschreibung').
+- physical_name: beschreibung
+  summary: A marketing description of a root beer brand, beschreibung.
+  body: Free text paragraph, often several sentences, describing the brand's history or ingredients.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: rohrzucker
-  summary: CaneSugar — wurzelbiermarke.rohrzucker
-  body: Whether the brand contains cane sugar; text flag 'TRUE'/'FALSE'.
+- physical_name: rohrzucker
+  summary: Whether a root beer brand uses cane sugar, rohrzucker.
+  body: Text flag holding "TRUE" or "FALSE".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: maissirup
-  summary: CornSyrup — wurzelbiermarke.maissirup
-  body: Whether the brand contains corn syrup; text flag 'TRUE'/'FALSE'.
+- physical_name: maissirup
+  summary: Whether a root beer brand uses corn syrup, maissirup.
+  body: Text flag holding "TRUE" or "FALSE".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: honig
-  summary: Honey — wurzelbiermarke.honig
-  body: Whether the brand contains honey; text flag 'TRUE'/'FALSE'.
+- physical_name: honig
+  summary: Whether a root beer brand contains honey, honig.
+  body: >
+    Text flag holding "TRUE" or "FALSE"; a brand with honey is typically described as sweeter or
+    having more sweetness.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: k_nstlicher_s_stoff
-  summary: ArtificialSweetener — wurzelbiermarke.k_nstlicher_s_stoff
-  body: Whether the brand contains artificial sweetener; text flag 'TRUE'/'FALSE'.
-    Non-sweetened means honey='FALSE' and artificial sweetener='FALSE'.
+- physical_name: k_nstlicher_s_stoff
+  summary: Whether a root beer brand contains artificial sweetener, k_nstlicher_s_stoff.
+  body: >
+    Text flag holding "TRUE" or "FALSE"; a brand with artificial sweetener is typically
+    described as sweeter. A brand with neither this nor honig set to "TRUE" is considered
+    unsweetened.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: koffeinhaltig
-  summary: Caffeinated — wurzelbiermarke.koffeinhaltig
-  body: Whether the brand is caffeinated; text flag 'TRUE'/'FALSE'.
+- physical_name: koffeinhaltig
+  summary: Whether a root beer brand is caffeinated, koffeinhaltig.
+  body: Text flag holding "TRUE" or "FALSE".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: alkoholhaltig
-  summary: Alcoholic — wurzelbiermarke.alkoholhaltig
-  body: Whether the brand is alcoholic; text flag 'TRUE'/'FALSE' ('FALSE' = non-alcoholic).
+- physical_name: alkoholhaltig
+  summary: Whether a root beer brand is alcoholic, alkoholhaltig.
+  body: Text flag holding "TRUE" or "FALSE"; every sampled brand is "FALSE" (non-alcoholic).
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: in_dosen_erh_ltlich
-  summary: AvailableInCans — wurzelbiermarke.in_dosen_erh_ltlich
-  body: Whether the brand is available in cans; text flag 'TRUE'/'FALSE'.
+- physical_name: in_dosen_erh_ltlich
+  summary: Whether a root beer brand is sold in cans, in_dosen_erh_ltlich.
+  body: Text flag holding "TRUE" or "FALSE".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: in_flaschen_erh_ltlich
-  summary: AvailableInBottles — wurzelbiermarke.in_flaschen_erh_ltlich
-  body: Whether the brand is available in bottles; text flag 'TRUE'/'FALSE'.
+- physical_name: in_flaschen_erh_ltlich
+  summary: Whether a root beer brand is sold in bottles, in_flaschen_erh_ltlich.
+  body: Text flag holding "TRUE" or "FALSE".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: in_f_ssern_erh_ltlich
-  summary: AvailableInKegs — wurzelbiermarke.in_f_ssern_erh_ltlich
-  body: Whether the brand is available in kegs; text flag 'TRUE'/'FALSE'.
+- physical_name: in_f_ssern_erh_ltlich
+  summary: Whether a root beer brand is sold in kegs, in_f_ssern_erh_ltlich.
+  body: Text flag holding "TRUE" or "FALSE".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: website
-  summary: Website — wurzelbiermarke.website
-  body: Means 'Website' (obfuscated to 'website').
+- physical_name: website
+  summary: A root beer brand's website address, website.
+  body: >
+    Free text URL, for example "http://www.barqs.com/"; 2 of 24 brands have no recorded
+    website.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: facebook_seite
-  summary: FacebookPage — wurzelbiermarke.facebook_seite
-  body: Facebook page of the brand; a non-null value means the brand is advertised
-    on Facebook.
+- physical_name: facebook_seite
+  summary: A root beer brand's Facebook page address, facebook_seite.
+  body: >
+    Free text URL, null for most brands. A non-null value means the brand advertises on
+    Facebook.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: twitter
-  summary: Twitter — wurzelbiermarke.twitter
-  body: Means 'Twitter' (obfuscated to 'twitter').
+- physical_name: twitter
+  summary: A root beer brand's Twitter address, twitter.
+  body: >
+    Free text URL, null for most brands, so most brands have no recorded Twitter presence.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: gro_handelspreis
-  summary: WholesaleCost — wurzelbiermarke.gro_handelspreis
-  body: Wholesale cost of the brand, in US dollars (real). Subtracted from retail
-    price to compute wholesaler unit profit.
+- physical_name: gro_handelspreis
+  summary: The wholesale cost of a root beer brand, gro_handelspreis.
+  body: >
+    US dollar amount, ranging from 0.4 to 22.0 in the sample. Subtract from
+    aktueller_einzelhandelspreis for the unit profit available to wholesalers.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: aktueller_einzelhandelspreis
-  summary: CurrentRetailPrice — wurzelbiermarke.aktueller_einzelhandelspreis
-  body: Current retail price of the brand, in US dollars (real). Retail price minus
-    wholesale cost gives per-unit wholesaler profit.
+- physical_name: aktueller_einzelhandelspreis
+  summary: The current retail price of a root beer brand, aktueller_einzelhandelspreis.
+  body: >
+    US dollar amount, ranging from 1.0 to 44.0 in the sample. Minus gro_handelspreis gives the
+    unit profit available to wholesalers.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: marke_ref_id
-  summary: marke_ref_id — wurzelbiermarke.marke_ref_id
-  body: 'Physical column ''marke_ref_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''BrandID''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: marke_ref_id
+  summary: marke_ref_id, a numeric column on the wurzelbiermarke table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''BrandID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: einzelhandel_preis_aktuell
-  summary: einzelhandel_preis_aktuell — wurzelbiermarke.einzelhandel_preis_aktuell
-  body: 'Physical column ''einzelhandel_preis_aktuell''. DECOY column: not a real
-    business field. Fabricated to mimic ''CurrentRetailPrice''. Corruption operator
-    ''sparse_perturb'': values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: einzelhandel_preis_aktuell
+  summary: einzelhandel_preis_aktuell, a numeric column on the wurzelbiermarke table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: real
   logical_type: decimal
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CurrentRetailPrice''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: grosshandelspreis
-  summary: grosshandelspreis — wurzelbiermarke.grosshandelspreis
-  body: 'Physical column ''grosshandelspreis''. DECOY column: not a real business
-    field. Fabricated to mimic ''WholesaleCost''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: grosshandelspreis
+  summary: grosshandelspreis, a numeric column on the wurzelbiermarke table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: real
   logical_type: decimal
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''WholesaleCost''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per root beer brand: brand and brewery names, location, current retail
-  and wholesale prices, ingredient/attribute flags (alcoholic, honey, caffeine, sweeteners),
-  packaging availability, and web links.'
+    - information_schema

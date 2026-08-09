@@ -2,18 +2,20 @@ asset_type: metric
 id: metric_simpson_episodes_average_star_rating
 name: average star rating
 base_table: simpson_episodes.vote
-expression: CAST(SUM(votes * etoiles) AS REAL) / NULLIF(SUM(votes), 0)
-summary: 'average star rating: vote-weighted mean stars = SUM(votes*etoiles)/SUM(votes)
-  over an episode''s star buckets.'
-body: Weight each star level by its vote count. Filter to one episode via a join on
-  id_episode to compute a single episode's average.
-dimensions:
-- simpson_episodes.vote.id_episode
-confidence: 0.8
+expression: AVG(etoiles)
+summary: >-
+  average star rating: the mean star score an episode receives across its votes, either treating
+  every star level equally or weighting by how many viewers chose it.
+body: >
+  AVG(etoiles) over the ten star-level rows for an episode treats every level equally, ignoring
+  how many viewers actually chose it. A votes-weighted average — DIVIDE(SUM(etoiles * votes),
+  SUM(votes)) — accounts for how many viewers gave each score and is the more faithful measure of
+  the episode's typical rating. Prefer the weighted form whenever votes is available alongside
+  etoiles.
 audit:
   provenance:
     source: curator
     status: draft
-    version: inference-1
+    version: rebuild-1
     source_refs:
     - train_final.jsonl

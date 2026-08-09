@@ -2,136 +2,78 @@ asset_type: table
 id: talkingdata.genre_age
 schema: talkingdata
 physical_name: genre_age
-summary: 'gender_age (genre_age): device_id, gender, age, group'
+summary: genre_age records a device's gender and age group, keyed by id_appareil.
+body: 'Grain: one row per device, though genre, age, and groupe are null for many devices in the sample
+  (467 of 500 null) - those are devices with no demographic label. Join to evenements on id_appareil for
+  that device''s events, and to marque_telephone_modele_appareil on id_appareil for its phone brand and
+  model. identifiant_appareil_associe, age_estime, and sexe sit alongside the real columns but are not
+  dependable for analysis.'
 columns:
-- asset_type: column
-  physical_name: id_appareil
-  summary: device_id — genre_age.id_appareil
-  body: Means 'device_id' (obfuscated to 'id_appareil').
+- physical_name: id_appareil
+  summary: The unique identifier for a device, id_appareil.
+  body: Large signed integer device id (500 of 500 sampled rows distinct). Join to evenements.id_appareil
+    for this device's events, and to marque_telephone_modele_appareil.id_appareil for its phone brand
+    and model.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: genre
-  summary: gender — genre_age.genre
-  body: 'Gender code: ''M'' = male, ''F'' = female.'
+- physical_name: genre
+  summary: The gender of a device's user, genre.
+  body: 'Text code: M for male, F for female (467 of 500 sampled rows null). Business language calls this
+    male or female, or men or women.'
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: age
-  summary: age — genre_age.age
-  body: User age in years (integer).
+- physical_name: age
+  summary: The age of a device's user, age.
+  body: Integer age in years, 12 to 69 in the sample (467 of 500 sampled rows null, 20 distinct values
+    among the rest). Common phrasings compare this column directly, such as an age over 30 or under 23.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: groupe
-  summary: group — genre_age.groupe
-  body: Age-gender group code combining gender and an age band, e.g. 'M23-26', 'F33-42',
-    'M39+', 'M22-', 'F23-'.
+- physical_name: groupe
+  summary: The gender-and-age bracket assigned to a device, groupe.
+  body: Text code combining gender and an age range, for example M39+, M22-, M29-31, or F27-28 (10 distinct
+    values in the sample, 467 of 500 null). The leading letter is the gender and the trailing numbers
+    or +/- sign mark the age bracket.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: identifiant_appareil_associe
-  summary: identifiant_appareil_associe — genre_age.identifiant_appareil_associe
-  body: 'Physical column ''identifiant_appareil_associe''. DECOY column: not a real
-    business field. Fabricated to mimic ''device_id''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+- physical_name: identifiant_appareil_associe
+  summary: identifiant_appareil_associe, a numeric column on the genre_age table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as
+    a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''device_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: age_estime
-  summary: age_estime — genre_age.age_estime
-  body: 'Physical column ''age_estime''. DECOY column: not a real business field.
-    Fabricated to mimic ''age''. Corruption operator ''sparse_perturb'': values are
-    altered. Do NOT use it to answer questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: age_estime
+  summary: age_estime, a numeric column on the genre_age table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''age''. Corruption
-      operator ''sparse_perturb'': values are altered. Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: sexe
-  summary: sexe — genre_age.sexe
-  body: 'Physical column ''sexe''. DECOY column: not a real business field. Fabricated
-    to mimic ''gender''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+    note: Unreliable for analysis. Do not use this column to answer questions.
+- physical_name: sexe
+  summary: sexe, a text column on the genre_age table.
+  body: Values in this column are not dependable and do not correspond to the business facts the table
+    otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''gender''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: Unreliable for analysis. Do not use this column to answer questions.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Demographic profile of devices/users, one row per device_id (id_appareil):
-  age, gender (genre), and age-gender group (groupe). Primary table for user gender,
-  age, and group questions.'
+    - information_schema

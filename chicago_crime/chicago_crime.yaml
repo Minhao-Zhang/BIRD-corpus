@@ -1,22 +1,35 @@
 asset_type: schema
 id: chicago_crime
 name: chicago_crime
-summary: 'chicago_crime: 7 tables — Crime, FBI_Code, IUCR, Neighborhood, District,
-  Ward, Community_Area'
+summary: >-
+  chicago_crime records 2018 Chicago police crime reports — case numbers, arrest and
+  domestic-violence flags, FBI and IUCR crime classifications — and the police district, ward,
+  community area, and neighborhood where each incident occurred.
+body: >
+  fan_zui is the fact table: one row per reported crime, with its date, location, arrest and
+  domestic-violence flags, and codes pointing at two independent classification schemes —
+  fbi_lei_bie (26 broad FBI categories) and iucr_dai_ma (over 400 finer-grained Illinois Uniform
+  Crime Reporting codes). Geography nests four ways: a crime's police district (jing_qu), ward
+  (qu_ye, a legislative district with one alderman), and community area (she_qu, one of 77
+  official areas) are independent administrative divisions that do not align with one another,
+  while a neighborhood (jie_qu) is an informal area that mostly, but not always exactly, falls
+  within one community area. Every dimension table (fbi_lei_bie, iucr_dai_ma, jie_qu, jing_qu,
+  qu_ye, she_qu) carries a small number of twin columns that duplicate one of its real columns
+  under a different name; those twins, and the two tables jie_qu_xinxi and she_qu_xinxi, are not
+  dependable and must not be used to answer a question.
+rules:
+- Join fan_zui to its dimensions on the plain key columns only — iucr_dai_ma_hao,
+  fbi_lei_bie_hao, jing_qu_hao, qu_ye_hao, she_qu_hao — never on a column ending in
+  "_bianhao", "_daihao", or "_leibie_bianhao"; those are unreliable twins of the real key.
+- Never select, filter, or join on any column of jie_qu_xinxi or she_qu_xinxi — both tables are
+  unreliable in full. Use jie_qu and she_qu instead.
+- A crime's police district (jing_qu), ward (qu_ye), and community area (she_qu) are three
+  separate geographic systems that do not correspond row-for-row; do not substitute one for
+  another when a question names a specific kind of area.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'Records of reported crime incidents in Chicago, each tagged with when and where
-  it happened and whether an arrest was made. Incidents are enriched with FBI and
-  IUCR crime classifications and rolled up to geographic units: police districts,
-  wards, community areas, and neighborhoods.'
-rules:
-- Every crime incident joins to at most one FBI code, one IUCR code, one police district,
-  one ward, and one community area; districts, wards, community areas, and neighborhoods
-  are distinct geographies and must not be conflated.
-- A community area (she_qu) contains many neighborhoods (jie_qu), joined on community_area_no.
+    - information_schema

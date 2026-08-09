@@ -2,180 +2,113 @@ asset_type: table
 id: retails.proveedor
 schema: retails
 physical_name: proveedor
-summary: 'supplier (proveedor): s_suppkey, s_nationkey, s_comment, s_name, s_address,
-  s_phone, s_acctbal'
+summary: proveedor holds one row per supplier, recording their nation, address, phone, account balance, and comment.
+body: >
+  Grain: one row per supplier, keyed by id_proveedor. Join to pais on id_pais to reach the
+  supplier's nation, to parte_proveedor on id_proveedor to see which parts a supplier stocks,
+  and to detalle_pedido on id_proveedor to see a supplier's order history. Alongside the columns
+  above, this table also carries proveedor_pais_id, codigo_proveedor, and saldo_proveedor; none
+  of the three is dependable for analysis, and each carries its own reliability note.
 columns:
-- asset_type: column
-  physical_name: id_proveedor
-  summary: s_suppkey — proveedor.id_proveedor
-  body: Means 's_suppkey' (obfuscated to 'id_proveedor').
+- physical_name: id_proveedor
+  summary: The unique identifier for a supplier, id_proveedor.
+  body: >
+    Numeric identifier, one distinct value per row in this table. The same number reappears in
+    nombre as "Supplier#" plus this number zero-padded to nine digits. Referenced from
+    detalle_pedido.id_proveedor and parte_proveedor.id_proveedor.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_pais
-  summary: s_nationkey — proveedor.id_pais
-  body: Means 's_nationkey' (obfuscated to 'id_pais').
+- physical_name: id_pais
+  summary: The nation a supplier belongs to, id_pais.
+  body: >
+    Foreign key to pais.id_pais. Join to pais to bring in the supplier's nation name and, from
+    there, its region, for example to find suppliers from Europe or the Middle East.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: comentario
-  summary: s_comment — proveedor.comentario
-  body: Means 's_comment' (obfuscated to 'comentario').
+- physical_name: comentario
+  summary: A free-text comment recorded for a supplier, comentario.
+  body: >
+    Auto-generated filler sentences with no structured business meaning, for example "even
+    deposits grow. carefully iro" or "bold pending packages affix". Not useful for filtering or
+    joins.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: nombre
-  summary: s_name — proveedor.nombre
-  body: Supplier name, formatted like 'Supplier#000000129'.
+- physical_name: nombre
+  summary: A supplier's printed name, nombre.
+  body: >
+    Formatted "Supplier#" followed by id_proveedor zero-padded to nine digits, for example
+    Supplier#000000116 for id_proveedor 116. A literal like Supplier#000000129 names one
+    specific row.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: direccion
-  summary: s_address — proveedor.direccion
-  body: Means 's_address' (obfuscated to 'direccion').
+- physical_name: direccion
+  summary: A supplier's street address, direccion.
+  body: >
+    Free-text address string with no fixed format, randomly generated rather than a real
+    street address, for example "DdSwNaTwmb" or "Ii3K lKvWa".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: telefono
-  summary: s_phone — proveedor.telefono
-  body: Means 's_phone' (obfuscated to 'telefono').
+- physical_name: telefono
+  summary: A supplier's phone number, telefono.
+  body: >
+    Formatted NNN-NNN-NNNN, for example "587-353-2163" or "493-863-1470"; sample values range
+    from "100-135-3648" to "999-862-9063".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: saldo_cuenta
-  summary: s_acctbal — proveedor.saldo_cuenta
-  body: Supplier account balance in currency units; negative values mean in debt.
+- physical_name: saldo_cuenta
+  summary: A supplier's account balance, saldo_cuenta.
+  body: >
+    Decimal currency amount. A negative value such as -114.5 means the account is in debt
+    (saldo_cuenta < 0); a value like 9995.03 is a healthy balance. This is the reliable balance
+    column on this table.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: proveedor_pais_id
-  summary: proveedor_pais_id — proveedor.proveedor_pais_id
-  body: 'Physical column ''proveedor_pais_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''s_nationkey''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: proveedor_pais_id
+  summary: proveedor_pais_id, a numeric column on the proveedor table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''s_nationkey''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: codigo_proveedor
-  summary: codigo_proveedor — proveedor.codigo_proveedor
-  body: 'Physical column ''codigo_proveedor''. DECOY column: not a real business field.
-    Fabricated to mimic ''s_suppkey''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: codigo_proveedor
+  summary: codigo_proveedor, a numeric column on the proveedor table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''s_suppkey''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: saldo_proveedor
-  summary: saldo_proveedor — proveedor.saldo_proveedor
-  body: 'Physical column ''saldo_proveedor''. DECOY column: not a real business field.
-    Fabricated to mimic ''s_acctbal''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: saldo_proveedor
+  summary: saldo_proveedor, a decimal column on the proveedor table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: real
   logical_type: decimal
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''s_acctbal''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Suppliers. One row per supplier (id_proveedor) with account balance, contact
-  info, and a nation key (id_pais). Shares column names with cliente but represents
-  suppliers; nombre here holds 'Supplier#...' names.
+    - information_schema

@@ -1,27 +1,33 @@
 asset_type: schema
 id: retail_complains
 name: retail_complains
-summary: 'retail_complains: 6 tables — Reviews, client, district, State, events, callcenterlogs'
+summary: retail_complains tracks retail-banking consumer complaints, the call logs behind them,
+  and separate product reviews, linking each client through their district and state.
+body: >
+  retail_complains combines three views of one bank's retail customers. evenements is a
+  regulatory-style consumer complaint log, one row per complaint about a product such as a
+  credit card or a mortgage, with the product, the issue, how the complaint was submitted, and
+  how the company responded; journaux_centre_appels is the call center log behind those
+  complaints, one row per call with its priority, agent, and duration. avis is unrelated to
+  either: it is a customer-satisfaction review of a product, with a star rating and free text,
+  and carries no complaint identifier. client, district, and etat form the geography chain
+  every person sits in: a client belongs to a district, and a district belongs to a state
+  (etat). avis has no client identifier of its own; it only reaches client indirectly through
+  the district they share. Several tables also carry a column that looks like a real
+  identifier, date, or name but is not dependable for analysis — see the affected table or
+  column for which ones.
+rules:
+- Join through id_district, id_client, and code_etat only. code_district, id_arrondissement,
+  id_consommateur, abrev_region, code_etat_iso, id_district_avis, id_plainte, id_numero_appel,
+  and id_dossier_reclamation look like the same keys but are unreliable and must not be used to
+  join tables.
+- avis (reviews) carries no client identifier; joining it to client goes through the district
+  they both reference, so the result is every client in that reviewer's district, not the one
+  reviewer.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'A consumer-finance complaints database: clients file complaints about financial
-  products (credit cards, mortgages, deposits) that are tracked as events, handled
-  through call-center logs (server, priority, service time, outcome), and separately
-  rated in product reviews. Clients, districts, and states supply the demographic
-  and geographic context.'
-rules:
-- A client links to their complaints via client.id_client = evenements.id_client,
-  and to call-center logs via client.id_client = journaux_centre_appels.client_aleatoire;
-  a complaint's call log joins on evenements.id_reclamation = journaux_centre_appels.id_reclamation.
-- 'A client''s or review''s region/state comes from its district: join to district
-  on id_district, then to etat on district.abrev_etat = etat.code_etat (division lives
-  on district; region lives on etat).'
-- Reviews (avis) attach to geography and to clients only through the district key
-  (avis.id_district = district.id_district), never through a complaint or client id
-  directly.
+    - information_schema

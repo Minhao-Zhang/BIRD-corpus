@@ -2,219 +2,139 @@ asset_type: table
 id: address.congress
 schema: address
 physical_name: congress
-summary: 'congress (congress): cognress_rep_id, first_name, last_name, CID, party,
-  state, abbreviation, House, District, land_area'
+summary: congress lists every sitting member of the U.S. House and Senate with their name, party,
+  state, and district.
+body: >
+  One row per congress member. A member of the House is tied to one numbered district within a
+  state; a Senator's District value is 'NA' because a Senate seat is not tied to a district.
+  Joins to state on abbreviation, and to zip_congress on cognress_rep_id = district to attach a
+  member to the ZIP codes their district covers — a join that only ever matches House members,
+  since a Senator's cognress_rep_id carries a state-wide suffix such as "NY-S2" that no
+  zip_congress.district value has. cong_abbr, congress_rep_code, and congress_id sit alongside
+  abbreviation, cognress_rep_id, and CID but are not dependable and must not be used to answer
+  questions.
 columns:
-- asset_type: column
-  physical_name: cognress_rep_id
-  summary: cognress_rep_id — congress.cognress_rep_id
-  body: Representative/district identifier that joins to zip_congress.district.
+- physical_name: cognress_rep_id
+  summary: cognress_rep_id, the state-and-district code identifying a House member's district, or
+    a state-and-seat code for a Senator.
+  body: >
+    Text such as "NY-6", "OH-13", or "CA-30" for a House member; "ME-S2" or "TN-S2" for a Senator,
+    where S1/S2 marks the senior/junior seat. Joins to zip_congress.district, but only House-style
+    values (state plus a numbered district) have a match there.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: first_name
-  summary: first_name — congress.first_name
-  body: Means 'first_name' (obfuscated to 'first_name').
+- physical_name: first_name
+  summary: first_name, the congress member's given name.
+  body: >
+    Free text, for example "King", "Corker", or "Meng". Pair with last_name to answer a question
+    that names a representative or senator.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: last_name
-  summary: last_name — congress.last_name
-  body: Means 'last_name' (obfuscated to 'last_name').
+- physical_name: last_name
+  summary: last_name, the congress member's family name.
+  body: >
+    Free text, for example "Angus", "Bob", or "Grace". Pair with first_name; last names are less
+    diverse than first names in this table, so match on both together.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: CID
-  summary: CID — congress.CID
-  body: Means 'CID' (obfuscated to 'CID').
+- physical_name: CID
+  summary: CID, the congress member's unique campaign-finance identifier.
+  body: >
+    Text formatted like "N00033932", ranging from "N00000078" to "N00036154" in the sample. Unique
+    per member; use it, not the name columns, to disambiguate two members with the same name.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: party
-  summary: party — congress.party
-  body: Means 'party' (obfuscated to 'party').
+- physical_name: party
+  summary: party, the political party the congress member belongs to.
+  body: >
+    Text, one of "Democrat", "Republican", or "Independent".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: state
-  summary: state — congress.state
-  body: Means 'state' (obfuscated to 'state').
+- physical_name: state
+  summary: state, the full name of the state the congress member represents.
+  body: >
+    Free text, for example "Maine", "Tennessee", or "California". Spelled out in full; pair with
+    abbreviation for the two-letter form.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: abbreviation
-  summary: abbreviation — congress.abbreviation
-  body: Means 'abbreviation' (obfuscated to 'abbreviation').
+- physical_name: abbreviation
+  summary: abbreviation, the two-letter postal abbreviation of the state the congress member
+    represents.
+  body: >
+    Text, for example "ME", "TN", or "NY". Joins to state.abbreviation to pull the state's other
+    recorded details.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: House
-  summary: House — congress.House
-  body: Congressional chamber label; observed value 'House of Repsentatives'.
+- physical_name: House
+  summary: House, which chamber of Congress the member sits in.
+  body: >
+    Text, one of "Senate" or "House of Repsentatives" (spelled as stored, without the second "e"
+    in "Representatives"). Use this column, not District, to tell a Senator from a House member.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: District
-  summary: District — congress.District
-  body: Means 'District' (obfuscated to 'District').
+- physical_name: District
+  summary: District, the numbered congressional district within the state the member represents.
+  body: >
+    Integer from 1 to 9 in the sample; null for the roughly one row in five where the member is a
+    Senator or the state is not divided into districts. Districts are numbered independently
+    within each state, so District 1 in one state is unrelated to District 1 in another.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: land_area
-  summary: land_area — congress.land_area
-  body: Means 'land_area' (obfuscated to 'land_area').
+- physical_name: land_area
+  summary: land_area, the land area of the district the congress member represents.
+  body: >
+    Decimal, for example 30865.0 or 29.78, observed ranging from 10.25 to 997.68. Units are not
+    stated in the source data; treat comparisons between rows as relative rather than assuming a
+    fixed unit such as square miles.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cong_abbr
-  summary: cong_abbr — congress.cong_abbr
-  body: 'Physical column ''cong_abbr''. DECOY column: not a real business field. Fabricated
-    to mimic ''abbreviation''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: cong_abbr
+  summary: cong_abbr, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''abbreviation''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: congress_rep_code
-  summary: congress_rep_code — congress.congress_rep_code
-  body: 'Physical column ''congress_rep_code''. DECOY column: not a real business
-    field. Fabricated to mimic ''cognress_rep_id''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: congress_rep_code
+  summary: congress_rep_code, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''cognress_rep_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: congress_id
-  summary: congress_id — congress.congress_id
-  body: 'Physical column ''congress_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''CID''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: congress_id
+  summary: congress_id, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CID''. Corruption
-      operator ''sparse_cat_remap'': values are altered. Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Congressional representative directory: first/last name, party, chamber (House),
-  state abbreviation and land area. Links to zip codes via cognress_rep_id = zip_congress.district.'
+    - information_schema

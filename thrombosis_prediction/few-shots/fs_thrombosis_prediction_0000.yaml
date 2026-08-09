@@ -1,21 +1,17 @@
 asset_type: few_shot
 id: fs_thrombosis_prediction_0000
 schema: thrombosis_prediction
-sql: SELECT "acl_iga", "acl_igg", "acl_igm" FROM "thrombosis_prediction"."untersuchung"
-  WHERE "id" IN (SELECT "id" FROM "thrombosis_prediction"."patient" WHERE "diagnose"
-  = 'SLE' AND "beschreibung" = '1994-02-19') AND "untersuchungsdatum" = '1993-11-12'
-summary: For the patient who was diagnosed with SLE on 1994/2/19, what was his/her
-  anti-Cardiolipin antibody concentration status on 1993/11/12?
-body: 'Question: For the patient who was diagnosed with SLE on 1994/2/19, what was
-  his/her anti-Cardiolipin antibody concentration status on 1993/11/12?
+sql: SELECT CAST(SUM(CASE WHEN "aufnahmedatum" = '+' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(SUM(CASE
+  WHEN "aufnahmedatum" = '-' THEN 1 ELSE 0 END), 0) FROM "thrombosis_prediction"."patient" WHERE "geschlecht"
+  = 'M'
+summary: Are there more in-patient or outpatient who were male? What is the deviation in percentage?
+body: 'Question: Are there more in-patient or outpatient who were male? What is the deviation in percentage?
 
   SQL:
 
-  SELECT "acl_iga", "acl_igg", "acl_igm" FROM "thrombosis_prediction"."untersuchung"
-  WHERE "id" IN (SELECT "id" FROM "thrombosis_prediction"."patient" WHERE "diagnose"
-  = ''SLE'' AND "beschreibung" = ''1994-02-19'') AND "untersuchungsdatum" = ''1993-11-12'''
-complexity: complex
-confidence: 0.55
+  SELECT CAST(SUM(CASE WHEN "aufnahmedatum" = ''+'' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(SUM(CASE
+  WHEN "aufnahmedatum" = ''-'' THEN 1 ELSE 0 END), 0) FROM "thrombosis_prediction"."patient" WHERE "geschlecht"
+  = ''M'''
 audit:
   provenance:
     source: gold
@@ -23,4 +19,4 @@ audit:
     version: harvest-1
     source_refs:
     - train_final.jsonl
-  evidence: gold train Q 1179; 1 question(s) share this shape
+  evidence: train question 1149

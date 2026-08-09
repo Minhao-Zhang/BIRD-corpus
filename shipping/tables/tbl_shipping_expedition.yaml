@@ -2,182 +2,113 @@ asset_type: table
 id: shipping.expedition
 schema: shipping
 physical_name: expedition
-summary: 'shipment (expedition): ship_id, cust_id, weight, truck_id, driver_id, city_id,
-  ship_date'
+summary: expedition is the shipping company's shipment log, one row per shipment with its truck, driver, customer, destination, date, and weight.
+body: >
+  Grain: one row per shipment, keyed by id_expedition (500 shipments in the loaded sample). This
+  is the central fact table of the schema: join it to camion for the truck, chauffeur for the
+  driver, client for the customer, and ville for the destination city. It carries three columns
+  that look like a second set of foreign keys — id_ville_expedition, id_client_expedition, and
+  id_chauffeur_expedition — but those are not dependable for analysis; use id_ville, id_client,
+  and id_chauffeur instead.
 columns:
-- asset_type: column
-  physical_name: id_expedition
-  summary: ship_id — expedition.id_expedition
-  body: Means 'ship_id' (obfuscated to 'id_expedition').
+- physical_name: id_expedition
+  summary: The unique identifier for a shipment, id_expedition.
+  body: >
+    A numeric id, one per shipment, for example 1003, 1011, or 1275. Referenced in questions as
+    "shipment id", "ship id", or "expedition no.".
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_client
-  summary: cust_id — expedition.id_client
-  body: Means 'cust_id' (obfuscated to 'id_client').
+- physical_name: id_client
+  summary: A reference to the customer a shipment was ordered for, id_client.
+  body: >
+    Join to client.id_client to find the customer that ordered a shipment. Many shipments can
+    reference the same customer.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: poids
-  summary: weight — expedition.poids
-  body: Shipment weight in pounds (lbs). The quantity summed/averaged/maxed for 'pounds
-    transported' and 'heaviest shipment'.
+- physical_name: poids
+  summary: The weight being transported on a shipment, poids.
+  body: >
+    A weight in pounds, for example 567.0, 2601.0, or 13734.0 in the loaded sample. Called
+    "pounds" or "weight" in business language. A condition like "poids exceed 10,000 pounds"
+    means poids >= 10000.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_camion
-  summary: truck_id — expedition.id_camion
-  body: Means 'truck_id' (obfuscated to 'id_camion').
+- physical_name: id_camion
+  summary: A reference to the truck used on a shipment, id_camion.
+  body: >
+    Join to camion.id_camion to find the truck that carried a shipment. Many shipments can
+    reference the same truck.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_chauffeur
-  summary: driver_id — expedition.id_chauffeur
-  body: Means 'driver_id' (obfuscated to 'id_chauffeur').
+- physical_name: id_chauffeur
+  summary: A reference to the driver who carried the goods on a shipment, id_chauffeur.
+  body: >
+    Join to chauffeur.id_chauffeur to find the driver that transported a shipment. Many
+    shipments can reference the same driver.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_ville
-  summary: city_id — expedition.id_ville
-  body: Means 'city_id' (obfuscated to 'id_ville').
+- physical_name: id_ville
+  summary: A reference to the destination city of a shipment, id_ville.
+  body: >
+    Join to ville.id_ville to find the destination city of a shipment. Many shipments can
+    reference the same city.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: date_expedition
-  summary: ship_date — expedition.date_expedition
-  body: Ship date, stored as text (e.g. '2016-09-21', '2017-11-05'). Cast to date/timestamp
-    to filter by year or month.
+- physical_name: date_expedition
+  summary: The date a shipment's goods were received by the driver, date_expedition.
+  body: >
+    Stored as text in yyyy-mm-dd format, for example 2016-01-18 or 2017-12-27. A question naming
+    a month and year, such as "February 2017", filters on the year-month prefix of this column;
+    a question naming only a year filters on its first four characters.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_ville_expedition
-  summary: id_ville_expedition — expedition.id_ville_expedition
-  body: 'Physical column ''id_ville_expedition''. DECOY column: not a real business
-    field. Fabricated to mimic ''city_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: id_ville_expedition
+  summary: id_ville_expedition, a numeric column on the expedition table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''city_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_client_expedition
-  summary: id_client_expedition — expedition.id_client_expedition
-  body: 'Physical column ''id_client_expedition''. DECOY column: not a real business
-    field. Fabricated to mimic ''cust_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: id_client_expedition
+  summary: id_client_expedition, a numeric column on the expedition table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''cust_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_chauffeur_expedition
-  summary: id_chauffeur_expedition — expedition.id_chauffeur_expedition
-  body: 'Physical column ''id_chauffeur_expedition''. DECOY column: not a real business
-    field. Fabricated to mimic ''driver_id''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: id_chauffeur_expedition
+  summary: id_chauffeur_expedition, a numeric column on the expedition table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''driver_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Shipment fact table; one row per shipment (grain = id_expedition). Carries the
-  delivered weight (poids) and foreign keys to customer, truck, driver, and destination
-  city. Central table nearly every question joins through.
+    - information_schema

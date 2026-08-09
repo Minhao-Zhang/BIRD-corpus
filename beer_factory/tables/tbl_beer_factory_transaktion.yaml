@@ -2,197 +2,113 @@ asset_type: table
 id: beer_factory.transaktion
 schema: beer_factory
 physical_name: transaktion
-summary: 'transaction (transaktion): TransactionID, CreditCardNumber, CustomerID,
-  TransactionDate, CreditCardType, LocationID, RootBeerID, PurchasePrice'
+summary: transaktion holds one row per purchase, its date, price, and payment card, and the customer, location, and root beer involved.
+body: >
+  Grain: one row per purchase transaction, keyed by transaktions_id. Join to kunden on
+  kunde_id, to standort on standort_id, and to wurzelbier on wurzelbier_id. Ignore
+  transaktions_kunde_id, transaktions_standort_id, and transaktions_wurzelbier_id on this table;
+  they look like kunde_id, standort_id, and wurzelbier_id but are not dependable for analysis.
 columns:
-- asset_type: column
-  physical_name: transaktions_id
-  summary: TransactionID — transaktion.transaktions_id
-  body: Means 'TransactionID' (obfuscated to 'transaktions_id').
+- physical_name: transaktions_id
+  summary: The unique identifier for a purchase transaction, transaktions_id.
+  body: Primary key of transaktion, one row per purchase, ranging from 100001 to 106300 in the sample.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kreditkartennummer
-  summary: CreditCardNumber — transaktion.kreditkartennummer
-  body: Means 'CreditCardNumber' (obfuscated to 'kreditkartennummer').
+- physical_name: kreditkartennummer
+  summary: The credit card number used to pay for a transaction, kreditkartennummer.
+  body: >
+    Numeric card number, for example 342759627792243; length varies by card type. Not a
+    customer identifier — use kunde_id for that.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kunde_id
-  summary: CustomerID — transaktion.kunde_id
-  body: Means 'CustomerID' (obfuscated to 'kunde_id').
+- physical_name: kunde_id
+  summary: The customer who made a purchase, kunde_id.
+  body: >
+    Matches kunden.kunde_id; join on this column to attribute a transaction to a customer's
+    name, address, or contact details.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: transaktionsdatum
-  summary: TransactionDate — transaktion.transaktionsdatum
-  body: Date of the transaction (date). Filtered by year/month, e.g. year 2014 or
-    the month '2014-07'.
+- physical_name: transaktionsdatum
+  summary: The date a purchase transaction occurred, transaktionsdatum.
+  body: >
+    Date in yyyy-mm-dd format, for example 2015-09-13, ranging from 2014-07-07 to 2016-09-13 in
+    the sample.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kreditkartentyp
-  summary: CreditCardType — transaktion.kreditkartentyp
-  body: Credit card brand used to pay; observed values include 'Visa', 'MasterCard',
-    'American Express', 'Discover'.
+- physical_name: kreditkartentyp
+  summary: The brand of credit card used to pay for a transaction, kreditkartentyp.
+  body: Text value, one of "American Express", "MasterCard", "Visa", or "Discover".
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: standort_id
-  summary: LocationID — transaktion.standort_id
-  body: Means 'LocationID' (obfuscated to 'standort_id').
+- physical_name: standort_id
+  summary: The store location where a transaction happened, standort_id.
+  body: >
+    Matches standort.standort_id and geoposition.standort_id; only 2 of the 3 locations appear
+    in the sampled transactions.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: wurzelbier_id
-  summary: RootBeerID — transaktion.wurzelbier_id
-  body: Means 'RootBeerID' (obfuscated to 'wurzelbier_id').
+- physical_name: wurzelbier_id
+  summary: The root beer unit purchased in a transaction, wurzelbier_id.
+  body: >
+    Matches wurzelbier.wurzelbier_id one-to-one in the sample; join on this column to add the
+    brand and container type sold.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: kaufpreis
-  summary: PurchasePrice — transaktion.kaufpreis
-  body: Purchase price paid in this transaction, in US dollars (real). The amount
-    summed for sales totals and averaged for average cost.
+- physical_name: kaufpreis
+  summary: The unit price paid for a root beer in a transaction, kaufpreis.
+  body: >
+    US dollar amount, either 1.0 or 3.0 in the sample; the two values line up with can and
+    bottle pricing.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: transaktions_kunde_id
-  summary: transaktions_kunde_id — transaktion.transaktions_kunde_id
-  body: 'Physical column ''transaktions_kunde_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''CustomerID''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: transaktions_kunde_id
+  summary: transaktions_kunde_id, a numeric column on the transaktion table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CustomerID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: transaktions_standort_id
-  summary: transaktions_standort_id — transaktion.transaktions_standort_id
-  body: 'Physical column ''transaktions_standort_id''. DECOY column: not a real business
-    field. Fabricated to mimic ''LocationID''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: transaktions_standort_id
+  summary: transaktions_standort_id, a numeric column on the transaktion table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''LocationID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: transaktions_wurzelbier_id
-  summary: transaktions_wurzelbier_id — transaktion.transaktions_wurzelbier_id
-  body: 'Physical column ''transaktions_wurzelbier_id''. DECOY column: not a real
-    business field. Fabricated to mimic ''RootBeerID''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: transaktions_wurzelbier_id
+  summary: transaktions_wurzelbier_id, a numeric column on the transaktion table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''RootBeerID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per sale event: a customer buys a root beer unit at a location, paying
-  kaufpreis with a given credit card on transaktionsdatum. The fact table joining
-  kunden, standort, and wurzelbier.'
+    - information_schema

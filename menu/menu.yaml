@@ -1,21 +1,29 @@
 asset_type: schema
 id: menu
 name: menu
-summary: 'menu: 4 tables — MenuItem, Menu, MenuPage, Dish'
+summary: >-
+  The menu schema holds a historical collection of restaurant, hotel, and ship menus and the
+  dishes and prices printed on them, for questions about a menu's date, venue, sponsor,
+  occasion, or a dish's price and history.
+body: >
+  Sourced from a library's scanned menu collection spanning roughly 1850 to 2012. `menu` is one
+  row per physical menu (a document handed to a diner); `pagemenu` is one row per printed page
+  within a menu; `elementmenu` is one row per placement of a dish on a page, carrying that
+  listing's price and position; `plat` is a catalog of distinct dish names, one row per dish,
+  with the range of years and prices at which it was seen across every menu it appears on.
+  `carte_restauration` looks like another menu roster but is not dependable for analysis. A
+  menu's overall dish and page counts are also cached on `menu` itself (nombre_plats,
+  nombre_pages) and can drift from a COUNT of its actual `pagemenu` or `elementmenu` rows.
+rules:
+- Answer menu, page, and dish questions from menu, pagemenu, elementmenu, and plat only. Never
+  select, filter, or join on carte_restauration or any of its columns — none are dependable.
+- On menu, pagemenu, and plat, ignore identifiant_menu, numero_contact, monnaie,
+  hauteur_totale, largeur_totale, identifiant_pagemenu, identifiant, premiere_presence, and
+  derniere_presence — each is unreliable and must not be selected, filtered, or joined on.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: A catalog of historical restaurant menus. It records each menu (venue, sponsor,
-  event, location, date), the pages of each menu, the dishes placed on those pages
-  with their price and position, and per-dish appearance history across all menus.
-rules:
-- A dish's per-appearance price and page position live on elementmenu (prix, pos_x,
-  pos_y); plat only holds a dish's cross-menu summary (prix_minimum, prix_maximum,
-  first/last appearance).
-- Dishes link to menus only through the chain plat -> elementmenu -> pagemenu -> menu;
-  there is no direct dish-to-menu key.
+    - information_schema

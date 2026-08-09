@@ -1,16 +1,24 @@
 asset_type: schema
 id: airline
 name: airline
-summary: 'airline: 3 tables — Air Carriers, Airlines, Airports'
+summary: >-
+  The airline schema tracks U.S. domestic flight schedules, delays, cancellations, carriers,
+  and airports, for questions about routes, on-time performance, or a named airline or airport.
+body: >
+  Airlines is the flight-level fact table: one row per flight segment operated on a given date,
+  carrying its carrier, route, schedule, delay, and cancellation details. Air_Carriers_66c534
+  names each carrier by a numeric code (joined from Airlines.OP_CARRIER_AIRLINE_ID); Airports
+  names each three-letter airport code (joined from Airlines.ORIGIN and Airlines.DEST).
+  airline_operators and airport_facilities look like carrier and airport rosters but are not
+  dependable for analysis.
+rules:
+- Answer flight questions from Airlines, Air_Carriers_66c534, and Airports only. Never select,
+  filter, or join on a column from airline_operators or airport_facilities — every column in
+  those two tables is unreliable for analysis.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: Operational U.S. domestic flight database for August 2018. It records individual flights (departure/arrival times, delays, cancellations, routes) and a reference list of airports, supporting on-time performance, delay, cancellation and route analysis.
-rules:
-- A flight's ORIGIN and DEST hold IATA airport codes that join to Airports.Code; airport city/name text lives only in Airports.Description.
-- A flight counts as cancelled only when CANCELLED = 1, and CANCELLATION_CODE explains the reason (code 'A' is the most serious).
+    - information_schema

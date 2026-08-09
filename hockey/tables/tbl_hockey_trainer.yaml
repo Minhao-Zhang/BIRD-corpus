@@ -2,276 +2,149 @@ asset_type: table
 id: hockey.trainer
 schema: hockey
 physical_name: trainer
-summary: 'Coaches (trainer): coachID, year, tmID, lgID, stint, notes, GP, w, l, t,
-  PostGP, PostW, PostL, PostT'
+summary: trainer is a coach's regular-season and postseason record for one team-stint in one
+  season, one row per coach per season per stint.
+body: >
+  One row per (trainer_id, jahr, mannschaft_id, zeitraum); zeitraum (stint) separates rows for a
+  coach who changed teams mid-season, and notizen flags special cases such as 'interim' (a
+  temporary appointment) or 'co-coach' (shared with another trainer_id that season). Postseason
+  totals sit on the same row in the playoff_-prefixed columns, null for a coach whose team did
+  not make the postseason that year. A coach who was also a player has a matching spieler.trainer_id.
+  Three of its seventeen columns are individually unreliable duplicates of this table's real
+  fields.
 columns:
-- asset_type: column
-  physical_name: trainer_id
-  summary: coachID — trainer.trainer_id
-  body: Means 'coachID' (obfuscated to 'trainer_id').
+- physical_name: trainer_id
+  summary: trainer_id is the coach this trainer row's record belongs to.
+  body: >
+    Text coach identifier, joining to spieler.trainer_id for a coach who was also a player
+    (samples 'wilsoro02c', 'wilsojo01c', 'yawnetr01c', 'youngga01c', 'youngwe02c').
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: jahr
-  summary: year — trainer.jahr
-  body: Means 'year' (obfuscated to 'jahr').
+- physical_name: jahr
+  summary: jahr is the four-digit season year of a trainer record.
+  body: Observed 1909 to 2011.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: mannschaft_id
-  summary: tmID — trainer.mannschaft_id
-  body: Means 'tmID' (obfuscated to 'mannschaft_id').
+- physical_name: mannschaft_id
+  summary: mannschaft_id is the team a trainer record was made for.
+  body: Three-letter team code, joining to mannschaften.mannschaft_id for that season.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: liga_id
-  summary: lgID — trainer.liga_id
-  body: Means 'lgID' (obfuscated to 'liga_id').
+- physical_name: liga_id
+  summary: liga_id is the league abbreviation of a trainer record.
+  body: Text league code (samples 'NHL', 'WHA', 'NHA', 'WCHL', 'PCHA').
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: zeitraum
-  summary: stint — trainer.zeitraum
-  body: Means 'stint' (obfuscated to 'zeitraum').
+- physical_name: zeitraum
+  summary: zeitraum is the stint number distinguishing multiple trainer rows for one coach in the
+    same season.
+  body: Integer 1, 2, or 3, the order of appearance for a coach who changed teams mid-season.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: notizen
-  summary: notes — trainer.notizen
-  body: 'Coaching-role note: ''interim'' = temporary term, ''co-coach ...'' = co-coached
-    with another coach.'
+- physical_name: notizen
+  summary: notizen is a free-text qualifier attached to a trainer row.
+  body: >
+    Short free text such as 'interim' (a temporary appointment) or 'co-coach' (the season's
+    coaching duties were shared with another trainer_id); usually blank.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: spiele
-  summary: GP — trainer.spiele
-  body: Means 'GP' (obfuscated to 'spiele').
+- physical_name: spiele
+  summary: spiele is the number of regular-season games the coach's team played on a trainer row.
+  body: Integer count of games coached that season and stint.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: siege
-  summary: w — trainer.siege
-  body: Games won by the coach's team in the season.
+- physical_name: siege
+  summary: siege is the number of regular-season games the coach's team won on a trainer row.
+  body: >
+    Integer count of wins; divide by (siege plus niederlagen) for a winning rate over that stint.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: niederlagen
-  summary: l — trainer.niederlagen
-  body: Means 'l' (obfuscated to 'niederlagen').
+- physical_name: niederlagen
+  summary: niederlagen is the number of regular-season games the coach's team lost on a trainer
+    row.
+  body: Integer count of losses that season and stint.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: unentschieden
-  summary: t — trainer.unentschieden
-  body: Means 't' (obfuscated to 'unentschieden').
+- physical_name: unentschieden
+  summary: unentschieden is the number of regular-season games the coach's team tied on a trainer
+    row.
+  body: Integer count of ties that season and stint.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: playoff_spiele
-  summary: PostGP — trainer.playoff_spiele
-  body: Means 'PostGP' (obfuscated to 'playoff_spiele').
+- physical_name: playoff_spiele
+  summary: playoff_spiele is the number of postseason games the coach's team played on a trainer
+    row.
+  body: Integer count; null if the coach's team did not make the postseason that year.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: playoff_siege
-  summary: PostW — trainer.playoff_siege
-  body: Means 'PostW' (obfuscated to 'playoff_siege').
+- physical_name: playoff_siege
+  summary: playoff_siege is the number of postseason games the coach's team won on a trainer row.
+  body: Integer count of postseason wins.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: playoff_niederlagen
-  summary: PostL — trainer.playoff_niederlagen
-  body: Means 'PostL' (obfuscated to 'playoff_niederlagen').
+- physical_name: playoff_niederlagen
+  summary: playoff_niederlagen is the number of postseason games the coach's team lost on a
+    trainer row.
+  body: Integer count of postseason losses.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: playoff_unentschieden
-  summary: PostT — trainer.playoff_unentschieden
-  body: Means 'PostT' (obfuscated to 'playoff_unentschieden').
+- physical_name: playoff_unentschieden
+  summary: playoff_unentschieden is the number of postseason games the coach's team tied on a
+    trainer row.
+  body: Integer count, only nonzero in eras allowing playoff tie games.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: trainer_schluessel
-  summary: trainer_schluessel — trainer.trainer_schluessel
-  body: 'Physical column ''trainer_schluessel''. DECOY column: not a real business
-    field. Fabricated to mimic ''coachID''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: trainer_schluessel
+  summary: trainer_schluessel is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''coachID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: verlorene_spiele
-  summary: verlorene_spiele — trainer.verlorene_spiele
-  body: 'Physical column ''verlorene_spiele''. DECOY column: not a real business field.
-    Fabricated to mimic ''l''. Corruption operator ''sparse_perturb'': values are
-    altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: verlorene_spiele
+  summary: verlorene_spiele is an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''l''. Corruption
-      operator ''sparse_perturb'': values are altered. Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: meisterschaft_id
-  summary: meisterschaft_id — trainer.meisterschaft_id
-  body: 'Physical column ''meisterschaft_id''. DECOY column: not a real business field.
-    Fabricated to mimic ''lgID''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: meisterschaft_id
+  summary: meisterschaft_id is a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''lgID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Coaching records, grain = one coach (trainer_id) in one season/stint/team/league.
-  Holds wins, losses, ties, games and notes such as 'interim' or 'co-coach'.
+    - information_schema

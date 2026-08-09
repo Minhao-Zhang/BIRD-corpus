@@ -1,19 +1,21 @@
 asset_type: few_shot
 id: fs_authors_0066
 schema: authors
-sql: SELECT COUNT("T1"."Id") FROM "authors"."Paper" AS "T1" INNER JOIN "authors"."Conference"
-  AS "T2" ON "T1"."ConferenceId" = "T2"."Id" WHERE "T2"."ShortName" = 'ECSQARU' AND
-  "T1"."Year" = '2003'
-summary: How many papers were presented at 'ECSQARU' in 2003?
-body: 'Question: How many papers were presented at ''ECSQARU'' in 2003?
+sql: SELECT CAST(SUM(CASE WHEN "T1"."Keyword" = 'cancer' THEN 1 ELSE 0 END) AS REAL) / COUNT("T1"."Id"),
+  (ARRAY_AGG("T2"."Name" ORDER BY "T2"."PaperId", "T2"."AuthorId"))[1], (ARRAY_AGG("T2"."Affiliation"
+  ORDER BY "T2"."PaperId", "T2"."AuthorId"))[1] FROM "authors"."Paper" AS "T1" INNER JOIN "authors"."PaperAuthor"
+  AS "T2" ON "T1"."Id" = "T2"."PaperId"
+summary: What is the proportion of the papers that have the keyword "cancer"? Please provide a list of
+  authors and their affiliations.
+body: 'Question: What is the proportion of the papers that have the keyword "cancer"? Please provide a
+  list of authors and their affiliations.
 
   SQL:
 
-  SELECT COUNT("T1"."Id") FROM "authors"."Paper" AS "T1" INNER JOIN "authors"."Conference"
-  AS "T2" ON "T1"."ConferenceId" = "T2"."Id" WHERE "T2"."ShortName" = ''ECSQARU''
-  AND "T1"."Year" = ''2003'''
-complexity: medium
-confidence: 0.55
+  SELECT CAST(SUM(CASE WHEN "T1"."Keyword" = ''cancer'' THEN 1 ELSE 0 END) AS REAL) / COUNT("T1"."Id"),
+  (ARRAY_AGG("T2"."Name" ORDER BY "T2"."PaperId", "T2"."AuthorId"))[1], (ARRAY_AGG("T2"."Affiliation"
+  ORDER BY "T2"."PaperId", "T2"."AuthorId"))[1] FROM "authors"."Paper" AS "T1" INNER JOIN "authors"."PaperAuthor"
+  AS "T2" ON "T1"."Id" = "T2"."PaperId"'
 audit:
   provenance:
     source: gold
@@ -21,4 +23,4 @@ audit:
     version: harvest-1
     source_refs:
     - train_final.jsonl
-  evidence: gold train Q train_3633; 1 question(s) share this shape
+  evidence: train question train_3654

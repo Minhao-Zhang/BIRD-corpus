@@ -2,150 +2,100 @@ asset_type: table
 id: retail_complains.avis
 schema: retail_complains
 physical_name: avis
-summary: 'Reviews (avis): Date, Stars, Reviews, Product, district_id'
+summary: avis holds each customer's star rating and written review of a banking product, tied
+  to the district where the reviewer lives.
+body: >
+  Grain: one row per customer review of a product. Distinct from evenements and
+  journaux_centre_appels, which record formal regulatory complaints and the calls behind them
+  rather than customer-satisfaction reviews; the same customer can appear in both without any
+  shared key between the two record types. avis connects to district through id_district, and
+  only reaches client indirectly through that shared district — it carries no id_client of its
+  own. Do not use avis_produits, a separate table that repeats this table's shape but is not
+  dependable; three columns on this table itself (id_district_avis, date_avis, type_produit)
+  are also unreliable and are marked individually below.
 columns:
-- asset_type: column
-  physical_name: date
-  summary: Date — avis.date
-  body: Date the review was written (date), compared to fixed dates.
+- physical_name: date
+  summary: The date a customer submitted their review, date.
+  body: >
+    Spans 2013-02-04 to 2019-12-19 in the loaded sample. This is the review's own submission
+    date; do not confuse it with date_avis on this same table, which is a separate, unreliable
+    column.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: note_etoiles
-  summary: Stars — avis.note_etoiles
-  body: Star rating as an integer 1-5; filtered by = 1 or = 5 and counted (e.g. most
-    5-star reviews).
+- physical_name: note_etoiles
+  summary: The star rating a customer gave in their review, note_etoiles.
+  body: >
+    An integer from 1 (worst) to 5 (best); no other values appear in the loaded sample. "1-star
+    review" or "1 star" means note_etoiles = 1; "5-star review" or "most five stars" means
+    note_etoiles = 5.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: avis
-  summary: Reviews — avis.avis
-  body: Free-text review content; searched with LIKE (e.g. '%Great%').
+- physical_name: avis
+  summary: The free-text body of a customer's review, avis.
+  body: >
+    Free text, for example "Great web interface for both the loan application and document
+    upload and download features." Null for most rows (332 of 377 in the loaded sample) —
+    only a minority of reviewers write anything beyond the star rating.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: produit
-  summary: Product — avis.produit
-  body: Product being reviewed, as text, e.g. 'Eagle National Mortgage', 'Eagle Capital'.
+- physical_name: produit
+  summary: The lender a review is about, produit.
+  body: >
+    A small, closed set of lender names in the loaded sample: 'Eagle National Mortgage', 'Eagle
+    National Bank', and 'Eagle Capital'. This is a lender name, not the complaint-category
+    vocabulary ('Credit card', 'Bank account or service') used by evenements.produit.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_district
-  summary: district_id — avis.id_district
-  body: Means 'district_id' (obfuscated to 'id_district').
+- physical_name: id_district
+  summary: The district where the reviewing customer lives, id_district.
+  body: >
+    A numeric foreign key to district.id_district. Use this to bring in the reviewer's city,
+    state, and census division; it is also the only way to relate a review to a client, since
+    avis has no client identifier of its own.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_district_avis
-  summary: id_district_avis — avis.id_district_avis
-  body: 'Physical column ''id_district_avis''. DECOY column: not a real business field.
-    Fabricated to mimic ''district_id''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: id_district_avis
+  summary: id_district_avis, a numeric column on the avis table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''district_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: date_avis
-  summary: date_avis — avis.date_avis
-  body: 'Physical column ''date_avis''. DECOY column: not a real business field. Fabricated
-    to mimic ''Date''. Corruption operator ''sparse_date_offset'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: date_avis
+  summary: date_avis, a date column on the avis table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: date
   logical_type: date
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Date''.
-      Corruption operator ''sparse_date_offset'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: type_produit
-  summary: type_produit — avis.type_produit
-  body: 'Physical column ''type_produit''. DECOY column: not a real business field.
-    Fabricated to mimic ''Product''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: type_produit
+  summary: type_produit, a text column on the avis table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list or a filter.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''Product''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per product review: the review text, review date, star rating, the
-  product reviewed, and the district it came from. Grain is one review. Reviews are
-  independent of the complaint/event tables and reach geography only via id_district.'
+    - information_schema

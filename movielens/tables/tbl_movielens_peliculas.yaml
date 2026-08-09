@@ -2,151 +2,97 @@ asset_type: table
 id: movielens.peliculas
 schema: movielens
 physical_name: peliculas
-summary: 'movies (peliculas): movieid, year, isEnglish, country, runningtime'
+summary: peliculas holds the movies, one row per movie, with its release recency, language,
+  country, and running time.
+body: >
+  One row per movie, keyed by id_pelicula. "Movie" and "film" both refer to a row of
+  peliculas. Join to peliculas_actores or peliculas_directores on id_pelicula to reach a
+  movie's cast or director, and to calificaciones on id_pelicula to reach the ratings it
+  received. pais_origen and idioma_ingles on this table repeat the same values as pais and
+  es_ingles but are not dependable; identificador_pelicula on this table is not dependable
+  either. See each column's own note before using it.
 columns:
-- asset_type: column
-  physical_name: id_pelicula
-  summary: movieid — peliculas.id_pelicula
-  body: Means 'movieid' (obfuscated to 'id_pelicula').
+- physical_name: id_pelicula
+  summary: The unique identifier of a movie, id_pelicula.
+  body: >
+    Primary key of peliculas, a large integer (sample values like 2102302 or 1833995, not a
+    small sequential id). Join to peliculas_actores.id_pelicula, peliculas_directores.
+    id_pelicula, or calificaciones.id_pelicula to reach cast, crew, or ratings.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: a_o
-  summary: year — peliculas.a_o
-  body: 'Relative release-year band, not a calendar year. Higher = newer: 4 = newest,
-    1 = oldest.'
+- physical_name: a_o
+  summary: A movie's release recency code, a_o.
+  body: >
+    Integer from 1 to 4 recording relative release order rather than a calendar year: 1 is the
+    oldest release date and 4 is the newest, and a higher value always means a more recently
+    released movie. "Oldest" resolves to a_o = 1 and "newest" to a_o = 4.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: es_ingles
-  summary: isEnglish — peliculas.es_ingles
-  body: 'English-language flag as text: ''T'' = English, ''F'' = non-English/foreign.'
+- physical_name: es_ingles
+  summary: Whether a movie is in English, es_ingles.
+  body: >
+    Single-letter text flag: T means the movie is in English, F means it is not. "English
+    movie" or "films in English" resolves to es_ingles = 'T'; "non-English" or "not in English"
+    resolves to es_ingles = 'F'.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pais
-  summary: country — peliculas.pais
-  body: Production country as text, e.g. 'USA', 'UK', 'France', 'other'.
+- physical_name: pais
+  summary: The country a movie is associated with, pais.
+  body: >
+    Text values observed include France, USA, UK, and other, where other groups every country
+    outside those three. Filter on the exact country name for a specific-country question.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: duracion
-  summary: runningtime — peliculas.duracion
-  body: Running-time band; higher value = longer. Values like 2 or 3 represent runtime
-    buckets (e.g. 2 = about two hours).
+- physical_name: duracion
+  summary: A movie's running time code, duracion.
+  body: >
+    Integer from 0 to 3 recording relative running time rather than actual minutes; a higher
+    value means a longer running time than a lower one.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: identificador_pelicula
-  summary: identificador_pelicula — peliculas.identificador_pelicula
-  body: 'Physical column ''identificador_pelicula''. DECOY column: not a real business
-    field. Fabricated to mimic ''movieid''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+- physical_name: identificador_pelicula
+  summary: identificador_pelicula, a numeric column on the peliculas table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''movieid''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: pais_origen
-  summary: pais_origen — peliculas.pais_origen
-  body: 'Physical column ''pais_origen''. DECOY column: not a real business field.
-    Fabricated to mimic ''country''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: pais_origen
+  summary: pais_origen, a text column on the peliculas table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''country''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: idioma_ingles
-  summary: idioma_ingles — peliculas.idioma_ingles
-  body: 'Physical column ''idioma_ingles''. DECOY column: not a real business field.
-    Fabricated to mimic ''isEnglish''. Corruption operator ''sparse_cat_remap'': values
-    are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: idioma_ingles
+  summary: idioma_ingles, a text column on the peliculas table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''isEnglish''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: One row per movie. Grain is a single film. Holds country (pais), relative release-year
-  band (a_o), running-time band (duracion) and English-language flag (es_ingles).
-  Genre is not here; it is on peliculas_directores.
+    - information_schema

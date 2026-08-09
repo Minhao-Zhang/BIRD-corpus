@@ -1,22 +1,29 @@
 asset_type: schema
 id: books
 name: books
-summary: 'books: 15 tables — author, customer, customer_address, address, publisher,
-  address_status, order_status, order_history, book_language, book, book_author, order_line,
-  shipping_method, country, cust_order'
+summary: >
+  books: an online bookstore's catalog of authors, publishers and languages, its customers and
+  addresses, and every order's shipping method, line-item prices and delivery status history.
+body: >
+  This is a bookstore's operational schema. Authors write books, publishers publish them, and
+  each book is written in one language. Customers place orders that ship to one of their
+  addresses via a chosen shipping method, and each order line records the book and price for one
+  item on that order. An order accumulates a status history as it moves from received through
+  delivery to a final state such as delivered, cancelled or returned. A customer can have several
+  addresses on file; the one marked active is their current address, and the rest are abandoned.
+  An order's own delivery address is stored on the order itself and does not have to match
+  whichever address is currently marked active for the customer. Several tables and columns in
+  this schema mirror the real ones under a different name and are marked unreliable in their own
+  notes; do not use them even though their names look plausible.
+rules:
+- A customer's current address is the cliente_direccion row whose id_estado points to
+  estado_direccion's active status, not simply the most recently added row.
+- An order's shipping destination is pedido.id_direccion_destino joined to direccion.id_direccion;
+  it is a property of the order, not of the customer's current address.
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: An online bookstore's order database. It records books (with their authors,
-  publishers, and languages), customers and their addresses, the shipping methods
-  used, and each customer order with its priced order lines and status history.
-rules:
-- A book links to exactly one publisher and one language, but to many authors through
-  the libro_autor bridge table.
-- An order's items and prices live in linea_pedido; the order's shipping and destination
-  live in pedido, and its status changes in historial_pedido.
+    - train_final.jsonl

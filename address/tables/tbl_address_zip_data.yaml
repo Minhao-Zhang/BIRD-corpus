@@ -2,856 +2,522 @@ asset_type: table
 id: address.zip_data
 schema: address
 physical_name: zip_data
-summary: 'zip_data (zip_data): zip_code, city, state, multi_county, type, organization,
-  time_zone, daylight_savings, latitude, longitude, elevation, state_fips, county_fips,
-  region, division, population_2020, population_2010, households, avg_house_value,
-  avg_…'
+summary: zip_data is the central reference table of U.S. ZIP codes, carrying each one's city,
+  state, location, and census demographics.
+body: >
+  One row per ZIP code (postal point); most other tables in this schema join back to zip_data on
+  zip_code. Demographic and housing columns are populated only for ZIP codes that are residential
+  delivery areas — roughly a fifth of the sampled rows — and are null for ZIP codes that are pure
+  P.O.-box or military-mail points. Easily confused with country, which despite its name also
+  keys on zip_code but only carries county and state. cbsa_code, population_2010_count, and
+  population_2020_count sit alongside CBSA, population_2010, and population_2020 but are not
+  dependable and must not be used to answer questions.
 columns:
-- asset_type: column
-  physical_name: zip_code
-  summary: zip_code — zip_data.zip_code
-  body: Means 'zip_code' (obfuscated to 'zip_code').
+- physical_name: zip_code
+  summary: zip_code, the 5-digit U.S. postal code this row of demographic and location data
+    describes.
+  body: >
+    Integer, for example 934 or 8108, observed ranging from 934 to 9977 in the sample (the leading
+    zero of some ZIP codes is not stored). Primary join key for alias, avoid, area_code, country,
+    and zip_congress.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: city
-  summary: city — zip_data.city
-  body: Means 'city' (obfuscated to 'city').
+- physical_name: city
+  summary: city, the primary city name associated with the ZIP code.
+  body: >
+    Free text, for example "Fort Buchanan", "Hamden", or "Collingswood". This is the postal
+    service's preferred name; alias.alias lists other names also accepted for the same ZIP code.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: state
-  summary: state — zip_data.state
-  body: Means 'state' (obfuscated to 'state').
+- physical_name: state
+  summary: state, the two-letter postal abbreviation of the state or territory the ZIP code is in.
+  body: >
+    Text, for example "PR", "CT", or "NJ"; also carries military designations such as "AE".
+    Joins to address.state.abbreviation.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: multi_county
-  summary: multi_county — zip_data.multi_county
-  body: Means 'multi_county' (obfuscated to 'multi_county').
+- physical_name: multi_county
+  summary: multi_county, whether the ZIP code's area spans more than one county.
+  body: >
+    Text, "Yes" or "No". "Yes" means the ZIP code's delivery area crosses a county boundary, so a
+    single county lookup on country.county may not fully describe it.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: type
-  summary: type — zip_data.type
-  body: Postal point type. Observed values include 'Post Office', 'P.O. Box Only',
-    and 'Unique Post Office'.
+- physical_name: type
+  summary: type, the postal classification of the ZIP code.
+  body: >
+    Text, one of "Branch", "APO/FPO Military", "Post Office", or "P.O. Box Only". A ZIP code of
+    type "P.O. Box Only" or "APO/FPO Military" typically has null demographic columns because no
+    residential population is delivered there.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: organization
-  summary: organization — zip_data.organization
-  body: Affiliated organization name for the postal point, e.g. 'Readers Digest'.
+- physical_name: organization
+  summary: organization, the company or institution the ZIP code is dedicated to, when it is a
+    unique ZIP code assigned to a single large mail recipient.
+  body: >
+    Free text, for example "Readers Digest"; null for essentially every row in the sample, since
+    most ZIP codes serve a general area rather than one organization.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: time_zone
-  summary: time_zone — zip_data.time_zone
-  body: Means 'time_zone' (obfuscated to 'time_zone').
+- physical_name: time_zone
+  summary: time_zone, the time zone observed at the ZIP code's location.
+  body: >
+    Text, one of "Atlantic", "Eastern", "Central", "Mountain", or "Pacific"; null for roughly
+    three-quarters of the sampled rows, the same rows whose demographic columns are also null.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: daylight_savings
-  summary: daylight_savings — zip_data.daylight_savings
-  body: Text flag for whether the area observes daylight saving time; values 'Yes'
-    / 'No'.
+- physical_name: daylight_savings
+  summary: daylight_savings, whether the ZIP code's location observes daylight saving time.
+  body: >
+    Text, "Yes" or "No". Most of the U.S. observes daylight saving; "No" marks the exceptions,
+    such as most of Arizona and the U.S. territories.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: latitude
-  summary: latitude — zip_data.latitude
-  body: Latitude coordinate of the zip code; paired with longitude for precise location.
+- physical_name: latitude
+  summary: latitude, the north-south geographic coordinate of the ZIP code's location.
+  body: >
+    Decimal degrees, for example 18.412973 or 41.3712, observed ranging from 13.4744 to 63.457603;
+    null wherever the demographic columns are null. Pair with longitude for a full coordinate.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: longitude
-  summary: longitude — zip_data.longitude
-  body: Longitude coordinate of the zip code; paired with latitude for precise location.
+- physical_name: longitude
+  summary: longitude, the east-west geographic coordinate of the ZIP code's location.
+  body: >
+    Decimal degrees, for example -66.119835 or -74.03669, observed ranging from -102.943 to
+    144.7478 (positive values occur for U.S. territories west of the antimeridian, such as Guam).
+    Pair with latitude for a full coordinate.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: elevation
-  summary: elevation — zip_data.elevation
-  body: Elevation of the zip code.
+- physical_name: elevation
+  summary: elevation, the elevation of the ZIP code's location.
+  body: >
+    Integer, for example 0, 178, or 1029, observed ranging from 0 to 980 among rows with the field
+    populated (a small number of rows exceed that, such as 1029). Unit is not stated in the source
+    data; treat comparisons as relative.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: state_fips
-  summary: state_fips — zip_data.state_fips
-  body: Means 'state_fips' (obfuscated to 'state_fips').
+- physical_name: state_fips
+  summary: state_fips, the Federal Information Processing Standards code for the state.
+  body: >
+    Integer, for example 72 (Puerto Rico) or 9 (Connecticut), observed ranging from 1 to 9 in the
+    sample though the full code space goes higher. A numeric alternative to the state abbreviation
+    for joining to other federal geographic datasets.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: county_fips
-  summary: county_fips — zip_data.county_fips
-  body: Means 'county_fips' (obfuscated to 'county_fips').
+- physical_name: county_fips
+  summary: county_fips, the Federal Information Processing Standards code for the county.
+  body: >
+    Integer, for example 61 or 139, observed ranging from 1 to 97 in the sample. Unique only in
+    combination with state_fips, since county FIPS codes repeat across different states.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: region
-  summary: region — zip_data.region
-  body: US region label for the zip code, e.g. 'Midwest'.
+- physical_name: region
+  summary: region, the U.S. census region the ZIP code falls in.
+  body: >
+    Text, one of "Northeast", "South", "Midwest", or "West". Broader than division; every division
+    value belongs to exactly one region.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: division
-  summary: division — zip_data.division
-  body: Means 'division' (obfuscated to 'division').
+- physical_name: division
+  summary: division, the U.S. census division the ZIP code falls in.
+  body: >
+    Text, one of nine values such as "New England", "Middle Atlantic", or "South Atlantic". A
+    finer grouping than region; several divisions can share the same region.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: population_2020
-  summary: population_2020 — zip_data.population_2020
-  body: Total resident population from the 2020 census.
+- physical_name: population_2020
+  summary: population_2020, the total population of the ZIP code recorded in the 2020 census.
+  body: >
+    Integer, for example 181 or 47001, observed ranging from 0 to 990 among sampled rows (the true
+    maximum across the full table is far higher; this column is one of the ones a "highest
+    population" question maximizes). Compare to population_2010 to measure change over the decade.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: population_2010
-  summary: population_2010 — zip_data.population_2010
-  body: Total resident population from the 2010 census.
+- physical_name: population_2010
+  summary: population_2010, the total population of the ZIP code recorded in the 2010 census.
+  body: >
+    Integer, for example 288 or 65136, observed ranging from 0 to 9223. Subtract from
+    population_2020 to get the change in population over the decade.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: households
-  summary: households — zip_data.households
-  body: Means 'households' (obfuscated to 'households').
+- physical_name: households
+  summary: households, the number of households in the ZIP code.
+  body: >
+    Integer, for example 92 or 23679, observed ranging from 0 to 98 among sampled rows (the full
+    table's values run much higher). A household can contain more than one person; see
+    persons_per_household for the average size.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: avg_house_value
-  summary: avg_house_value — zip_data.avg_house_value
-  body: Average home value for the zip code (currency amount).
+- physical_name: avg_house_value
+  summary: avg_house_value, the average value of a house in the ZIP code, in U.S. dollars.
+  body: >
+    Integer, for example 147000 or 708100, observed ranging from 0 to 90300 among sampled rows
+    (the full table's values run much higher; 0 marks a ZIP code with no reported housing stock).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: avg_income_per_household
-  summary: avg_income_per_household — zip_data.avg_income_per_household
-  body: Average household income for the zip code (currency amount).
+- physical_name: avg_income_per_household
+  summary: avg_income_per_household, the average income per household in the ZIP code, in U.S.
+    dollars.
+  body: >
+    Integer, for example 31304 or 170625, observed ranging from 0 to 99158. Distinct from
+    avg_house_value, which measures housing wealth rather than income.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: persons_per_household
-  summary: persons_per_household — zip_data.persons_per_household
-  body: Means 'persons_per_household' (obfuscated to 'persons_per_household').
+- physical_name: persons_per_household
+  summary: persons_per_household, the average number of people living in each household in the
+    ZIP code.
+  body: >
+    Decimal, for example 3.13 or 2.31, observed ranging from 0.0 to 4.15. Divide population by
+    households to arrive at approximately this figure.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: white_population
-  summary: white_population — zip_data.white_population
-  body: Means 'white_population' (obfuscated to 'white_population').
+- physical_name: white_population
+  summary: white_population, the number of residents of the ZIP code recorded as White.
+  body: >
+    Integer, for example 211 or 48196, observed ranging from 0 to 9935 among sampled rows. One of
+    several racial-population columns alongside black_population, hispanic_population,
+    asian_population, american_indian_population, hawaiian_population, and other_population.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: black_population
-  summary: black_population — zip_data.black_population
-  body: Means 'black_population' (obfuscated to 'black_population').
+- physical_name: black_population
+  summary: black_population, the number of residents of the ZIP code recorded as Black.
+  body: >
+    Integer, for example 54 or 11332, observed ranging from 0 to 99 among sampled rows (the full
+    table's values run much higher).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: hispanic_population
-  summary: hispanic_population — zip_data.hispanic_population
-  body: Means 'hispanic_population' (obfuscated to 'hispanic_population').
+- physical_name: hispanic_population
+  summary: hispanic_population, the number of residents of the ZIP code recorded as Hispanic.
+  body: >
+    Integer, for example 178 or 64442, observed ranging from 0 to 989 among sampled rows (the full
+    table's values run much higher).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: asian_population
-  summary: asian_population — zip_data.asian_population
-  body: Means 'asian_population' (obfuscated to 'asian_population').
+- physical_name: asian_population
+  summary: asian_population, the number of residents of the ZIP code recorded as Asian.
+  body: >
+    Integer, for example 3 or 1650, observed ranging from 0 to 95 among sampled rows (the full
+    table's values run much higher).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: american_indian_population
-  summary: american_indian_population — zip_data.american_indian_population
-  body: Means 'american_indian_population' (obfuscated to 'american_indian_population').
+- physical_name: american_indian_population
+  summary: american_indian_population, the number of residents of the ZIP code recorded as
+    American Indian.
+  body: >
+    Integer, for example 4 or 829, observed ranging from 0 to 91 among sampled rows (the full
+    table's values run much higher).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: hawaiian_population
-  summary: hawaiian_population — zip_data.hawaiian_population
-  body: Means 'hawaiian_population' (obfuscated to 'hawaiian_population').
+- physical_name: hawaiian_population
+  summary: hawaiian_population, the number of residents of the ZIP code recorded as Native
+    Hawaiian.
+  body: >
+    Integer, for example 0 or 36, observed ranging from 0 to 9 among sampled rows. Typically the
+    smallest of the racial-population columns outside of Hawaii and the Pacific territories.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: other_population
-  summary: other_population — zip_data.other_population
-  body: Means 'other_population' (obfuscated to 'other_population').
+- physical_name: other_population
+  summary: other_population, the number of residents of the ZIP code recorded as another race.
+  body: >
+    Integer, for example 31 or 6793, observed ranging from 0 to 972 among sampled rows (the full
+    table's values run much higher).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: male_population
-  summary: male_population — zip_data.male_population
-  body: Means 'male_population' (obfuscated to 'male_population').
+- physical_name: male_population
+  summary: male_population, the number of male residents of the ZIP code.
+  body: >
+    Integer, for example 147 or 30879, observed ranging from 0 to 989 among sampled rows (the full
+    table's values run much higher). Divide by female_population for the gender ratio.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: female_population
-  summary: female_population — zip_data.female_population
-  body: Means 'female_population' (obfuscated to 'female_population').
+- physical_name: female_population
+  summary: female_population, the number of female residents of the ZIP code.
+  body: >
+    Integer, for example 141 or 34257, observed ranging from 0 to 9916 among sampled rows. Divide
+    male_population by this column for the gender ratio.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: median_age
-  summary: median_age — zip_data.median_age
-  body: Means 'median_age' (obfuscated to 'median_age').
+- physical_name: median_age
+  summary: median_age, the median age of residents in the ZIP code.
+  body: >
+    Decimal, for example 31.2 or 40.5, observed ranging from 0.0 to 67.2. See also male_median_age
+    and female_median_age for the figure split by gender.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: male_median_age
-  summary: male_median_age — zip_data.male_median_age
-  body: Median age of the male population (years).
+- physical_name: male_median_age
+  summary: male_median_age, the median age of male residents in the ZIP code.
+  body: >
+    Decimal, for example 31.2 or 38.7, observed ranging from 0.0 to 67.1. Compare to
+    female_median_age; the two need not be equal even when median_age is the same.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: female_median_age
-  summary: female_median_age — zip_data.female_median_age
-  body: Median age of the female population (years).
+- physical_name: female_median_age
+  summary: female_median_age, the median age of female residents in the ZIP code.
+  body: >
+    Decimal, for example 31.3 or 42.4, observed ranging from 0.0 to 67.3. Compare to
+    male_median_age.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: residential_mailboxes
-  summary: residential_mailboxes — zip_data.residential_mailboxes
-  body: Means 'residential_mailboxes' (obfuscated to 'residential_mailboxes').
+- physical_name: residential_mailboxes
+  summary: residential_mailboxes, the number of residential mailboxes served in the ZIP code.
+  body: >
+    Integer, for example 58 or 17280, observed ranging from 0 to 9634 among sampled rows (the full
+    table's values run much higher). Compare to business_mailboxes for the residential-versus-
+    commercial mix.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: business_mailboxes
-  summary: business_mailboxes — zip_data.business_mailboxes
-  body: Means 'business_mailboxes' (obfuscated to 'business_mailboxes').
+- physical_name: business_mailboxes
+  summary: business_mailboxes, the number of business mailboxes served in the ZIP code.
+  body: >
+    Integer, for example 26 or 833, observed ranging from 0 to 89 among sampled rows (the full
+    table's values run much higher). Compare to residential_mailboxes.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: total_delivery_receptacles
-  summary: total_delivery_receptacles — zip_data.total_delivery_receptacles
-  body: Means 'total_delivery_receptacles' (obfuscated to 'total_delivery_receptacles').
+- physical_name: total_delivery_receptacles
+  summary: total_delivery_receptacles, the total number of mail delivery receptacles in the ZIP
+    code.
+  body: >
+    Integer, for example 210 or 17743, observed ranging from 0 to 9717 among sampled rows.
+    Roughly the sum of residential_mailboxes, business_mailboxes, and other receptacle types not
+    broken out separately.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: businesses
-  summary: businesses — zip_data.businesses
-  body: Means 'businesses' (obfuscated to 'businesses').
+- physical_name: businesses
+  summary: businesses, the number of businesses located in the ZIP code.
+  body: >
+    Integer, for example 0 or 551, observed ranging from 0 to 974 among sampled rows (the full
+    table's values run much higher).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: 1st_quarter_payroll
-  summary: 1st_quarter_payroll — zip_data.1st_quarter_payroll
-  body: Means '1st_quarter_payroll' (obfuscated to '1st_quarter_payroll').
+- physical_name: 1st_quarter_payroll
+  summary: 1st_quarter_payroll, the total wages reported for the ZIP code in the first quarter's
+    payroll report, in U.S. dollars.
+  body: >
+    Integer, for example 8731000 or 36859000, observed ranging from 0 to 94000 among sampled rows
+    (the full table's values run into the tens of millions). Roughly a quarter of
+    annual_payroll for the same ZIP code.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: annual_payroll
-  summary: annual_payroll — zip_data.annual_payroll
-  body: Means 'annual_payroll' (obfuscated to 'annual_payroll').
+- physical_name: annual_payroll
+  summary: annual_payroll, the total wages reported for the ZIP code across the year's payroll
+    reports, in U.S. dollars.
+  body: >
+    Integer, for example 41264000 or 168081000, observed ranging from 0 to 976000 among sampled
+    rows (the full table's values run into the hundreds of millions). Roughly four times
+    1st_quarter_payroll for the same ZIP code.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: employees
-  summary: employees — zip_data.employees
-  body: Means 'employees' (obfuscated to 'employees').
+- physical_name: employees
+  summary: employees, the number of employees working in the ZIP code.
+  body: >
+    Integer, for example 848 or 3995, observed ranging from 0 to 9977 among sampled rows (the full
+    table's values run much higher). Employers report this figure alongside businesses and
+    annual_payroll.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: water_area
-  summary: water_area — zip_data.water_area
-  body: Means 'water_area' (obfuscated to 'water_area').
+- physical_name: water_area
+  summary: water_area, the water area within the ZIP code.
+  body: >
+    Decimal, for example 0.284 or 0.518, observed ranging from 0.0 to 9.651. Unit is not stated in
+    the source data; compare against land_area for the water-to-land ratio of a ZIP code.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: land_area
-  summary: land_area — zip_data.land_area
-  body: Means 'land_area' (obfuscated to 'land_area').
+- physical_name: land_area
+  summary: land_area, the land area within the ZIP code.
+  body: >
+    Decimal, for example 16.738 or 11.207, observed ranging from 0.0 to 99.195. Unit is not stated
+    in the source data; treat comparisons as relative. Do not confuse with congress.land_area,
+    which measures a congressional district rather than a ZIP code.
   physical_type: real
   logical_type: decimal
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: single_family_delivery_units
-  summary: single_family_delivery_units — zip_data.single_family_delivery_units
-  body: Means 'single_family_delivery_units' (obfuscated to 'single_family_delivery_units').
+- physical_name: single_family_delivery_units
+  summary: single_family_delivery_units, the number of single-family delivery units in the ZIP
+    code.
+  body: >
+    Integer, for example 10451 or 7963, observed ranging from 0 to 975 among sampled rows (the
+    full table's values run much higher). A single-family unit houses one family or tenant.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: multi_family_delivery_units
-  summary: multi_family_delivery_units — zip_data.multi_family_delivery_units
-  body: Means 'multi_family_delivery_units' (obfuscated to 'multi_family_delivery_units').
+- physical_name: multi_family_delivery_units
+  summary: multi_family_delivery_units, the number of multi-family delivery units in the ZIP code.
+  body: >
+    Integer, for example 6469 or 2451, observed ranging from 0 to 882 among sampled rows (the full
+    table's values run much higher). A multi-family unit houses more than one tenant or family.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: total_beneficiaries
-  summary: total_beneficiaries — zip_data.total_beneficiaries
-  body: Means 'total_beneficiaries' (obfuscated to 'total_beneficiaries').
+- physical_name: total_beneficiaries
+  summary: total_beneficiaries, the total number of Social Security beneficiaries in the ZIP code.
+  body: >
+    Integer, for example 1415 or 445, observed ranging from 0 to 995 among sampled rows (the full
+    table's values run much higher). The sum of retired_workers, disabled_workers,
+    parents_and_widowed, spouses, and children categories below.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: retired_workers
-  summary: retired_workers — zip_data.retired_workers
-  body: Means 'retired_workers' (obfuscated to 'retired_workers').
+- physical_name: retired_workers
+  summary: retired_workers, the number of retired-worker Social Security beneficiaries in the ZIP
+    code.
+  body: >
+    Integer, for example 980 or 315, observed ranging from 0 to 980 among sampled rows. Typically
+    the largest single component of total_beneficiaries.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: disabled_workers
-  summary: disabled_workers — zip_data.disabled_workers
-  body: Means 'disabled_workers' (obfuscated to 'disabled_workers').
+- physical_name: disabled_workers
+  summary: disabled_workers, the number of disabled-worker Social Security beneficiaries in the
+    ZIP code.
+  body: >
+    Integer, for example 245 or 60, observed ranging from 0 to 95 among sampled rows.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: parents_and_widowed
-  summary: parents_and_widowed — zip_data.parents_and_widowed
-  body: Means 'parents_and_widowed' (obfuscated to 'parents_and_widowed').
+- physical_name: parents_and_widowed
+  summary: parents_and_widowed, the number of parent and widowed Social Security beneficiaries in
+    the ZIP code.
+  body: >
+    Integer, for example 85 or 25, observed ranging from 0 to 90 among sampled rows.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: spouses
-  summary: spouses — zip_data.spouses
-  body: Means 'spouses' (obfuscated to 'spouses').
+- physical_name: spouses
+  summary: spouses, the number of spouse Social Security beneficiaries in the ZIP code.
+  body: >
+    Integer, for example 35 or 10, observed ranging from 0 to 90 among sampled rows.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: children
-  summary: children — zip_data.children
-  body: Means 'children' (obfuscated to 'children').
+- physical_name: children
+  summary: children, the number of child Social Security beneficiaries in the ZIP code.
+  body: >
+    Integer, for example 70 or 35, observed ranging from 0 to 90 among sampled rows.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: over_65
-  summary: over_65 — zip_data.over_65
-  body: Means 'over_65' (obfuscated to 'over_65').
+- physical_name: over_65
+  summary: over_65, the number of residents of the ZIP code aged over 65.
+  body: >
+    Integer, for example 990 or 325, observed ranging from 0 to 995 among sampled rows. A higher
+    over_65 to children ratio indicates a more aged population.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: monthly_benefits_all
-  summary: monthly_benefits_all — zip_data.monthly_benefits_all
-  body: Means 'monthly_benefits_all' (obfuscated to 'monthly_benefits_all').
+- physical_name: monthly_benefits_all
+  summary: monthly_benefits_all, the total monthly Social Security benefit payments to the ZIP
+    code, in U.S. dollars.
+  body: >
+    Integer, for example 1761000 or 522000, observed ranging from 0 to 9927000 among sampled rows.
+    The sum of monthly_benefits_retired_workers, monthly_benefits_widowed, and other benefit
+    categories not broken out separately.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: monthly_benefits_retired_workers
-  summary: monthly_benefits_retired_workers — zip_data.monthly_benefits_retired_workers
-  body: Means 'monthly_benefits_retired_workers' (obfuscated to 'monthly_benefits_retired_workers').
+- physical_name: monthly_benefits_retired_workers
+  summary: monthly_benefits_retired_workers, the monthly Social Security benefit payments to
+    retired workers in the ZIP code, in U.S. dollars.
+  body: >
+    Integer, for example 1307000 or 400000, observed ranging from 0 to 979000 among sampled rows.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: monthly_benefits_widowed
-  summary: monthly_benefits_widowed — zip_data.monthly_benefits_widowed
-  body: Means 'monthly_benefits_widowed' (obfuscated to 'monthly_benefits_widowed').
+- physical_name: monthly_benefits_widowed
+  summary: monthly_benefits_widowed, the monthly Social Security benefit payments to widowed
+    beneficiaries in the ZIP code, in U.S. dollars.
+  body: >
+    Integer, for example 110000 or 28000, observed ranging from 0 to 9000 among sampled rows (the
+    full table's values run higher).
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: CBSA
-  summary: CBSA — zip_data.CBSA
-  body: Foreign key to the CBSA table identifying the zip code's Core Based Statistical
-    Area.
+- physical_name: CBSA
+  summary: CBSA, the code of the Core-Based Statistical Area the ZIP code belongs to.
+  body: >
+    Integer, for example 41980 or 35300, observed ranging from 10380 to 49340; null for most
+    sampled rows, since only ZIP codes inside a metro or micro area carry a value. Joins to
+    address.CBSA.CBSA.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: cbsa_code
-  summary: cbsa_code — zip_data.cbsa_code
-  body: 'Physical column ''cbsa_code''. DECOY column: not a real business field. Fabricated
-    to mimic ''CBSA''. Corruption operator ''permute'': values are altered (permuted
-    — breaks joins/row lookups, invisible to aggregates). Do NOT use it to answer
-    questions.'
+- physical_name: cbsa_code
+  summary: cbsa_code, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CBSA''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: population_2010_count
-  summary: population_2010_count — zip_data.population_2010_count
-  body: 'Physical column ''population_2010_count''. DECOY column: not a real business
-    field. Fabricated to mimic ''population_2010''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: population_2010_count
+  summary: population_2010_count, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''population_2010''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: population_2020_count
-  summary: population_2020_count — zip_data.population_2020_count
-  body: 'Physical column ''population_2020_count''. DECOY column: not a real business
-    field. Fabricated to mimic ''population_2020''. Corruption operator ''sparse_perturb'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: population_2020_count
+  summary: population_2020_count, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''population_2020''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: Central fact table, one row per zip code (postal point / residential area).
-  Holds population, race, age, income, housing, payroll, benefits, postal, geographic
-  and CBSA attributes. Almost every question joins here on zip_code.
+    - information_schema

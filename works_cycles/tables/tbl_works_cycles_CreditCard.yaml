@@ -2,164 +2,101 @@ asset_type: table
 id: works_cycles.CreditCard
 schema: works_cycles
 physical_name: CreditCard
-summary: 'CreditCard (CreditCard): CreditCardID, CardType, CardNumber, ExpMonth, ExpYear,
-  ModifiedDate'
+summary: CreditCard holds the payment card details on file for customers in the works_cycles
+  bicycle manufacturing schema.
+body: >
+  One row per stored payment card. A card is not tied directly to a customer here; join through
+  PersonCreditCard, which links a card to the BusinessEntityID of the person who owns it, and
+  from there to SalesOrderHeader for the orders paid with it. Easily confused with the CreditCardID
+  foreign key on SalesOrderHeader, which records which card paid for a given order rather than
+  who the card belongs to.
 columns:
-- asset_type: column
-  physical_name: CreditCardID
-  summary: CreditCardID — CreditCard.CreditCardID
-  body: Means 'CreditCardID' (obfuscated to 'CreditCardID').
+- physical_name: CreditCardID
+  summary: CreditCardID uniquely identifies a CreditCard record.
+  body: >
+    Surrogate integer primary key, observed from 1 to 19144 in this sample. Referenced by
+    PersonCreditCard and by CreditCardID on SalesOrderHeader.
   physical_type: bigint
   logical_type: integer
   nullable: false
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: CardType
-  summary: CardType — CreditCard.CardType
-  body: Means 'CardType' (obfuscated to 'CardType').
+- physical_name: CardType
+  summary: CardType is the network or brand of a CreditCard.
+  body: >
+    Short text naming the card network: "SuperiorCard", "Distinguish", "ColonialVoice", or
+    "Vista" in this sample. Only four values observed; there is no separate code table for it.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: CardNumber
-  summary: CardNumber — CreditCard.CardNumber
-  body: Means 'CardNumber' (obfuscated to 'CardNumber').
+- physical_name: CardNumber
+  summary: CardNumber is the account number printed on a CreditCard.
+  body: >
+    14-digit text string, for example "55557352168448" or "11116538199187". Unmasked in this
+    sample, unlike card_number_mask below; treat as sensitive and avoid returning it in a result
+    set unless specifically asked for.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ExpMonth
-  summary: ExpMonth — CreditCard.ExpMonth
-  body: Means 'ExpMonth' (obfuscated to 'ExpMonth').
+- physical_name: ExpMonth
+  summary: ExpMonth is the expiration month printed on a CreditCard.
+  body: >
+    Integer 1 through 12, one calendar month per value. Pair with ExpYear to get the full
+    expiration date; there is no combined date column.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ExpYear
-  summary: ExpYear — CreditCard.ExpYear
-  body: Means 'ExpYear' (obfuscated to 'ExpYear').
+- physical_name: ExpYear
+  summary: ExpYear is the expiration year printed on a CreditCard.
+  body: >
+    Four-digit integer year, observed from 2005 to 2008 in this sample. Pair with ExpMonth to get
+    the full expiration date.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: ModifiedDate
-  summary: ModifiedDate — CreditCard.ModifiedDate
-  body: Means 'ModifiedDate' (obfuscated to 'ModifiedDate').
+- physical_name: ModifiedDate
+  summary: ModifiedDate records when a CreditCard row was last updated.
+  body: >
+    Timestamp, observed between 2008-12-08 and 2014-06-30 in this sample. Reflects the last edit
+    to the stored card record, not the card's expiration date.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: credit_card_identifier
-  summary: credit_card_identifier — CreditCard.credit_card_identifier
-  body: 'Physical column ''credit_card_identifier''. DECOY column: not a real business
-    field. Fabricated to mimic ''CreditCardID''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+- physical_name: credit_card_identifier
+  summary: credit_card_identifier, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CreditCardID''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: credit_card_updated_at
-  summary: credit_card_updated_at — CreditCard.credit_card_updated_at
-  body: 'Physical column ''credit_card_updated_at''. DECOY column: not a real business
-    field. Fabricated to mimic ''ModifiedDate''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: credit_card_updated_at
+  summary: credit_card_updated_at, a datetime column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: timestamp with time zone
   logical_type: datetime
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ModifiedDate''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: card_number_mask
-  summary: card_number_mask — CreditCard.card_number_mask
-  body: 'Physical column ''card_number_mask''. DECOY column: not a real business field.
-    Fabricated to mimic ''CardNumber''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: card_number_mask
+  summary: card_number_mask, a text column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''CardNumber''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: curator
     status: draft
-    version: backbone-1
+    version: rebuild-1
     source_refs:
-    - schema_rename_map.json
-body: Credit cards with masked number, type and expiry.
+    - train_final.jsonl

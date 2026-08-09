@@ -2,86 +2,56 @@ asset_type: table
 id: address.area_code
 schema: address
 physical_name: area_code
-summary: 'area_code (area_code): zip_code, area_code'
+summary: area_code maps a ZIP code to the telephone area code that serves it.
+body: >
+  One row per ZIP-code-to-telephone-area-code pairing; a ZIP code near a boundary between two
+  telephone regions can appear more than once. Easily confused with CBSA, which is a metro-area
+  classification rather than a telephone-numbering one. Joins to zip_data and country on
+  zip_code. postal_zip and telephone_area_code sit alongside zip_code and area_code but are not
+  dependable and must not be used to answer questions.
 columns:
-- asset_type: column
-  physical_name: zip_code
-  summary: zip_code — area_code.zip_code
-  body: Means 'zip_code' (obfuscated to 'zip_code').
+- physical_name: zip_code
+  summary: zip_code, the 5-digit postal code the telephone area code is recorded for.
+  body: >
+    Integer, for example 99753 or 58045, observed ranging from 1009 to 99922. Joins to
+    zip_data.zip_code and country.zip_code.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: area_code
-  summary: area_code — area_code.area_code
-  body: Means 'area_code' (obfuscated to 'area_code').
+- physical_name: area_code
+  summary: area_code, the telephone numbering-plan area code that serves the ZIP code.
+  body: >
+    Integer, for example 907 or 406, observed ranging from 0 to 989. This is a three-digit
+    telephone prefix, not a postal or statistical code.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: postal_zip
-  summary: postal_zip — area_code.postal_zip
-  body: 'Physical column ''postal_zip''. DECOY column: not a real business field.
-    Fabricated to mimic ''zip_code''. Corruption operator ''permute'': values are
-    altered (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT
-    use it to answer questions.'
+- physical_name: postal_zip
+  summary: postal_zip, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''zip_code''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: telephone_area_code
-  summary: telephone_area_code — area_code.telephone_area_code
-  body: 'Physical column ''telephone_area_code''. DECOY column: not a real business
-    field. Fabricated to mimic ''area_code''. Corruption operator ''permute'': values
-    are altered (permuted — breaks joins/row lookups, invisible to aggregates). Do
-    NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: telephone_area_code
+  summary: telephone_area_code, an integer column on this table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''area_code''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Maps a telephone area code to its zip codes. Grain: area_code plus zip_code.
-  Join to zip_data on zip_code to reach city/demographic data.'
+    - information_schema

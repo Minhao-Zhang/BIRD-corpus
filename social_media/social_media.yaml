@@ -1,21 +1,29 @@
 asset_type: schema
 id: social_media
 name: social_media
-summary: 'social_media: 3 tables — user, location, twitter'
+summary: >-
+  The social_media database tracks Twitter activity: tweets, the users who post them, and the
+  countries, states, and cities they post from, so questions about engagement, sentiment,
+  language, and timing can be answered from one place.
+body: >-
+  social_media holds one Twitter dataset split across four tables. benutzer holds one row per
+  user; tweet holds one row per tweet a user posted, carrying engagement counts (likes,
+  retweets, reach, klout), sentiment, language, and the time it was posted; standort holds one
+  row per physical location a tweet can be tied to (country, state, city). A tweet joins to its
+  poster through benutzer_id and to its location through standort_id. The niederlassung table
+  is a separate list of location-like records that does not connect reliably to the rest of the
+  schema. Several columns across these tables echo the shape of a real column without carrying
+  its data; each is marked unreliable in its own definition and should not be selected, filtered
+  on, or joined on.
+rules:
+- Join tweet to its author through benutzer_id, and to its location through standort_id; do not
+  substitute nutzer_id, konto_id, tweet_ort_id, or ort_id for either.
+- Do not use the niederlassung table to answer questions about tweets, users, or locations; it
+  does not connect to the rest of the schema.
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-  evidence: live introspection + schema_rename_map meaning
-body: 'Twitter/social-media analytics: it stores tweets with their engagement (likes,
-  retweets, reach, klout), sentiment, language and posting time, links each tweet
-  to the user who posted it (with gender) and to the geographic location (city, state,
-  country) it was posted from.'
-rules:
-- A tweet joins to its author via tweet.benutzer_id = benutzer.benutzer_id and to
-  its origin location via tweet.standort_id = standort.standort_id.
-- City/state/country of a tweet come only from the standort location table reached
-  through standort_id, never stored on the tweet itself.
+    - information_schema

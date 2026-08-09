@@ -2,71 +2,44 @@ asset_type: table
 id: talkingdata.evenements_applications
 schema: talkingdata
 physical_name: evenements_applications
-summary: 'app_events (evenements_applications): event_id, app_id, is_installed, is_active'
+summary: evenements_applications records whether an application was installed and active during a specific
+  event, id_evenement.
+body: 'Grain: one row per event-application pair. Join to evenements on id_evenement for the event''s
+  device, time, and location, and to applications_tous or etiquettes_applications on id_application for
+  the app''s identity and label. Not to be confused with evenements_applications_pertinents, a table with
+  the same columns and grain.'
 columns:
-- asset_type: column
-  physical_name: id_evenement
-  summary: event_id — evenements_applications.id_evenement
-  body: Means 'event_id' (obfuscated to 'id_evenement').
+- physical_name: id_evenement
+  summary: The event id, id_evenement, an install and activity record belongs to.
+  body: Integer event id (17 of 500 sampled rows distinct). Join to evenements.id_evenement for that event's
+    device, time, and location.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_application
-  summary: app_id — evenements_applications.id_application
-  body: Means 'app_id' (obfuscated to 'id_application').
+- physical_name: id_application
+  summary: The application id, id_application, whose install and activity status is recorded.
+  body: Large signed integer application id (309 of 500 sampled rows distinct). Join to applications_tous.id_application
+    or etiquettes_applications.id_application for the app's identity and label.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: est_installee
-  summary: is_installed — evenements_applications.est_installee
-  body: 'App installed flag at the event: 1 = installed, 0 = not installed.'
+- physical_name: est_installee
+  summary: Whether an application was installed at the time of an event, est_installee.
+  body: 'Flag column: 1 means installed. The sampled rows are entirely 1, so a query filtering for not-installed
+    rows may return nothing from this sample.'
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: est_active
-  summary: is_active — evenements_applications.est_active
-  body: 'App active flag at the event: 1 = active, 0 = not active.'
+- physical_name: est_active
+  summary: Whether an application was active at the time of an event, est_active.
+  body: 'Flag column: 0 means not active, 1 means active (both values appear in the sample).'
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Per-event, per-app status: for each event_id and app_id records whether the
-  app was installed (est_installee) and active (est_active). Grain is one row per
-  event-app pair.'
+    - information_schema

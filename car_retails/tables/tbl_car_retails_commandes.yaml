@@ -2,180 +2,101 @@ asset_type: table
 id: car_retails.commandes
 schema: car_retails
 physical_name: commandes
-summary: 'orders (commandes): orderNumber, orderDate, requiredDate, shippedDate, status,
-  comments, customerNumber'
+summary: commandes records each customer order placed with the retailer, its dates, status, and the customer who placed it.
+body: >
+  One row per order. numero_commande is the primary identifier that
+  details_commande.numero_commande references for line items; numero_client names the clients
+  row that placed the order. client_id, remarques_commande, and date_commande_creation look
+  like the same facts restated but are not dependable and must not be used to answer questions
+  or as join keys.
 columns:
-- asset_type: column
-  physical_name: numero_commande
-  summary: orderNumber — commandes.numero_commande
-  body: Means 'orderNumber' (obfuscated to 'numero_commande').
+- physical_name: numero_commande
+  summary: numero_commande, the order's unique number.
+  body: Referenced by details_commande.numero_commande to attach line items to this order.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: date_commande
-  summary: orderDate — commandes.date_commande
-  body: Means 'orderDate' (obfuscated to 'date_commande').
+- physical_name: date_commande
+  summary: date_commande, the date the order was placed.
+  body: A calendar date, used for year- or period-based filtering of orders.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: date_requise
-  summary: requiredDate — commandes.date_requise
-  body: Means 'requiredDate' (obfuscated to 'date_requise').
+- physical_name: date_requise
+  summary: date_requise, the date by which the customer requested delivery.
+  body: A calendar date, on or after date_commande.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: date_expedition
-  summary: shippedDate — commandes.date_expedition
-  body: Means 'shippedDate' (obfuscated to 'date_expedition').
+- physical_name: date_expedition
+  summary: date_expedition, the date the order was actually shipped.
+  body: >
+    A calendar date; null for orders that have not yet shipped, such as those still in
+    process or on hold.
   physical_type: date
   logical_type: date
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: statut
-  summary: status — commandes.statut
-  body: 'Order status. Observed values: ''Shipped'', ''Cancelled'', ''In Process'',
-    and others; ''In Process'' means still processing, ''Cancelled'' means a cancelled
-    order/shipment.'
+- physical_name: statut
+  summary: statut, the order's current fulfillment status.
+  body: >
+    One of a small set of codes: Shipped, In Process, Cancelled, On Hold, Disputed, and
+    Resolved. Match with equality; some question phrasings lower-case the value, for example
+    shipped or cancelled.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: commentaires
-  summary: comments — commandes.commentaires
-  body: Means 'comments' (obfuscated to 'commentaires').
+- physical_name: commentaires
+  summary: commentaires, free-text notes recorded against the order.
+  body: >
+    Internal notes about the customer or the order, for example a note about a credit hold or
+    a delivery request; null for most orders.
   physical_type: text
   logical_type: string
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: numero_client
-  summary: customerNumber — commandes.numero_client
-  body: Means 'customerNumber' (obfuscated to 'numero_client').
+- physical_name: numero_client
+  summary: numero_client, the customer number that placed the order.
+  body: Joins to clients.numero_client.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: client_id
-  summary: client_id — commandes.client_id
-  body: 'Physical column ''client_id''. DECOY column: not a real business field. Fabricated
-    to mimic ''customerNumber''. Corruption operator ''permute'': values are altered
-    (permuted — breaks joins/row lookups, invisible to aggregates). Do NOT use it
-    to answer questions.'
+- physical_name: client_id
+  summary: client_id, a numeric column on the commandes table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''customerNumber''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: remarques_commande
-  summary: remarques_commande — commandes.remarques_commande
-  body: 'Physical column ''remarques_commande''. DECOY column: not a real business
-    field. Fabricated to mimic ''comments''. Corruption operator ''sparse_cat_remap'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: remarques_commande
+  summary: remarques_commande, a text column on the commandes table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: text
   logical_type: string
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''comments''.
-      Corruption operator ''sparse_cat_remap'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: date_commande_creation
-  summary: date_commande_creation — commandes.date_commande_creation
-  body: 'Physical column ''date_commande_creation''. DECOY column: not a real business
-    field. Fabricated to mimic ''orderDate''. Corruption operator ''sparse_date_offset'':
-    values are altered. Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: date_commande_creation
+  summary: date_commande_creation, a date column on the commandes table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: date
   logical_type: date
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''orderDate''.
-      Corruption operator ''sparse_date_offset'': values are altered. Do NOT use it
-      to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'Orders. Grain: one row per order (numero_commande) placed by a customer. Holds
-  order/required/shipped dates and status; the ordered products live in details_commande,
-  not here.'
+    - information_schema

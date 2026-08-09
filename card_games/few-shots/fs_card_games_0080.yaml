@@ -1,17 +1,19 @@
 asset_type: few_shot
 id: fs_card_games_0080
 schema: card_games
-sql: SELECT COUNT("id") FROM "card_games"."cards" WHERE ("cardKingdomId" IS NULL OR
-  "cardKingdomFoilId" IS NULL) AND "artist" = 'John Avon'
-summary: On how many cards designed by John Avon is its foil non-powerful?
-body: 'Question: On how many cards designed by John Avon is its foil non-powerful?
+sql: SELECT SUM(CASE WHEN "T1"."power" LIKE '*' OR "T1"."power" IS NULL THEN 1 ELSE 0 END) FROM "card_games"."cards"
+  AS "T1" INNER JOIN "card_games"."sets" AS "T2" ON "T2"."code" = "T1"."setCode" WHERE "T2"."name" = 'Coldsnap'
+  AND "T1"."convertedManaCost" > 5
+summary: Among the cards with converted mana cost higher than 5 in the set Coldsnap, how many of them
+  have unknown power?
+body: 'Question: Among the cards with converted mana cost higher than 5 in the set Coldsnap, how many
+  of them have unknown power?
 
   SQL:
 
-  SELECT COUNT("id") FROM "card_games"."cards" WHERE ("cardKingdomId" IS NULL OR "cardKingdomFoilId"
-  IS NULL) AND "artist" = ''John Avon'''
-complexity: simple
-confidence: 0.55
+  SELECT SUM(CASE WHEN "T1"."power" LIKE ''*'' OR "T1"."power" IS NULL THEN 1 ELSE 0 END) FROM "card_games"."cards"
+  AS "T1" INNER JOIN "card_games"."sets" AS "T2" ON "T2"."code" = "T1"."setCode" WHERE "T2"."name" = ''Coldsnap''
+  AND "T1"."convertedManaCost" > 5'
 audit:
   provenance:
     source: gold
@@ -19,4 +21,4 @@ audit:
     version: harvest-1
     source_refs:
     - train_final.jsonl
-  evidence: gold train Q 393; 1 question(s) share this shape
+  evidence: train question 479

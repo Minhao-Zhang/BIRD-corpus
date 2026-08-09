@@ -2,137 +2,91 @@ asset_type: table
 id: university.ranking_universidad_anio
 schema: university
 physical_name: ranking_universidad_anio
-summary: 'university_ranking_year (ranking_universidad_anio): university_id, ranking_criteria_id,
-  year, score'
+summary: ranking_universidad_anio holds one row per university, ranking criterion, and year, recording the score puntuacion.
+body: >
+  Grain: one row per university, criterion, and year, keyed by universidad_id, criterio_ranking_id,
+  and anio. This is the table to start from for any question about a ranking score. Join to
+  universidad on universidad_id = id (many scored rows per university) to bring in the
+  university's name and country, and to criterio_ranking on criterio_ranking_id = id (many
+  scored rows per criterion) to bring in the criterion and, from there, the ranking system.
+  id_criterio_ranking, id_universidad_ranking, and puntaje look like a criterion reference, a
+  row id, and a score column but are unreliable and should not be used in a query.
 columns:
-- asset_type: column
-  physical_name: universidad_id
-  summary: university_id — ranking_universidad_anio.universidad_id
-  body: Means 'university_id' (obfuscated to 'universidad_id').
+- physical_name: universidad_id
+  summary: The university a ranking score belongs to, universidad_id.
+  body: >
+    Foreign key to universidad.id (351 distinct universities in the sample). Join to
+    universidad to resolve this to the university's name and country.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: criterio_ranking_id
-  summary: ranking_criteria_id — ranking_universidad_anio.criterio_ranking_id
-  body: Means 'ranking_criteria_id' (obfuscated to 'criterio_ranking_id').
+- physical_name: criterio_ranking_id
+  summary: The ranking criterion a score was earned under, criterio_ranking_id.
+  body: >
+    Foreign key to criterio_ranking.id (21 distinct criteria in the sample). Join to
+    criterio_ranking to resolve this to the criterion name and its ranking system.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: anio
-  summary: year — ranking_universidad_anio.anio
-  body: Calendar year the score was recorded.
+- physical_name: anio
+  summary: The year a ranking score applies to, anio.
+  body: >
+    A four-digit year, spanning 2005 to 2016 in this table (12 distinct years in the sample).
+    Questions asking "in 2015" or "between 2013 and 2015" filter on this column with equality
+    or a BETWEEN range.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: puntuacion
-  summary: score — ranking_universidad_anio.puntuacion
-  body: Score the university earned that year for a given ranking criterion; higher
-    is better (100 is a top score, 0 is lowest).
+- physical_name: puntuacion
+  summary: The ranking score a university earned on a criterion in a year, puntuacion.
+  body: >
+    Whole-number score, for example 64, 81, 89, 381, or 397 in the sample, spanning 0 to 996;
+    one row in the sample has no value recorded. Called "score" or "puntuacion" in business
+    language; a higher value is a better rank on that criterion. "Scored 0", "scored 100", or
+    "over 90" filter on this column directly, and MAX or MIN over it finds the leading or
+    trailing score in a group.
   physical_type: bigint
   logical_type: integer
   nullable: true
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_criterio_ranking
-  summary: id_criterio_ranking — ranking_universidad_anio.id_criterio_ranking
-  body: 'Physical column ''id_criterio_ranking''. DECOY column: not a real business
-    field. Fabricated to mimic ''ranking_criteria_id''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+- physical_name: id_criterio_ranking
+  summary: id_criterio_ranking, a numeric column on the ranking_universidad_anio table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''ranking_criteria_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: id_universidad_ranking
-  summary: id_universidad_ranking — ranking_universidad_anio.id_universidad_ranking
-  body: 'Physical column ''id_universidad_ranking''. DECOY column: not a real business
-    field. Fabricated to mimic ''university_id''. Corruption operator ''permute'':
-    values are altered (permuted — breaks joins/row lookups, invisible to aggregates).
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: id_universidad_ranking
+  summary: id_universidad_ranking, a numeric column on the ranking_universidad_anio table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must
+    not be used as a join key between tables.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''university_id''.
-      Corruption operator ''permute'': values are altered (permuted — breaks joins/row
-      lookups, invisible to aggregates). Do NOT use it to answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
-- asset_type: column
-  physical_name: puntaje
-  summary: puntaje — ranking_universidad_anio.puntaje
-  body: 'Physical column ''puntaje''. DECOY column: not a real business field. Fabricated
-    to mimic ''score''. Corruption operator ''sparse_perturb'': values are altered.
-    Do NOT use it to answer questions.'
+    note: "Unreliable for analysis. Do not use this column to answer questions."
+- physical_name: puntaje
+  summary: puntaje, a numeric column on the ranking_universidad_anio table.
+  body: >
+    Values in this column are not dependable and do not correspond to the business facts the
+    table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
   physical_type: bigint
   logical_type: integer
   nullable: true
   reliability:
     status: suspect
-    note: 'DECOY column: not a real business field. Fabricated to mimic ''score''.
-      Corruption operator ''sparse_perturb'': values are altered. Do NOT use it to
-      answer questions.'
-  audit:
-    provenance:
-      source: gold
-      status: draft
-      version: backbone-1
-      source_refs:
-      - schema_rename_map.json
+    note: "Unreliable for analysis. Do not use this column to answer questions."
 audit:
   provenance:
-    source: gold
+    source: seed
     status: draft
-    version: backbone-1
+    version: scaffold-1
     source_refs:
-    - schema_rename_map.json
-body: 'One row per university per ranking-criterion per year (grain: university-criterion-year).
-  Holds the score earned. Distinct from universidad_anio, which holds enrollment/demographics.'
+    - information_schema
