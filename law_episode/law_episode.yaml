@@ -1,35 +1,3414 @@
-asset_type: schema
-id: law_episode
+version: 0.2.0.dev0
 name: law_episode
-summary: >-
-  The law_episode database tracks episodes of the TV series Law and Order — titles, air
-  dates, seasons, viewer ratings and vote counts, keyword topics, awards and nominations, and
-  the cast and crew credited on each episode.
-body: >
-  All rows describe a single ninth-season run of Law and Order. ji_pian is the episode
-  spine — one row per episode, carrying title, season and episode number, air date, plot
-  summary, an image link, and the aggregate rating and vote total. guan_jian_ci tags each
-  episode with the topical keywords its plot touches (crime, witness, mafia, and similar).
-  tou_piao breaks that same aggregate rating down into one row per star level (1 through 10),
-  giving the vote count and percentage share at each level rather than the overall figure.
-  jiang_xiang records award nominations — one row per nomination, naming the organization,
-  award, category, year, result, and the person and episode involved. ren_wu is the person
-  directory (cast and crew), and xie_zuo_ming_dan is the credit list joining a person to an
-  episode with a role and category and whether that credit was shown on screen. ji_pian_fu
-  and ren_wu_xiang look like second copies of the episode and person tables but are not
-  dependable for analysis — use ji_pian and ren_wu instead. Episodes and people are both
-  identified by text codes shaped like IMDb ids (tt... for episodes, nm... for people); every
-  real table shares those two id columns rather than any of their look-alike duplicates.
-rules:
-- Join episodes across guan_jian_ci, tou_piao, jiang_xiang, and xie_zuo_ming_dan on
-  ji_pian.ji_pian_id, and join people across jiang_xiang and xie_zuo_ming_dan on
-  ren_wu.ren_wu_id — never on a look-alike id column such as ji_pian_dai_ma or ren_wu_dai_hao.
-- Do not answer questions from ji_pian_fu or ren_wu_xiang; both duplicate a real table's data
-  unreliably. Use ji_pian and ren_wu instead.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  The law_episode database tracks episodes of the TV series Law and Order — titles, air dates, seasons, viewer ratings and vote counts, keyword topics, awards and nominations, and the cast and crew credited on each episode.
+
+  All rows describe a single ninth-season run of Law and Order. ji_pian is the episode spine — one row per episode, carrying title, season and episode number, air date, plot summary, an image link, and the aggregate rating and vote total. guan_jian_ci tags each episode with the topical keywords its plot touches (crime, witness, mafia, and similar). tou_piao breaks that same aggregate rating down into one row per star level (1 through 10), giving the vote count and percentage share at each level rather than the overall figure. jiang_xiang records award nominations — one row per nomination, naming the organization, award, category, year, result, and the person and episode involved. ren_wu is the person directory (cast and crew), and xie_zuo_ming_dan is the credit list joining a person to an episode with a role and category and whether that credit was shown on screen. ji_pian_fu and ren_wu_xiang look like second copies of the episode and person tables but are not dependable for analysis — use ji_pian and ren_wu instead. Episodes and people are both identified by text codes shaped like IMDb ids (tt... for episodes, nm... for people); every real table shares those two id columns rather than any of their look-alike duplicates.
+ai_context:
+  instructions: |-
+    Join episodes across guan_jian_ci, tou_piao, jiang_xiang, and xie_zuo_ming_dan on ji_pian.ji_pian_id, and join people across jiang_xiang and xie_zuo_ming_dan on ren_wu.ren_wu_id — never on a look-alike id column such as ji_pian_dai_ma or ren_wu_dai_hao.
+    Do not answer questions from ji_pian_fu or ren_wu_xiang; both duplicate a real table's data unreliably. Use ji_pian and ren_wu instead.
+datasets:
+- name: guan_jian_ci
+  source: law_episode.guan_jian_ci
+  description: |
+    guan_jian_ci tags each Law and Order episode with the topical keywords its plot touches, including crimes, places, and the kinds of witnesses involved.
+
+    Grain: one row per keyword per episode, so one episode has many rows here. Join on ji_pian_id to ji_pian to combine an episode's keywords with its title or other facts. Easily confused with its own ji_pian_lian_id and guan_jian_ci_zhi columns, which duplicate this table's real columns unreliably and must not be used.
+  fields:
+  - name: ji_pian_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_id
+    description: |
+      ji_pian_id identifies which episode a keyword row belongs to.
+
+      Text code shaped like an IMDb title id (sample values tt0629397, tt0629420, tt0629239), matching ji_pian.ji_pian_id. Use it to join a keyword back to its episode's title, air date, or rating. Do not use ji_pian_lian_id for this join, it is unreliable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: guan_jian_ci_nei_rong
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guan_jian_ci_nei_rong
+    description: |
+      guan_jian_ci_nei_rong holds the text of one keyword or short topical phrase tagged to an episode.
+
+      Free text, one or a few words, for example "russian mafia," "protected witness," "kill witness," "witness to a crime," or "russian girl." Matched by an exact, case-sensitive comparison for a specific keyword lookup, e.g. guan_jian_ci_nei_rong = 'mafia'. The guan_jian_ci_zhi column on this same table duplicates these values unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ji_pian_lian_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_lian_id
+    description: |
+      ji_pian_lian_id, a text column on the guan_jian_ci table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: guan_jian_ci_zhi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guan_jian_ci_zhi
+    description: |
+      guan_jian_ci_zhi, a text column on the guan_jian_ci table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ji_pian
+  source: law_episode.ji_pian
+  description: |
+    ji_pian is the episode spine of Law and Order, one row per episode with its title, season and episode number, air date, plot summary, and aggregate rating.
+
+    Grain: one row per episode. ji_pian_id is the text key shared by guan_jian_ci, tou_piao, jiang_xiang, and xie_zuo_ming_dan; join on it to bring in an episode's keywords, per-star vote breakdown, award nominations, or cast and crew. Easily confused with ji_pian_fu, a second episode table that is not dependable for analysis — use ji_pian instead. Within this table, ji_pian_dai_ma, fa_bu_ri_qi, and ji_pian_pai_hao duplicate other columns here unreliably and must not be used.
+  fields:
+  - name: ji_pian_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_id
+    description: |
+      ji_pian_id is the unique identifier for an episode, shared by every other table that describes that episode.
+
+      Text code shaped like an IMDb title id (sample values tt0629248, tt0629289, tt0629266). Every join from guan_jian_ci, tou_piao, jiang_xiang, and xie_zuo_ming_dan back to this table uses this column. Do not use ji_pian_dai_ma for that join, it is unreliable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ju_ji
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ju_ji
+    description: |
+      ju_ji names the television series an episode belongs to.
+
+      Text, holding the single value "Law and Order" for every row in this corpus slice. Used when a question names the series explicitly, e.g. ju_ji = 'Law and Order'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ji_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_shu
+    description: |
+      ji_shu records the season number an episode aired in.
+
+      Integer, holding the single value 9 for every row in this corpus slice, since it covers one season of Law and Order.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ji_pian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_hao
+    description: |
+      ji_pian_hao is the sequential number of an episode within its season.
+
+      Integer from 1 up (sample values 20, 16, 4, 12, 18), resetting each season; combine with ji_shu to identify an episode's position within a specific season, e.g. the first episode of the season is ji_pian_hao = 1. A range like "from episode 1 until 10" is ji_pian_hao BETWEEN 1 AND 10. The ji_pian_pai_hao column on this same table duplicates these values unreliably and must not be used.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: xu_lie_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xu_lie_hao
+    description: |
+      xu_lie_hao is the overall sequence number of an episode across the whole series, not just its season.
+
+      Integer (sample values 201, 197, 185, 193, 199), increasing across all seasons rather than resetting each season the way ji_pian_hao does. A range like "from the 185th to the 193rd episode overall" is xu_lie_hao BETWEEN 185 AND 193.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: biao_ti
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: biao_ti
+    description: |
+      biao_ti is the title of an episode.
+
+      Text (sample values Empire, Harm, Flight, Haven, Juvenile). A specific episode is looked up by an exact match on this column, e.g. biao_ti = 'True North' or biao_ti = 'Refuge: Part 1'; titles can include punctuation such as a colon.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: yao_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yao_shu
+    description: |
+      yao_shu is a prose description of what happens in an episode's plot.
+
+      Free text of a few sentences, for example a summary beginning "A businessman planning to build a new football stadium in New York City is on trial for murder." Not typically filtered on directly; used to describe or summarize an episode once found by title or id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bo_chu_ri_qi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bo_chu_ri_qi
+    description: |
+      bo_chu_ri_qi is the date an episode was first broadcast in the United States.
+
+      Date in YYYY-MM-DD form, ranging from 1998-09-23 to 1999-05-26 in this corpus slice (sample values 1999-05-05, 1999-03-03, 1998-10-21). A year filter like "aired in 1998" is bo_chu_ri_qi LIKE '1998%'. The fa_bu_ri_qi column on this same table duplicates these values unreliably and must not be used.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: ji_pian_tu_xiang
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_tu_xiang
+    description: |
+      ji_pian_tu_xiang is a link to a promotional image for an episode.
+
+      A full image URL (sample values are amazon media links beginning https://m.media-amazon.com/images/...). Not used for filtering or aggregation; retrieved alongside an episode's other details for display.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ping_fen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ping_fen
+    description: |
+      ping_fen is the weighted average viewer rating for an episode.
+
+      Real-valued figure roughly between 7.4 and 8.6 in this corpus slice (sample values 7.6, 7.8, 7.9, 7.5, 8.0). A higher value means the episode received more positive viewer comments; "the most enjoyed episode" is the maximum of this column and "the worst-rated episode" is its minimum. A threshold like "a rating of over 8" is ping_fen > 8. This figure is the weighted combination of the per-star vote shares recorded in tou_piao.bai_fen_bi; compute a comparable weighted average yourself only when this column is unavailable.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to ji_pian.ping_fen, a real-valued figure roughly between 7.4 and 8.6 in this corpus slice. A higher value means the episode received more positive viewer comments, so \"the most enjoyed episode\" is the maximum of this column and \"the worst-rated episode\" is its minimum. This figure is the percentage-weighted combination of the per-star vote shares recorded in tou_piao.bai_fen_bi and tou_piao.xing_ji; recompute that weighted average from tou_piao only when ping_fen itself is unavailable for the rows in question.\n",
+              "id": "term_law_episode_episode_rating",
+              "name": "episode rating",
+              "summary": "Episode rating (enjoyed, rated): the weighted average viewer score for a Law and Order episode on the ji_pian table, where a higher value means the episode was better enjoyed.",
+              "synonyms": [
+                "enjoyed",
+                "rated"
+              ]
+            }
+          ]
+        }
+  - name: tou_piao_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tou_piao_shu
+    description: |
+      tou_piao_shu is the total number of rating votes an episode received.
+
+      Integer (sample values 218, 153, 165, 158, 166). Already totalled across every star level, so answer "the episode with the most votes" with MAX(tou_piao_shu) on this column directly rather than summing tou_piao.tou_piao_shu, which instead breaks the total down by star level.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ji_pian_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_dai_ma
+    description: |
+      ji_pian_dai_ma, a text column on the ji_pian table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: fa_bu_ri_qi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fa_bu_ri_qi
+    description: |
+      fa_bu_ri_qi, a date column on the ji_pian table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ji_pian_pai_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_pai_hao
+    description: |
+      ji_pian_pai_hao, an integer column on the ji_pian table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_law_episode_average_rating
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(ping_fen)
+    description: |
+      Average episode rating: the mean ping_fen across Law and Order episodes, optionally restricted to a season, a date range, or another filtered set of episodes.
+
+      AVG(ping_fen) over law_episode.ji_pian, for the whole table or restricted by joining in a season (ji_shu), an air date range (bo_chu_ri_qi), or any other episode filter. Divide the sum of ping_fen by the count of episodes in the filtered set — do not divide by ji_pian_id, which is a text identifier and cannot be summed.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average episode rating"
+        }
+  - name: metric_law_episode_avg_episodes_per_season
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(ji_pian_id) / COUNT(DISTINCT ji_shu)
+    description: |
+      Average number of episodes per season: the episode count divided by the number of distinct seasons it spans, for Law and Order.
+
+      COUNT(ji_pian_id) / COUNT(DISTINCT ji_shu) over law_episode.ji_pian, for the whole table or restricted to a range of seasons. Use COUNT(DISTINCT ji_shu) as the denominator rather than a hardcoded season count, so the figure stays correct even if a season in the range has no rows.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average number of episodes per season"
+        }
+  - name: metric_law_episode_highest_rating
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(ping_fen)
+    description: |
+      Highest episode rating: the maximum ping_fen among Law and Order episodes, identifying the most enjoyed episode in a filtered set.
+
+      MAX(ping_fen) over law_episode.ji_pian, for the whole table or restricted to a season or date range. "The most enjoyed episode" is the row whose ping_fen equals this maximum; join ji_pian.ji_pian_id to biao_ti to report the episode's title alongside the figure.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest episode rating"
+        }
+  - name: metric_law_episode_highest_votes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(tou_piao_shu)
+    description: |
+      Highest total votes: the maximum tou_piao_shu among Law and Order episodes, identifying the episode with the most viewer votes in a filtered set.
+
+      MAX(tou_piao_shu) over law_episode.ji_pian, for the whole table or restricted to a season or date range. This column already totals votes across every star level, so compute the maximum directly rather than summing tou_piao.tou_piao_shu per episode first.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest total votes"
+        }
+  - name: metric_law_episode_lowest_rating
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(ping_fen)
+    description: |
+      Lowest episode rating: the minimum ping_fen among Law and Order episodes, identifying the worst-rated episode in a filtered set.
+
+      MIN(ping_fen) over law_episode.ji_pian, for the whole table or restricted to a season or date range. "The worst-rated episode" is the row whose ping_fen equals this minimum; join ji_pian.ji_pian_id to biao_ti to report the episode's title alongside the figure.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "lowest episode rating"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ji_pian_fu
+  source: law_episode.ji_pian_fu
+  description: |
+    ji_pian_fu is a table on the law_episode schema whose columns are not dependable for analysis.
+
+    Grain: it appears to shadow ji_pian, one row per episode, but its columns do not correspond to the business facts ji_pian otherwise records. Do not use ji_pian_fu to answer a question about an episode's title, air date, season, rating, or votes — use ji_pian instead.
+  fields:
+  - name: ji_pian_biao_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_biao_id
+    description: |
+      ji_pian_biao_id, a text column on the ji_pian_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ju_ji_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ju_ji_ming
+    description: |
+      ju_ji_ming, a text column on the ji_pian_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ji_shu_ci
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_shu_ci
+    description: |
+      ji_shu_ci, an integer column on the ji_pian_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ji_pian_bianhao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_bianhao
+    description: |
+      ji_pian_bianhao, an integer column on the ji_pian_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: xu_lie_bianhao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xu_lie_bianhao
+    description: |
+      xu_lie_bianhao, an integer column on the ji_pian_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: biao_ti_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: biao_ti_ming
+    description: |
+      biao_ti_ming, a text column on the ji_pian_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: yao_shu_jian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yao_shu_jian
+    description: |
+      yao_shu_jian, a text column on the ji_pian_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bo_chu_riqi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bo_chu_riqi
+    description: |
+      bo_chu_riqi, a date column on the ji_pian_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ji_pian_tu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_tu
+    description: |
+      ji_pian_tu, a text column on the ji_pian_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ping_fen_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ping_fen_shu
+    description: |
+      ping_fen_shu, a real-valued column on the ji_pian_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: tou_piao_shu_liang
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tou_piao_shu_liang
+    description: |
+      tou_piao_shu_liang, an integer column on the ji_pian_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: jiang_xiang
+  source: law_episode.jiang_xiang
+  description: |
+    jiang_xiang is Law and Order's award nomination ledger, one row per nomination naming the organization, award, year, person, episode, and whether it was won.
+
+    Grain: one row per award nomination. jiang_xiang_id identifies the nomination row itself; ji_pian_id and ren_wu_id join to ji_pian and ren_wu to attach the nominated episode and person. A single episode or person can appear in many rows here, once per nomination. Within this table, ji_pian_bian_hao, ren_wu_bian_hao, and jiang_xiang_ming duplicate other columns here unreliably and must not be used.
+  fields:
+  - name: jiang_xiang_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiang_xiang_id
+    description: |
+      jiang_xiang_id is the unique identifier for one award nomination record.
+
+      Integer, one distinct value per row (sample values 271, 296, 284, 348, 349). A specific nomination is looked up by an exact match, e.g. jiang_xiang_id = 296.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: zu_zhi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zu_zhi
+    description: |
+      zu_zhi names the organization that grants the award being nominated for.
+
+      Text (sample values Primetime Emmy Awards, American Bar Association Silver Gavel Awards for Media and the Arts, Edgar Allan Poe Awards, International Monitor Awards). Matched by an exact comparison for a specific organization, e.g. zu_zhi = 'Primetime Emmy Awards'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nian_fen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nian_fen
+    description: |
+      nian_fen is the year the nomination for the award took place.
+
+      Integer year (sample values 1999, 2000). A specific year is matched by an exact comparison, e.g. nian_fen = 1999.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: jiang_xiang_lei_bie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiang_xiang_lei_bie
+    description: |
+      jiang_xiang_lei_bie is the broad class of award being nominated for.
+
+      Text, a shorter label than zu_zhi (sample values Primetime Emmy, Silver Gavel Award, Edgar, Monitor). A category filter matches part of this text, e.g. jiang_xiang_lei_bie LIKE 'Primetime Emmy' for the Emmys, or an exact match jiang_xiang_lei_bie = 'Edgar' for the Edgar Allan Poe category.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: jiang_xiang_ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiang_xiang_ming_cheng
+    description: |
+      jiang_xiang_ming_cheng names the specific award a nomination was made for.
+
+      Text (sample values Outstanding Directing for a Drama Series, Television, Outstanding Guest Actress in a Drama Series, Best Television Episode, Outstanding Sound Mixing for a Drama Series). Matched by an exact comparison for a specific award, e.g. jiang_xiang_ming_cheng = 'Best Television Episode'. The jiang_xiang_ming column on this same table duplicates these values unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ju_ji
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ju_ji
+    description: |
+      ju_ji names the television series the nominated episode or person belongs to.
+
+      Text, holding the single value "Law and Order" for every row in this corpus slice.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ji_pian_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_id
+    description: |
+      ji_pian_id identifies the episode that has been nominated on this row.
+
+      Text code shaped like an IMDb title id (sample values tt0629248, tt0629228, tt0629291), matching ji_pian.ji_pian_id. Not every episode has a row here; only nominated episodes do. Do not use ji_pian_bian_hao for this join, it is unreliable and must not be used as a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ren_wu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ren_wu_id
+    description: |
+      ren_wu_id identifies the person that has been nominated on this row.
+
+      Text code shaped like an IMDb person id (sample values nm0671992, nm0538744, nm0000210), matching ren_wu.ren_wu_id. Do not use ren_wu_bian_hao for this join, it is unreliable and must not be used as a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: jue_se
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jue_se
+    description: |
+      jue_se is the role a person was nominated for on this award row.
+
+      Text naming a job or character (sample values director, Katrina Ludlow, teleplay, story, re-recording mixer). May hold a character name for an acting nomination or a production role such as director for a crew nomination. Matched by an exact comparison, e.g. jue_se = 'director'. Can be null when no role is recorded.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: jie_guo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jie_guo
+    description: |
+      jie_guo is the outcome of a nomination — whether the award was actually won.
+
+      Text, one of Winner or Nominee. Winner means the award was actually received; Nominee means the person or episode was recognized but did not win. Being nominated in general (winner or not) means jie_guo IN ('Winner', 'Nominee'); "nominated but did not win" or plain "nominee" narrows that to jie_guo = 'Nominee' alone.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to jiang_xiang.jie_guo, which holds one of two text values: Winner or Nominee. Winner means the award was actually received — \"won,\" \"win,\" \"the winner,\" \"received an award,\" and \"got an award\" all mean jie_guo = 'Winner'. Nominee means the person or episode was recognized but did not win — plain \"nominee\" or \"nominated but did not win\" means jie_guo = 'Nominee' alone. A general claim of being \"nominated,\" without saying whether it was won, covers both values: jie_guo IN ('Winner', 'Nominee').\n",
+              "id": "term_law_episode_award_result",
+              "name": "award result",
+              "summary": "Award result (winner, won, win, nominee, nominated): whether a Law and Order award nomination was actually won or only nominated, recorded on the jiang_xiang table.",
+              "synonyms": [
+                "winner",
+                "won",
+                "win",
+                "nominee",
+                "nominated"
+              ]
+            }
+          ]
+        }
+  - name: ji_pian_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_bian_hao
+    description: |
+      ji_pian_bian_hao, a text column on the jiang_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ren_wu_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ren_wu_bian_hao
+    description: |
+      ren_wu_bian_hao, a text column on the jiang_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: jiang_xiang_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiang_xiang_ming
+    description: |
+      jiang_xiang_ming, a text column on the jiang_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_law_episode_awards_won_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(*) FILTER (WHERE jie_guo = 'Winner')
+    description: |
+      Number of awards won: the count of jiang_xiang rows with a Winner result for an episode or a person, used to find who or what has won the most.
+
+      COUNT(*) FILTER (WHERE jie_guo = 'Winner') over law_episode.jiang_xiang, grouped by ji_pian_id or ren_wu_id. "The episode or person with the most awards won" is the row with the maximum of this count after grouping. Do not group by ji_pian_bian_hao or ren_wu_bian_hao, both are unreliable.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "number of awards won"
+        }
+  - name: metric_law_episode_nominations_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(*) FILTER (WHERE jie_guo = 'Nominee')
+    description: |
+      Number of nominations: the count of jiang_xiang rows with a Nominee result for an episode or a person, used to find who or what was nominated the most.
+
+      COUNT(*) FILTER (WHERE jie_guo = 'Nominee') over law_episode.jiang_xiang, grouped by ji_pian_id or ren_wu_id. "The episode or person with the most nominations" is the row with the maximum of this count after grouping. Do not group by ji_pian_bian_hao or ren_wu_bian_hao, both are unreliable.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "number of nominations"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ren_wu
+  source: law_episode.ren_wu
+  description: |
+    ren_wu is the person directory for law_episode, one row per cast or crew member with their name, birth details, height, and nickname.
+
+    Grain: one row per person. ren_wu_id is the text key shared by jiang_xiang and xie_zuo_ming_dan; join on it to attach a person's nominations or episode credits. Easily confused with ren_wu_xiang, a second person table that is not dependable for analysis — use ren_wu instead. Within this table, ren_wu_dai_hao, chu_sheng_di_qu, and chu_sheng_ming duplicate other columns here unreliably and must not be used. Many birth-related columns are null for people whose biographical details were never recorded.
+  fields:
+  - name: ren_wu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ren_wu_id
+    description: |
+      ren_wu_id is the unique identifier for a person, shared by every other table that describes them.
+
+      Text code shaped like an IMDb person id (sample values nm0587808, nm1218597, nm0799777). Every join from jiang_xiang and xie_zuo_ming_dan back to this table uses this column. Do not use ren_wu_dai_hao for that join, it is unreliable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng
+    description: |
+      ming_cheng is the name a person is professionally known by.
+
+      Text (sample values Georgienne Millen, Joseph Vincent Gay, J.K. Simmons). Matched by an exact comparison for a specific person, e.g. ming_cheng = 'Rene Balcer'. This is the column meant by an unqualified "who" or "name" in a question about a person.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: chu_sheng_ri_qi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chu_sheng_ri_qi
+    description: |
+      chu_sheng_ri_qi is the date a person was born.
+
+      Date in YYYY-MM-DD form (sample values 1955-01-09, 1978-10-15, 1961-09-20). Null when the person's birthdate is not available, which is common for minor crew credits.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: chu_sheng_xing_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chu_sheng_xing_ming
+    description: |
+      chu_sheng_xing_ming is the full name given to a person by their parents at birth.
+
+      Text, often longer than ming_cheng and including middle names (sample values Jonathan Kimble Simmons, Lacey Ann Hornkohl, James Leo Colby). Null for most rows; only recorded when it differs meaningfully from the person's professional name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: chu_sheng_di_dian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chu_sheng_di_dian
+    description: |
+      chu_sheng_di_dian is the city or town where a person was born.
+
+      Text (sample values Grosse Pointe, Colchester, Arlington, Perrysburg, Jersey City). A person's full birth place, when every part is available, is the concatenation of chu_sheng_guo_jia, chu_sheng_qu_yu, and this column, in that order. Null when unknown.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: chu_sheng_qu_yu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chu_sheng_qu_yu
+    description: |
+      chu_sheng_qu_yu is the state or region a person was born in, one level broader than their birth city.
+
+      Text (sample values Michigan, Connecticut, Massachusetts, Ohio, New Jersey). Matched by an exact comparison, e.g. chu_sheng_qu_yu = 'New Jersey'. The chu_sheng_di_qu column on this same table duplicates these values unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: chu_sheng_guo_jia
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chu_sheng_guo_jia
+    description: |
+      chu_sheng_guo_jia is the country a person was born in.
+
+      Text (sample values USA, Canada, Slovenia, India, USSR). "American" or "born in the USA" means chu_sheng_guo_jia = 'USA'. A continent question can be answered from this column by mapping the country name, e.g. USA maps to North America.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to ren_wu.chu_sheng_guo_jia, a country name such as USA, Canada, Slovenia, India, or USSR. \"American\" or \"born in the USA\" means chu_sheng_guo_jia = 'USA'. A continent question is answered by mapping the stored country name to its continent rather than reading a separate stored continent value — for example USA maps to North America. Do not use chu_sheng_di_qu for this, it is unreliable.\n",
+              "id": "term_law_episode_birth_country",
+              "name": "birth country",
+              "summary": "Birth country (American, born in the USA, continent): the country a cast or crew member was born in, recorded on the ren_wu table, from which a continent can also be inferred.",
+              "synonyms": [
+                "American",
+                "born in the USA",
+                "continent"
+              ]
+            }
+          ]
+        }
+  - name: shen_gao_mi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shen_gao_mi
+    description: |
+      shen_gao_mi is a person's height in meters.
+
+      Real-valued figure roughly between 1.57 and 1.93 in this corpus slice (sample values 1.8, 1.78, 1.83, 1.65, 1.85). A threshold like "a height of over 1.80m" is shen_gao_mi > 1.80; "the tallest person" is the maximum of this column. Null when a person's height was not recorded.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: bie_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bie_ming
+    description: |
+      bie_ming is the nickname a person goes by.
+
+      Text (sample values Mare, Frankie, Chevi, Mike the Bike, Jay). Null for most people; only populated when a nickname is documented.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ren_wu_dai_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ren_wu_dai_hao
+    description: |
+      ren_wu_dai_hao, a text column on the ren_wu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: chu_sheng_di_qu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chu_sheng_di_qu
+    description: |
+      chu_sheng_di_qu, a text column on the ren_wu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: chu_sheng_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chu_sheng_ming
+    description: |
+      chu_sheng_ming, a text column on the ren_wu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ren_wu_xiang
+  source: law_episode.ren_wu_xiang
+  description: |
+    ren_wu_xiang is a table on the law_episode schema whose columns are not dependable for analysis.
+
+    Grain: it appears to shadow ren_wu, one row per person, but its columns do not correspond to the business facts ren_wu otherwise records. Do not use ren_wu_xiang to answer a question about a person's name, birth details, or height — use ren_wu instead.
+  fields:
+  - name: ren_wu_biao_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ren_wu_biao_id
+    description: |
+      ren_wu_biao_id, a text column on the ren_wu_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ming_cheng_ch
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng_ch
+    description: |
+      ming_cheng_ch, a text column on the ren_wu_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: chu_sheng_riqi_shi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chu_sheng_riqi_shi
+    description: |
+      chu_sheng_riqi_shi, a date column on the ren_wu_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: chu_sheng_xingming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chu_sheng_xingming
+    description: |
+      chu_sheng_xingming, a text column on the ren_wu_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: chu_sheng_didian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chu_sheng_didian
+    description: |
+      chu_sheng_didian, a text column on the ren_wu_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: chu_sheng_quyu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chu_sheng_quyu
+    description: |
+      chu_sheng_quyu, a text column on the ren_wu_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: chu_sheng_guojia
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chu_sheng_guojia
+    description: |
+      chu_sheng_guojia, a text column on the ren_wu_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: shen_gao_cm
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shen_gao_cm
+    description: |
+      shen_gao_cm, a real-valued column on the ren_wu_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bie_ming_ke
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bie_ming_ke
+    description: |
+      bie_ming_ke, a text column on the ren_wu_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: tou_piao
+  source: law_episode.tou_piao
+  description: |
+    tou_piao breaks down an episode's viewer votes by star rating, one row per episode per star level from 1 to 10.
+
+    Grain: one row per episode per star level, so one episode has up to ten rows here. Join on ji_pian_id to ji_pian to combine a star-level breakdown with an episode's title or overall rating. Do not confuse this table's tou_piao_shu (the vote count at one star level) with ji_pian.tou_piao_shu (the episode's total vote count across every level). Within this table, ji_pian_ref_id, bai_fen_shu, and ping_fen_2 duplicate other columns here unreliably and must not be used.
+  fields:
+  - name: ji_pian_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_id
+    description: |
+      ji_pian_id identifies which episode a star-level vote row belongs to.
+
+      Text code shaped like an IMDb title id (sample values tt0629477, tt0629248, tt0629228), matching ji_pian.ji_pian_id. Do not use ji_pian_ref_id for this join, it is unreliable and must not be used as a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xing_ji
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xing_ji
+    description: |
+      xing_ji is the star rating level a group of viewers gave an episode, from 1 to 10.
+
+      Integer from 1 to 10 (sample values 7, 1, 6, 5, 2). A higher value means viewers enjoyed the episode more; "1 star" or "the least enjoyed" is xing_ji = 1, "10 stars" or "the most enjoyed" is xing_ji = 10. The ping_fen_2 column on this same table duplicates these values unreliably and must not be used.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: tou_piao_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tou_piao_shu
+    description: |
+      tou_piao_shu is the number of viewers who gave an episode the star rating recorded on this row.
+
+      Integer (sample values 35, 5, 10, 1, 7). Summing this column across all of an episode's star levels reproduces ji_pian.tou_piao_shu, the episode's overall vote total; prefer that column directly when the total alone is needed. A filter like "at least 30 votes at this star level" is tou_piao_shu >= 30.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: bai_fen_bi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bai_fen_bi
+    description: |
+      bai_fen_bi is the percentage of an episode's viewers who gave it the star rating recorded on this row.
+
+      Real-valued percentage between 0 and 100 (sample values 18.8, 2.3, 5.6, 0.7, 4.0). Already computed per row, so "the percentage of viewers who rated an episode 1 star" is read directly from this column at xing_ji = 1 rather than recomputed from vote counts. Multiplying xing_ji by bai_fen_bi, summing across an episode's rows, and dividing by 100 reproduces ji_pian.ping_fen, the episode's overall weighted rating.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: ji_pian_ref_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_ref_id
+    description: |
+      ji_pian_ref_id, a text column on the tou_piao table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bai_fen_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bai_fen_shu
+    description: |
+      bai_fen_shu, a real-valued column on the tou_piao table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ping_fen_2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ping_fen_2
+    description: |
+      ping_fen_2, an integer column on the tou_piao table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_law_episode_weighted_rating
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUM(xing_ji * bai_fen_bi) / 100
+    description: |
+      Weighted star rating: an episode's mean star level weighted by each level's vote percentage, reconstructed from tou_piao's per-star breakdown.
+
+      SUM(xing_ji * bai_fen_bi) / 100 over the rows of law_episode.tou_piao for one episode, since bai_fen_bi already holds the percentage share at each star level. This reproduces ji_pian.ping_fen, the episode's stored overall rating; prefer that column directly and use this expression only when ping_fen is not available for the rows in question.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "weighted star rating"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: xie_zuo_ming_dan
+  source: law_episode.xie_zuo_ming_dan
+  description: |
+    xie_zuo_ming_dan is the credit list linking a person to an episode with a role, a department category, and whether the credit appeared on screen.
+
+    Grain: one row per person per credited role per episode, so one episode or one person can have many rows here. Join on ji_pian_id to ji_pian and on ren_wu_id to ren_wu to attach an episode's or person's title, name, or other facts. Within this table, ji_pian_biao_shi, ren_wu_biao_shi, and lei_xing duplicate other columns here unreliably and must not be used.
+  fields:
+  - name: ji_pian_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_id
+    description: |
+      ji_pian_id identifies which episode a credit row belongs to.
+
+      Text code shaped like an IMDb title id (sample values tt0629391, tt0629422, tt0629477), matching ji_pian.ji_pian_id. Do not use ji_pian_biao_shi for this join, it is unreliable and must not be used as a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ren_wu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ren_wu_id
+    description: |
+      ren_wu_id identifies which person a credit row belongs to.
+
+      Text code shaped like an IMDb person id (sample values nm0936976, nm0193034, nm0958418), matching ren_wu.ren_wu_id. Do not use ren_wu_biao_shi for this join, it is unreliable and must not be used as a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: lei_bie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: lei_bie
+    description: |
+      lei_bie is the department or category a credit falls under.
+
+      Text (sample values Writing Credits, Transportation Department, Stunts, Sound Department, Cast). Matched by an exact comparison, e.g. lei_bie = 'Cast' for an acting credit; a "cast member" or "cast" is any row with lei_bie = 'Cast'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xie_zuo_ming_dan.lei_bie. \"Cast member\" or \"cast\" means lei_bie = 'Cast'; other values on this column, such as Writing Credits, Transportation Department, Stunts, and Sound Department, are production and technical departments rather than acting credits. For a Cast row, xie_zuo_ming_dan.jue_se holds the character the person portrayed rather than a production role.\n",
+              "id": "term_law_episode_cast_member",
+              "name": "cast member",
+              "summary": "Cast member, cast: a person credited in the acting department for an episode, on the xie_zuo_ming_dan table, as opposed to a writing, production, or technical credit.",
+              "synonyms": [
+                "cast member",
+                "cast"
+              ]
+            }
+          ]
+        }
+  - name: jue_se
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jue_se
+    description: |
+      jue_se is the specific role a person is credited for.
+
+      Text (sample values teleplay writer, transportation coordinator, writer, stunt coordinator, supervising sound editor). For a Cast row this holds the character the person portrayed; for any other lei_bie this holds the production role, such as producer, director, technical advisor, narrator, or additional crew. Matched by an exact comparison, e.g. jue_se = 'stunt coordinator'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: shi_fou_nian_zai
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shi_fou_nian_zai
+    description: |
+      shi_fou_nian_zai records whether a credit was displayed in the on-screen credits at the end of the episode.
+
+      Text holding true when the credit appeared on screen. A person can fill a role in an episode without appearing in the on-screen credits, in which case the work is "uncredited" and this column holds false or is blank rather than true.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xie_zuo_ming_dan.shi_fou_nian_zai. \"Credited,\" \"appeared in the credit,\" and \"credit displayed\" mean shi_fou_nian_zai = 'true' — the person's role was shown on screen at the end of the episode. \"Uncredited,\" \"did not show up in the on-screen credits,\" and \"have not been credited\" mean the row holds false or is blank rather than true. A person can fill a role in an episode without appearing in its on-screen credits, so an uncredited row still represents real work on that episode.\n",
+              "id": "term_law_episode_credited",
+              "name": "credited",
+              "summary": "Credited, uncredited, appeared in the credit, credit displayed: whether a person's work on an episode was shown in its on-screen credits, recorded on the xie_zuo_ming_dan table.",
+              "synonyms": [
+                "credited",
+                "uncredited",
+                "appeared in the credit",
+                "credit displayed"
+              ]
+            }
+          ]
+        }
+  - name: ji_pian_biao_shi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_pian_biao_shi
+    description: |
+      ji_pian_biao_shi, a text column on the xie_zuo_ming_dan table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ren_wu_biao_shi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ren_wu_biao_shi
+    description: |
+      ren_wu_biao_shi, a text column on the xie_zuo_ming_dan table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: lei_xing
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: lei_xing
+    description: |
+      lei_xing, a text column on the xie_zuo_ming_dan table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_law_episode_credit_role_share
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: 100.0 * COUNT(*) FILTER (WHERE jue_se = :role) / COUNT(*)
+    description: |
+      Percentage of credits in a role: the share of an episode's xie_zuo_ming_dan rows crediting a given jue_se, out of all of that episode's credit rows.
+
+      100.0 * COUNT(*) FILTER (WHERE jue_se = :role) / COUNT(*) over law_episode.xie_zuo_ming_dan rows for one episode (filtered by ji_pian_id), where :role is the specific jue_se or lei_bie value being asked about, such as 'Additional Crew'. The denominator is every credit row for that episode, not just rows matching the role.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "percentage of credits in a role"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_law_episode_guan_jian_ci_ji_pian_03a235ed
+  from: guan_jian_ci
+  to: ji_pian
+  from_columns:
+  - ji_pian_id
+  to_columns:
+  - ji_pian_id
+  ai_context:
+    instructions: |
+      guan_jian_ci.ji_pian_id matches ji_pian.ji_pian_id, attaching an episode's keywords in guan_jian_ci to its title and other facts in ji_pian.
+
+      Every guan_jian_ci row's episode id matches exactly one ji_pian row, but one episode has many keyword rows, so expect several guan_jian_ci rows per ji_pian row. Use this join to list an episode's keywords alongside its title, air date, or rating. Do not join through guan_jian_ci.ji_pian_lian_id — it is unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between guan_jian_ci and ji_pian in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_law_episode_ji_pian_jiang_xiang_0d169bd8
+  from: jiang_xiang
+  to: ji_pian
+  from_columns:
+  - ji_pian_id
+  to_columns:
+  - ji_pian_id
+  ai_context:
+    instructions: |
+      ji_pian.ji_pian_id matches jiang_xiang.ji_pian_id, attaching an episode's award nominations in jiang_xiang to its title and other facts in ji_pian.
+
+      Not every episode has a matching jiang_xiang row — only nominated episodes do — and a nominated episode can have several rows, one per nomination. Use this join to show an episode's title alongside the awards it was nominated for. Do not join through jiang_xiang.ji_pian_bian_hao — it is unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ji_pian and jiang_xiang in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_law_episode_ji_pian_tou_piao_8ac5af4a
+  from: tou_piao
+  to: ji_pian
+  from_columns:
+  - ji_pian_id
+  to_columns:
+  - ji_pian_id
+  ai_context:
+    instructions: |
+      ji_pian.ji_pian_id matches tou_piao.ji_pian_id, attaching an episode's star-level vote breakdown in tou_piao to its title and overall rating in ji_pian.
+
+      Each ji_pian row has up to ten matching tou_piao rows, one per star level from 1 to 10. Use this join to show an episode's title alongside the vote count or percentage at a specific star level. Do not join through tou_piao.ji_pian_ref_id — it is unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ji_pian and tou_piao in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_law_episode_ji_pian_xie_zuo_ming_dan_d1dfc993
+  from: xie_zuo_ming_dan
+  to: ji_pian
+  from_columns:
+  - ji_pian_id
+  to_columns:
+  - ji_pian_id
+  ai_context:
+    instructions: |
+      ji_pian.ji_pian_id matches xie_zuo_ming_dan.ji_pian_id, attaching an episode's cast and crew credits in xie_zuo_ming_dan to its title and other facts in ji_pian.
+
+      Each ji_pian row has many matching xie_zuo_ming_dan rows, one per credited person and role. Use this join to list an episode's cast and crew alongside its title or air date. Do not join through xie_zuo_ming_dan.ji_pian_biao_shi — it is unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ji_pian and xie_zuo_ming_dan in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_law_episode_jiang_xiang_ren_wu_720e9cb3
+  from: jiang_xiang
+  to: ren_wu
+  from_columns:
+  - ren_wu_id
+  to_columns:
+  - ren_wu_id
+  ai_context:
+    instructions: |
+      jiang_xiang.ren_wu_id matches ren_wu.ren_wu_id, attaching the name and other facts of a nominated person in ren_wu to their nomination row in jiang_xiang.
+
+      Every jiang_xiang row's person id matches exactly one ren_wu row, but a person nominated more than once has several jiang_xiang rows pointing at the same ren_wu row. Use this join to show a nominee's name alongside their award, category, and result. Do not join through jiang_xiang.ren_wu_bian_hao or ren_wu.ren_wu_dai_hao — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between jiang_xiang and ren_wu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_law_episode_ren_wu_xie_zuo_ming_dan_3d41b5c8
+  from: xie_zuo_ming_dan
+  to: ren_wu
+  from_columns:
+  - ren_wu_id
+  to_columns:
+  - ren_wu_id
+  ai_context:
+    instructions: |
+      ren_wu.ren_wu_id matches xie_zuo_ming_dan.ren_wu_id, attaching a credited person's name and other facts in ren_wu to their credit rows in xie_zuo_ming_dan.
+
+      Each ren_wu row has many matching xie_zuo_ming_dan rows, one per episode and role that person was credited for. Use this join to list a person's credits alongside their name. Do not join through ren_wu.ren_wu_dai_hao or xie_zuo_ming_dan.ren_wu_biao_shi — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ren_wu and xie_zuo_ming_dan in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_1245",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0000",
+          "sql": "SELECT \"T2\".\"guan_jian_ci_nei_rong\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"guan_jian_ci\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"biao_ti\" = 'Refuge: Part 1'",
+          "summary": "Please list all the keywords of the episode \"Refuge: Part 1\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1247",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0001",
+          "sql": "SELECT \"T1\".\"biao_ti\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"guan_jian_ci\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T2\".\"guan_jian_ci_nei_rong\" = 'laundering money'",
+          "summary": "What is the title of the episode with the keyword \"laundering money\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1248",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0002",
+          "sql": "SELECT \"T2\".\"guan_jian_ci_nei_rong\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"guan_jian_ci\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"ping_fen\" > 8",
+          "summary": "Please list all the keywords for the episodes with a rating of over 8."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1249",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0003",
+          "sql": "SELECT \"T2\".\"tou_piao_shu\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"tou_piao\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"biao_ti\" = 'Cherished' AND \"T2\".\"xing_ji\" = 10",
+          "summary": "How many 10-star votes were given to the episode titled \"Cherished\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1250",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0004",
+          "sql": "SELECT SUM(\"T2\".\"tou_piao_shu\") FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"tou_piao\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"biao_ti\" = 'Cherished'",
+          "summary": "How many votes did the episode titled \"Cherished\" get in total?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1251",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0005",
+          "sql": "SELECT \"T1\".\"biao_ti\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"tou_piao\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T2\".\"xing_ji\" = 10 ORDER BY \"T2\".\"tou_piao_shu\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the title of the episode that got the most 10-star votes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1252",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0006",
+          "sql": "SELECT \"T2\".\"jue_se\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T3\" ON \"T3\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"biao_ti\" = 'Cherished' AND \"T3\".\"ming_cheng\" = 'Park Dietz' AND \"T2\".\"shi_fou_nian_zai\" = 'true'",
+          "summary": "Park Dietz was credited in which role in the episode titled \"Cherished\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1253",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0007",
+          "sql": "SELECT COUNT(\"T1\".\"ji_pian_id\") FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"biao_ti\" = 'Cherished' AND \"T2\".\"shi_fou_nian_zai\" = 'false'",
+          "summary": "How many people had filled a role in the episode titled \"Cherished\", but did not show up in the on-screen credits?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1254",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0008",
+          "sql": "SELECT \"T3\".\"ming_cheng\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T3\" ON \"T3\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"biao_ti\" = 'Cherished' AND \"T2\".\"shi_fou_nian_zai\" = 'true' AND \"T2\".\"jue_se\" = 'technical advisor'",
+          "summary": "Who was credited as \"technical advisor\" in the episode titled \"Cherished\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1255",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0009",
+          "sql": "SELECT COUNT(\"T3\".\"ren_wu_id\") FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T3\" ON \"T3\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T2\".\"shi_fou_nian_zai\" = 'true' AND \"T3\".\"ming_cheng\" = 'Park Dietz'",
+          "summary": "For how many times was Park Dietz credited?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1256",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0010",
+          "sql": "SELECT \"T1\".\"biao_ti\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T3\" ON \"T3\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T2\".\"shi_fou_nian_zai\" = 'true' AND \"T3\".\"ming_cheng\" = 'Park Dietz'",
+          "summary": "Please list the titles of all the episodes in which Park Dietz was credited."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1257",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0011",
+          "sql": "SELECT \"T1\".\"shi_fou_nian_zai\" FROM \"law_episode\".\"xie_zuo_ming_dan\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T2\".\"ren_wu_id\" = \"T1\".\"ren_wu_id\" WHERE \"T2\".\"ming_cheng\" = 'Anthony Azzara' AND \"T1\".\"ji_pian_id\" = 'tt0629204'",
+          "summary": "Was Anthony Azzara's role in episode tt0629204 displayed in the credits at the end of the episode?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1258",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0012",
+          "sql": "SELECT COUNT(\"T2\".\"guan_jian_ci_nei_rong\") FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"guan_jian_ci\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"biao_ti\" = 'Disciple'",
+          "summary": "How many keywords are there in the episode Disciple?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1259",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0013",
+          "sql": "SELECT \"T2\".\"biao_ti\" FROM \"law_episode\".\"tou_piao\" AS \"T1\" INNER JOIN \"law_episode\".\"ji_pian\" AS \"T2\" ON \"T2\".\"ji_pian_id\" = \"T1\".\"ji_pian_id\" WHERE \"T1\".\"xing_ji\" = 1 ORDER BY \"T1\".\"tou_piao_shu\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which episode got the most 1 star votes? Give its title."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1261",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0014",
+          "sql": "SELECT COUNT(\"T2\".\"jue_se\") FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"ju_ji\" = 'Law and Order' AND \"T1\".\"ji_shu\" = 9 AND \"T1\".\"ji_pian_hao\" = 17 AND \"T2\".\"shi_fou_nian_zai\" = 'true'",
+          "summary": "For season 9, episode 17 of the show Law and Order, how many roles have been included in the credit?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1262",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0015",
+          "sql": "SELECT \"T1\".\"yao_shu\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T2\".\"jiang_xiang_id\" = 296",
+          "summary": "Describe what happened in the episode of award no.296."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1263",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0016",
+          "sql": "SELECT \"T1\".\"jue_se\" FROM \"law_episode\".\"xie_zuo_ming_dan\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T2\".\"ren_wu_id\" = \"T1\".\"ren_wu_id\" WHERE \"T2\".\"ming_cheng\" = 'Joseph Blair'",
+          "summary": "Which role did Joseph Blair play in the show?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1264",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0017",
+          "sql": "SELECT COUNT(\"T2\".\"jiang_xiang_id\") FROM \"law_episode\".\"ren_wu\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"ming_cheng\" = 'Rene Balcer'",
+          "summary": "How many awards has Rene Balcer been nominated for?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1265",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0018",
+          "sql": "SELECT \"T2\".\"bo_chu_ri_qi\" FROM \"law_episode\".\"tou_piao\" AS \"T1\" INNER JOIN \"law_episode\".\"ji_pian\" AS \"T2\" ON \"T2\".\"ji_pian_id\" = \"T1\".\"ji_pian_id\" GROUP BY \"T2\".\"ji_pian_id\", \"T2\".\"bo_chu_ri_qi\" ORDER BY SUM(\"T1\".\"tou_piao_shu\") DESC NULLS LAST LIMIT 1",
+          "summary": "For the episode with the most votes, give its air date."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1266",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0019",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"law_episode\".\"ren_wu\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T2\".\"jiang_xiang_id\" = 313",
+          "summary": "Who was nominated for award no.313? Give the full name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1267",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0020",
+          "sql": "SELECT COUNT(\"T1\".\"jue_se\") FROM \"law_episode\".\"xie_zuo_ming_dan\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T2\".\"ren_wu_id\" = \"T1\".\"ren_wu_id\" WHERE \"T2\".\"ming_cheng\" = 'J.K. Simmons'",
+          "summary": "How many episodes did J.K. Simmons' role appear on the show?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1268",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0021",
+          "sql": "SELECT \"T2\".\"tou_piao_shu\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"tou_piao\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T2\".\"xing_ji\" = 9 AND \"T1\".\"biao_ti\" = 'Sideshow'",
+          "summary": "Display the number of 9-star votes the episode Sideshow received."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1269",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0022",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"biao_ti\" = 'Refuge: Part 1' THEN 1 ELSE 0 END) AS REAL) / NULLIF(SUM(CASE WHEN \"T1\".\"biao_ti\" = 'Shield' THEN 1 ELSE 0 END), 0) FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"guan_jian_ci\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\"",
+          "summary": "How many times is the number of keywords in \"Refuge: Part 1\" episode than \"Shield\" episode?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1270",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0023",
+          "sql": "SELECT CAST(COUNT(\"T1\".\"ji_pian_id\") AS REAL) / NULLIF((193 - 185 + 1), 0) FROM \"law_episode\".\"xie_zuo_ming_dan\" AS \"T1\" INNER JOIN \"law_episode\".\"ji_pian\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"lei_bie\" = 'Cast' AND \"T1\".\"shi_fou_nian_zai\" = 'true' AND \"T2\".\"xu_lie_hao\" BETWEEN 185 AND 193",
+          "summary": "Calculate the average number of cast members that appeared in the credit from the 185th to the 193rd episode."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1271",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0024",
+          "sql": "SELECT \"T2\".\"ming_cheng\" FROM \"law_episode\".\"xie_zuo_ming_dan\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T2\".\"ren_wu_id\" = \"T1\".\"ren_wu_id\" WHERE \"T1\".\"shi_fou_nian_zai\" = 'false' AND \"T1\".\"ji_pian_id\" = 'tt0629391'",
+          "summary": "What are the names of the person that were not credited at the end of episode tt0629391?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1274",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0025",
+          "sql": "SELECT COUNT(\"T2\".\"jiang_xiang_id\") FROM \"law_episode\".\"ren_wu\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"ming_cheng\" = 'Julia Roberts' AND \"T2\".\"jie_guo\" = 'Nominee'",
+          "summary": "How many awards has Julia Roberts been nominated for?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1277",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0026",
+          "sql": "SELECT COUNT(\"T1\".\"ji_pian_id\") FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"tou_piao\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T2\".\"xing_ji\" = 10",
+          "summary": "How many people gave the most enjoyed episode a 10-star rating?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1278",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0027",
+          "sql": "SELECT \"T2\".\"guan_jian_ci_nei_rong\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"guan_jian_ci\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"biao_ti\" = 'Shield'",
+          "summary": "What are the keywords of the \"Shield\" episode?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1279",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0028",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"xing_ji\" = 1 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"ji_pian_id\"), 0) FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"tou_piao\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"biao_ti\" = 'True North' AND \"T1\".\"ji_pian_id\" = 'tt0629477'",
+          "summary": "What is the percentage of people who gave the \"True North\" episode a 1-star rating?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1281",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0029",
+          "sql": "SELECT COUNT(\"T1\".\"ji_pian_id\") FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE TO_CHAR(CAST(\"T1\".\"bo_chu_ri_qi\" AS TIMESTAMP), 'YYYY') = '1998' AND \"T2\".\"zu_zhi\" = 'International Monitor Awards' AND \"T2\".\"jie_guo\" = 'Winner'",
+          "summary": "Among the episodes that were aired in 1998, how many won an International Monitor Awards?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1285",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0030",
+          "sql": "SELECT COUNT(\"T2\".\"jiang_xiang_ming_cheng\") FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"biao_ti\" = 'Agony' AND \"T2\".\"jie_guo\" = 'Winner'",
+          "summary": "How many awards did the \"Agony\" win?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1286",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0031",
+          "sql": "SELECT \"T3\".\"ming_cheng\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T3\" ON \"T3\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"biao_ti\" = 'Flight' AND \"T2\".\"jue_se\" = 'Narrator'",
+          "summary": "Who is the narrator of the \"Flight\" episode?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1288",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0032",
+          "sql": "SELECT \"T3\".\"ming_cheng\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T3\" ON \"T3\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"ji_pian_hao\" = 3 AND \"T2\".\"jue_se\" = 'stunt coordinator'",
+          "summary": "Who is the stunt coordinator in episode 3?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1289",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0033",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"biao_ti\" = 'Admissions' AND \"T2\".\"shi_fou_nian_zai\" = 'false'",
+          "summary": "How many people were not credited at the end of the \"Admissions\" episode?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1291",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0034",
+          "sql": "SELECT COUNT(\"T1\".\"jue_se\") FROM \"law_episode\".\"xie_zuo_ming_dan\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T2\".\"ren_wu_id\" = \"T1\".\"ren_wu_id\" WHERE \"T2\".\"ming_cheng\" = 'Julia Roberts'",
+          "summary": "How many roles did Julia Roberts play in the series?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1292",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0035",
+          "sql": "SELECT \"T2\".\"biao_ti\" FROM \"law_episode\".\"tou_piao\" AS \"T1\" INNER JOIN \"law_episode\".\"ji_pian\" AS \"T2\" ON \"T2\".\"ji_pian_id\" = \"T1\".\"ji_pian_id\" WHERE \"T1\".\"tou_piao_shu\" >= 30 AND \"T1\".\"xing_ji\" = 10 ORDER BY \"T1\".\"tou_piao_shu\" DESC NULLS LAST LIMIT 3",
+          "summary": "What are the titles of the top 3 episodes that received no less than 30 votes in its 10-star rating?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1295",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0036",
+          "sql": "SELECT \"T2\".\"ming_cheng\" FROM \"law_episode\".\"xie_zuo_ming_dan\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T2\".\"ren_wu_id\" = \"T1\".\"ren_wu_id\" WHERE \"T1\".\"lei_bie\" = 'Cast'",
+          "summary": "List the names of all the cast members in the series."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1297",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0037",
+          "sql": "SELECT DISTINCT \"ji_pian_id\" FROM \"law_episode\".\"jiang_xiang\" WHERE \"jiang_xiang_lei_bie\" = 'Primetime Emmy'",
+          "summary": "Which episodes of the Law & Order have been nominated for the Primetime Emmy Awards?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1299",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0038",
+          "sql": "SELECT DISTINCT \"jue_se\" FROM \"law_episode\".\"xie_zuo_ming_dan\" WHERE \"shi_fou_nian_zai\" = 'false'",
+          "summary": "What roles have not been credited at the end of the episodes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1300",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0039",
+          "sql": "SELECT \"biao_ti\" FROM \"law_episode\".\"ji_pian\" ORDER BY \"ping_fen\" NULLS FIRST LIMIT 3",
+          "summary": "What is the title of the 3 worst rated episodes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1302",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0040",
+          "sql": "SELECT \"ming_cheng\" FROM \"law_episode\".\"ren_wu\" WHERE \"chu_sheng_guo_jia\" = 'USA'",
+          "summary": "What is the name of the actors born in the USA?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1303",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0041",
+          "sql": "SELECT \"T1\".\"biao_ti\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"tou_piao\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T2\".\"xing_ji\" = 1",
+          "summary": "What is the title of the episodes that were least enjoyed?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1305",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0042",
+          "sql": "SELECT SUM(\"T2\".\"tou_piao_shu\") FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"tou_piao\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"biao_ti\" = 'Juvenile'",
+          "summary": "How many votes did the episode titled Juvenile get?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1306",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0043",
+          "sql": "SELECT \"T1\".\"biao_ti\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T3\" ON \"T3\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T2\".\"shi_fou_nian_zai\" = 'false' AND \"T3\".\"ming_cheng\" = 'Anthony Azzara'",
+          "summary": "In which episodes was Anthony Azzara not credited?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1307",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0044",
+          "sql": "SELECT DISTINCT \"T1\".\"nian_fen\" FROM \"law_episode\".\"jiang_xiang\" AS \"T1\" INNER JOIN \"law_episode\".\"ji_pian\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T2\".\"biao_ti\" = 'DWB' AND \"T1\".\"jie_guo\" = 'Winner'",
+          "summary": "In what year did the episodes titled DWB get an award?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1308",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0045",
+          "sql": "SELECT \"T2\".\"chu_sheng_qu_yu\" FROM \"law_episode\".\"xie_zuo_ming_dan\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T2\".\"ren_wu_id\" = \"T1\".\"ren_wu_id\" WHERE \"T1\".\"jue_se\" = 'president of NBC West Coast'",
+          "summary": "In which region were the assistant location managers born?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1309",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0046",
+          "sql": "SELECT COUNT(\"T3\".\"ren_wu_id\") FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T3\" ON \"T3\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T3\".\"ming_cheng\" = 'Donna Villella'",
+          "summary": "How many stars did the episodes in which Donna Villella worked?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1311",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0047",
+          "sql": "SELECT \"T2\".\"jue_se\" FROM \"law_episode\".\"ren_wu\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T3\" ON \"T2\".\"ji_pian_id\" = \"T3\".\"ji_pian_id\" ORDER BY \"T1\".\"shen_gao_mi\" DESC NULLS LAST LIMIT 1",
+          "summary": "What role does the tallest person play?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1312",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0048",
+          "sql": "SELECT \"T2\".\"biao_ti\" FROM \"law_episode\".\"jiang_xiang\" AS \"T1\" INNER JOIN \"law_episode\".\"ji_pian\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"jie_guo\" = 'Nominee' GROUP BY \"T2\".\"ji_pian_id\", \"T2\".\"biao_ti\" ORDER BY COUNT(\"T1\".\"jie_guo\") DESC NULLS LAST LIMIT 1",
+          "summary": "What is the title of the episode with the most nominations?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1313",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0049",
+          "sql": "SELECT \"T1\".\"ping_fen\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T3\" ON \"T3\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T3\".\"ming_cheng\" = 'Jace Alexander'",
+          "summary": "What was the rating of the episodes that Jace Alexander worked on?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1315",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0050",
+          "sql": "SELECT CAST(SUM(\"T3\".\"xing_ji\") AS REAL) / NULLIF(COUNT(\"T2\".\"ji_pian_id\"), 0) FROM \"law_episode\".\"ren_wu\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" INNER JOIN \"law_episode\".\"tou_piao\" AS \"T3\" ON \"T2\".\"ji_pian_id\" = \"T3\".\"ji_pian_id\" WHERE \"T3\".\"xing_ji\" = 1 AND \"T1\".\"ming_cheng\" = 'Jim Bracchitta'",
+          "summary": "What is the average star rating of the episodes Jim Bracchitta has worked on?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1316",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0051",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"jue_se\" = 'Additional Crew' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"ji_pian_id\"), 0) FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"biao_ti\" = 'True North'",
+          "summary": "What percentage of people have worked on the True North episode as additional crew?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1319",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0052",
+          "sql": "SELECT \"T1\".\"ming_cheng\", \"T2\".\"jue_se\" FROM \"law_episode\".\"ren_wu\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T2\".\"nian_fen\" = 2000 AND \"T2\".\"jiang_xiang_lei_bie\" = 'Edgar' AND \"T2\".\"jiang_xiang_ming_cheng\" = 'Best Television Episode'",
+          "summary": "Who is the winner of the Best Television Episode award for the Edgar category in 2000? Include his or her name and role."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1320",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0053",
+          "sql": "SELECT \"T2\".\"zu_zhi\", \"T2\".\"nian_fen\", \"T2\".\"jiang_xiang_ming_cheng\", \"T2\".\"jiang_xiang_lei_bie\" FROM \"law_episode\".\"ren_wu\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"ming_cheng\" = 'Rene Balcer' AND \"T2\".\"jie_guo\" = 'Winner'",
+          "summary": "Write down the organization, year, award, and award category in which Rene Balcer is the winner."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1324",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0054",
+          "sql": "SELECT \"T3\".\"ji_pian_id\", \"T2\".\"jue_se\" FROM \"law_episode\".\"ren_wu\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" INNER JOIN \"law_episode\".\"ji_pian\" AS \"T3\" ON \"T2\".\"ji_pian_id\" = \"T3\".\"ji_pian_id\" WHERE \"T2\".\"nian_fen\" = 1999 AND \"T2\".\"jiang_xiang_ming_cheng\" = 'Outstanding Guest Actress in a Drama Series' AND \"T2\".\"zu_zhi\" = 'Primetime Emmy Awards' AND \"T1\".\"ming_cheng\" = 'Julia Roberts' AND \"T2\".\"jie_guo\" = 'Nominee'",
+          "summary": "On what episode did Julia Roberts win the \"Outstanding Guest Actress in a Drama Series\" award during the 1999 Primetime Emmy Awards? Tell me her role."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1326",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0055",
+          "sql": "SELECT COUNT(\"T1\".\"ren_wu_id\") FROM \"law_episode\".\"xie_zuo_ming_dan\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T2\".\"ren_wu_id\" = \"T1\".\"ren_wu_id\" WHERE \"T1\".\"ji_pian_id\" = 'tt0629228' AND \"T1\".\"lei_bie\" = 'Cast' AND \"T1\".\"shi_fou_nian_zai\" = 'false' AND \"T2\".\"chu_sheng_guo_jia\" = 'USA'",
+          "summary": "Among the American casts, how many were uncredited on episode ID tt0629228?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1328",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0056",
+          "sql": "SELECT \"T2\".\"ming_cheng\" FROM \"law_episode\".\"xie_zuo_ming_dan\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T2\".\"ren_wu_id\" = \"T1\".\"ren_wu_id\" INNER JOIN \"law_episode\".\"ji_pian\" AS \"T3\" ON \"T1\".\"ji_pian_id\" = \"T3\".\"ji_pian_id\" WHERE \"T3\".\"ji_pian_hao\" = 1 AND \"T1\".\"jue_se\" = 'president of NBC West Coast'",
+          "summary": "Who played the role of the \"president of NBC West Coast\" in the first episode?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1329",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0057",
+          "sql": "SELECT \"T2\".\"biao_ti\" FROM \"law_episode\".\"tou_piao\" AS \"T1\" INNER JOIN \"law_episode\".\"ji_pian\" AS \"T2\" ON \"T2\".\"ji_pian_id\" = \"T1\".\"ji_pian_id\" WHERE \"T1\".\"xing_ji\" BETWEEN 1 AND 10 GROUP BY \"T2\".\"biao_ti\" ORDER BY CAST(SUM(\"T1\".\"xing_ji\" * \"T1\".\"bai_fen_bi\") AS REAL) / NULLIF(100, 0) DESC NULLS LAST LIMIT 3",
+          "summary": "List down the titles of the top 3 episodes, from highest to lowest, in terms of their weighted stars."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1333",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0058",
+          "sql": "SELECT \"T3\".\"ming_cheng\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"xie_zuo_ming_dan\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T3\" ON \"T3\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"ji_pian_hao\" = 9",
+          "summary": "List out all the credit names for episode 9."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1334",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0059",
+          "sql": "SELECT \"T2\".\"jiang_xiang_ming_cheng\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"ji_pian_hao\" = 20 AND \"T2\".\"jie_guo\" IN ('Winner', 'Nominee')",
+          "summary": "List out all award titles nominated for episode 20."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1336",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0060",
+          "sql": "SELECT \"T3\".\"ming_cheng\", \"T1\".\"ji_pian_id\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"ren_wu_id\" WHERE \"T2\".\"jue_se\" = 'director' AND \"T2\".\"jie_guo\" = 'Winner'",
+          "summary": "List out director names that received an award along with the episode number."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1337",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0061",
+          "sql": "SELECT \"T1\".\"ji_pian_hao\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T2\".\"jie_guo\" = 'Nominee'",
+          "summary": "Which episodes are nominated for an awards but not win?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1340",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0062",
+          "sql": "SELECT \"T1\".\"ping_fen\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T2\".\"jie_guo\" = 'Winner' GROUP BY \"T1\".\"ji_pian_id\", \"T1\".\"ping_fen\" ORDER BY COUNT(\"T2\".\"jiang_xiang_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "What is the episode rating with the most award won?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1341",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0063",
+          "sql": "SELECT COUNT(\"T1\".\"ren_wu_id\") FROM \"law_episode\".\"xie_zuo_ming_dan\" AS \"T1\" INNER JOIN \"law_episode\".\"ji_pian\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"shi_fou_nian_zai\" = 'true' AND \"T2\".\"ji_pian_hao\" BETWEEN 1 AND 10",
+          "summary": "How many credits have been displayed from episode 1 until 10?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1342",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0064",
+          "sql": "SELECT \"T1\".\"ji_pian_hao\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"guan_jian_ci\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T2\".\"guan_jian_ci_nei_rong\" = 'mafia'",
+          "summary": "What is the episode that has mafia keyword?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1344",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0065",
+          "sql": "SELECT CAST(CAST(SUM(\"T1\".\"ping_fen\") AS DECIMAL(10, 1)) AS DOUBLE PRECISION) / CAST(COUNT(\"T1\".\"ji_pian_hao\") AS DOUBLE PRECISION) FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"jiang_xiang\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\"",
+          "summary": "What is the average ranking episodes that are nominated for an award?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1346",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0066",
+          "sql": "SELECT \"chu_sheng_guo_jia\" FROM \"law_episode\".\"ren_wu\" WHERE \"ming_cheng\" = 'Michael Preston'",
+          "summary": "Which continent was Michael Preston born on?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1347",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0067",
+          "sql": "SELECT \"T2\".\"ming_cheng\" FROM \"law_episode\".\"jiang_xiang\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"jie_guo\" = 'Nominee' AND \"T1\".\"jue_se\" = 'Katrina Ludlow' AND \"T1\".\"ju_ji\" = 'Law and Order'",
+          "summary": "Who was the nominee playing the role of Katrina Ludlow in the Law & Order series?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1348",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0068",
+          "sql": "SELECT \"T2\".\"ming_cheng\" FROM \"law_episode\".\"jiang_xiang\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"jie_guo\" = 'Winner' AND \"T1\".\"jiang_xiang_ming_cheng\" = 'Best Television Episode'",
+          "summary": "Who played the role of a teleplay in the episode that won \"Best Television Episode\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1349",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0069",
+          "sql": "SELECT \"T2\".\"chu_sheng_ri_qi\" FROM \"law_episode\".\"jiang_xiang\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"jue_se\" = 'writer'",
+          "summary": "What is the date of birth of the actor who played the role of a \"writer\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1350",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0070",
+          "sql": "SELECT \"T2\".\"biao_ti\" FROM \"law_episode\".\"jiang_xiang\" AS \"T1\" INNER JOIN \"law_episode\".\"ji_pian\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" WHERE \"T1\".\"jiang_xiang_ming_cheng\" = 'Outstanding Costume Design for a Series'",
+          "summary": "Which episode was nominated for the award for \"Outstanding Costume Design for a Series\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1351",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0071",
+          "sql": "SELECT \"T1\".\"biao_ti\" FROM \"law_episode\".\"ji_pian\" AS \"T1\" INNER JOIN \"law_episode\".\"tou_piao\" AS \"T2\" ON \"T1\".\"ji_pian_id\" = \"T2\".\"ji_pian_id\" GROUP BY \"T1\".\"biao_ti\" ORDER BY SUM(\"T1\".\"tou_piao_shu\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which episode has the highest total number of viewer votes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1355",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_law_episode_0072",
+          "sql": "SELECT \"T2\".\"ming_cheng\" FROM \"law_episode\".\"jiang_xiang\" AS \"T1\" INNER JOIN \"law_episode\".\"ren_wu\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"jie_guo\" = 'Winner' AND \"T2\".\"shen_gao_mi\" > 1.80",
+          "summary": "Who are the actors with a height of over 1.80m in an episode that won an award?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between jiang_xiang and xie_zuo_ming_dan in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Both sides key on the episode, and an episode can have many rows on each side — several nominations and several credited people — so this join can multiply rows; group or filter carefully rather than treating a joined row count as either table's real count. Use it to connect a nominated episode to the people credited on it. Do not join through jiang_xiang.ji_pian_bian_hao or xie_zuo_ming_dan.ji_pian_biao_shi — both are unreliable.\n",
+          "cardinality": "many_to_many",
+          "id": "join_law_episode_jiang_xiang_xie_zuo_ming_dan_fedec6b3",
+          "left_table": "law_episode.jiang_xiang",
+          "on": "law_episode.jiang_xiang.ji_pian_id = law_episode.xie_zuo_ming_dan.ji_pian_id",
+          "right_table": "law_episode.xie_zuo_ming_dan",
+          "summary": "jiang_xiang.ji_pian_id matches xie_zuo_ming_dan.ji_pian_id, connecting an episode's award nominations in jiang_xiang to its cast and crew credits in xie_zuo_ming_dan."
+        },
+        {
+          "audit": {
+            "evidence": "equality between tou_piao and xie_zuo_ming_dan in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Both sides key on the episode, and an episode can have up to ten tou_piao rows and many xie_zuo_ming_dan rows, so this join multiplies rows; group by episode before aggregating votes or counting credited people. Do not join through tou_piao.ji_pian_ref_id or xie_zuo_ming_dan.ji_pian_biao_shi — both are unreliable.\n",
+          "cardinality": "many_to_many",
+          "id": "join_law_episode_tou_piao_xie_zuo_ming_dan_f4263356",
+          "left_table": "law_episode.tou_piao",
+          "on": "law_episode.tou_piao.ji_pian_id = law_episode.xie_zuo_ming_dan.ji_pian_id",
+          "right_table": "law_episode.xie_zuo_ming_dan",
+          "summary": "tou_piao.ji_pian_id matches xie_zuo_ming_dan.ji_pian_id, connecting an episode's star-level vote breakdown in tou_piao to its cast and crew credits in xie_zuo_ming_dan."
+        }
+      ]
+    }

@@ -1,28 +1,2446 @@
-asset_type: schema
-id: language_corpus
+version: 0.2.0.dev0
 name: language_corpus
-summary: >-
-  language_corpus is a Catalan-language text-mining warehouse built from a single Wikipedia
-  snapshot: it tracks the words in use, the pages they came from, how often each word occurs,
-  and how often pairs of words appear next to each other.
-body: >-
-  This corpus is drawn from a single Wikipedia dump in one language: every language-tagged row
-  here points at Catalan (langue = 'ca', id_langue = 1), so id_langue functions mainly as a join
-  key rather than a dimension worth filtering on for its own sake. mots is the word dictionary,
-  holding each distinct word and its total occurrence count across the whole corpus. pages is
-  the set of Wikipedia articles, each with its own title, MediaWiki page and revision
-  identifiers, and a distinct-word count. langues_mots and pages_mots are bridge tables that
-  break a word's occurrence count down by language and by page respectively, and bimots records
-  how often ordered pairs of adjacent words occur together, a word pair often called a biword.
-rules:
-- Every id_langue value in this corpus is 1 (Catalan); a query that filters or groups by a
-  different language id will return nothing.
-- references_langues is not a dependable source and must not be used to answer questions about
-  languages.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |-
+  language_corpus is a Catalan-language text-mining warehouse built from a single Wikipedia snapshot: it tracks the words in use, the pages they came from, how often each word occurs, and how often pairs of words appear next to each other.
+
+  This corpus is drawn from a single Wikipedia dump in one language: every language-tagged row here points at Catalan (langue = 'ca', id_langue = 1), so id_langue functions mainly as a join key rather than a dimension worth filtering on for its own sake. mots is the word dictionary, holding each distinct word and its total occurrence count across the whole corpus. pages is the set of Wikipedia articles, each with its own title, MediaWiki page and revision identifiers, and a distinct-word count. langues_mots and pages_mots are bridge tables that break a word's occurrence count down by language and by page respectively, and bimots records how often ordered pairs of adjacent words occur together, a word pair often called a biword.
+ai_context:
+  instructions: |-
+    Every id_langue value in this corpus is 1 (Catalan); a query that filters or groups by a different language id will return nothing.
+    references_langues is not a dependable source and must not be used to answer questions about languages.
+datasets:
+- name: bimots
+  source: language_corpus.bimots
+  description: |-
+    bimots is the table of ordered word-pair co-occurrence counts, recording how often one word is immediately followed by another across the corpus.
+
+    One row per ordered pair of words that appear next to each other somewhere in the corpus, identified by mot_premier (the first word's id) and mot_second (the second word's id); occurrences is how many times that exact ordered pair was seen. This table is easy to confuse with mots, which counts a single word's occurrences rather than a pair, and with langues_mots, which counts a word's occurrences within one language rather than a word pair. mot_premier and mot_second both reference mots.id_mot, and id_langue references langues.id_langue, though every row observed so far belongs to the Catalan language.
+  fields:
+  - name: id_langue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_langue
+    description: |-
+      id_langue identifies which language this word pair belongs to, matching langues.id_langue.
+
+      Every row observed in this corpus carries id_langue = 1, the Catalan language; join to langues.id_langue to bring in the language's name and locale.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: mot_premier
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mot_premier
+    description: |-
+      mot_premier is the id of the first word in this ordered word pair, referencing mots.id_mot.
+
+      Holds a mots.id_mot value; sample ids seen include 1 and 2. Paired with mot_second to form the ordered biword; a pair where mot_premier equals mot_second means the same word repeated back to back.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "mot_premier on bimots holds the id_mot of whichever word comes first in an ordered biword pair; mot_second holds the second word's id the same way. Training questions phrase the first word several ways, including \"first mot\" and \"as first mot\", and all of them refer to this column.",
+              "id": "term_language_corpus_first_word",
+              "name": "first word of a pair",
+              "summary": "first word of a pair (first mot, first word, as first mot): the earlier of the two words in a biword pair, stored as mot_premier on bimots.",
+              "synonyms": [
+                "first mot",
+                "first word",
+                "as first mot"
+              ]
+            }
+          ]
+        }
+  - name: mot_second
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mot_second
+    description: |-
+      mot_second is the id of the second word in this ordered word pair, referencing mots.id_mot.
+
+      Holds a mots.id_mot value; observed ids range from single digits up into five digits (sample values include 2, 4, 25, 34 and 51). Together with mot_premier it defines the ordered biword; a wide range of second-word ids appear here even when mot_premier repeats.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "mot_second on bimots holds the id_mot of whichever word comes second in an ordered biword pair; mot_premier holds the first word's id the same way. This is also what training questions mean by phrases such as \"second mot\" and \"second mot of the pair\".",
+              "id": "term_language_corpus_second_word",
+              "name": "second word of a pair",
+              "summary": "second word of a pair (second mot, second word, second mot of the pair): the later of the two words in a biword pair, stored as mot_second on bimots.",
+              "synonyms": [
+                "second mot",
+                "second word",
+                "second mot of the pair"
+              ]
+            }
+          ]
+        }
+  - name: occurrences
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: occurrences
+    description: |-
+      occurrences is the count of times this exact ordered word pair was observed together.
+
+      An integer frequency count for this specific bimots row; sample values run from 1 up into the hundreds within the scanned rows, and some pairs elsewhere in the corpus reach into the hundred-thousands. Use this column, not mots.occurrences, when the question is about a word pair rather than a single word.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Training questions describe this count many ways, including appearances, repetitions, how many times, and repeated, and on the bimots table all of them mean the occurrences column for that specific ordered word pair. The same vocabulary is used elsewhere in the corpus for a word's own frequency (mots.occurrences), its per-language frequency (langues_mots.occurrences), and its per-page frequency (pages_mots.occurrences); pick the table that matches the grain the question is actually asking about, a pair, a word overall, a word within a language, or a word on one page.",
+              "id": "term_language_corpus_pair_frequency",
+              "name": "pair frequency count",
+              "summary": "pair frequency count (appearances, repetitions, how many times, repeated): how many times a specific word pair was observed together, stored as occurrences on bimots.",
+              "synonyms": [
+                "appearances",
+                "repetitions",
+                "how many times",
+                "repeated"
+              ]
+            }
+          ]
+        }
+  metrics:
+  - name: metric_language_corpus_most_frequent_biword
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(occurrences)
+    description: |-
+      most frequent biword: the highest occurrence count among all ordered word pairs in bimots.
+
+      Answers questions like the bimots pair with the most repetitions, or the pair that appears the most, by taking MAX(occurrences) over bimots. To identify the pair itself, order bimots by occurrences descending and take the top row, then resolve mot_premier and mot_second against mots for the actual words.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most frequent biword"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "A biword, or bimots pair, is an ordered pair of words that appear next to each other somewhere in the corpus. Each such pair is one row in bimots, with mot_premier holding the first word's id and mot_second holding the second word's id, both referencing mots.id_mot; occurrences on that row counts how many times exactly that ordered pair was seen. A pair where mot_premier equals mot_second is the same word repeated back to back.",
+            "id": "term_language_corpus_biword_pair",
+            "name": "biword pair",
+            "summary": "biword pair (biword, bimots pair, word pair): two words that occur next to each other in the corpus, recorded as one bimots row with a first and second word id.",
+            "synonyms": [
+              "biword",
+              "biword pair",
+              "bimots pair",
+              "word pair"
+            ]
+          }
+        ]
+      }
+- name: langues
+  source: language_corpus.langues
+  description: |-
+    langues is the language dimension table, one row for each language whose Wikipedia footprint this corpus tracks.
+
+    One row per language; today that is a single row for Catalan. langue and locale hold the language's short code and full locale string, while pages and mots are that language's totals for Wikipedia page count and distinct word count. id_langue is the primary key other tables join to, used by bimots, langues_mots and pages to scope rows to a language. Do not confuse this table with references_langues, a separate table that is not kept current and should not be used in its place.
+  fields:
+  - name: id_langue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_langue
+    description: |-
+      id_langue is the primary identifier for a language row, referenced by bimots, langues_mots and pages.
+
+      Unique per language; currently always 1, the Catalan language. This is the key other tables join on to scope their rows to a language.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": false,
+          "physical_type": "bigint"
+        }
+  - name: langue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: langue
+    description: |-
+      langue holds the short language code that identifies which language a row's other totals belong to.
+
+      A short language code; the only value present in this corpus is 'ca', for Catalan. Paired with locale, which spells out the fuller regional locale for the same language.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Every row in this corpus belongs to Catalan: langues has a single row where langue equals its short code for Catalan and id_langue equals 1, and every other table's id_langue column is a foreign key back to that one row. Training questions phrase this several ways, such as \"Catalan language\", \"the Catalan\" and \"in Catalan\", and all of them resolve to the same filter, id_langue = 1, or equivalently langue's Catalan code when starting from langues itself. There is no other language in this corpus to filter against.",
+              "id": "term_language_corpus_catalan_language",
+              "name": "Catalan language",
+              "summary": "Catalan language (Catalan, in Catalan): the one language this whole corpus covers, identified by its language code and id in every table that tracks a language.",
+              "synonyms": [
+                "Catalan",
+                "Catalan language",
+                "in Catalan"
+              ]
+            }
+          ]
+        }
+  - name: locale
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: locale
+    description: |-
+      locale holds the fuller regional locale string that accompanies langue for the same language row.
+
+      A locale string such as 'ca_ES', combining the language code with a region; the only value present in this corpus is the Catalan locale for Spain.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: pages
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pages
+    description: |-
+      pages holds this language's total Wikipedia page count.
+
+      An aggregate total, not a per-row count; in the current data this is a single value for Catalan, over one million pages. Do not confuse with the pages table's own mots column, which counts words on individual pages rather than languages.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: mots
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mots
+    description: |-
+      mots holds this language's total distinct word count.
+
+      An aggregate total for the language, not a per-page count; in the current data this is a single value for Catalan, over two million distinct words. Distinct from the pages table's own mots column, which counts distinct words per Wikipedia page rather than per language.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_code_langue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_code_langue
+    description: |-
+      id_code_langue, an integer column on the langues table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_langue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_langue
+    description: |-
+      nom_langue, a text column on the langues table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: code_locale
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_locale
+    description: |-
+      code_locale, a text column on the langues table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_language_corpus_total_language_pages
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUM(pages)
+    description: |-
+      total language pages: the sum of the Wikipedia page counts recorded for each language in langues.
+
+      Takes SUM(pages) over langues. With a single language currently tracked, this equals that one row's pages value; the metric only becomes meaningful once more than one language is present.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "total language pages"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: langues_mots
+  source: language_corpus.langues_mots
+  description: |-
+    langues_mots is the bridge table recording how many times each word occurs within a given language.
+
+    One row per language-and-word combination; occurrences is that word's frequency count within that language. id_langue references langues.id_langue and id_mot references mots.id_mot. This differs from mots.occurrences, which totals a word's occurrences across the whole corpus rather than scoping the count to one language, and from pages_mots, which scopes the same kind of count to a single Wikipedia page instead of a language.
+  fields:
+  - name: id_langue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_langue
+    description: |-
+      id_langue identifies which language this word-occurrence count belongs to, matching langues.id_langue.
+
+      Always 1 in this corpus, the Catalan language; join to langues.id_langue for the language's details.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_mot
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_mot
+    description: |-
+      id_mot identifies which word this occurrence count belongs to, matching mots.id_mot.
+
+      References mots.id_mot; combined with id_langue this row's key identifies one word within one language.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: occurrences
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: occurrences
+    description: |-
+      occurrences is how many times this word was counted within this language.
+
+      An integer frequency count, defaulting to 0 when a word has no recorded occurrences for the language. Because this corpus currently tracks a single language, its value here matches the corresponding row's total in mots.occurrences.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: mots
+  source: language_corpus.mots
+  description: |-
+    mots is the dictionary of distinct words tracked across the corpus, one row per word.
+
+    One row per distinct word form; occurrences is that word's total count across the whole corpus. id_mot is the key that bimots, langues_mots and pages_mots all reference to identify a specific word. Distinct from the pages and langues tables' own mots columns, which are word-count totals rather than a list of the words themselves.
+  fields:
+  - name: id_mot
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_mot
+    description: |-
+      id_mot is the unique identifier for a word in the dictionary.
+
+      A unique surrogate id per word; referenced by bimots as mot_premier and mot_second, and by langues_mots and pages_mots.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": false,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "id_mot is the surrogate key mots assigns to each distinct word; bimots (as mot_premier and mot_second), langues_mots and pages_mots all reference it by the same name to say which word a row is about.",
+              "id": "term_language_corpus_word_id",
+              "name": "word id",
+              "summary": "word id (mot id, mot ID, ID of the mot): the unique identifier assigned to a word in the mots dictionary.",
+              "synonyms": [
+                "mot id",
+                "mot ID",
+                "ID of the mot"
+              ]
+            }
+          ]
+        }
+  - name: mot
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mot
+    description: |-
+      mot is the word itself, the actual text form stored for this dictionary entry.
+
+      Free-text word forms in Catalan, including accented characters; sample entries include 'grec', 'xinès' and 'àbac'. Case and diacritics are stored as they appear on the source Wikipedia pages, so a filter must match the exact spelling.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: occurrences
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: occurrences
+    description: |-
+      occurrences is this word's total count of appearances across the whole corpus.
+
+      An integer frequency count; observed sample values run from 1 into the tens of thousands, and some words elsewhere in the corpus occur far more often. Because the corpus currently covers one language, this total matches the word's row in langues_mots.occurrences.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  metrics:
+  - name: metric_language_corpus_most_frequent_word
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(occurrences)
+    description: |-
+      most frequent word: the highest total occurrence count among all words in mots.
+
+      Answers questions like which word occurs the most, or the mot with the most repetitions, by taking MAX(occurrences) over mots. To get the word itself rather than just the count, order mots by occurrences descending and take the top row, or filter for occurrences equal to the maximum.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most frequent word"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: pages
+  source: language_corpus.pages
+  description: |-
+    pages is the table of Wikipedia articles included in the corpus, one row per page.
+
+    One row per Wikipedia page; id_page is the internal key pages_mots references, while page and revision are the identifiers MediaWiki itself assigned to the page and to its revision. titre is the page's title, and mots is the count of distinct words found on that page. Distinct from langues.mots, which totals distinct words for a whole language rather than one page.
+  fields:
+  - name: id_page
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_page
+    description: |-
+      id_page is the internal identifier for a Wikipedia page row, referenced by pages_mots.
+
+      A surrogate key assigned within this corpus; join to pages_mots.id_page to find which words appear on this page.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": false,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "id_page is generated within this corpus to identify a pages row, and is what pages_mots.id_page references; it is not the same number Wikipedia itself uses for the page, which is stored separately in the page column.",
+              "id": "term_language_corpus_internal_page_id",
+              "name": "internal page id",
+              "summary": "internal page id (page id, Wikipedia pages): the surrogate key this corpus assigns to a Wikipedia page row, stored as id_page on pages.",
+              "synonyms": [
+                "page id",
+                "Wikipedia pages"
+              ]
+            }
+          ]
+        }
+  - name: id_langue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_langue
+    description: |-
+      id_langue identifies which language this Wikipedia page belongs to, matching langues.id_langue.
+
+      Always 1 in this corpus, the Catalan language; join to langues.id_langue for the language's details.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: page
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: page
+    description: |-
+      page is the identifier MediaWiki itself assigned to this Wikipedia page.
+
+      The source Wikipedia page id, distinct from id_page which is this corpus's own internal key for the same row; values observed range from single digits up into the hundreds within the scanned sample.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "page holds the numeric id MediaWiki uses for the article. Some training questions call this the Wikipedia page number, which is easy to confuse with id_page, this corpus's own surrogate key for the same row. Use page only when the question is asking about Wikipedia's own numbering rather than this corpus's internal row id.",
+              "id": "term_language_corpus_wikipedia_page_number",
+              "name": "Wikipedia page number",
+              "summary": "Wikipedia page number (page number): the page identifier assigned by Wikipedia itself, stored as page on pages and distinct from this corpus's own id_page.",
+              "synonyms": [
+                "Wikipedia page number",
+                "page number"
+              ]
+            }
+          ]
+        }
+  - name: revision
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: revision
+    description: |-
+      revision is the identifier MediaWiki assigned to the specific page revision captured here.
+
+      The source Wikipedia revision id for the snapshot of the page recorded in this row; observed values range from the low hundred-thousands up past twenty-eight million.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "revision is the id MediaWiki assigned to the specific revision, or version, of the page recorded in this row, sometimes phrased in training questions as revision page id or revision page number. It identifies a version of the article, not the article's own page number, which is stored separately in page.",
+              "id": "term_language_corpus_wikipedia_revision_number",
+              "name": "Wikipedia revision number",
+              "summary": "Wikipedia revision number (revision page id, revision page number): the revision identifier assigned by Wikipedia to the specific version of the page captured here, stored as revision on pages.",
+              "synonyms": [
+                "revision page id",
+                "revision page number"
+              ]
+            }
+          ]
+        }
+  - name: titre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titre
+    description: |-
+      titre is the title of the Wikipedia page.
+
+      Free-text page title in Catalan; sample titles include 'Àbac', 'Abadia' and 'Adam'. Titles are case-sensitive and accented as they appear on Wikipedia, so a filter must match the exact spelling.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: mots
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mots
+    description: |-
+      mots is the count of distinct words found on this Wikipedia page.
+
+      An integer total of distinct word forms on this one page; observed sample values run from about a hundred into the low thousands. Distinct from langues.mots, which totals distinct words for the whole language rather than a single page.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  metrics:
+  - name: metric_language_corpus_most_distinct_words_on_a_page
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(mots)
+    description: |-
+      most distinct words on a page: the highest count of different words found on any single Wikipedia page.
+
+      Takes MAX(mots) over pages, where each row's mots column already counts that page's distinct words. Answers questions phrased as the highest number of different mots, or with most different mots. Do not compute this from pages_mots by counting rows, since pages.mots is already the aggregate the question is asking for.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most distinct words on a page"
+        }
+  - name: metric_language_corpus_total_distinct_words_across_pages
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUM(mots)
+    description: |-
+      total distinct words across pages: the sum of each Wikipedia page's distinct-word count.
+
+      Takes SUM(mots) over pages. Because the same word can appear on many pages, this total double-counts words that recur across pages rather than counting the corpus's distinct vocabulary once; for the corpus-wide distinct word count, use a row count over mots instead.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "total distinct words across pages"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: pages_mots
+  source: language_corpus.pages_mots
+  description: |-
+    pages_mots is the bridge table recording how many times each word occurs on a given Wikipedia page.
+
+    One row per page-and-word combination; occurrences is that word's frequency count on that specific page. id_page references pages.id_page and id_mot references mots.id_mot. Differs from langues_mots, which scopes the same kind of frequency count to a language rather than a single page.
+  fields:
+  - name: id_page
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_page
+    description: |-
+      id_page identifies which Wikipedia page this word-occurrence count belongs to, matching pages.id_page.
+
+      References pages.id_page; join to pages for the page's title and MediaWiki identifiers.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_mot
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_mot
+    description: |-
+      id_mot identifies which word this occurrence count belongs to, matching mots.id_mot.
+
+      References mots.id_mot; combined with id_page this row's key identifies one word on one page.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: occurrences
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: occurrences
+    description: |-
+      occurrences is how many times this word appears on this specific page.
+
+      An integer frequency count local to one page; sample values observed run from 1 up into the nineties within the scanned rows. Do not confuse with mots.occurrences, which totals the same word's appearances across the entire corpus rather than one page.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: references_langues
+  source: language_corpus.references_langues
+  description: |-
+    references_langues is a table on the language_corpus schema; it is not a dependable source and should not be queried for analysis.
+
+    This table's rows are not dependable and do not correspond to current business facts. Do not use it in a SELECT list, a filter, or a join, and do not rely on any of its columns to answer a question.
+  fields:
+  - name: id_reference
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_reference
+    description: |-
+      id_reference, an integer column on the references_langues table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_langue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_langue
+    description: |-
+      nom_langue, a text column on the references_langues table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: param_locale
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: param_locale
+    description: |-
+      param_locale, a text column on the references_langues table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nombre_pages
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_pages
+    description: |-
+      nombre_pages, an integer column on the references_langues table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nombre_mots
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_mots
+    description: |-
+      nombre_mots, an integer column on the references_langues table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_language_corpus_bimots_langues_8ce5fa4e
+  from: bimots
+  to: langues
+  from_columns:
+  - id_langue
+  to_columns:
+  - id_langue
+  ai_context:
+    instructions: |-
+      This join links each bimots row to the langues row for the language the word pair was observed in, using id_langue.
+
+      Every bimots row carries an id_langue that should match exactly one row in langues; in this corpus that is always the single Catalan row, since id_langue is always 1. Use this join to bring in the language's name or locale when reporting on a word pair.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between bimots and langues in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_language_corpus_bimots_mots_0100cf5c
+  from: bimots
+  to: mots
+  from_columns:
+  - mot_second
+  to_columns:
+  - id_mot
+  ai_context:
+    instructions: |-
+      This join matches a bimots row's mot_second to the corresponding id_mot in mots, resolving the pair's second word.
+
+      mot_second on bimots holds a mots.id_mot value; join on this pair to look up the actual second word's text and its own total occurrence count. A separate join resolves mot_premier the same way against mots for the pair's first word.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between bimots and mots in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_language_corpus_bimots_mots_4bcf8a98
+  from: bimots
+  to: mots
+  from_columns:
+  - mot_premier
+  to_columns:
+  - id_mot
+  ai_context:
+    instructions: |-
+      This join matches a bimots row's mot_premier to the corresponding id_mot in mots, resolving the pair's first word.
+
+      mot_premier on bimots holds a mots.id_mot value; join on this pair to look up the actual first word's text and its own total occurrence count. A separate join resolves mot_second the same way against mots for the pair's second word.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between bimots and mots in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_language_corpus_langues_langues_mots_ae6ed10b
+  from: langues_mots
+  to: langues
+  from_columns:
+  - id_langue
+  to_columns:
+  - id_langue
+  ai_context:
+    instructions: |-
+      This join links a langues row to every langues_mots row recorded for that language.
+
+      One langues row can have many langues_mots rows, one per distinct word tracked for that language; join this way to bring in the language's name or locale alongside a word's per-language occurrence count.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between langues and langues_mots in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_language_corpus_langues_mots_mots_ba8cd0f7
+  from: langues_mots
+  to: mots
+  from_columns:
+  - id_mot
+  to_columns:
+  - id_mot
+  ai_context:
+    instructions: |-
+      This join matches a langues_mots row's id_mot to the corresponding row in mots, resolving which word a per-language occurrence count belongs to.
+
+      Many langues_mots rows can reference the same mots row when tracked across multiple languages, though this corpus currently has only one language; join this way to bring in the word's text alongside its per-language occurrence count.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between langues_mots and mots in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_language_corpus_langues_pages_d33d85f6
+  from: pages
+  to: langues
+  from_columns:
+  - id_langue
+  to_columns:
+  - id_langue
+  ai_context:
+    instructions: |-
+      This join links a langues row to every Wikipedia page recorded for that language in pages.
+
+      One langues row can have many pages rows, one per Wikipedia article tracked for that language; join this way to bring in the language's name or locale alongside a page's title and identifiers.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between langues and pages in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_language_corpus_mots_pages_mots_a1cfa743
+  from: pages_mots
+  to: mots
+  from_columns:
+  - id_mot
+  to_columns:
+  - id_mot
+  ai_context:
+    instructions: |-
+      This join matches a mots row's id_mot to every pages_mots row recorded for that word, connecting a word to the pages it appears on.
+
+      One mots row can have many pages_mots rows, one per Wikipedia page the word appears on; join this way to bring in the word's text alongside its page-level occurrence counts.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between mots and pages_mots in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_language_corpus_pages_pages_mots_b310e593
+  from: pages_mots
+  to: pages
+  from_columns:
+  - id_page
+  to_columns:
+  - id_page
+  ai_context:
+    instructions: |-
+      This join links a pages row to every pages_mots row recorded for that Wikipedia page.
+
+      One pages row can have many pages_mots rows, one per distinct word found on that page; join this way to bring in the page's title alongside a word's occurrence count on it.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between pages and pages_mots in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+metrics:
+- name: metric_language_corpus_relative_biword_frequency_change
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: DIVIDE(SUBTRACT(occurrences_a, occurrences_b), occurrences_b)
+  description: |-
+    relative biword frequency change: how much more often one specific word pair appears than another, as a share of the less frequent pair's own count.
+
+    Computed as the occurrences of pair A minus the occurrences of pair B, divided by the occurrences of pair B, on two specific bimots rows identified by their mot_premier and mot_second values; multiply by 100 for a percentage. This is the shape behind questions like how many more times does pair A appear than pair B, expressed as a percentage of B.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "language_corpus.bimots",
+        "name": "relative biword frequency change"
+      }
+- name: metric_language_corpus_word_vs_pair_frequency_gap
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUBTRACT(mots.occurrences, bimots.occurrences)
+  description: |-
+    word versus pair frequency gap: how many more times a word occurs on its own than it does as part of one specific biword pair.
+
+    Computed by joining bimots to mots on mot_premier equal to mots.id_mot and subtracting bimots.occurrences from mots.occurrences for that word, for one specific pair. Answers questions like how many more times does the first word occur than the pair itself.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "language_corpus.bimots",
+        "name": "word versus pair frequency gap"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_5688",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0000",
+          "sql": "SELECT \"titre\" FROM \"language_corpus\".\"pages\" WHERE \"revision\" BETWEEN 106600 AND 106700",
+          "summary": "List the titles for all Catalan language wikipedia page from revision page id 106600 to 106700."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5689",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0001",
+          "sql": "SELECT COUNT(\"id_page\") FROM \"language_corpus\".\"pages\" WHERE \"mots\" BETWEEN 1000 AND 2000",
+          "summary": "How many Catalan language wikipedia pages have between 1000 to 2000 number of different words?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5693",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0002",
+          "sql": "SELECT \"T1\".\"titre\", \"T2\".\"occurrences\" FROM \"language_corpus\".\"pages\" AS \"T1\" INNER JOIN \"language_corpus\".\"pages_mots\" AS \"T2\" ON \"T1\".\"id_page\" = \"T2\".\"id_page\" INNER JOIN \"language_corpus\".\"mots\" AS \"T3\" ON \"T2\".\"id_mot\" = \"T3\".\"id_mot\" WHERE \"T3\".\"mot\" = 'quipu'",
+          "summary": "Show all the title of pages and number of occurences for each page where the word 'quipu' appears."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5695",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0003",
+          "sql": "SELECT \"pages\" FROM \"language_corpus\".\"langues\" WHERE \"langue\" = 'ca'",
+          "summary": "What is the total pages of Wikipedia in Catalan language?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5697",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0004",
+          "sql": "SELECT \"id_mot\" FROM \"language_corpus\".\"langues_mots\" WHERE \"occurrences\" <= 10",
+          "summary": "What is the word id of the catalan language that was repeated no more than 10 times in the said language?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5698",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0005",
+          "sql": "SELECT \"titre\" FROM \"language_corpus\".\"pages\" WHERE \"mots\" = (SELECT MAX(\"mots\") FROM \"language_corpus\".\"pages\")",
+          "summary": "What is the title of the Catalan language Wikipedia page that has the highest number of different words?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5699",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0006",
+          "sql": "SELECT \"page\" FROM \"language_corpus\".\"pages\" WHERE \"titre\" = 'Arqueozoologia'",
+          "summary": "What is the wikipedia page id of Arqueozoologia?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5700",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0007",
+          "sql": "SELECT \"T2\".\"id_mot\", \"T2\".\"occurrences\" FROM \"language_corpus\".\"pages\" AS \"T1\" INNER JOIN \"language_corpus\".\"pages_mots\" AS \"T2\" ON \"T1\".\"id_page\" = \"T2\".\"id_page\" WHERE \"T1\".\"titre\" = 'Abadia' ORDER BY \"T2\".\"occurrences\" DESC NULLS LAST LIMIT 1",
+          "summary": "In Abadia, what is the word id of the of the Catalan language that appeared the highest amount of times? Indicate the how many times did they said word id appeared."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5702",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0008",
+          "sql": "SELECT SUM(\"occurrences\") FROM \"language_corpus\".\"bimots\" WHERE \"mot_premier\" = 86 AND \"mot_second\" = 109",
+          "summary": "How many times did the word pair \"i\" and \"a\" appeared in the Cataln language/page?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5705",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0009",
+          "sql": "SELECT SUM(\"mots\") FROM \"language_corpus\".\"pages\" WHERE \"titre\" IN ('Adam', 'Acampada')",
+          "summary": "What is the total word of title \"Adam\" and \"Acampada\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5709",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0010",
+          "sql": "SELECT \"revision\" FROM \"language_corpus\".\"pages\" WHERE \"mots\" < 10 LIMIT 5",
+          "summary": "Among the title with single digit word count, list down 5 revision page ID of these titles."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5710",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0011",
+          "sql": "SELECT \"id_page\" FROM \"language_corpus\".\"pages\" WHERE \"titre\" ILIKE 'b%'",
+          "summary": "List down the page id of titles start with alphabet \"b\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5712",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0012",
+          "sql": "SELECT \"T2\".\"id_mot\" FROM \"language_corpus\".\"pages\" AS \"T1\" INNER JOIN \"language_corpus\".\"pages_mots\" AS \"T2\" ON \"T1\".\"id_page\" = \"T2\".\"id_page\" WHERE \"T1\".\"titre\" = 'Sometent'",
+          "summary": "What is the word id for title \"Sometent\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5717",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0013",
+          "sql": "SELECT \"mot_second\" FROM \"language_corpus\".\"bimots\" WHERE \"mot_premier\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'john') LIMIT 10",
+          "summary": "What are the words that were paired with \"John\", list down 10 of them."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5718",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0014",
+          "sql": "SELECT \"T3\".\"revision\" FROM \"language_corpus\".\"mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"pages_mots\" AS \"T2\" ON \"T1\".\"id_mot\" = \"T2\".\"id_mot\" INNER JOIN \"language_corpus\".\"pages\" AS \"T3\" ON \"T2\".\"id_page\" = \"T3\".\"id_page\" WHERE \"T1\".\"mot\" = 'fresc'",
+          "summary": "List down the revision page id of titles where \"fresc\" appears."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5721",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0015",
+          "sql": "SELECT \"mot\" FROM \"language_corpus\".\"mots\" WHERE \"occurrences\" = (SELECT MAX(\"occurrences\") FROM \"language_corpus\".\"mots\")",
+          "summary": "Indicate which is the word that is repeated the most times."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5726",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0016",
+          "sql": "SELECT AVG(\"mots\") FROM \"language_corpus\".\"pages\" WHERE \"titre\" LIKE 'A%'",
+          "summary": "Calculate the average number of different words that appear on all pages whose title begins with A."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5729",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0017",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"mot_premier\" = \"mot_second\" THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"mot_premier\"), 0) FROM \"language_corpus\".\"bimots\"",
+          "summary": "Calculate the percentage of times that the same word appears in a pair."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5731",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0018",
+          "sql": "SELECT \"T3\".\"page\" FROM \"language_corpus\".\"mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"pages_mots\" AS \"T2\" ON \"T1\".\"id_mot\" = \"T2\".\"id_mot\" INNER JOIN \"language_corpus\".\"pages\" AS \"T3\" ON \"T2\".\"id_page\" = \"T3\".\"id_page\" WHERE \"T1\".\"mot\" = 'ripoll'",
+          "summary": "Indicate on how many different pages the word ripoll appears."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5735",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0019",
+          "sql": "SELECT \"page\" FROM \"language_corpus\".\"pages\" WHERE \"titre\" = 'Acampada'",
+          "summary": "Which Wikipedia page number does the Catalan language's name, Acampada, appear on?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5737",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0020",
+          "sql": "SELECT \"occurrences\" FROM \"language_corpus\".\"mots\" WHERE \"id_mot\" = 8",
+          "summary": "How many times did the word number 8 appear?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5738",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0021",
+          "sql": "SELECT \"mot\", \"id_mot\" FROM \"language_corpus\".\"mots\" ORDER BY \"occurrences\" DESC NULLS LAST LIMIT 3",
+          "summary": "Please list the top three most frequently occurring words and their ids."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5740",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0022",
+          "sql": "SELECT \"mots\" FROM \"language_corpus\".\"pages\" WHERE \"revision\" = 27457362",
+          "summary": "What number of words are there on revision page 27457362?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5741",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0023",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"occurrences\" > 16000 THEN \"id_langue\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"id_langue\"), 0) FROM \"language_corpus\".\"langues_mots\"",
+          "summary": "What is the percentage of words in the Catalan language that have a repetition of more than 16,000 times?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5742",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0024",
+          "sql": "SELECT \"page\" FROM \"language_corpus\".\"pages\" WHERE \"mots\" = (SELECT MAX(\"mots\") FROM \"language_corpus\".\"pages\")",
+          "summary": "Which Wikipedia page number has the highest number of words in the Catalan language?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5745",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0025",
+          "sql": "SELECT \"titre\", \"revision\" FROM \"language_corpus\".\"pages\" WHERE \"id_langue\" = 1 LIMIT 3",
+          "summary": "Please list any three Wikipedia pages that are written in Catalan, together with their titles and revision page numbers."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5747",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0026",
+          "sql": "SELECT \"T1\".\"occurrences\" FROM \"language_corpus\".\"langues_mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"mots\" AS \"T2\" ON \"T1\".\"id_mot\" = \"T2\".\"id_mot\" WHERE \"T2\".\"mot\" = 'nombre'",
+          "summary": "How many times does the Catalan word \"nombre\" repeat itself?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5748",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0027",
+          "sql": "SELECT \"mot\" FROM \"language_corpus\".\"mots\" WHERE \"id_mot\" = 8968",
+          "summary": "What is the second word in the pair of words number 1 and 8968?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5749",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0028",
+          "sql": "SELECT \"T2\".\"mot\" FROM \"language_corpus\".\"langues_mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"mots\" AS \"T2\" ON \"T1\".\"id_mot\" = \"T2\".\"id_mot\" WHERE \"T1\".\"occurrences\" = (SELECT MAX(\"occurrences\") FROM \"language_corpus\".\"langues_mots\")",
+          "summary": "Which word has the most repetitions in the Catalan language?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5751",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0029",
+          "sql": "SELECT SUM(\"T1\".\"occurrences\") FROM \"language_corpus\".\"pages_mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"bimots\" AS \"T2\" ON \"T2\".\"mot_second\" = \"T1\".\"id_mot\" WHERE \"T2\".\"mot_second\" = 109 AND \"T2\".\"mot_premier\" = 1 AND \"T1\".\"id_page\" = 16",
+          "summary": "How many times on page number 16 does the second word in the pair of words 1 and 109 appear?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5752",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0030",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T2\".\"occurrences\" < 180 THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id_langue\"), 0) FROM \"language_corpus\".\"langues\" AS \"T1\" INNER JOIN \"language_corpus\".\"langues_mots\" AS \"T2\" ON \"T1\".\"id_langue\" = \"T2\".\"id_langue\" WHERE \"T1\".\"langue\" = 'ca'",
+          "summary": "What is the percentage of the words that have been repeated under 180 times in the Catalan language?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5754",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0031",
+          "sql": "SELECT \"occurrences\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'desena'",
+          "summary": "How many times the word \"desena\" occurs?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5757",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0032",
+          "sql": "SELECT COUNT(\"id_mot\") FROM \"language_corpus\".\"langues_mots\" WHERE \"occurrences\" BETWEEN '2000' AND '5000'",
+          "summary": "How many words have repetitions greater than 2000 and lower than 5000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5758",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0033",
+          "sql": "SELECT \"titre\" FROM \"language_corpus\".\"pages\" WHERE \"revision\" = 106601",
+          "summary": "List out the title of Catalan language Wikipedia page that has wikipedia revision page id as 106601."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5761",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0034",
+          "sql": "SELECT \"T1\".\"locale\" FROM \"language_corpus\".\"langues\" AS \"T1\" INNER JOIN \"language_corpus\".\"pages\" AS \"T2\" ON \"T1\".\"id_langue\" = \"T2\".\"id_langue\" WHERE \"T2\".\"titre\" = 'Anys 90'",
+          "summary": "What is the locale of the language of the page titled \"Anys 90\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5762",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0035",
+          "sql": "SELECT \"T1\".\"mot\" FROM \"language_corpus\".\"mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"langues_mots\" AS \"T2\" ON \"T1\".\"id_mot\" = \"T2\".\"id_mot\" WHERE \"T2\".\"occurrences\" = 71303",
+          "summary": "Which word that has 71303 appearance in the Catalan language?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5763",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0036",
+          "sql": "SELECT \"T1\".\"locale\" FROM \"language_corpus\".\"langues\" AS \"T1\" INNER JOIN \"language_corpus\".\"pages\" AS \"T2\" ON \"T1\".\"id_langue\" = \"T2\".\"id_langue\" WHERE \"T2\".\"titre\" = 'Abril'",
+          "summary": "What is the locale of the language of the page titled \"Abril\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5767",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0037",
+          "sql": "SELECT COUNT(\"T2\".\"id_mot\") FROM \"language_corpus\".\"pages\" AS \"T1\" INNER JOIN \"language_corpus\".\"pages_mots\" AS \"T2\" ON \"T1\".\"id_page\" = \"T2\".\"id_page\" WHERE \"T1\".\"mots\" = 3",
+          "summary": "How many word that has number of different words equal to 3?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5770",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0038",
+          "sql": "SELECT \"T1\".\"pages\" FROM \"language_corpus\".\"langues\" AS \"T1\" INNER JOIN \"language_corpus\".\"langues_mots\" AS \"T2\" ON \"T1\".\"id_langue\" = \"T2\".\"id_langue\" WHERE \"T2\".\"occurrences\" > 3000 GROUP BY \"T1\".\"pages\"",
+          "summary": "List out the total pages of the words that has repeated times more than 3000."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5774",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0039",
+          "sql": "SELECT \"mots\" FROM \"language_corpus\".\"pages\" WHERE \"titre\" = 'Asclepi'",
+          "summary": "How many words are there on the page titled \"Asclepi\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5775",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0040",
+          "sql": "SELECT CASE WHEN (SELECT \"mots\" FROM \"language_corpus\".\"pages\" WHERE \"titre\" = 'Asclepi') > (SELECT \"mots\" FROM \"language_corpus\".\"pages\" WHERE \"titre\" = 'Afluent') THEN 'Asclepi' ELSE 'Afluent' END",
+          "summary": "Which of these pages have more words, the page titled \"Afluent\" or \"Asclepi\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5776",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0041",
+          "sql": "SELECT \"occurrences\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'nombre'",
+          "summary": "What is the occurrence of the word \"nombre\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5777",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0042",
+          "sql": "SELECT \"mot\" FROM \"language_corpus\".\"mots\" WHERE \"occurrences\" > 200000",
+          "summary": "Please list the Catalan words with an occurrence of over 200000."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5781",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0043",
+          "sql": "SELECT SUM(\"T3\".\"mots\") FROM \"language_corpus\".\"mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"pages_mots\" AS \"T2\" ON \"T1\".\"id_mot\" = \"T2\".\"id_mot\" INNER JOIN \"language_corpus\".\"pages\" AS \"T3\" ON \"T2\".\"id_page\" = \"T3\".\"id_page\" WHERE \"T1\".\"mot\" = 'grec' AND \"T2\".\"occurrences\" = 52",
+          "summary": "How many words are there on the page that the word \"grec\" has occurred for 52 times?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5782",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0044",
+          "sql": "SELECT \"occurrences\" FROM \"language_corpus\".\"bimots\" WHERE \"mot_premier\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'àbac') AND \"mot_second\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'xinès')",
+          "summary": "What's the occurrence of the biwords pair whose first word is \"àbac\" and second word is \"xinès\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5783",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0045",
+          "sql": "SELECT CASE WHEN (SELECT \"occurrences\" FROM \"language_corpus\".\"bimots\" WHERE \"mot_premier\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'àbac') AND \"mot_second\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'xinès')) > (SELECT \"occurrences\" FROM \"language_corpus\".\"bimots\" WHERE \"mot_premier\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'àbac') AND \"mot_second\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'grec')) THEN 'àbac-xinès' ELSE 'àbac-grec' END AS \"CALUS\" FROM \"language_corpus\".\"mots\" LIMIT 1",
+          "summary": "Which biwords pair has a higher occurrence, \"àbac-xinès\" or \"àbac-grec\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5784",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0046",
+          "sql": "SELECT \"occurrences\" - (SELECT \"occurrences\" FROM \"language_corpus\".\"bimots\" WHERE \"mot_premier\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'àbac') AND \"mot_second\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'xinès')) AS \"CALUS\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'àbac'",
+          "summary": "How many more times does the first word in the biwords pair \"àbac-xinès\" occur than the biwords pair itself?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5785",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0047",
+          "sql": "SELECT \"T1\".\"mot\" AS \"W1\", \"T3\".\"mot\" AS \"W2\" FROM \"language_corpus\".\"mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"bimots\" AS \"T2\" ON \"T1\".\"id_mot\" = \"T2\".\"mot_premier\" INNER JOIN \"language_corpus\".\"mots\" AS \"T3\" ON \"T3\".\"id_mot\" = \"T2\".\"mot_second\" WHERE \"T1\".\"mot\" = 'àbac'",
+          "summary": "Please list all the biwords pairs with \"àbac\" as its first word."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5790",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0048",
+          "sql": "SELECT \"id_mot\" FROM \"language_corpus\".\"langues_mots\" WHERE \"occurrences\" = (SELECT MAX(\"occurrences\") FROM \"language_corpus\".\"langues_mots\")",
+          "summary": "Which word has the most repetitions in the Catalan language? Give the ID of the word."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5791",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0049",
+          "sql": "SELECT \"mot_second\" FROM \"language_corpus\".\"bimots\" WHERE \"occurrences\" = (SELECT MAX(\"occurrences\") FROM \"language_corpus\".\"bimots\")",
+          "summary": "What is the word ID for the second word for the biwords pair with most repetitions?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5792",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0050",
+          "sql": "SELECT \"occurrences\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'panajot'",
+          "summary": "How many occurrences does the word \"panajot\" have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5793",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0051",
+          "sql": "SELECT \"mot\" FROM \"language_corpus\".\"mots\" WHERE \"occurrences\" = 340691",
+          "summary": "Which word has the time of occurrences as 340691?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5794",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0052",
+          "sql": "SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'periodograma'",
+          "summary": "State the word ID for \"periodograma\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5795",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0053",
+          "sql": "SELECT \"T1\".\"mot\" FROM \"language_corpus\".\"mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"bimots\" AS \"T2\" ON \"T1\".\"id_mot\" = \"T2\".\"mot_second\" WHERE \"T2\".\"occurrences\" = 116430",
+          "summary": "For the biwords pair that appears \"116430\" times, what is the second word of the pair?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5797",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0054",
+          "sql": "SELECT \"T2\".\"id_mot\" FROM \"language_corpus\".\"pages\" AS \"T1\" INNER JOIN \"language_corpus\".\"pages_mots\" AS \"T2\" ON \"T1\".\"id_page\" = \"T2\".\"id_page\" WHERE \"T1\".\"titre\" = 'Agricultura' ORDER BY \"T2\".\"occurrences\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which word has the most appearances in the Wikipedia page with the title of \"Agricultura\"? Give the word ID."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5802",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0055",
+          "sql": "SELECT \"occurrences\" FROM \"language_corpus\".\"bimots\" WHERE \"mot_premier\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'que') AND \"mot_second\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'gregorio')",
+          "summary": "How many times does the biwords \"que gregorio\" appear in the language?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5803",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0056",
+          "sql": "SELECT COUNT(\"mot_premier\") FROM \"language_corpus\".\"bimots\" WHERE \"mot_second\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'base')",
+          "summary": "How many biword pairs contain the word \"base\" as the second word?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5804",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0057",
+          "sql": "SELECT \"T2\".\"occurrences\" FROM \"language_corpus\".\"mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"langues_mots\" AS \"T2\" ON \"T1\".\"id_mot\" = \"T2\".\"id_mot\" WHERE \"T1\".\"mot\" = 'exemple' AND \"T2\".\"id_langue\" = 1",
+          "summary": "How many times of repetition does the word \"exemple\" show in the Catalan language?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5805",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0058",
+          "sql": "SELECT \"T1\".\"mot\" FROM \"language_corpus\".\"mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"langues_mots\" AS \"T2\" ON \"T1\".\"id_mot\" = \"T2\".\"id_mot\" WHERE \"T2\".\"occurrences\" = 274499 AND \"T2\".\"id_langue\" = 1",
+          "summary": "Which word that has 274499 repetitions in the Catalan language?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5806",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0059",
+          "sql": "SELECT CAST(\"occurrences\" AS REAL) / NULLIF((SELECT \"occurrences\" FROM \"language_corpus\".\"bimots\" WHERE \"mot_premier\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'a') AND \"mot_second\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'decimal')), 0) FROM \"language_corpus\".\"bimots\" WHERE \"mot_premier\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'a') AND \"mot_second\" = (SELECT \"id_mot\" FROM \"language_corpus\".\"mots\" WHERE \"mot\" = 'base')",
+          "summary": "How many times greater is the appearances of the biword pair \"a base\" than \"a decimal\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5808",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0060",
+          "sql": "SELECT COUNT(\"id_langue\") FROM \"language_corpus\".\"pages\" WHERE \"id_langue\" = 1 AND \"mots\" > 4000",
+          "summary": "How many Wikipedia pages with over 4000 different words are there on the Catalan language?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5811",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0061",
+          "sql": "SELECT \"titre\" FROM \"language_corpus\".\"pages\" WHERE \"id_langue\" = 1 ORDER BY \"mots\" DESC NULLS LAST LIMIT 3",
+          "summary": "Please list the titles of the top 3 Wikipedia pages with the most different words on the Catalan language."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5813",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0062",
+          "sql": "SELECT COUNT(\"id_langue\") FROM \"language_corpus\".\"pages\" WHERE \"id_langue\" = 1 AND \"mots\" > 300 AND \"revision\" > 28330000",
+          "summary": "Among the wikipedia pages on Catalan with more than 300 different words, how many of them have a revision ID of over 28330000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5816",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0063",
+          "sql": "SELECT COUNT(\"T2\".\"mot_premier\") FROM \"language_corpus\".\"mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"bimots\" AS \"T2\" ON \"T1\".\"id_mot\" = \"T2\".\"mot_second\" WHERE \"T1\".\"mot\" = 'grec'",
+          "summary": "How many biwords pairs are there whose second word is \"grec\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5818",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_language_corpus_0064",
+          "sql": "SELECT COUNT(\"T2\".\"mot_second\") FROM \"language_corpus\".\"mots\" AS \"T1\" INNER JOIN \"language_corpus\".\"bimots\" AS \"T2\" ON \"T1\".\"id_mot\" = \"T2\".\"mot_premier\" WHERE \"T1\".\"mot\" = 'àbac' AND \"T2\".\"occurrences\" > 10",
+          "summary": "Among the biwords pairs with \"àbac\" as its first word, how many of them have an occurrence of over 10?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between bimots and pages_mots in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "mot_second and pages_mots.id_mot are both mots.id_mot values, so this join reaches, for the second word of a biword pair, every page-level occurrence row recorded for that word; it does not filter by the specific pair, only by the second word's identity. Prefer joining through mots directly when the goal is simply to describe the word rather than trace it back to individual pages.",
+          "cardinality": "many_to_many",
+          "id": "join_language_corpus_bimots_pages_mots_c78935d6",
+          "left_table": "language_corpus.bimots",
+          "on": "language_corpus.bimots.mot_second = language_corpus.pages_mots.id_mot",
+          "right_table": "language_corpus.pages_mots",
+          "summary": "This join matches a bimots row's mot_second to the same word's id_mot in pages_mots, connecting a word pair to the pages that word appears on."
+        }
+      ]
+    }

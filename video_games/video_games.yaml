@@ -1,39 +1,3195 @@
-asset_type: schema
-id: video_games
+version: 0.2.0.dev0
 name: video_games
-summary: The video_games database catalogs published games, their publishers, genres, and
-  hardware platforms, with regional sales figures for North America, Europe, Japan, and other
-  markets.
-body: >
-  editeur (publisher), genre, jeu (game), plateforme (platform), and region are the five lookup
-  and entity tables; jeu_editeur links each game to its publisher, jeu_plateforme links a
-  game-publisher pair to a platform and release year, and ventes_region records how many copies
-  a game-platform release sold in each region. A game reaches its platform and publisher only
-  through jeu_editeur and jeu_plateforme -- jeu itself carries no direct foreign key to either.
+description: |
+  The video_games database catalogs published games, their publishers, genres, and hardware platforms, with regional sales figures for North America, Europe, Japan, and other markets.
 
-  Every entity table also carries a second, unreliable id column and, where the entity has a
-  name, a second, unreliable name column: editeur has id_editeur_pk and raison_sociale_editeur;
-  genre has id_genre_ref and libelle_genre; jeu has id_categorie, jeu_id, and titre_jeu;
-  jeu_editeur has id_jeu_ref, id_lien_jeu_editeur, and id_editeur_ref; jeu_plateforme has
-  id_assoc_jeu_editeur, id_jeu_plateforme_2, and id_console; plateforme has id_plateforme_ref and
-  libelle_plateforme; region has id_region_pk and libelle_region; and ventes_region has
-  id_jeu_sur_plateforme, id_region_ref, and volume_ventes. None of these should be read, filtered
-  on, or joined on. The support_jeu and zone_geographique tables are themselves not dependable at
-  all -- use plateforme and region instead.
+  editeur (publisher), genre, jeu (game), plateforme (platform), and region are the five lookup and entity tables; jeu_editeur links each game to its publisher, jeu_plateforme links a game-publisher pair to a platform and release year, and ventes_region records how many copies a game-platform release sold in each region. A game reaches its platform and publisher only through jeu_editeur and jeu_plateforme -- jeu itself carries no direct foreign key to either.
+  Every entity table also carries a second, unreliable id column and, where the entity has a name, a second, unreliable name column: editeur has id_editeur_pk and raison_sociale_editeur; genre has id_genre_ref and libelle_genre; jeu has id_categorie, jeu_id, and titre_jeu; jeu_editeur has id_jeu_ref, id_lien_jeu_editeur, and id_editeur_ref; jeu_plateforme has id_assoc_jeu_editeur, id_jeu_plateforme_2, and id_console; plateforme has id_plateforme_ref and libelle_plateforme; region has id_region_pk and libelle_region; and ventes_region has id_jeu_sur_plateforme, id_region_ref, and volume_ventes. None of these should be read, filtered on, or joined on. The support_jeu and zone_geographique tables are themselves not dependable at all -- use plateforme and region instead.
+  ventes_region.nombre_ventes is recorded in units of 100,000; multiply by 100000 to get the actual number of copies sold.
+ai_context:
+  instructions: |-
+    Join a game to its publisher and platform through jeu_editeur and jeu_plateforme -- jeu carries no direct foreign key to editeur or plateforme.
+    Use plateforme and region for platform and region lookups; support_jeu and zone_geographique are not dependable and must not be used.
+    ventes_region.nombre_ventes is stored in units of 100,000; multiply by 100000 for the actual number of copies sold.
+datasets:
+- name: editeur
+  source: video_games.editeur
+  description: |
+    editeur is the publisher directory in the video_games schema, one row per company that finances, produces, and distributes games.
 
-  ventes_region.nombre_ventes is recorded in units of 100,000; multiply by 100000 to get the
-  actual number of copies sold.
-rules:
-  - Join a game to its publisher and platform through jeu_editeur and jeu_plateforme -- jeu
-    carries no direct foreign key to editeur or plateforme.
-  - Use plateforme and region for platform and region lookups; support_jeu and zone_geographique
-    are not dependable and must not be used.
-  - ventes_region.nombre_ventes is stored in units of 100,000; multiply by 100000 for the actual
-    number of copies sold.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+    One row per publisher. id is the primary key that jeu_editeur.id_editeur references to attach a publisher to a game. This table also carries id_editeur_pk and raison_sociale_editeur, which look like a second identifier and a second publisher name but are not dependable and must not be used.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the unique identifier of a publisher, the primary key of editeur.
+
+      Integer primary key, one value per publisher row (500 distinct in a 500-row sample). This is the column jeu_editeur.id_editeur references; do not substitute id_editeur_pk, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nom_editeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_editeur
+    description: |
+      nom_editeur is the publisher's name, the company that finances, produces, and distributes a game.
+
+      Text, one value per publisher, for example Funcom, Marvelous Entertainment, Microprose, Elf, or Gamebridge. Filters naming a specific company ("Activision", "Electronic Arts", "published by Nintendo", "publishers that have the word 'Entertainment' in their name") are literal or LIKE-pattern filters on this column. This is the reliable publisher-name column; raison_sociale_editeur on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to editeur.nom_editeur. A phrase naming a specific company -- Activision, Electronic Arts, Nintendo, Capcom, Codemasters, Bethesda Softworks, Sony Computer Entertainment, Microsoft Game Studios, Atari, Acclaim Entertainment, Ascaron Entertainment GmbH, 505 Games, 10TACLE Studios, Abylight, Agatsuma Entertainment, Brash Entertainment, 1C Company, Pioneer LDC, or Athena -- is a literal equality filter on this column. \"Publishers that have the word Entertainment in their name\" is a LIKE '%Entertainment%' filter on the same column. Do not substitute raison_sociale_editeur, a separate, unreliable copy on the editeur table.\n",
+              "id": "term_video_games_publisher",
+              "name": "publisher",
+              "summary": "publisher (editeur, company, name of the publisher): the company that finances, produces, and distributes a game.",
+              "synonyms": [
+                "publisher",
+                "editeur",
+                "company",
+                "name of the publisher"
+              ]
+            }
+          ]
+        }
+  - name: id_editeur_pk
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_editeur_pk
+    description: |
+      id_editeur_pk, an integer column on the editeur table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: raison_sociale_editeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: raison_sociale_editeur
+    description: |
+      raison_sociale_editeur, a text column on the editeur table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: genre
+  source: video_games.genre
+  description: |
+    genre is the lookup table of game genres in the video_games schema, one row per genre label a game can be classified under.
+
+    One row per genre. id is the primary key that jeu.id_genre references to classify a game. This table also carries id_genre_ref and libelle_genre, which look like a second identifier and a second genre name but are not dependable and must not be used.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the unique identifier of a genre, the primary key of genre.
+
+      Integer primary key, one value per genre row (12 distinct values). This is the column jeu.id_genre references; do not substitute id_genre_ref, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nom_genre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_genre
+    description: |
+      nom_genre is the genre's name, the category or classification a game belongs to.
+
+      Text, one value per genre: Action, Strategy, Shooter, Misc, Role-Playing, Simulation, Sports, Racing, Adventure, Fighting, and Puzzle are among the twelve values. Filters naming a genre ("Action games", "the fighting genre", "puzzle refers to nom_genre = 'Puzzle'", "not of the genres 'Role-Playing', 'Shooter' and 'Simulation'") are literal equality or NOT IN filters on this column. This is the reliable genre-name column; libelle_genre on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to genre.nom_genre. Twelve values recur across the schema: Action, Strategy, Shooter, Misc, Role-Playing, Simulation, Sports, Racing, Adventure, Fighting, and Puzzle. A phrase naming a genre -- \"action games\", \"the fighting genre\", \"puzzle\", \"sports\", \"not of the genres Role-Playing, Shooter and Simulation\" -- is a literal equality or NOT IN filter on this column. A lowercase spelling such as \"sport\" in a question still means the stored value Sports. Do not substitute libelle_genre, a separate, unreliable copy on the genre table.\n",
+              "id": "term_video_games_genre",
+              "name": "genre",
+              "summary": "genre (genre of the jeu, category, type of game): the classification a game is grouped under.",
+              "synonyms": [
+                "genre",
+                "genre of the jeu",
+                "category",
+                "type of game"
+              ]
+            }
+          ]
+        }
+  - name: id_genre_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_genre_ref
+    description: |
+      id_genre_ref, an integer column on the genre table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: libelle_genre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: libelle_genre
+    description: |
+      libelle_genre, a text column on the genre table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: jeu
+  source: video_games.jeu
+  description: |
+    jeu is the game catalog in the video_games schema, one row per released video game title.
+
+    One row per game. id is the primary key that jeu_editeur.id_jeu references; a game reaches its publisher and platform only through jeu_editeur and jeu_plateforme, never directly. id_genre links a game to its genre in the genre table. This table also carries id_categorie, jeu_id, and titre_jeu, which look like a second genre link, a second identifier, and a second title but are not dependable and must not be used.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the unique identifier of a game, the primary key of jeu.
+
+      Integer primary key, one value per game row (500 distinct in a 500-row sample). This is the column jeu_editeur.id_jeu references; do not substitute jeu_id, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_genre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_genre
+    description: |
+      id_genre is the genre identifier linking a game to its genre.
+
+      Foreign key to genre.id, integers 1 through 12 in the sample. Games sharing a genre are treated as similar in business language ("if game A and game B have the same genre, a user who likes A may also like B"). Do not substitute id_categorie, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nom_jeu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_jeu
+    description: |
+      nom_jeu is a game's title.
+
+      Text, one value per game, for example ArmA II, Cars, Catan, Halo 4, or Ikaruga (500 distinct in a 500-row sample). Filters naming a specific game ("Grand Theft Auto V", "Minecraft", "Overwatch") are literal equality filters on this column. This is the reliable title column; titre_jeu on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to jeu.nom_jeu. A phrase naming a specific game -- Grand Theft Auto V, Minecraft, Overwatch, Final Fantasy XIII-2, and similar titles -- is a literal equality filter on this column. \"Games available\", \"names of games\", and \"name of the games\" all ask for this column as a SELECT list rather than a filter. Do not substitute titre_jeu, a separate, unreliable copy on the jeu table.\n",
+              "id": "term_video_games_game_title",
+              "name": "game title",
+              "summary": "game title (game, jeu, name of the game): the released video game a row identifies.",
+              "synonyms": [
+                "game",
+                "jeu",
+                "name of the game"
+              ]
+            }
+          ]
+        }
+  - name: id_categorie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_categorie
+    description: |
+      id_categorie, an integer column on the jeu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: jeu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jeu_id
+    description: |
+      jeu_id, an integer column on the jeu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: titre_jeu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titre_jeu
+    description: |
+      titre_jeu, a text column on the jeu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_video_games_genre_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id)
+    description: |
+      games per genre: the number of games counted within one genre, grouped by id_genre.
+
+      COUNT(id) over jeu, grouped by id_genre. "The genre with the most number of video games" asks for MAX(COUNT(id)) over this grouping; "the least common jeu genre" asks for MIN(COUNT(id)) instead. "More than 3 puzzle games" and "the most puzzle games" apply the same count with a WHERE nom_genre = 'Puzzle' filter, joined through genre, before comparing or taking the maximum. A difference between two genres, for instance how many more Sports games there are than Simulation games, is SUBTRACT of the two genres' separate counts.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "games per genre"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: jeu_editeur
+  source: video_games.jeu_editeur
+  description: |
+    jeu_editeur is the junction table in the video_games schema linking each game to the publisher that released it.
+
+    One row per game-publisher link. id is the primary key that jeu_plateforme.id_jeu_editeur references to attach a platform release to this link. id_jeu references jeu.id and id_editeur references editeur.id; this is the only path from a game to its publisher, since jeu carries no direct foreign key to editeur. This table also carries id_jeu_ref, id_lien_jeu_editeur, and id_editeur_ref, which look like second copies of id_jeu, id, and id_editeur but are not dependable and must not be used.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the unique identifier of a game-publisher link, the primary key of jeu_editeur.
+
+      Integer primary key, one value per link row. This is the column jeu_plateforme.id_jeu_editeur references; do not substitute id_lien_jeu_editeur, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_jeu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_jeu
+    description: |
+      id_jeu is the game identifier referencing the published game in this link.
+
+      Foreign key to jeu.id (498 distinct values in a 500-row sample, so most games appear in a single link row). Do not substitute id_jeu_ref, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_editeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_editeur
+    description: |
+      id_editeur is the publisher identifier referencing the company that published the game.
+
+      Foreign key to editeur.id (142 distinct values in a 500-row sample, so a publisher can appear in many link rows). Games sharing a publisher are treated as similar in business language ("if game A and game B were published by the same publisher, a fan of the publisher may also like B"). Do not substitute id_editeur_ref, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_jeu_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_jeu_ref
+    description: |
+      id_jeu_ref, an integer column on the jeu_editeur table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_lien_jeu_editeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_lien_jeu_editeur
+    description: |
+      id_lien_jeu_editeur, an integer column on the jeu_editeur table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_editeur_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_editeur_ref
+    description: |
+      id_editeur_ref, an integer column on the jeu_editeur table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_video_games_games_published_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id_jeu)
+    description: |
+      games published count: the number of game-publisher links counted for a publisher, genre, platform, or year.
+
+      COUNT(id_jeu) over jeu_editeur, grouped by id_editeur to count games per publisher, or joined to jeu and genre to restrict the count to a genre, or to jeu_plateforme and annee_sortie to restrict it to a release year. "The editeur that has published the most games", "...the most number of Action games", and "...that released the most video games in 2007" all ask for MAX(COUNT(id_jeu)) over this grouping, with the matching filter applied before the MAX. "The average number [of games per publisher]" is DIVIDE(COUNT(id_jeu), COUNT(DISTINCT id_editeur)). A comparison between two named publishers, for instance how many times more one published than another, is DIVIDE of the two publishers' separate counts.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "games published count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: jeu_plateforme
+  source: video_games.jeu_plateforme
+  description: |
+    jeu_plateforme is the junction table in the video_games schema recording each game-publisher release on a specific platform and year.
+
+    One row per game-publisher-platform release. id is the primary key that ventes_region.id_jeu_plateforme references to attach regional sales to this release. id_jeu_editeur references jeu_editeur.id and id_plateforme references plateforme.id; this is the only path from a game-publisher link to a platform, since jeu_editeur carries no direct foreign key to plateforme. annee_sortie holds the release's calendar year. This table also carries id_assoc_jeu_editeur, id_jeu_plateforme_2, and id_console, which look like second copies of id_jeu_editeur, id, and id_plateforme but are not dependable and must not be used.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the unique identifier of a game-platform release, the primary key of jeu_plateforme.
+
+      Integer primary key, one value per release row. This is the column ventes_region.id_jeu_plateforme references; do not substitute id_jeu_plateforme_2, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_jeu_editeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_jeu_editeur
+    description: |
+      id_jeu_editeur is the game-publisher link identifier this platform release belongs to.
+
+      Foreign key to jeu_editeur.id (493 distinct values in a 500-row sample). Do not substitute id_assoc_jeu_editeur, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_plateforme
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_plateforme
+    description: |
+      id_plateforme is the platform identifier this release runs on.
+
+      Foreign key to plateforme.id (25 distinct values in a 500-row sample, so many releases share a platform). Do not substitute id_console, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: annee_sortie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: annee_sortie
+    description: |
+      annee_sortie is the calendar year a game-platform release came out.
+
+      Integer year, ranging from 1987 to 2016 in the sample (29 distinct years). Filters phrased as "released in 2007", "in 2004", or "released between 2000 to 2003" are equality or BETWEEN filters on this column: annee_sortie = 2007, annee_sortie BETWEEN 2000 AND 2003.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to jeu_plateforme.annee_sortie. A phrase naming a specific year -- \"released in 2007\", \"in 2004\", \"2000\" -- is a literal equality filter; \"released between 2000 to 2003\" is a BETWEEN filter on the same column. \"The earliest\" and \"the first year\" ask for MIN(annee_sortie) rather than a filter.\n",
+              "id": "term_video_games_release_year",
+              "name": "release year",
+              "summary": "release year (year, when, when the jeu was released): the calendar year a game-platform release came out.",
+              "synonyms": [
+                "release year",
+                "year",
+                "when",
+                "when the jeu was released"
+              ]
+            }
+          ]
+        }
+  - name: id_assoc_jeu_editeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_assoc_jeu_editeur
+    description: |
+      id_assoc_jeu_editeur, an integer column on the jeu_plateforme table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_jeu_plateforme_2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_jeu_plateforme_2
+    description: |
+      id_jeu_plateforme_2, an integer column on the jeu_plateforme table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_console
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_console
+    description: |
+      id_console, an integer column on the jeu_plateforme table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_video_games_release_count_by_year
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id)
+    description: |
+      releases per year: the number of game-platform releases counted within one calendar year, grouped by annee_sortie.
+
+      COUNT(id) over jeu_plateforme, grouped by annee_sortie. "The year that has the most number of video jeu releases" asks for MAX(COUNT(id)) over this grouping. "The earliest" and "the first year" ask for a different aggregate on the same column, MIN(annee_sortie), rather than a count.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "releases per year"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: plateforme
+  source: video_games.plateforme
+  description: |
+    plateforme is the lookup table of hardware platforms in the video_games schema, one row per gaming platform a release can run on.
+
+    One row per platform. id is the primary key that jeu_plateforme.id_plateforme references to attach a platform to a release. This table also carries id_plateforme_ref and libelle_plateforme, which look like a second identifier and a second platform name but are not dependable and must not be used. support_jeu looks like an alternate source of platform data but is not dependable at all -- use plateforme for every platform question.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the unique identifier of a platform, the primary key of plateforme.
+
+      Integer primary key, one value per platform row (31 distinct values). This is the column jeu_plateforme.id_plateforme references; do not substitute id_plateforme_ref, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nom_plateforme
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_plateforme
+    description: |
+      nom_plateforme is the platform's name, the hardware a game release runs on.
+
+      Text, one value per platform, for example N64, XB, Wii, PC, XOne, PS2, PS3, PSP, DS, X360, SNES, or 2600 (31 distinct values). Filters naming a specific platform ("DS", "on PS4", "the Wii plateforme") are literal equality filters on this column. This is the reliable platform-name column; libelle_plateforme on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to plateforme.nom_plateforme. A phrase naming a specific platform -- DS, PS2, PS3, PSP, PS4, Wii, X360, SNES -- is a literal equality filter on this column. Do not substitute libelle_plateforme, a separate, unreliable copy on the plateforme table, or support_jeu, a table that is not dependable at all for platform data.\n",
+              "id": "term_video_games_platform",
+              "name": "platform",
+              "summary": "platform (plateforme, plateforme of the jeu, hardware platform): the console or hardware a game release runs on.",
+              "synonyms": [
+                "platform",
+                "plateforme",
+                "plateforme of the jeu",
+                "hardware platform"
+              ]
+            }
+          ]
+        }
+  - name: id_plateforme_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_plateforme_ref
+    description: |
+      id_plateforme_ref, an integer column on the plateforme table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: libelle_plateforme
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: libelle_plateforme
+    description: |
+      libelle_plateforme, a text column on the plateforme table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: region
+  source: video_games.region
+  description: |
+    region is the lookup table of sales markets in the video_games schema, one row per geographic region games are sold in.
+
+    One row per region -- four rows total: North America, Europe, Japan, and Other. id is the primary key that ventes_region.id_region references to attribute sales to a region. This table also carries id_region_pk and libelle_region, which look like a second identifier and a second region name but are not dependable and must not be used. zone_geographique looks like an alternate source of region data but is not dependable at all -- use region for every regional question.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the unique identifier of a region, the primary key of region.
+
+      Integer primary key, one of four values (1 through 4). This is the column ventes_region.id_region references; do not substitute id_region_pk, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nom_region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_region
+    description: |
+      nom_region is the region's name, the geographic sales market a game's sales figures are counted in.
+
+      Text, one of four values: North America, Europe, Japan, or Other. Filters naming a region ("Japan", "in Europe", "North America refers to nom_region = 'North America'") are literal equality filters on this column. This is the reliable region-name column; libelle_region on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to region.nom_region, one of four values: North America, Europe, Japan, or Other. A phrase naming a specific region -- \"in Japan\", \"in Europe\", \"North America\" -- is a literal equality filter on this column. Do not substitute libelle_region, a separate, unreliable copy on the region table, or zone_geographique, a table that is not dependable at all for region data.\n",
+              "id": "term_video_games_region",
+              "name": "sales region",
+              "summary": "sales region (region, which region, which regions): the geographic market a game's sales are recorded in.",
+              "synonyms": [
+                "region",
+                "which region",
+                "which regions"
+              ]
+            }
+          ]
+        }
+  - name: id_region_pk
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_region_pk
+    description: |
+      id_region_pk, an integer column on the region table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: libelle_region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: libelle_region
+    description: |
+      libelle_region, a text column on the region table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: support_jeu
+  source: video_games.support_jeu
+  description: |
+    support_jeu is a table in the video_games schema that is not dependable for analysis.
+
+    This table's contents do not correspond to the business facts the schema otherwise records for game platforms. Do not use support_jeu, or any of its columns, to answer questions -- use plateforme for platform lookups instead.
+  fields:
+  - name: id_support
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_support
+    description: |
+      id_support, an integer column on the support_jeu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_support
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_support
+    description: |
+      nom_support, a text column on the support_jeu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ventes_region
+  source: video_games.ventes_region
+  description: |
+    ventes_region is the regional sales table in the video_games schema, one row per game-platform release sold in a given region.
+
+    One row per game-platform release per region. id_jeu_plateforme references jeu_plateforme.id and id_region references region.id; nombre_ventes holds the sales figure for that release in that region. This table also carries id_jeu_sur_plateforme, id_region_ref, and volume_ventes, which look like second copies of id_jeu_plateforme, id_region, and nombre_ventes but are not dependable and must not be used.
+  fields:
+  - name: id_region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_region
+    description: |
+      id_region is the region identifier this sales row was recorded in.
+
+      Foreign key to region.id, one of four values. Do not substitute id_region_ref, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_jeu_plateforme
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_jeu_plateforme
+    description: |
+      id_jeu_plateforme is the game-platform release identifier this sales row belongs to.
+
+      Foreign key to jeu_plateforme.id (495 distinct values in a 500-row sample). Do not substitute id_jeu_sur_plateforme, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nombre_ventes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_ventes
+    description: |
+      nombre_ventes is the sales figure recorded for a game-platform release in a region.
+
+      Real number, ranging from 0.0 to 3.15 in the sample (60 distinct values). To get the actual number of copies sold, multiply by 100000 -- a value of 3.15 means 315,000 copies. A value of 0 means the release had no recorded sales in that region. A higher nombre_ventes for a platform in a region means that platform was more popular there. Do not substitute volume_ventes, a separate, unreliable column on this same table.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to ventes_region.nombre_ventes, stored in units of 100,000; multiply by 100000 for the actual copy count -- \"gained 350000 sales\" means nombre_ventes = 3.5, \"reached 300000 sales and above\" means nombre_ventes > 3, \"20000 sales and below\" means nombre_ventes < 0.2, and \"do not have any sales\" means nombre_ventes = 0. Do not substitute volume_ventes, a separate, unreliable copy on the ventes_region table.\n",
+              "id": "term_video_games_sales_volume",
+              "name": "number of sales",
+              "summary": "number of sales (sales, sales figure, copies sold): the recorded sales volume for one game-platform release in one region.",
+              "synonyms": [
+                "sales",
+                "sales figure",
+                "copies sold"
+              ]
+            }
+          ]
+        }
+  - name: id_jeu_sur_plateforme
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_jeu_sur_plateforme
+    description: |
+      id_jeu_sur_plateforme, an integer column on the ventes_region table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_region_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_region_ref
+    description: |
+      id_region_ref, an integer column on the ventes_region table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: volume_ventes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: volume_ventes
+    description: |
+      volume_ventes, a real-valued column on the ventes_region table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_video_games_average_sales
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MULTIPLY(AVG(nombre_ventes), 100000)
+    description: |
+      average sales: the mean copies sold per row of nombre_ventes, scaled to actual units.
+
+      AVG(nombre_ventes) over ventes_region, optionally filtered to a region, platform, or year, then multiplied by 100000 to convert to an actual copy count. "Sales lesser than 30% of the average number of sales" is a boundary condition comparing a row's SUM(nombre_ventes) against MULTIPLY(AVG(nombre_ventes), 0.3). A percentage above or below this average is computed as MULTIPLY(DIVIDE(SUBTRACT(row_value, AVG(nombre_ventes)), AVG(nombre_ventes)), 100). A regional share, for instance North America's fraction of total sales, is DIVIDE(SUM(nombre_ventes) filtered to that region, SUM(nombre_ventes) unfiltered).
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average sales"
+        }
+  - name: metric_video_games_total_sales
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MULTIPLY(SUM(nombre_ventes), 100000)
+    description: |
+      total sales: the total number of copies sold, summing nombre_ventes across the selected rows and scaling to actual units.
+
+      SUM(nombre_ventes) over ventes_region, optionally filtered or joined down to a single game, platform, region, or year, then multiplied by 100000 to convert the stored figure into an actual copy count. "Total number of sales", "total number of games sold", and "sales" all name this same aggregate. "The most popular", "the most sales", and "highest number of games sold on all platforms" ask for MAX over the grouped sums rather than a single ungrouped total; "3 largest numbers of games sold" additionally orders the grouped sums descending and keeps the top three. Do not substitute volume_ventes, a separate, unreliable copy on ventes_region.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "total sales"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: zone_geographique
+  source: video_games.zone_geographique
+  description: |
+    zone_geographique is a table in the video_games schema that is not dependable for analysis.
+
+    This table's contents do not correspond to the business facts the schema otherwise records for sales regions. Do not use zone_geographique, or any of its columns, to answer questions -- use region for regional lookups instead.
+  fields:
+  - name: id_zone
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_zone
+    description: |
+      id_zone, an integer column on the zone_geographique table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_zone
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_zone
+    description: |
+      nom_zone, a text column on the zone_geographique table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_video_games_editeur_jeu_editeur_d9cb5361
+  from: jeu_editeur
+  to: editeur
+  from_columns:
+  - id_editeur
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins editeur to jeu_editeur on id, attaching each game-publisher link to the publisher that released the game.
+
+      editeur.id is the publisher's primary key; jeu_editeur.id_editeur records which publisher made each link. One publisher can appear in many jeu_editeur rows (142 distinct publishers among 500 sampled links), so join editeur to jeu_editeur as one-to-many. Do not join using id_editeur_pk or id_editeur_ref, which are separate, unreliable columns.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between editeur and jeu_editeur in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_video_games_genre_jeu_fbcc63a9
+  from: jeu
+  to: genre
+  from_columns:
+  - id_genre
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins genre to jeu on id, classifying each game under its genre.
+
+      genre.id is the genre's primary key; jeu.id_genre records which genre each game belongs to. One genre can appear on many jeu rows (12 distinct genres among 500 sampled games), so join genre to jeu as one-to-many. Do not join using id_genre_ref, a separate, unreliable column on genre, or id_categorie, a separate, unreliable column on jeu.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between genre and jeu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_video_games_jeu_editeur_jeu_plateforme_53bb7621
+  from: jeu_plateforme
+  to: jeu_editeur
+  from_columns:
+  - id_jeu_editeur
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins jeu_editeur to jeu_plateforme on id, attaching each platform release to the game-publisher link it belongs to.
+
+      jeu_editeur.id is the game-publisher link's primary key; jeu_plateforme.id_jeu_editeur records which link each platform release belongs to. One link can appear on many jeu_plateforme rows (493 distinct links among 500 sampled releases), so join jeu_editeur to jeu_plateforme as one-to-many. Do not join using id_lien_jeu_editeur, a separate, unreliable column on jeu_editeur, or id_assoc_jeu_editeur, a separate, unreliable column on jeu_plateforme.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between jeu_editeur and jeu_plateforme in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_video_games_jeu_jeu_editeur_271ded08
+  from: jeu_editeur
+  to: jeu
+  from_columns:
+  - id_jeu
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins jeu to jeu_editeur on id, attaching each game to the game-publisher link that records who released it.
+
+      jeu.id is the game's primary key; jeu_editeur.id_jeu records which game each link is for. One game can appear on more than one jeu_editeur row (498 distinct games among 500 sampled links), so join jeu to jeu_editeur as one-to-many. This is the only path from a game to its publisher, since jeu carries no direct foreign key to editeur. Do not join using jeu_id, a separate, unreliable column on jeu, or id_jeu_ref, a separate, unreliable column on jeu_editeur.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between jeu and jeu_editeur in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_video_games_jeu_plateforme_plateforme_188149e5
+  from: jeu_plateforme
+  to: plateforme
+  from_columns:
+  - id_plateforme
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins jeu_plateforme to plateforme on id, attaching each game-platform release to the hardware platform it runs on.
+
+      jeu_plateforme.id_plateforme records which platform a release runs on; plateforme.id is the platform's primary key. Many jeu_plateforme rows can share one platform (25 distinct platforms among 500 sampled releases, out of 31 platforms total), so join jeu_plateforme to plateforme as many-to-one. Do not join using id_console, a separate, unreliable column on jeu_plateforme, or id_plateforme_ref, a separate, unreliable column on plateforme.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between jeu_plateforme and plateforme in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_video_games_jeu_plateforme_ventes_region_1c8ecba7
+  from: ventes_region
+  to: jeu_plateforme
+  from_columns:
+  - id_jeu_plateforme
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins jeu_plateforme to ventes_region on id, attaching each game-platform release to its regional sales rows.
+
+      jeu_plateforme.id is the release's primary key; ventes_region.id_jeu_plateforme records which release each sales row belongs to. One release can appear on several ventes_region rows, up to one per region (495 distinct releases among 500 sampled sales rows), so join jeu_plateforme to ventes_region as one-to-many. Do not join using id_jeu_plateforme_2, a separate, unreliable column on jeu_plateforme, or id_jeu_sur_plateforme, a separate, unreliable column on ventes_region.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between jeu_plateforme and ventes_region in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_video_games_region_ventes_region_7e3cb9e7
+  from: ventes_region
+  to: region
+  from_columns:
+  - id_region
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins region to ventes_region on id, attributing each regional sales row to its geographic market.
+
+      region.id is the region's primary key -- one of four values; ventes_region.id_region records which region each sales row was recorded in. One region can appear on many ventes_region rows (all four regions recur across the 500 sampled sales rows), so join region to ventes_region as one-to-many. Do not join using id_region_pk, a separate, unreliable column on region, or id_region_ref, a separate, unreliable column on ventes_region.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between region and ventes_region in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+metrics:
+- name: metric_video_games_share_of_games
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: MULTIPLY(DIVIDE(SUM(CASE WHEN condition THEN 1 ELSE 0 END), COUNT(id)), 100)
+  description: |
+    share of games: the percentage of games or releases meeting a stated condition out of the total counted.
+
+    MULTIPLY(DIVIDE(SUM(CASE WHEN condition THEN 1 ELSE 0 END), COUNT(id)), 100), where "condition" is whatever the question names -- a release year, a publisher, a genre, or a platform. This pattern covers percentage phrasings built on annee_sortie, nom_editeur, nom_genre, and nom_plateforme alike, joining through jeu_editeur, jeu_plateforme, editeur, genre, or plateforme as needed to reach the filtering column. A "difference" between two such conditions, rather than a percentage, is SUBTRACT of their two separate SUM(CASE WHEN ...) counts, without the DIVIDE and the multiply by 100.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "video_games.jeu",
+        "name": "share of games"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_3308",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0000",
+          "sql": "SELECT \"T1\".\"nom_jeu\" FROM \"video_games\".\"jeu\" AS \"T1\" WHERE \"T1\".\"id_genre\" = (SELECT \"T\".\"id_genre\" FROM \"video_games\".\"jeu\" AS \"T\" WHERE \"T\".\"nom_jeu\" = '3D Lemmings')",
+          "summary": "Please list all the games that have the same game genre as 3D Lemmings."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3310",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0001",
+          "sql": "SELECT \"T2\".\"nom_genre\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T1\".\"nom_jeu\" = '3D Lemmings'",
+          "summary": "What is the genre of 3D Lemmings?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3313",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0002",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu\" INNER JOIN \"video_games\".\"editeur\" AS \"T3\" ON \"T2\".\"id_editeur\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"genre\" AS \"T4\" ON \"T1\".\"id_genre\" = \"T4\".\"id\" WHERE \"T4\".\"nom_genre\" = 'Puzzle' AND \"T3\".\"nom_editeur\" = '10TACLE Studios'",
+          "summary": "Among the games published by 10TACLE Studios, how many of them are puzzles?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3314",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0003",
+          "sql": "SELECT \"T1\".\"nom_jeu\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu\" INNER JOIN \"video_games\".\"editeur\" AS \"T3\" ON \"T2\".\"id_editeur\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"genre\" AS \"T4\" ON \"T1\".\"id_genre\" = \"T4\".\"id\" WHERE \"T3\".\"nom_editeur\" = '10TACLE Studios' AND \"T4\".\"nom_genre\" = 'Puzzle'",
+          "summary": "Please list the names of all the games published by 10TACLE Studios and are puzzles."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3316",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0004",
+          "sql": "SELECT \"T5\".\"nom_plateforme\" FROM \"video_games\".\"jeu_editeur\" AS \"T1\" INNER JOIN \"video_games\".\"editeur\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T1\".\"id_jeu\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T4\" ON \"T1\".\"id\" = \"T4\".\"id_jeu_editeur\" INNER JOIN \"video_games\".\"plateforme\" AS \"T5\" ON \"T4\".\"id_plateforme\" = \"T5\".\"id\" WHERE \"T3\".\"nom_jeu\" = 'Panzer Tactics' AND \"T4\".\"annee_sortie\" = 2007",
+          "summary": "On which platform was Panzer Tactics released in 2007?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3319",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0005",
+          "sql": "SELECT \"t\".\"nom_editeur\" FROM (SELECT \"T3\".\"nom_editeur\", COUNT(DISTINCT \"T1\".\"id\") FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu\" INNER JOIN \"video_games\".\"editeur\" AS \"T3\" ON \"T2\".\"id_editeur\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"genre\" AS \"T4\" ON \"T1\".\"id_genre\" = \"T4\".\"id\" WHERE \"T4\".\"nom_genre\" = 'Puzzle' GROUP BY \"T3\".\"nom_editeur\" ORDER BY COUNT(DISTINCT \"T1\".\"id\") DESC NULLS LAST LIMIT 1) AS \"t\"",
+          "summary": "What is the name of the publisher that has published the most puzzle games?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3321",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0006",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T4\".\"nom_genre\" = 'Sports' THEN \"T1\".\"id\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id\"), 0) FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu\" INNER JOIN \"video_games\".\"editeur\" AS \"T3\" ON \"T2\".\"id_editeur\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"genre\" AS \"T4\" ON \"T1\".\"id_genre\" = \"T4\".\"id\" WHERE \"T3\".\"nom_editeur\" = 'Nintendo'",
+          "summary": "Among the games published by Nintendo, what is the percentage of those in the genre of sports?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3323",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0007",
+          "sql": "SELECT DISTINCT \"T\".\"id_jeu\" FROM \"video_games\".\"jeu_editeur\" AS \"T\" WHERE \"T\".\"id_editeur\" = 352",
+          "summary": "Tell the number of games whose publisher id is 352."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3324",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0008",
+          "sql": "SELECT \"T\".\"id_genre\" FROM \"video_games\".\"jeu\" AS \"T\" WHERE \"T\".\"nom_jeu\" = 'Pro Evolution Soccer 2012'",
+          "summary": "List the genre id of the game Pro Evolution Soccer 2012."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3326",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0009",
+          "sql": "SELECT \"T1\".\"id_jeu_plateforme\" FROM (SELECT \"T\".\"id_jeu_plateforme\", SUM(\"T\".\"nombre_ventes\") FROM \"video_games\".\"ventes_region\" AS \"T\" WHERE \"T\".\"id_region\" = 2 GROUP BY \"T\".\"id_jeu_plateforme\" ORDER BY SUM(\"T\".\"nombre_ventes\") DESC NULLS LAST LIMIT 1) AS \"T1\"",
+          "summary": "Show the id of the game platform with the most sales in region 2."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3327",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0010",
+          "sql": "SELECT \"id_genre\" FROM (SELECT \"T\".\"id_genre\", COUNT(\"T\".\"id\") FROM \"video_games\".\"jeu\" AS \"T\" GROUP BY \"T\".\"id_genre\" ORDER BY COUNT(\"T\".\"id\") DESC NULLS LAST LIMIT 1)",
+          "summary": "Which genre has the most games? Show its id."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3332",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0011",
+          "sql": "SELECT COUNT(\"T2\".\"id\") FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"plateforme\" AS \"T2\" ON \"T1\".\"id_plateforme\" = \"T2\".\"id\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T3\" ON \"T1\".\"id_jeu_editeur\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"jeu\" AS \"T4\" ON \"T3\".\"id_jeu\" = \"T4\".\"id\" WHERE \"T4\".\"nom_jeu\" = 'Pro Evolution Soccer 2016'",
+          "summary": "How many platforms are available for the game Pro Evolution Soccer 2016?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3333",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0012",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T2\".\"nom_genre\" = 'Sports'",
+          "summary": "How many games in the database belong to the genre of sports?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3334",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0013",
+          "sql": "SELECT \"T2\".\"nom_editeur\" FROM \"video_games\".\"jeu_editeur\" AS \"T1\" INNER JOIN \"video_games\".\"editeur\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id\" WHERE \"T1\".\"id_jeu\" = 10031",
+          "summary": "Name of the publisher of the game id 10031."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3336",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0014",
+          "sql": "SELECT COUNT(CASE WHEN \"T1\".\"nom_genre\" = 'Sports' THEN \"T2\".\"id\" ELSE NULL END) - COUNT(CASE WHEN \"T1\".\"nom_genre\" = 'Simulation' THEN \"T2\".\"id\" ELSE NULL END) FROM \"video_games\".\"genre\" AS \"T1\" INNER JOIN \"video_games\".\"jeu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_genre\"",
+          "summary": "How many more sports games than simulation games?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3337",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0015",
+          "sql": "SELECT \"T2\".\"nom_genre\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T1\".\"nom_jeu\" = 'Resident Evil: Revelations'",
+          "summary": "Tell the genre of the game \"Resident Evil: Revelations\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3339",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0016",
+          "sql": "SELECT COUNT(\"T2\".\"id_jeu\") FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\" WHERE \"T1\".\"nom_editeur\" = 'Ascaron Entertainment GmbH'",
+          "summary": "Give the number of games which were published by Ascaron Entertainment GmbH."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3340",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0017",
+          "sql": "SELECT \"T2\".\"nom_plateforme\" FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"plateforme\" AS \"T2\" ON \"T1\".\"id_plateforme\" = \"T2\".\"id\" ORDER BY \"T1\".\"annee_sortie\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Show the name of the earliest platform in the database."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3342",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0018",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T1\".\"nom_editeur\" = 'Atari' THEN \"T2\".\"id_jeu\" ELSE NULL END) AS REAL) / NULLIF(COUNT(CASE WHEN \"T1\".\"nom_editeur\" = 'Athena' THEN \"T2\".\"id_jeu\" ELSE NULL END), 0) FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\"",
+          "summary": "How many times more is the number of games which were published by Atari than Athena?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3343",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0019",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"id_jeu\") FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\" WHERE \"T1\".\"nom_editeur\" = 'Electronic Arts'",
+          "summary": "How many games did Electronic Arts publish?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3345",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0020",
+          "sql": "SELECT COUNT(\"T3\".\"id\") FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"genre\" AS \"T4\" ON \"T3\".\"id_genre\" = \"T4\".\"id\" WHERE \"T4\".\"nom_genre\" = 'Role-Playing' AND \"T1\".\"nom_editeur\" = 'Microsoft Game Studios'",
+          "summary": "How many role-playing games did Microsoft Game Studios publish?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3347",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0021",
+          "sql": "SELECT \"T4\".\"nom_plateforme\" FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"id_jeu_editeur\" INNER JOIN \"video_games\".\"plateforme\" AS \"T4\" ON \"T3\".\"id_plateforme\" = \"T4\".\"id\" WHERE \"T3\".\"annee_sortie\" = 2004 AND \"T1\".\"nom_editeur\" = 'Codemasters'",
+          "summary": "In 2004, what are the names of the platforms where Codemasters publish its games?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3348",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0022",
+          "sql": "SELECT COUNT(DISTINCT \"T3\".\"id_jeu\") FROM \"video_games\".\"plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_plateforme\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T3\" ON \"T2\".\"id_jeu_editeur\" = \"T3\".\"id\" WHERE \"T1\".\"nom_plateforme\" = 'PS4' AND \"T2\".\"annee_sortie\" = 2014",
+          "summary": "How many games were released on PS4 in 2014?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3350",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0023",
+          "sql": "SELECT COUNT(\"T3\".\"id_jeu_editeur\") FROM \"video_games\".\"region\" AS \"T1\" INNER JOIN \"video_games\".\"ventes_region\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_region\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T3\" ON \"T2\".\"id_jeu_plateforme\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"plateforme\" AS \"T4\" ON \"T3\".\"id_plateforme\" = \"T4\".\"id\" WHERE \"T4\".\"nom_plateforme\" = 'X360' AND \"T3\".\"annee_sortie\" = 2011 AND \"T1\".\"nom_region\" = 'Japan'",
+          "summary": "How many publishers in Japan released a game on X360 in 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3352",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0024",
+          "sql": "SELECT \"t\".\"annee_sortie\" FROM (SELECT \"T2\".\"annee_sortie\", COUNT(DISTINCT \"T3\".\"id_jeu\") FROM \"video_games\".\"plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_plateforme\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T3\" ON \"T2\".\"id_jeu_editeur\" = \"T3\".\"id\" WHERE \"T1\".\"nom_plateforme\" = 'PC' GROUP BY \"T2\".\"annee_sortie\" ORDER BY COUNT(DISTINCT \"T3\".\"id_jeu\") DESC NULLS LAST LIMIT 1) AS \"t\"",
+          "summary": "Which year has the most number of PC games releases?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3354",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0025",
+          "sql": "SELECT \"T3\".\"nom_jeu\" FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T1\".\"nom_editeur\" = '505 Games'",
+          "summary": "What are the names of the games that were published by 505 Games?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3359",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0026",
+          "sql": "SELECT \"T\".\"id\" FROM \"video_games\".\"jeu_plateforme\" AS \"T\" WHERE \"T\".\"annee_sortie\" BETWEEN 2000 AND 2003",
+          "summary": "List down the record ID of records released between 2000 to 2003."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3361",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0027",
+          "sql": "SELECT DISTINCT \"T1\".\"nom_plateforme\" FROM \"video_games\".\"plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_plateforme\" WHERE \"T2\".\"annee_sortie\" = 2016",
+          "summary": "List down the names of platform where the games released in 2016 can be played on."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3362",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0028",
+          "sql": "SELECT \"T1\".\"annee_sortie\" FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id_jeu_editeur\" = \"T2\".\"id\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T3\".\"nom_jeu\" = '3DS Classic Collection'",
+          "summary": "When was the game titled 3DS Classic Collection released?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3367",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0029",
+          "sql": "SELECT DISTINCT \"T1\".\"nom_region\" FROM \"video_games\".\"region\" AS \"T1\" INNER JOIN \"video_games\".\"ventes_region\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_region\" WHERE \"T2\".\"nombre_ventes\" * 100000 > 300000",
+          "summary": "List the region name where games reached 300000 sales and above."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3368",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0030",
+          "sql": "SELECT \"t\".\"nom_editeur\" FROM (SELECT \"T5\".\"nom_editeur\", SUM(\"T2\".\"nombre_ventes\") * 100000 FROM \"video_games\".\"region\" AS \"T1\" INNER JOIN \"video_games\".\"ventes_region\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_region\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T3\" ON \"T2\".\"id_jeu_plateforme\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T4\" ON \"T3\".\"id_jeu_editeur\" = \"T4\".\"id\" INNER JOIN \"video_games\".\"editeur\" AS \"T5\" ON \"T4\".\"id_editeur\" = \"T5\".\"id\" WHERE \"T1\".\"nom_region\" = 'North America' GROUP BY \"T5\".\"nom_editeur\" ORDER BY SUM(\"T2\".\"nombre_ventes\") * 100000 DESC NULLS LAST LIMIT 1) AS \"t\"",
+          "summary": "Which company published the game with the most sales in North America?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3369",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0031",
+          "sql": "SELECT \"T3\".\"annee_sortie\" FROM \"video_games\".\"region\" AS \"T1\" INNER JOIN \"video_games\".\"ventes_region\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_region\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T3\" ON \"T2\".\"id_jeu_plateforme\" = \"T3\".\"id\" WHERE \"T2\".\"nombre_ventes\" * 100000 = 350000 AND \"T1\".\"nom_region\" = 'North America'",
+          "summary": "What is the release year of the game that gained 350000 sales in North America?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3371",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0032",
+          "sql": "SELECT \"T2\".\"nom_editeur\" FROM \"video_games\".\"jeu_editeur\" AS \"T1\" INNER JOIN \"video_games\".\"editeur\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id\" WHERE \"T1\".\"id_jeu\" = 75",
+          "summary": "Give the name of the publisher of the game ID 75."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3374",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0033",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T1\".\"nom_plateforme\" = 'PSP' THEN \"T3\".\"id_jeu\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T3\".\"id_jeu\"), 0) FROM \"video_games\".\"plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_plateforme\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T3\" ON \"T2\".\"id_jeu_editeur\" = \"T3\".\"id\" WHERE \"T2\".\"annee_sortie\" = 2004",
+          "summary": "Among the games released in 2004, what is the percentage of games on PSP?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3378",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0034",
+          "sql": "SELECT \"T\".\"id\" FROM \"video_games\".\"editeur\" AS \"T\" WHERE \"T\".\"nom_editeur\" = '1C Company'",
+          "summary": "Provide the ID of 1C Company."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3382",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0035",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T2\".\"nom_genre\" = 'Puzzle'",
+          "summary": "How many games are puzzle genre?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3384",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0036",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id_jeu\") FROM \"video_games\".\"jeu_editeur\" AS \"T1\" INNER JOIN \"video_games\".\"editeur\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id\" WHERE \"T2\".\"nom_editeur\" = 'Acclaim Entertainment'",
+          "summary": "How many games were published by Acclaim Entertainment?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3387",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0037",
+          "sql": "SELECT \"t\".\"id_jeu_plateforme\" FROM (SELECT \"T1\".\"id_jeu_plateforme\", SUM(\"T1\".\"nombre_ventes\") FROM \"video_games\".\"ventes_region\" AS \"T1\" INNER JOIN \"video_games\".\"region\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id\" WHERE \"T2\".\"nom_region\" = 'Europe' GROUP BY \"T1\".\"id_jeu_plateforme\" ORDER BY SUM(\"T1\".\"nombre_ventes\") DESC NULLS LAST LIMIT 1) AS \"t\"",
+          "summary": "Provide the ID of the most popular platform in Europe."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3388",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0038",
+          "sql": "SELECT \"T3\".\"nom_jeu\" FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id_jeu_editeur\" = \"T2\".\"id\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T1\".\"annee_sortie\" = 2011",
+          "summary": "Name the game released in 2011."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3389",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0039",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"plateforme\" AS \"T2\" ON \"T1\".\"id_plateforme\" = \"T2\".\"id\" WHERE \"T2\".\"nom_plateforme\" = 'Wii'",
+          "summary": "How many games can be played on the Wii platform?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3391",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0040",
+          "sql": "SELECT \"T2\".\"id\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T1\".\"nom_jeu\" = '2Xtreme'",
+          "summary": "Mention the genre of the 2Xtreme."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3395",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0041",
+          "sql": "SELECT COUNT(\"T\".\"id\") FROM \"video_games\".\"jeu_plateforme\" AS \"T\" WHERE \"T\".\"annee_sortie\" = 2001",
+          "summary": "How many games were released in 2001?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3397",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0042",
+          "sql": "SELECT CAST(COUNT(\"T\".\"id_jeu\") AS REAL) / NULLIF(COUNT(DISTINCT \"T\".\"id_editeur\"), 0) FROM \"video_games\".\"jeu_editeur\" AS \"T\"",
+          "summary": "What is the average number of games published by a publisher?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3400",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0043",
+          "sql": "SELECT \"T1\".\"nom_editeur\" FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T3\".\"nom_jeu\" = 'Prism: Light the Way'",
+          "summary": "Which is the publisher for the game \"Prism: Light the Way\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3402",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0044",
+          "sql": "SELECT COUNT(*) FROM \"video_games\".\"ventes_region\" AS \"T1\" INNER JOIN \"video_games\".\"region\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id\" WHERE \"T2\".\"nom_region\" = 'Europe' AND \"T1\".\"nombre_ventes\" = 0",
+          "summary": "How many games do not have any sales in Europe?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3403",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0045",
+          "sql": "SELECT \"T3\".\"nom_jeu\" FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id_jeu_editeur\" = \"T2\".\"id\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T1\".\"annee_sortie\" = 2006",
+          "summary": "What are the games that were released in 2006?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3404",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0046",
+          "sql": "SELECT \"T1\".\"nom_genre\" FROM \"video_games\".\"genre\" AS \"T1\" INNER JOIN \"video_games\".\"jeu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_genre\" WHERE \"T2\".\"nom_jeu\" = 'Mario vs. Donkey Kong'",
+          "summary": "What is the genre of the game \"Mario vs. Donkey Kong\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3409",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0047",
+          "sql": "SELECT \"T3\".\"nom_jeu\" FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T1\".\"nom_editeur\" = 'Activision'",
+          "summary": "List the games from the publisher \"Activision\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3411",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0048",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T1\".\"nom_genre\" = 'Sports' THEN \"T2\".\"id\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"id\"), 0) FROM \"video_games\".\"genre\" AS \"T1\" INNER JOIN \"video_games\".\"jeu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_genre\"",
+          "summary": "What percentage of games are sports?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3413",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0049",
+          "sql": "SELECT \"T1\".\"annee_sortie\" FROM (SELECT \"T\".\"annee_sortie\", COUNT(\"id\") FROM \"video_games\".\"jeu_plateforme\" AS \"T\" GROUP BY \"T\".\"annee_sortie\" ORDER BY COUNT(\"T\".\"id\") DESC NULLS LAST LIMIT 1) AS \"T1\"",
+          "summary": "Which year has the most number of video game releases?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3417",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0050",
+          "sql": "SELECT \"T3\".\"nom_editeur\" FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id_jeu_editeur\" = \"T2\".\"id\" INNER JOIN \"video_games\".\"editeur\" AS \"T3\" ON \"T2\".\"id_editeur\" = \"T3\".\"id\" WHERE \"T1\".\"annee_sortie\" = 2007 GROUP BY \"T3\".\"nom_editeur\" ORDER BY COUNT(DISTINCT \"T2\".\"id_jeu\") DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the publisher that released the most video games in 2007?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3418",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0051",
+          "sql": "SELECT COUNT(\"T2\".\"id_editeur\") FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu\" WHERE \"T1\".\"nom_jeu\" = 'Minecraft'",
+          "summary": "How many publishers published the Minecraft game?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3419",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0052",
+          "sql": "SELECT \"t\".\"nom_editeur\" FROM (SELECT \"T4\".\"nom_editeur\", COUNT(DISTINCT \"T2\".\"id\") FROM \"video_games\".\"genre\" AS \"T1\" INNER JOIN \"video_games\".\"jeu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_genre\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"id_jeu\" INNER JOIN \"video_games\".\"editeur\" AS \"T4\" ON \"T3\".\"id_editeur\" = \"T4\".\"id\" WHERE \"T1\".\"nom_genre\" = 'Action' GROUP BY \"T4\".\"nom_editeur\" ORDER BY COUNT(DISTINCT \"T2\".\"id\") DESC NULLS LAST LIMIT 1) AS \"t\"",
+          "summary": "Which publisher has published the most number of Action games?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3421",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0053",
+          "sql": "SELECT \"T2\".\"nom_genre\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T1\".\"nom_jeu\" = '2 Games in 1: Sonic Advance & ChuChu Rocket!'",
+          "summary": "What is the genre of the game '2 Games in 1: Sonic Advance & ChuChu Rocket!'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3425",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0054",
+          "sql": "SELECT \"T3\".\"nom_editeur\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu\" INNER JOIN \"video_games\".\"editeur\" AS \"T3\" ON \"T2\".\"id_editeur\" = \"T3\".\"id\" WHERE \"T1\".\"nom_jeu\" = 'Overwatch'",
+          "summary": "Which publisher published Overwatch?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3426",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0055",
+          "sql": "SELECT \"T2\".\"nom_genre\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T2\".\"id\" = \"T1\".\"id_genre\" GROUP BY \"T2\".\"nom_genre\" ORDER BY COUNT(\"T1\".\"id_genre\") DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the genre with the most number of video games?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3432",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0056",
+          "sql": "SELECT \"T\".\"nom_editeur\" FROM \"video_games\".\"editeur\" AS \"T\" WHERE \"T\".\"nom_editeur\" LIKE '%Entertainment%'",
+          "summary": "What publishers have the word 'Entertainment' in their name?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3433",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0057",
+          "sql": "SELECT \"T2\".\"nom_jeu\" FROM \"video_games\".\"genre\" AS \"T1\" INNER JOIN \"video_games\".\"jeu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_genre\" WHERE \"T1\".\"nom_genre\" = 'Adventure'",
+          "summary": "Indicate the name of all adventure games."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3434",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0058",
+          "sql": "SELECT \"T3\".\"nom_jeu\" FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T1\".\"nom_editeur\" = 'Pioneer LDC'",
+          "summary": "List the name of all games published by 'Pioneer LDC'."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3435",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0059",
+          "sql": "SELECT \"T1\".\"nom_jeu\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"id_jeu_editeur\" INNER JOIN \"video_games\".\"plateforme\" AS \"T4\" ON \"T3\".\"id_plateforme\" = \"T4\".\"id\" WHERE \"T4\".\"nom_plateforme\" = 'SCD'",
+          "summary": "Indicate the name of all the games published for the 'SCD' platform."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3436",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0060",
+          "sql": "SELECT \"T1\".\"nom_jeu\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"id_jeu_editeur\" INNER JOIN \"video_games\".\"ventes_region\" AS \"T4\" ON \"T3\".\"id\" = \"T4\".\"id_jeu_plateforme\" INNER JOIN \"video_games\".\"region\" AS \"T5\" ON \"T4\".\"id_region\" = \"T5\".\"id\" WHERE \"T5\".\"nom_region\" = 'Japan'",
+          "summary": "List the name of all games published in Japan."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3437",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0061",
+          "sql": "SELECT \"T4\".\"nom_genre\" FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"genre\" AS \"T4\" ON \"T3\".\"id_genre\" = \"T4\".\"id\" WHERE \"T1\".\"nom_editeur\" = 'Agatsuma Entertainment'",
+          "summary": "What genres are the games published by 'Agatsuma Entertainment'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3438",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0062",
+          "sql": "SELECT COUNT(\"T2\".\"id\") FROM \"video_games\".\"genre\" AS \"T1\" INNER JOIN \"video_games\".\"jeu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_genre\" WHERE NOT \"T1\".\"nom_genre\" IN ('Role-Playing', 'Shooter', 'Simulation')",
+          "summary": "How many games are not of the genres 'Role-Playing', 'Shooter' and 'Simulation'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3440",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0063",
+          "sql": "SELECT \"t\".\"nom_editeur\" FROM (SELECT \"T1\".\"nom_editeur\", COUNT(\"T3\".\"id\") FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"genre\" AS \"T4\" ON \"T3\".\"id_genre\" = \"T4\".\"id\" WHERE \"T4\".\"nom_genre\" = 'Puzzle' GROUP BY \"T1\".\"nom_editeur\" ORDER BY COUNT(\"T3\".\"id\") DESC NULLS LAST LIMIT 1) AS \"t\"",
+          "summary": "Which publisher has published the most games in the 'Puzzle' genre?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3442",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0064",
+          "sql": "SELECT \"T1\".\"nom_editeur\" FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T3\".\"nom_jeu\" = 'Pachi-Slot Kanzen Kouryaku 3: Universal Koushiki Gaido Volume 3'",
+          "summary": "Which publisher has published the game 'Pachi-Slot Kanzen Kouryaku 3: Universal Koushiki Gaido Volume 3'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3443",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0065",
+          "sql": "SELECT \"T5\".\"nom_region\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"id_jeu_editeur\" INNER JOIN \"video_games\".\"ventes_region\" AS \"T4\" ON \"T3\".\"id\" = \"T4\".\"id_jeu_plateforme\" INNER JOIN \"video_games\".\"region\" AS \"T5\" ON \"T4\".\"id_region\" = \"T5\".\"id\" WHERE \"T1\".\"nom_jeu\" = 'Pengo'",
+          "summary": "In which regions has the game 'Pengo' been sold?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3444",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0066",
+          "sql": "SELECT \"T1\".\"nom_jeu\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"id_jeu_editeur\" WHERE \"T3\".\"annee_sortie\" = '2010'",
+          "summary": "List by name all the games released in the year 2010."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3446",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0067",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T1\".\"nom_editeur\" = 'Brash Entertainment' THEN \"T2\".\"id_jeu\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"id_jeu\"), 0) FROM \"video_games\".\"editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_editeur\"",
+          "summary": "Calculate the percentage of games published by 'Brash Entertainment'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3450",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0068",
+          "sql": "SELECT \"T2\".\"nom_editeur\" FROM \"video_games\".\"jeu_editeur\" AS \"T1\" INNER JOIN \"video_games\".\"editeur\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T1\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T3\".\"nom_jeu\" = '2002 FIFA World Cup'",
+          "summary": "Who is the publisher of the game 2002 FIFA World Cup?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3452",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0069",
+          "sql": "SELECT \"T2\".\"nom_genre\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T1\".\"nom_jeu\" = '2010 FIFA World Cup South Africa'",
+          "summary": "What genre is the game 2010 FIFA World Cup South Africa?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3455",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0070",
+          "sql": "SELECT \"T3\".\"nom_jeu\" FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id_jeu_editeur\" = \"T2\".\"id\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T1\".\"annee_sortie\" = 2007",
+          "summary": "What are the names of games that were released in 2007?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3456",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0071",
+          "sql": "SELECT COUNT(DISTINCT \"T3\".\"id\") FROM \"video_games\".\"jeu_editeur\" AS \"T1\" INNER JOIN \"video_games\".\"editeur\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T1\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T2\".\"nom_editeur\" = 'Activision'",
+          "summary": "How many games were published by Activision?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3460",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0072",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T2\".\"nom_genre\" = 'Shooter'",
+          "summary": "How many shooter games are there?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3461",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0073",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T2\".\"nom_plateforme\" = 'PS4' THEN \"T3\".\"id_jeu\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T3\".\"id_jeu\"), 0) FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"plateforme\" AS \"T2\" ON \"T1\".\"id_plateforme\" = \"T2\".\"id\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T3\" ON \"T1\".\"id_jeu_editeur\" = \"T3\".\"id\" WHERE \"T1\".\"annee_sortie\" = 2014",
+          "summary": "What is the percentage of games that were released on PS4 in 2014 among all platforms?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3465",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0074",
+          "sql": "SELECT DISTINCT \"T\".\"id_plateforme\" FROM \"video_games\".\"jeu_plateforme\" AS \"T\" WHERE \"T\".\"annee_sortie\" = 2007",
+          "summary": "List down the platform IDs of the games released in 2007."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3470",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0075",
+          "sql": "SELECT COUNT(\"T1\".\"id_jeu_editeur\") FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"plateforme\" AS \"T2\" ON \"T1\".\"id_plateforme\" = \"T2\".\"id\" WHERE \"T2\".\"nom_plateforme\" = 'X360'",
+          "summary": "How many game publisher IDs have published games on the X360 platform?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3472",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0076",
+          "sql": "SELECT COUNT(CASE WHEN \"T2\".\"nom_plateforme\" = 'PS3' THEN \"T1\".\"id_jeu_editeur\" ELSE NULL END) - COUNT(CASE WHEN \"T2\".\"nom_plateforme\" = 'X360' THEN \"T1\".\"id_jeu_editeur\" ELSE NULL END) FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"plateforme\" AS \"T2\" ON \"T1\".\"id_plateforme\" = \"T2\".\"id\"",
+          "summary": "Find out the difference between the number of publishers who released the games on the PS3 and X360."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3473",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0077",
+          "sql": "SELECT \"T1\".\"id_jeu\" FROM \"video_games\".\"jeu_editeur\" AS \"T1\" INNER JOIN \"video_games\".\"editeur\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id\" WHERE \"T2\".\"nom_editeur\" = 'Bethesda Softworks'",
+          "summary": "What are the game IDs of the games published by Bethesda Softworks?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3474",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0078",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id_jeu\") FROM \"video_games\".\"jeu_editeur\" AS \"T1\" INNER JOIN \"video_games\".\"editeur\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id\" WHERE \"T2\".\"nom_editeur\" IN ('Capcom', 'Sony Computer Entertainment')",
+          "summary": "Calculate the total number of IDs for the game published by Capcom and Sony Computer Entertainment."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3475",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0079",
+          "sql": "SELECT \"T2\".\"nom_genre\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T1\".\"nom_jeu\" = 'Grand Theft Auto V'",
+          "summary": "What is the genre of the game \"Grand Theft Auto V\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3476",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0080",
+          "sql": "SELECT \"T1\".\"nom_jeu\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T2\".\"nom_genre\" = 'Racing'",
+          "summary": "List down the names of the games in the racing genre."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3477",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0081",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T2\".\"nom_genre\" = 'Fighting'",
+          "summary": "Calculate the number of games in the fighting genre."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3479",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0082",
+          "sql": "SELECT \"T4\".\"nom_plateforme\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"id_jeu_editeur\" INNER JOIN \"video_games\".\"plateforme\" AS \"T4\" ON \"T3\".\"id_plateforme\" = \"T4\".\"id\" WHERE \"T1\".\"nom_jeu\" = 'Final Fantasy XIII-2'",
+          "summary": "Find out the platform of the game \"Final Fantasy XIII-2\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3482",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0083",
+          "sql": "SELECT DISTINCT \"T\".\"id_plateforme\" FROM \"video_games\".\"jeu_plateforme\" AS \"T\" WHERE \"T\".\"annee_sortie\" = 2006",
+          "summary": "What are the platform IDs of records released in 2006?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3487",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0084",
+          "sql": "SELECT \"T4\".\"nom_jeu\" FROM \"video_games\".\"plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_plateforme\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T3\" ON \"T2\".\"id_jeu_editeur\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"jeu\" AS \"T4\" ON \"T3\".\"id_jeu\" = \"T4\".\"id\" WHERE \"T1\".\"nom_plateforme\" = 'Wii'",
+          "summary": "List the games available on Wii."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3488",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0085",
+          "sql": "SELECT \"T3\".\"nom_jeu\" FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id_jeu_editeur\" = \"T2\".\"id\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T1\".\"annee_sortie\" = 2015",
+          "summary": "Provide the name of games released in 2015."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3490",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0086",
+          "sql": "SELECT \"T3\".\"nom_editeur\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu\" INNER JOIN \"video_games\".\"editeur\" AS \"T3\" ON \"T2\".\"id_editeur\" = \"T3\".\"id\" WHERE \"T1\".\"nom_jeu\" = 'Adventure Time: Explore the Dungeon Because I Don''t Know!'",
+          "summary": "What is the name of the company that produced the game titled Adventure Time: Explore the Dungeon Because I Don't Know!?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3493",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0087",
+          "sql": "SELECT \"T2\".\"nom_genre\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T1\".\"id\" = 119",
+          "summary": "What is the genre of the game ID 119?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3494",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0088",
+          "sql": "SELECT \"T1\".\"id_jeu\" FROM \"video_games\".\"jeu_editeur\" AS \"T1\" INNER JOIN \"video_games\".\"editeur\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id\" WHERE \"T2\".\"nom_editeur\" = 'Abylight'",
+          "summary": "List the game IDs of the games produced by Abylight."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3496",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0089",
+          "sql": "SELECT \"T1\".\"nom_jeu\" FROM \"video_games\".\"jeu\" AS \"T1\" INNER JOIN \"video_games\".\"genre\" AS \"T2\" ON \"T1\".\"id_genre\" = \"T2\".\"id\" WHERE \"T2\".\"nom_genre\" = 'Strategy'",
+          "summary": "List down the name of strategy games."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3497",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0090",
+          "sql": "SELECT \"T3\".\"nom_plateforme\" FROM \"video_games\".\"jeu_editeur\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_jeu_editeur\" INNER JOIN \"video_games\".\"plateforme\" AS \"T3\" ON \"T2\".\"id_plateforme\" = \"T3\".\"id\" WHERE \"T1\".\"id_jeu\" = 178",
+          "summary": "In what platform does the game ID 178 available?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3501",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0091",
+          "sql": "SELECT \"T1\".\"id_plateforme\" FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id_jeu_editeur\" = \"T2\".\"id\" INNER JOIN \"video_games\".\"jeu\" AS \"T3\" ON \"T2\".\"id_jeu\" = \"T3\".\"id\" WHERE \"T3\".\"nom_jeu\" = 'Airborne Troops: Countdown to D-Day'",
+          "summary": "List the platform ID of the game titled Airborne Troops: Countdown to D-Day."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3502",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0092",
+          "sql": "SELECT COUNT(\"T3\".\"id_jeu\") FROM \"video_games\".\"plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_plateforme\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T3\" ON \"T2\".\"id_jeu_editeur\" = \"T3\".\"id\" WHERE \"T1\".\"nom_plateforme\" = 'PSP' AND \"T2\".\"annee_sortie\" = 2004",
+          "summary": "How many games available on PSP were released in 2004?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3504",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0093",
+          "sql": "SELECT \"T1\".\"annee_sortie\" FROM \"video_games\".\"jeu_plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T2\" ON \"T1\".\"id_jeu_editeur\" = \"T2\".\"id\" WHERE \"T2\".\"id_jeu\" = 156",
+          "summary": "When was the game ID 156 released?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3505",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0094",
+          "sql": "SELECT COUNT(CASE WHEN \"T1\".\"nom_plateforme\" = 'SNES' THEN \"T3\".\"id_jeu\" ELSE NULL END) - COUNT(CASE WHEN \"T1\".\"nom_plateforme\" = 'DS' THEN \"T3\".\"id_jeu\" ELSE NULL END) FROM \"video_games\".\"plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_plateforme\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T3\" ON \"T2\".\"id_jeu_editeur\" = \"T3\".\"id\" INNER JOIN \"video_games\".\"editeur\" AS \"T4\" ON \"T3\".\"id_editeur\" = \"T4\".\"id\" WHERE \"T4\".\"nom_editeur\" = 'Culture Brain'",
+          "summary": "What is the diffrence between the number of games produced by Culture Brain that can be played on SNES and DS?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3506",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0095",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T2\".\"annee_sortie\" = 2007 THEN \"T3\".\"id_jeu\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T3\".\"id_jeu\"), 0) FROM \"video_games\".\"plateforme\" AS \"T1\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_plateforme\" INNER JOIN \"video_games\".\"jeu_editeur\" AS \"T3\" ON \"T2\".\"id_jeu_editeur\" = \"T3\".\"id\" WHERE \"T1\".\"nom_plateforme\" = 'Wii'",
+          "summary": "In games that can be played on Wii, what is the percentage of games released in 2007?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3507",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_video_games_0096",
+          "sql": "SELECT DISTINCT \"T3\".\"id_plateforme\" FROM \"video_games\".\"region\" AS \"T1\" INNER JOIN \"video_games\".\"ventes_region\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_region\" INNER JOIN \"video_games\".\"jeu_plateforme\" AS \"T3\" ON \"T2\".\"id_jeu_plateforme\" = \"T3\".\"id\" WHERE \"T1\".\"nom_region\" = 'Europe' AND \"T2\".\"nombre_ventes\" * 100 * 100000 < (SELECT AVG(\"T2\".\"nombre_ventes\" * 100000) * 30 FROM \"video_games\".\"region\" AS \"T1\" INNER JOIN \"video_games\".\"ventes_region\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id_region\" WHERE \"T1\".\"nom_region\" = 'Europe')",
+          "summary": "Among games sold in Europe, list the platform ID of games with sales lesser than 30% of the average number of sales."
+        }
+      ]
+    }

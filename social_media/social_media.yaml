@@ -1,29 +1,2060 @@
-asset_type: schema
-id: social_media
+version: 0.2.0.dev0
 name: social_media
-summary: >-
-  The social_media database tracks Twitter activity: tweets, the users who post them, and the
-  countries, states, and cities they post from, so questions about engagement, sentiment,
-  language, and timing can be answered from one place.
-body: >-
-  social_media holds one Twitter dataset split across four tables. benutzer holds one row per
-  user; tweet holds one row per tweet a user posted, carrying engagement counts (likes,
-  retweets, reach, klout), sentiment, language, and the time it was posted; standort holds one
-  row per physical location a tweet can be tied to (country, state, city). A tweet joins to its
-  poster through benutzer_id and to its location through standort_id. The niederlassung table
-  is a separate list of location-like records that does not connect reliably to the rest of the
-  schema. Several columns across these tables echo the shape of a real column without carrying
-  its data; each is marked unreliable in its own definition and should not be selected, filtered
-  on, or joined on.
-rules:
-- Join tweet to its author through benutzer_id, and to its location through standort_id; do not
-  substitute nutzer_id, konto_id, tweet_ort_id, or ort_id for either.
-- Do not use the niederlassung table to answer questions about tweets, users, or locations; it
-  does not connect to the rest of the schema.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |-
+  The social_media database tracks Twitter activity: tweets, the users who post them, and the countries, states, and cities they post from, so questions about engagement, sentiment, language, and timing can be answered from one place.
+
+  social_media holds one Twitter dataset split across four tables. benutzer holds one row per user; tweet holds one row per tweet a user posted, carrying engagement counts (likes, retweets, reach, klout), sentiment, language, and the time it was posted; standort holds one row per physical location a tweet can be tied to (country, state, city). A tweet joins to its poster through benutzer_id and to its location through standort_id. The niederlassung table is a separate list of location-like records that does not connect reliably to the rest of the schema. Several columns across these tables echo the shape of a real column without carrying its data; each is marked unreliable in its own definition and should not be selected, filtered on, or joined on.
+ai_context:
+  instructions: |-
+    Join tweet to its author through benutzer_id, and to its location through standort_id; do not substitute nutzer_id, konto_id, tweet_ort_id, or ort_id for either.
+    Do not use the niederlassung table to answer questions about tweets, users, or locations; it does not connect to the rest of the schema.
+datasets:
+- name: benutzer
+  source: social_media.benutzer
+  description: |-
+    benutzer is the Twitter user table in social_media, one row per person who has posted at least one tweet.
+
+    One row per Twitter user. benutzer_id is the user's identifier and is what tweet.benutzer_id joins against; geschlecht records the user's gender. konto_id and geschlechtsangabe are separate columns on this same table that are unreliable for analysis; see their own definitions. Do not confuse this table with the location tables (standort, niederlassung), which describe places rather than people.
+  fields:
+  - name: benutzer_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: benutzer_id
+    description: |-
+      benutzer_id is the unique identifier of the Twitter user who owns this account.
+
+      A text identifier prefixed with 'tw-' followed by digits, for example tw-9111822 or tw-715597025404968960. Matches tweet.benutzer_id, which is how a tweet is linked to the user who posted it. Unique per user.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: geschlecht
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geschlecht
+    description: |-
+      geschlecht is the user's gender category, as recorded for the account.
+
+      Values are Female, Male, Unisex, or Unknown; Unknown marks an account whose gender is not shown. geschlechtsangabe is a separate, unreliable column on this table and should not be used in place of this one.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "geschlecht equals Female for female users, Male for male users, and Unknown when the account does not show a gender. A fourth value, Unisex, also appears in the data but has no evidence-backed phrasing.",
+              "id": "term_social_media_gender",
+              "name": "user gender",
+              "summary": "User gender groups benutzer accounts into three named categories: female users, male users, and accounts with unknown gender.",
+              "synonyms": [
+                "female users",
+                "male users",
+                "unknown gender"
+              ]
+            }
+          ]
+        }
+  - name: konto_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: konto_id
+    description: |-
+      konto_id, a text column on the benutzer table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: geschlechtsangabe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geschlechtsangabe
+    description: |-
+      geschlechtsangabe, a text column on the benutzer table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: niederlassung
+  source: social_media.niederlassung
+  description: |-
+    niederlassung is a table in the social_media schema whose records are not dependable for analysis.
+
+    This table is not dependable: its values do not correspond to the business facts the rest of the schema records, and no column beneath it should be used to answer a question. Do not join it to benutzer, tweet, or standort. Every column below carries the same caveat individually.
+  fields:
+  - name: niederlassung_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: niederlassung_id
+    description: |-
+      niederlassung_id, an integer column on the niederlassung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: laendername
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: laendername
+    description: |-
+      laendername, a text column on the niederlassung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: region
+    description: |-
+      region, a text column on the niederlassung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: region_code
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: region_code
+    description: |-
+      region_code, a text column on the niederlassung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: stadt_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stadt_name
+    description: |-
+      stadt_name, a text column on the niederlassung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: standort
+  source: social_media.standort
+  description: |-
+    standort is the location table in social_media, one row per place a tweet can be tied to, identified by country, state, and city.
+
+    One row per location, keyed by standort_id, which tweet.standort_id joins against to find where a tweet originated. land is the country, bundesstaat is the state or province, bundesstaat_code is its abbreviated code, and stadt is the city. ort_id, stadt_name, and staat are separate columns on this same table that are unreliable for analysis; see their own definitions. Do not confuse this table with niederlassung, an unrelated table of location-like records that does not connect reliably to the rest of the schema.
+  fields:
+  - name: standort_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: standort_id
+    description: |-
+      standort_id is the unique identifier of a location, used to link a tweet to where it was posted from.
+
+      An integer primary key for this table. Matches tweet.standort_id, the join key a tweet uses to reference its location.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: land
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: land
+    description: |-
+      land is the country recorded for a location.
+
+      Full country name, for example Argentina, Brazil, Canada, or Malaysia. staat is a separate, unreliable column on this table and should not be used in place of this one.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bundesstaat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bundesstaat
+    description: |-
+      bundesstaat is the state, province, or other administrative region recorded for a location within its country.
+
+      A free-text region name, for example Texas, Wisconsin, Connecticut, or Selangor; a few rows use a city-sized region such as Ha Noi where no broader state applies. Can be blank when no such region is recorded.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bundesstaat_code
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bundesstaat_code
+    description: |-
+      bundesstaat_code is the abbreviated code for a location's bundesstaat.
+
+      A short code such as ES, HU, MX, RU, or IN; sometimes a national code rather than a sub-national one, depending on the source location. Can be blank when bundesstaat is blank.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "In gold queries the plain word code, without further qualification, refers to standort.bundesstaat_code, not to any other identifier or code-like column in this schema.",
+              "id": "term_social_media_state_code",
+              "name": "state code",
+              "summary": "State code, or simply code, is the abbreviated code standort stores for a location's bundesstaat.",
+              "synonyms": [
+                "code",
+                "state code"
+              ]
+            }
+          ]
+        }
+  - name: stadt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stadt
+    description: |-
+      stadt is the city recorded for a location.
+
+      Free-text city name, for example Bangkok, Chiang Mai, Buenos Aires, or Rawang. stadt_name is a separate, unreliable column on this table and should not be used in place of this one.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ort_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ort_id
+    description: |-
+      ort_id, an integer column on the standort table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: stadt_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stadt_name
+    description: |-
+      stadt_name, a text column on the standort table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: staat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: staat
+    description: |-
+      staat, a text column on the standort table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: tweet
+  source: social_media.tweet
+  description: |-
+    tweet is the social_media schema's Twitter post table, one row per tweet, with its text, language, timing, sentiment, and engagement counts.
+
+    One row per tweet. tweet_id identifies the tweet; benutzer_id names its author and joins to benutzer.benutzer_id; standort_id names where it was posted from and joins to standort.standort_id. wochentag, tag, and stunde record when it was posted; sprache records its language; ist_weitergeteilt, reichweite, retweet_anzahl, likes, and klout record how it spread; sentiment scores its tone. nutzer_id, tweet_ort_id, and stichwort_id are separate columns on this same table that are unreliable for analysis; see their own definitions.
+  fields:
+  - name: tweet_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tweet_id
+    description: |-
+      tweet_id is the unique identifier of a single tweet.
+
+      A text identifier prefixed with 'tw-' followed by digits, for example tw-682714583044243456. Unique per row.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: wochentag
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wochentag
+    description: |-
+      wochentag is the day of the week the tweet was posted on.
+
+      One of the seven English weekday names, Sunday through Saturday, matching the calendar date the tweet was posted.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: stunde
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stunde
+    description: |-
+      stunde is the hour of the day the tweet was posted, on a 24-hour clock.
+
+      An integer from 0 to 23; sample values seen include 2, 5, 10, 14, and 15.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: tag
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tag
+    description: |-
+      tag is the day of the month the tweet was posted on.
+
+      An integer from 1 to 31. stichwort_id is a separate, unreliable column on this table with a similarly small range and should not be used in place of this one.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: sprache
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sprache
+    description: |-
+      sprache is the language of the tweet's text, stored as a short code.
+
+      A short language code such as en (English), fr (French), ru (Russian), es (Spanish), ja (Japanese), tl (Tagalog), or zh (Chinese); _u marks a tweet whose language is undetermined.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "sprache holds ISO-style codes: en (English), fr (French), ru (Russian), es (Spanish), ja (Japanese), tl (Tagalog), zh (Chinese), and others; _u marks a tweet whose language could not be determined.",
+              "id": "term_social_media_language",
+              "name": "tweet language",
+              "summary": "Tweet language is stored as a short code in sprache, English is en and French is fr.",
+              "synonyms": [
+                "language",
+                "English",
+                "French"
+              ]
+            }
+          ]
+        }
+  - name: ist_weitergeteilt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ist_weitergeteilt
+    description: |-
+      ist_weitergeteilt records whether the tweet is a reshare of another user's post.
+
+      TRUE when the tweet reshares or forwards someone else's post; FALSE when it is an original tweet.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Evidence text uses reshare, reshared tweet, and reshare tweet interchangeably for a tweet with ist_weitergeteilt = TRUE. An original, non-reshared tweet has ist_weitergeteilt = FALSE.",
+              "id": "term_social_media_reshare",
+              "name": "reshare",
+              "summary": "A reshare, or reshared tweet (reshare tweet, is reshare), is a tweet where ist_weitergeteilt is TRUE, meaning it reshares or forwards someone else's post rather than being original.",
+              "synonyms": [
+                "reshare",
+                "reshared",
+                "reshare tweet",
+                "reshared tweet",
+                "is reshare"
+              ]
+            }
+          ]
+        }
+  - name: reichweite
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: reichweite
+    description: |-
+      reichweite is the reach of the tweet, the number of unique users estimated to have seen it.
+
+      A non-negative integer; sample values range from 0 into the low thousands.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Boundary condition, reichweite > 1000, strictly greater, not >= 1000. reichweite counts unique viewers, not total views.",
+              "id": "term_social_media_high_reach",
+              "name": "high reach",
+              "summary": "High reach, or a tweet seen by more than 1000 unique users, describes a tweet whose reichweite exceeds 1000.",
+              "synonyms": [
+                "seen by more than 1000 unique users",
+                "high reach"
+              ]
+            }
+          ]
+        }
+  - name: retweet_anzahl
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: retweet_anzahl
+    description: |-
+      retweet_anzahl is the number of times the tweet has been retweeted.
+
+      A non-negative integer count; sample values seen range from 0 up into the dozens.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Boundary condition, retweet_anzahl > 30, strictly greater, not >= 30.",
+              "id": "term_social_media_high_retweets",
+              "name": "high retweet count",
+              "summary": "A high retweet count, or a tweet with many retweets, describes a tweet whose retweet_anzahl exceeds 30.",
+              "synonyms": [
+                "high retweet count",
+                "many retweets"
+              ]
+            }
+          ]
+        }
+  - name: likes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: likes
+    description: |-
+      likes is the number of likes the tweet has received.
+
+      A non-negative integer count, used to compute average and maximum like counts across tweets.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Boundary condition, likes > 100, strictly greater, not >= 100.",
+              "id": "term_social_media_high_likes",
+              "name": "high likes",
+              "summary": "High likes, or over 100 likes, describes a tweet whose likes count exceeds 100.",
+              "synonyms": [
+                "over 100 likes",
+                "high likes"
+              ]
+            }
+          ]
+        }
+  - name: klout
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: klout
+    description: |-
+      klout is the Klout influence score associated with the tweet.
+
+      An integer, typically in the range 0 to roughly 100, measuring the poster's social influence at the time of the tweet.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Boundary condition: klout > 50, strictly greater, not >= 50. klout is otherwise unbounded above in practice; sample values observed run into the 80s.",
+              "id": "term_social_media_high_klout",
+              "name": "high klout",
+              "summary": "High klout, or a klout of over 50, describes a tweet whose klout score exceeds 50.",
+              "synonyms": [
+                "klout of over 50",
+                "high klout"
+              ]
+            }
+          ]
+        }
+  - name: sentiment
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sentiment
+    description: |-
+      sentiment is a numeric score for the tone of the tweet's text.
+
+      A decimal value: greater than 0 is positive, exactly 0 is neutral, and less than 0 is negative; observed values range roughly from -1 to 4.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "sentiment > 0 is positive, sentiment = 0 is neutral, and sentiment < 0 is negative; all three are read from the same tweet.sentiment column. The evidence only names the positive and neutral cases explicitly; negative is the remaining case by elimination.",
+              "id": "term_social_media_sentiment_polarity",
+              "name": "sentiment polarity",
+              "summary": "Sentiment polarity classifies a tweet by its score: a positive tweet, a positive sentiment tweet, or a tweet with positive sentiment has positive sentiment; one with neutral sentiment scores zero.",
+              "synonyms": [
+                "positive sentiment",
+                "positive tweet",
+                "positive sentiment tweet",
+                "tweet with positive sentiment",
+                "neutral sentiment"
+              ]
+            }
+          ]
+        }
+  - name: text
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: text
+    description: |-
+      text is the written content of the tweet.
+
+      The raw tweet text, including mentions, hashtags, and links, up to the platform's character limit.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: standort_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: standort_id
+    description: |-
+      standort_id names the location the tweet was posted from.
+
+      Joins to standort.standort_id. tweet_ort_id is a separate, unreliable column on this table and should not be used in place of this one.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: benutzer_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: benutzer_id
+    description: |-
+      benutzer_id names the user who posted the tweet.
+
+      Joins to benutzer.benutzer_id. nutzer_id is a separate, unreliable column on this table and should not be used in place of this one.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: tweet_ort_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tweet_ort_id
+    description: |-
+      tweet_ort_id, an integer column on the tweet table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nutzer_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nutzer_id
+    description: |-
+      nutzer_id, a text column on the tweet table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: stichwort_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stichwort_id
+    description: |-
+      stichwort_id, an integer column on the tweet table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_social_media_average_likes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(likes)
+    description: |-
+      Average likes is the mean number of likes across all tweets in the dataset.
+
+      SUM(tweet.likes) divided by COUNT(tweet.tweet_id), equivalently AVG(tweet.likes).
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average likes"
+        }
+  - name: metric_social_media_max_klout
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(klout)
+    description: |-
+      Highest klout is the largest klout score recorded on any single tweet in the dataset.
+
+      MAX(tweet.klout) across all tweets.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest klout"
+        }
+  - name: metric_social_media_max_likes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(likes)
+    description: |-
+      Highest likes is the largest likes value recorded on any single tweet, used to find which tweet got the most likes.
+
+      MAX(tweet.likes) across all tweets. Ties are possible and are not broken by this metric alone.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest likes"
+        }
+  - name: metric_social_media_max_reach
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(reichweite)
+    description: |-
+      Highest reach is the largest reichweite value recorded on any single tweet, used to find which tweet was seen by the most unique users.
+
+      MAX(tweet.reichweite) across all tweets.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest reach"
+        }
+  - name: metric_social_media_max_retweets
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(retweet_anzahl)
+    description: |-
+      Highest retweet count is the largest retweet_anzahl value recorded on any single tweet in the dataset.
+
+      MAX(tweet.retweet_anzahl) across all tweets.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest retweet count"
+        }
+  - name: metric_social_media_positive_neutral_gap
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(tweet_id) FILTER (WHERE sentiment > 0) - COUNT(tweet_id) FILTER (WHERE sentiment = 0)
+    description: |-
+      Positive-neutral gap is the difference between the number of tweets with positive sentiment and the number with neutral sentiment.
+
+      Count tweet rows where sentiment > 0, count tweet rows where sentiment = 0, and subtract the second count from the first.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "positive-neutral gap"
+        }
+  - name: metric_social_media_total_tweets
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(tweet_id)
+    description: |-
+      Total tweet count is the number of rows in tweet, used as the denominator when a question asks for a share or percentage of tweets.
+
+      COUNT(tweet.tweet_id) with no filter applied.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "total tweet count"
+        }
+  - name: metric_social_media_tweets_in_english
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(tweet_id) WHERE sprache = 'en'
+    description: |-
+      English tweet count is the number of tweets whose sprache is English, used to find whether English has the most tweets among languages.
+
+      COUNT(tweet.tweet_id) filtered to sprache = 'en'. Compare against the same count computed for other sprache values to find the most common language.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "English tweet count"
+        }
+  - name: metric_social_media_tweets_per_user
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(tweet_id) GROUP BY benutzer_id
+    description: |-
+      Tweets per user counts, for each benutzer, how many tweets they have posted, used to find who posted the most tweets.
+
+      Group tweet by benutzer_id and count tweet_id. The benutzer_id with the highest count is the user who posted the most tweets.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "tweets per user"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_social_media_benutzer_tweet_10708060
+  from: tweet
+  to: benutzer
+  from_columns:
+  - benutzer_id
+  to_columns:
+  - benutzer_id
+  ai_context:
+    instructions: |-
+      Links each tweet to the benutzer who posted it by matching benutzer_id between the two tables.
+
+      Each row in tweet names its author's benutzer_id, which matches exactly one row in benutzer. A single benutzer can appear as the author of many rows in tweet, so this join is one benutzer to many tweets. Do not substitute konto_id or nutzer_id for benutzer_id in this join; both are unreliable columns on their respective tables.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between benutzer and tweet in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_social_media_standort_tweet_14cb0aaf
+  from: tweet
+  to: standort
+  from_columns:
+  - standort_id
+  to_columns:
+  - standort_id
+  ai_context:
+    instructions: |-
+      Links each tweet to the standort it was posted from by matching standort_id between the two tables.
+
+      Each row in tweet names its origin location's standort_id, which matches exactly one row in standort. A single standort can be the origin of many rows in tweet, so this join is one standort to many tweets. Do not substitute ort_id or tweet_ort_id for standort_id in this join; both are unreliable columns on their respective tables.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between standort and tweet in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+metrics:
+- name: metric_social_media_likes_by_country
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(tweet.likes) GROUP BY standort.land
+  description: |-
+    Total likes by country sums likes for every tweet tied to a standort, grouped by land, used to find which country collected the most likes.
+
+    Join tweet to standort on standort_id, group by land, and sum likes. The country with the highest sum is the country that collected the most likes.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "social_media.tweet",
+        "name": "total likes by country"
+      }
+- name: metric_social_media_tweets_per_city
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(tweet.tweet_id) GROUP BY standort.stadt
+  description: |-
+    Tweets per city counts, for each stadt, how many tweet rows are tied to it through standort, used to find the city with the most tweets.
+
+    Join tweet to standort on standort_id, group by stadt, and count tweet_id. The city with the highest count is the city with the most number of tweets.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "social_media.tweet",
+        "name": "tweets per city"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_776",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0000",
+          "sql": "SELECT COUNT(\"tweet_id\") AS \"tweet_number\" FROM \"social_media\".\"tweet\" WHERE \"sprache\" = 'en'",
+          "summary": "How many tweets are in English?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_777",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0001",
+          "sql": "SELECT \"text\" FROM \"social_media\".\"tweet\" WHERE \"ist_weitergeteilt\" = 'TRUE'",
+          "summary": "Please list the texts of all the tweets that are reshared."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_778",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0002",
+          "sql": "SELECT COUNT(\"tweet_id\") AS \"tweet_number\" FROM \"social_media\".\"tweet\" WHERE \"reichweite\" > 1000",
+          "summary": "How many tweets are seen by more than 1000 unique users?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_780",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0003",
+          "sql": "SELECT \"text\" FROM \"social_media\".\"tweet\" WHERE \"likes\" = (SELECT MAX(\"likes\") FROM \"social_media\".\"tweet\")",
+          "summary": "What is the text of the tweet that got the most `likes`?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_781",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0004",
+          "sql": "SELECT \"stadt\" FROM \"social_media\".\"standort\" WHERE NOT \"stadt\" IS NULL AND \"land\" = 'Argentina'",
+          "summary": "Please list all the cities in Argentina."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_783",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0005",
+          "sql": "SELECT \"T2\".\"stadt\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" WHERE \"T2\".\"land\" = 'Argentina' GROUP BY \"T2\".\"stadt\" ORDER BY COUNT(\"T1\".\"tweet_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Users in which city of Argentina post the most tweets?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_784",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0006",
+          "sql": "SELECT COUNT(\"T1\".\"tweet_id\") FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" WHERE \"T2\".\"stadt\" = 'Buenos Aires' AND \"T1\".\"ist_weitergeteilt\" = 'TRUE'",
+          "summary": "Among all the tweets that are reshared, how many of them are posted by a user in Buenos Aires?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_785",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0007",
+          "sql": "SELECT \"T1\".\"text\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" WHERE \"T1\".\"sentiment\" > 0 AND \"T2\".\"stadt\" = 'Buenos Aires'",
+          "summary": "Please list the texts of all the tweets posted from Buenos Aires with a positive sentiment."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_788",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0008",
+          "sql": "SELECT COUNT(\"T1\".\"tweet_id\") FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" WHERE \"T2\".\"stadt\" = 'Buenos Aires' AND \"T1\".\"wochentag\" = 'Thursday'",
+          "summary": "Among all the tweets posted from Buenos Aires, how many of them were posted on Thursdays?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_791",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0009",
+          "sql": "SELECT \"T2\".\"geschlecht\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"benutzer\" AS \"T2\" ON \"T1\".\"benutzer_id\" = \"T2\".\"benutzer_id\" ORDER BY \"T1\".\"reichweite\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the gender of the user who has posted the tweet that is seen by the most number of unique users?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_793",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0010",
+          "sql": "SELECT \"T1\".\"text\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" INNER JOIN \"social_media\".\"benutzer\" AS \"T3\" ON \"T3\".\"benutzer_id\" = \"T1\".\"benutzer_id\" WHERE \"T2\".\"stadt\" = 'Buenos Aires' AND \"T3\".\"geschlecht\" = 'Male'",
+          "summary": "Please list the texts of all the tweets posted by male users from Buenos Aires."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_796",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0011",
+          "sql": "SELECT COUNT(\"benutzer_id\") AS \"user_number\" FROM \"social_media\".\"benutzer\" WHERE \"geschlecht\" = 'Unknown'",
+          "summary": "Give the number of users who do not show their genders."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_797",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0012",
+          "sql": "SELECT COUNT(\"bundesstaat\") AS \"State_number\" FROM \"social_media\".\"standort\" WHERE \"land\" = 'United Kingdom'",
+          "summary": "State the number of states in the United Kingdom."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_798",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0013",
+          "sql": "SELECT DISTINCT \"bundesstaat_code\" FROM \"social_media\".\"standort\" WHERE \"bundesstaat\" = 'Gwynedd'",
+          "summary": "What is the code of Gwynedd State?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_799",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0014",
+          "sql": "SELECT DISTINCT \"standort_id\" FROM \"social_media\".\"standort\" WHERE \"bundesstaat\" = 'West Sussex'",
+          "summary": "Give the location id of West Sussex State."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_800",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0015",
+          "sql": "SELECT COUNT(\"T1\".\"tweet_id\") FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" WHERE \"T2\".\"bundesstaat\" = 'Texas' AND \"T1\".\"ist_weitergeteilt\" = 'TRUE'",
+          "summary": "How many reshared tweets are there in Texas?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_801",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0016",
+          "sql": "SELECT \"T2\".\"land\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" WHERE \"T1\".\"reichweite\" = 547851",
+          "summary": "For the tweet which got a reach number of 547851, which country did it come from?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_802",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0017",
+          "sql": "SELECT COUNT(\"T1\".\"tweet_id\") FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" WHERE \"T1\".\"sentiment\" > 0 AND \"T2\".\"bundesstaat\" = 'Ha Noi'",
+          "summary": "State the number of positive tweets from Ha Noi."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_803",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0018",
+          "sql": "SELECT \"T1\".\"text\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" WHERE \"T2\".\"bundesstaat\" = 'Connecticut' ORDER BY \"T1\".\"klout\" DESC NULLS LAST LIMIT 1",
+          "summary": "Show the text of the tweet with the highest klout from Connecticut."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_804",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0019",
+          "sql": "SELECT COUNT(\"T1\".\"likes\") FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" INNER JOIN \"social_media\".\"benutzer\" AS \"T3\" ON \"T3\".\"benutzer_id\" = \"T1\".\"benutzer_id\" WHERE \"T2\".\"bundesstaat\" = 'Wisconsin' AND \"T3\".\"geschlecht\" = 'Female'",
+          "summary": "How many female Twitter users are there from Wisconsin?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_805",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0020",
+          "sql": "SELECT \"T2\".\"geschlecht\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"benutzer\" AS \"T2\" ON \"T1\".\"benutzer_id\" = \"T2\".\"benutzer_id\" WHERE \"T1\".\"tweet_id\" = 'tw-715909161071091712'",
+          "summary": "What is the gender of the user who tweeted `tw-715909161071091712`?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_806",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0021",
+          "sql": "SELECT \"T2\".\"stadt\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" WHERE \"T1\".\"text\" = 'One of our favorite stories is @FINRA_News''s move to the cloud with AWS Enterprise Support! https://amp.twimg.com/v/991837f1-4815-4edc-a88f-e68ded09a02a'",
+          "summary": "Give the name of the city of the user who tweeted `One of our favorite stories is @FINRA_News's move to the cloud with AWS Enterprise Support! https://amp.twimg.com/v/991837f1-4815-4edc-a88f-e68ded09a02a`."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_807",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0022",
+          "sql": "SELECT \"T2\".\"geschlecht\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"benutzer\" AS \"T2\" ON \"T1\".\"benutzer_id\" = \"T2\".\"benutzer_id\" WHERE \"T1\".\"retweet_anzahl\" = 535",
+          "summary": "What is the gender of the user whose tweet got 535 retweets?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_811",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0023",
+          "sql": "SELECT \"T2\".\"bundesstaat_code\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" WHERE \"T1\".\"tweet_id\" = 'tw-685681052912873473'",
+          "summary": "Which state was the tweet `tw-685681052912873473` from? Give the state code."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_816",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0024",
+          "sql": "SELECT COUNT(DISTINCT \"tweet_id\") FROM \"social_media\".\"tweet\" WHERE \"sprache\" = 'en'",
+          "summary": "Count the total number of tweet IDs in `en`."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_818",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0025",
+          "sql": "SELECT COUNT(\"tweet_id\") FROM \"social_media\".\"tweet\" WHERE \"wochentag\" = 'Wednesday'",
+          "summary": "How many tweets have been posted on Wednesday?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_819",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0026",
+          "sql": "SELECT \"text\" FROM \"social_media\".\"tweet\" WHERE \"wochentag\" = 'Thursday'",
+          "summary": "List down all of the texts posted on Twitter on Thursday."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_820",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0027",
+          "sql": "SELECT \"T2\".\"geschlecht\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"benutzer\" AS \"T2\" ON \"T1\".\"benutzer_id\" = \"T2\".\"benutzer_id\" WHERE \"T1\".\"tweet_id\" = 'tw-682714583044243456'",
+          "summary": "What is the gender of the user who posted a tweet with ID tw-682714583044243456?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_823",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0028",
+          "sql": "SELECT \"T\".\"geschlecht\" FROM (SELECT \"T2\".\"geschlecht\", COUNT(\"text\") AS \"num\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"benutzer\" AS \"T2\" ON \"T1\".\"benutzer_id\" = \"T2\".\"benutzer_id\" WHERE \"T1\".\"sprache\" = 'en' GROUP BY \"T2\".\"geschlecht\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 1",
+          "summary": "What gender of users posted the most tweets in `en`?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_824",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0029",
+          "sql": "SELECT DISTINCT \"T2\".\"geschlecht\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"benutzer\" AS \"T2\" ON \"T1\".\"benutzer_id\" = \"T2\".\"benutzer_id\" WHERE \"T1\".\"retweet_anzahl\" > 30",
+          "summary": "What gender of users retweet more than 30 times?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_825",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0030",
+          "sql": "SELECT COUNT(\"T1\".\"benutzer_id\") FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"benutzer\" AS \"T2\" ON \"T1\".\"benutzer_id\" = \"T2\".\"benutzer_id\" WHERE \"T2\".\"geschlecht\" = 'Female' AND \"T1\".\"ist_weitergeteilt\" = 'TRUE'",
+          "summary": "How many female users reshared their tweets?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_826",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0031",
+          "sql": "SELECT \"T\".\"land\" FROM (SELECT \"T2\".\"land\", SUM(\"T1\".\"likes\") AS \"num\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" GROUP BY \"T2\".\"land\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which country's tweets collected the most likes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_829",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0032",
+          "sql": "SELECT \"T1\".\"text\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T2\".\"stadt\" = 'Rawang' AND \"T2\".\"bundesstaat\" = 'Selangor' AND \"T2\".\"land\" = 'Malaysia'",
+          "summary": "Write down the tweet text posted from Rawang, Selangor, Malaysia."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_830",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0033",
+          "sql": "SELECT DISTINCT \"T1\".\"sprache\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T2\".\"land\" = 'Brazil'",
+          "summary": "Tweets that were posted from Brazil are in what languague?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_832",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0034",
+          "sql": "SELECT SUM(\"T1\".\"likes\") FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"benutzer\" AS \"T2\" ON \"T1\".\"benutzer_id\" = \"T2\".\"benutzer_id\" WHERE \"T1\".\"sprache\" = 'ru' AND \"T2\".\"geschlecht\" = 'Male'",
+          "summary": "Calculate the total likes collected by tweets in `ru` posted by male users."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_834",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0035",
+          "sql": "SELECT COUNT(DISTINCT \"tweet_id\") FROM \"social_media\".\"tweet\" WHERE \"klout\" > 50",
+          "summary": "How many tweets have a klout of over 50?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_838",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0036",
+          "sql": "SELECT \"text\" FROM \"social_media\".\"tweet\" ORDER BY \"reichweite\" DESC NULLS LAST LIMIT 3",
+          "summary": "Please list the texts of the top 3 tweets with the most number of unique users seeing the tweet."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_839",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0037",
+          "sql": "SELECT COUNT(DISTINCT \"tweet_id\") FROM \"social_media\".\"tweet\" WHERE \"ist_weitergeteilt\" = 'TRUE' AND \"likes\" > 100",
+          "summary": "How many reshared tweets have over 100 likes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_841",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0038",
+          "sql": "SELECT \"T2\".\"geschlecht\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"benutzer\" AS \"T2\" ON \"T1\".\"benutzer_id\" = \"T2\".\"benutzer_id\" ORDER BY \"T1\".\"likes\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the gender of the user who has posted the tweet that got the most likes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_843",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0039",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"tweet_id\") FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T1\".\"sprache\" = 'fr' AND \"T2\".\"land\" = 'Australia'",
+          "summary": "How many tweets in French were posted from Australia?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_844",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0040",
+          "sql": "SELECT COUNT(\"T1\".\"tweet_id\") FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T2\".\"standort_id\" = \"T1\".\"standort_id\" INNER JOIN \"social_media\".\"benutzer\" AS \"T3\" ON \"T3\".\"benutzer_id\" = \"T1\".\"benutzer_id\" WHERE \"T2\".\"land\" = 'Australia' AND \"T3\".\"geschlecht\" = 'Male' AND \"T1\".\"sentiment\" > 0",
+          "summary": "Among all the tweets with a positive sentiment, how many of them were posted by male users in Australia?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_845",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0041",
+          "sql": "SELECT SUM(CASE WHEN \"T1\".\"sentiment\" > 0 THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T1\".\"sentiment\" = 0 THEN 1 ELSE 0 END) AS \"diff\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"benutzer\" AS \"T2\" ON \"T1\".\"benutzer_id\" = \"T2\".\"benutzer_id\" WHERE \"T2\".\"geschlecht\" = 'Male'",
+          "summary": "How many more tweets with a positive sentiment than the tweets with a neutral sentiment were posted by male users?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_846",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0042",
+          "sql": "SELECT \"T2\".\"stadt\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" ORDER BY \"T1\".\"retweet_anzahl\" DESC NULLS LAST LIMIT 1",
+          "summary": "From which city was the tweet with the most number of retweets posted?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_848",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0043",
+          "sql": "SELECT COUNT(\"T1\".\"tweet_id\") FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T1\".\"tag\" = 31 AND \"T2\".\"bundesstaat\" = 'Santa' AND \"T2\".\"land\" = 'Argentina'",
+          "summary": "Among the tweets posted from Santa Fe state in Argentina, how many of them were posted on 31st?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_849",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0044",
+          "sql": "SELECT \"T\".\"stadt\" FROM (SELECT \"T2\".\"stadt\", COUNT(\"T1\".\"tweet_id\") AS \"num\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T2\".\"land\" = 'Canada' GROUP BY \"T2\".\"stadt\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 3",
+          "summary": "Please list the top 3 cities with the most number of tweets posted in Canada."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_851",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0045",
+          "sql": "SELECT \"T2\".\"text\" FROM \"social_media\".\"benutzer\" AS \"T1\" INNER JOIN \"social_media\".\"tweet\" AS \"T2\" ON \"T1\".\"benutzer_id\" = \"T2\".\"benutzer_id\" INNER JOIN \"social_media\".\"standort\" AS \"T3\" ON \"T2\".\"standort_id\" = \"T3\".\"standort_id\" WHERE \"T3\".\"land\" = 'Argentina' AND \"T1\".\"geschlecht\" = 'Male' ORDER BY \"T2\".\"likes\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among all the tweets sent by male users in Argentina, what is the text of the one with the most number of likes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_852",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0046",
+          "sql": "SELECT SUM(\"T1\".\"likes\") / NULLIF(COUNT(\"T1\".\"tweet_id\"), 0) FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"benutzer\" AS \"T2\" ON \"T1\".\"benutzer_id\" = \"T2\".\"benutzer_id\" WHERE \"T2\".\"geschlecht\" = 'Male' AND \"T1\".\"wochentag\" = 'Monday'",
+          "summary": "What is the average number of likes for a tweet posted by a male user on Mondays?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_853",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_social_media_0047",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"stadt\" = 'Bangkok' THEN \"likes\" ELSE NULL END) / NULLIF(COUNT(CASE WHEN \"T2\".\"stadt\" = 'Bangkok' THEN 1 ELSE 0 END), 0) AS \"bNum\", SUM(CASE WHEN \"stadt\" = 'Chiang Mai' THEN \"likes\" ELSE NULL END) / NULLIF(COUNT(CASE WHEN \"stadt\" = 'Chiang Mai' THEN \"tweet_id\" ELSE NULL END), 0) AS \"cNum\" FROM \"social_media\".\"tweet\" AS \"T1\" INNER JOIN \"social_media\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T2\".\"stadt\" IN ('Bangkok', 'Chiang Mai')",
+          "summary": "Tweets posted from which city has a higher number of average likes, Bangkok or Chiang Mai?"
+        }
+      ]
+    }

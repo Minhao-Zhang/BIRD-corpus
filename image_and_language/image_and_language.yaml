@@ -1,38 +1,2463 @@
-asset_type: schema
-id: image_and_language
+version: 0.2.0.dev0
 name: image_and_language
-summary: >-
-  image_and_language: a computer-vision database recording what a photograph shows, its
-  detected objects and their bounding boxes, the attributes assigned to them, and the
-  relationships between object pairs, plus the dictionaries naming each category.
-body: >-
-  Every fact in this database is scoped to one photograph, identified by tu_xiang_id. Within a
-  single image, an individual detected object is identified by dui_xiang_yang_ben_id, but that
-  number is only meaningful together with the image it came from, because it starts over in
-  every image rather than counting up across the whole dataset. Three small dictionary tables
-  hold the controlled vocabulary that the rest of the schema points at by id: dui_xiang_lei_bie
-  for what an object is (its class, such as a person or a vehicle), shu_xing_lei_bie for what an
-  object looks like (its attribute, such as a colour or a material), and wei_yu_guan_xi_lei_bie
-  for how two objects relate to each other (the predicate, such as sitting on or holding).
-  tu_xiang_dui_xiang lists one row per detected object and its bounding box; tu_xiang_dui_xiang_shu_xing
-  attaches attributes to those objects; tu_xiang_guan_xi records a directed relationship between
-  an ordered pair of objects in the same image, and when both objects in the pair are the same
-  object sample the row describes that object relating to itself. Each of the three dictionaries
-  also carries a same-shaped pair of columns whose name ends in fen_lei, and there are two
-  further freestanding fen_lei tables; none of that fen_lei-named material is dependable and
-  none of it should be used to answer a question.
-rules:
-  - When connecting tu_xiang_dui_xiang to tu_xiang_dui_xiang_shu_xing or to tu_xiang_guan_xi,
-    match on tu_xiang_id together with the object sample id (dui_xiang_yang_ben_id, or
-    dui_xiang_1_yang_ben_id / dui_xiang_2_yang_ben_id) — matching on the object sample id alone
-    links objects across unrelated images, because that id repeats within every image.
-  - Treat every column or table whose name contains fen_lei as off limits for filtering,
-    joining or reporting; the lei_bie dictionary tables are the dependable source for object,
-    attribute and predicate categories.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |-
+  image_and_language: a computer-vision database recording what a photograph shows, its detected objects and their bounding boxes, the attributes assigned to them, and the relationships between object pairs, plus the dictionaries naming each category.
+
+  Every fact in this database is scoped to one photograph, identified by tu_xiang_id. Within a single image, an individual detected object is identified by dui_xiang_yang_ben_id, but that number is only meaningful together with the image it came from, because it starts over in every image rather than counting up across the whole dataset. Three small dictionary tables hold the controlled vocabulary that the rest of the schema points at by id: dui_xiang_lei_bie for what an object is (its class, such as a person or a vehicle), shu_xing_lei_bie for what an object looks like (its attribute, such as a colour or a material), and wei_yu_guan_xi_lei_bie for how two objects relate to each other (the predicate, such as sitting on or holding). tu_xiang_dui_xiang lists one row per detected object and its bounding box; tu_xiang_dui_xiang_shu_xing attaches attributes to those objects; tu_xiang_guan_xi records a directed relationship between an ordered pair of objects in the same image, and when both objects in the pair are the same object sample the row describes that object relating to itself. Each of the three dictionaries also carries a same-shaped pair of columns whose name ends in fen_lei, and there are two further freestanding fen_lei tables; none of that fen_lei-named material is dependable and none of it should be used to answer a question.
+ai_context:
+  instructions: |-
+    When connecting tu_xiang_dui_xiang to tu_xiang_dui_xiang_shu_xing or to tu_xiang_guan_xi, match on tu_xiang_id together with the object sample id (dui_xiang_yang_ben_id, or dui_xiang_1_yang_ben_id / dui_xiang_2_yang_ben_id) — matching on the object sample id alone links objects across unrelated images, because that id repeats within every image.
+    Treat every column or table whose name contains fen_lei as off limits for filtering, joining or reporting; the lei_bie dictionary tables are the dependable source for object, attribute and predicate categories.
+datasets:
+- name: dui_xiang_lei_bie
+  source: image_and_language.dui_xiang_lei_bie
+  description: |-
+    dui_xiang_lei_bie is the object-class dictionary, naming every category of object that can be detected in an image.
+
+    One row per object class (a person, a car, a broccoli, and so on). Grain: one row per dui_xiang_lei_bie_id. Easily confused with tu_xiang_dui_xiang, which holds the actual detected object instances rather than the class names; dui_xiang_lei_bie only supplies the vocabulary those instances point at. Joins to tu_xiang_dui_xiang on dui_xiang_lei_bie_id to attach a class name to a detected object.
+  fields:
+  - name: dui_xiang_lei_bie_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dui_xiang_lei_bie_id
+    description: |-
+      dui_xiang_lei_bie_id is the unique identifier of an object class.
+
+      Integer surrogate key of dui_xiang_lei_bie, one value per distinct object class. Referenced from tu_xiang_dui_xiang.dui_xiang_lei_bie_id to tag a detected object with its class.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: dui_xiang_lei_bie_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dui_xiang_lei_bie_ming
+    description: |-
+      dui_xiang_lei_bie_ming is the name of an object class.
+
+      Free-text label such as 'broccoli', 'keyboard', 'wood', 'kite' or 'vegetables' — the noun a person would use for the category of object shown. Distinct within the table; one label per dui_xiang_lei_bie_id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "dui_xiang_lei_bie.dui_xiang_lei_bie_ming holds this label as free text, for example 'broccoli', 'keyboard', 'tomato', 'wood' or 'vegetables'. Join tu_xiang_dui_xiang.dui_xiang_lei_bie_id to this column to find which class a detected object belongs to, or to find every detection of one named class.",
+              "id": "term_image_and_language_object_class",
+              "name": "object class",
+              "summary": "Object class (object classes) is the category label of a detected object, the object class of the image; explanations about object classes are the free-text names in dui_xiang_lei_bie_ming.",
+              "synonyms": [
+                "object class",
+                "object classes",
+                "object class of the image",
+                "explanations about object classes"
+              ]
+            }
+          ]
+        }
+  - name: dui_xiang_fen_lei_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dui_xiang_fen_lei_id
+    description: |-
+      dui_xiang_fen_lei_id, an integer column on the object-class table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: dui_xiang_fen_lei_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dui_xiang_fen_lei_ming
+    description: |-
+      dui_xiang_fen_lei_ming, a text column on the object-class table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: shu_xing_fen_lei
+  source: image_and_language.shu_xing_fen_lei
+  description: |-
+    shu_xing_fen_lei is a small standalone table in this schema, unrelated to object detection.
+
+    This table is not dependable for analysis. Its rows do not correspond to the business facts the rest of the schema records, and no other table's foreign key points at it. Do not use it to answer a question, and do not join it to any other table.
+  fields:
+  - name: shu_xing_fen_lei_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shu_xing_fen_lei_id
+    description: |-
+      shu_xing_fen_lei_id, an integer column on shu_xing_fen_lei.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: shu_xing_fen_lei_mingcheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shu_xing_fen_lei_mingcheng
+    description: |-
+      shu_xing_fen_lei_mingcheng, a text column on shu_xing_fen_lei.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: shu_xing_lei_bie
+  source: image_and_language.shu_xing_lei_bie
+  description: |-
+    shu_xing_lei_bie is the attribute-class dictionary, naming every descriptive attribute that can be assigned to a detected object.
+
+    One row per attribute class (a colour, a material, a state such as 'wired' or 'peeling', and so on). Grain: one row per shu_xing_lei_bie_id. Easily confused with dui_xiang_lei_bie, which names what an object *is* (its class) rather than what it *looks like* (its attribute). Joins to tu_xiang_dui_xiang_shu_xing on shu_xing_lei_bie_id to attach an attribute name to the object it was recorded against.
+  fields:
+  - name: shu_xing_lei_bie_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shu_xing_lei_bie_id
+    description: |-
+      shu_xing_lei_bie_id is the unique identifier of an attribute class.
+
+      Integer surrogate key of shu_xing_lei_bie, one value per distinct attribute class. Referenced from tu_xiang_dui_xiang_shu_xing.shu_xing_lei_bie_id to tag an object with an attribute.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: shu_xing_lei_bie_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shu_xing_lei_bie_ming
+    description: |-
+      shu_xing_lei_bie_ming is the name of an attribute class.
+
+      Free-text label such as 'white', 'wired', 'pizza', 'denim' or 'horse' — the word a person would use for the visible property or material an object carries. Distinct within the table; one label per shu_xing_lei_bie_id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "shu_xing_lei_bie.shu_xing_lei_bie_ming holds the attribute name as free text, for example 'white', 'wired' or 'horse'. tu_xiang_dui_xiang_shu_xing.shu_xing_lei_bie_id records which attribute was seen on which object, so counting objects per attribute, or attributes per object, both start from that assignment table rather than from this dictionary.",
+              "id": "term_image_and_language_attribute_class",
+              "name": "attribute class",
+              "summary": "Attribute class (attribute classes) names a property of an object. Classes for attributes and prompts to name the attributes both mean shu_xing_lei_bie_ming; attributes are recorded per object.",
+              "synonyms": [
+                "attribute",
+                "attributes",
+                "attribute class",
+                "attribute classes",
+                "classes for attributes",
+                "name the attributes"
+              ]
+            }
+          ]
+        }
+  - name: shu_xing_fen_lei_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shu_xing_fen_lei_id
+    description: |-
+      shu_xing_fen_lei_id, an integer column on the attribute-class table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: shu_xing_fen_lei_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shu_xing_fen_lei_ming
+    description: |-
+      shu_xing_fen_lei_ming, a text column on the attribute-class table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: tu_xiang_dui_xiang
+  source: image_and_language.tu_xiang_dui_xiang
+  description: |-
+    tu_xiang_dui_xiang lists every object detected inside an image, together with the bounding box it was found in.
+
+    Grain: one row per detected object, keyed by tu_xiang_id together with dui_xiang_yang_ben_id — the object sample id is only unique within its own image, so the two columns together, not either alone, identify one detected object. Easily confused with dui_xiang_lei_bie, which supplies the class vocabulary rather than the detections themselves. Joins to dui_xiang_lei_bie on dui_xiang_lei_bie_id for the class name, to tu_xiang_dui_xiang_shu_xing on the image and object sample id for its attributes, and to tu_xiang_guan_xi on the image and object sample id for the relationships it takes part in.
+  fields:
+  - name: tu_xiang_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tu_xiang_id
+    description: |-
+      tu_xiang_id is the identifier of the image an object was detected in.
+
+      Integer image identifier, shared with every other table in this schema that records a fact about a particular photograph. Not unique in this table — one image contains many detected objects, so tu_xiang_id repeats once per object.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: dui_xiang_yang_ben_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dui_xiang_yang_ben_id
+    description: |-
+      dui_xiang_yang_ben_id is the identifier of one detected object instance within an image.
+
+      Small integer, restarting from 1 in every image rather than counting up across the whole dataset — sample values sit in the range 1-9 within any one image, so the same number identifies a different object in a different image. Only (tu_xiang_id, dui_xiang_yang_ben_id) together names a specific detected object.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "tu_xiang_dui_xiang.dui_xiang_yang_ben_id is the per-image object sample id; it names an individual detection, unrelated to dui_xiang_lei_bie_id, which names the object class rather than the instance. tu_xiang_dui_xiang_shu_xing.dui_xiang_yang_ben_id and tu_xiang_guan_xi.dui_xiang_1_yang_ben_id / dui_xiang_2_yang_ben_id use the identical per-image numbering, always scoped to their own tu_xiang_id.",
+              "id": "term_image_and_language_object_sample",
+              "name": "object sample",
+              "summary": "An object sample (object samples, called objects) is a detected object instance, identified by dui_xiang_yang_ben_id; the object number of the sample and object sample ID both name this column, distinct from the object class.",
+              "synonyms": [
+                "object sample",
+                "object samples",
+                "objects",
+                "object number of the sample",
+                "object sample ID"
+              ]
+            }
+          ]
+        }
+  - name: dui_xiang_lei_bie_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dui_xiang_lei_bie_id
+    description: |-
+      dui_xiang_lei_bie_id records which object class a detected object belongs to.
+
+      Foreign key to dui_xiang_lei_bie.dui_xiang_lei_bie_id. Look up the class name there rather than treating this column's number as meaningful on its own.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: x
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: x
+    description: |-
+      x is the horizontal pixel coordinate of an object's bounding box.
+
+      Left edge of the bounding box, in pixels from the left of the image. Part of the four-column bounding box together with y, kuan and gao; sample values range from 0 up into the hundreds depending on image size.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: y
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: y
+    description: |-
+      y is the vertical pixel coordinate of an object's bounding box.
+
+      Top edge of the bounding box, in pixels from the top of the image. Part of the four-column bounding box together with x, kuan and gao; sample values range from 0 up into the hundreds depending on image size.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: kuan
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kuan
+    description: |-
+      kuan is the pixel width of an object's bounding box.
+
+      How wide the bounding box is, in pixels, measured from x. Part of the four-column bounding box together with x, y and gao. Averaging or maximising this column answers questions about an object's width, such as the widest object in an image.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: gao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: gao
+    description: |-
+      gao is the pixel height of an object's bounding box.
+
+      How tall the bounding box is, in pixels, measured from y. Part of the four-column bounding box together with x, y and kuan. Averaging or maximising this column answers questions about an object's height, such as the tallest object in an image.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  metrics:
+  - name: metric_image_and_language_avg_object_height
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(gao)
+    description: |-
+      average object height: the mean pixel height, averaging gao, of the bounding boxes recorded in tu_xiang_dui_xiang.
+
+      Averages gao across whatever set of detected objects a question scopes to — every detection, one image, or one object class. Filter tu_xiang_dui_xiang (optionally joined to dui_xiang_lei_bie or by tu_xiang_id) before averaging. The related metric for a single largest value rather than a mean is the tallest object, MAX(gao).
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average object height"
+        }
+  - name: metric_image_and_language_avg_object_width
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(kuan)
+    description: |-
+      average object width: the mean pixel width, averaging kuan, of the bounding boxes recorded in tu_xiang_dui_xiang.
+
+      Averages kuan across whatever set of detected objects a question scopes to — every detection, one image, or one object class. Filter tu_xiang_dui_xiang (optionally joined to dui_xiang_lei_bie or by tu_xiang_id) before averaging. The related metric for a single largest value rather than a mean is the widest object, MAX(kuan).
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average object width"
+        }
+  - name: metric_image_and_language_max_object_height
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(gao)
+    description: |-
+      tallest object height: the largest bounding-box height, the maximum of gao, among the detected objects in tu_xiang_dui_xiang.
+
+      Takes the maximum of gao across whatever set of detected objects a question scopes to. The tallest object in an image is the row that attains this maximum for that tu_xiang_id, so return the whole row (or its dui_xiang_yang_ben_id / dui_xiang_lei_bie_id) rather than only the number when a question asks which object is tallest.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "tallest object height"
+        }
+  - name: metric_image_and_language_max_object_width
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(kuan)
+    description: |-
+      widest object width: the largest bounding-box width, the maximum of kuan, among the detected objects in tu_xiang_dui_xiang.
+
+      Takes the maximum of kuan across whatever set of detected objects a question scopes to. The widest object in an image is the row that attains this maximum for that tu_xiang_id, so return the whole row (or its dui_xiang_yang_ben_id / dui_xiang_lei_bie_id) rather than only the number when a question asks which object is widest.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "widest object width"
+        }
+  - name: metric_image_and_language_object_instance_count_by_class
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(dui_xiang_yang_ben_id)
+    description: |-
+      object instance count by class: the number of detected objects, counting dui_xiang_yang_ben_id, that tu_xiang_dui_xiang records for one object class after joining to dui_xiang_lei_bie.
+
+      Join tu_xiang_dui_xiang to dui_xiang_lei_bie, group by dui_xiang_lei_bie_ming (or the id), and count dui_xiang_yang_ben_id to get how many detected objects belong to one class, for instance how many are broccoli or tomato. A question comparing two classes, asking how many times more common one class is than another, or asking what percentage of all detections belong to one class, divides this same per-class count by another per-class count or by the unfiltered total. The object class that appears in the most images is the class with the largest count once the grouping also includes tu_xiang_id.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "object instance count by class"
+        }
+  - name: metric_image_and_language_objects_per_image
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(dui_xiang_yang_ben_id)
+    description: |-
+      object count per image: the number of detected objects, counting dui_xiang_yang_ben_id, that tu_xiang_dui_xiang records against one tu_xiang_id.
+
+      Group tu_xiang_dui_xiang by tu_xiang_id and count dui_xiang_yang_ben_id to get the number of objects detected in each image. A question about images with more than, fewer than, or exactly a given number of object samples applies that threshold to this per-image count, for example more than 20 or fewer than 15. The image with the most object samples is the row with the largest count.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "object count per image"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "The bounding box locates a detected object inside its image: x and y are the pixel coordinates of the box's top-left corner, and kuan and gao are its pixel width and height. All four columns live on tu_xiang_dui_xiang, one set per detected object. Averaging or maximising kuan answers questions about an object's width, including the widest object in an image; the same applies to gao for height and the tallest object.",
+            "id": "term_image_and_language_bounding_box",
+            "name": "bounding box",
+            "summary": "A bounding box (or bounding boxes) is the coordinates for the object and the dimensions of the bounding box, held in the x, y, kuan and gao columns of tu_xiang_dui_xiang.",
+            "synonyms": [
+              "bounding box",
+              "bounding boxes",
+              "coordinates for the object",
+              "dimensions of the bounding box"
+            ]
+          }
+        ]
+      }
+- name: tu_xiang_dui_xiang_shu_xing
+  source: image_and_language.tu_xiang_dui_xiang_shu_xing
+  description: |-
+    tu_xiang_dui_xiang_shu_xing attaches an attribute to a specific detected object within an image.
+
+    Grain: one row per (image, detected object, attribute) combination — a single object can carry several rows if it has several attributes, and a single attribute can carry several rows within one image if several objects share it. Easily confused with shu_xing_lei_bie, which only names the attribute vocabulary rather than recording which object it was seen on. Joins to tu_xiang_dui_xiang on tu_xiang_id together with dui_xiang_yang_ben_id to identify the object being described, and to shu_xing_lei_bie on shu_xing_lei_bie_id for the attribute's name.
+  fields:
+  - name: tu_xiang_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tu_xiang_id
+    description: |-
+      tu_xiang_id is the identifier of the image an attribute was recorded in.
+
+      Integer image identifier, shared with every other table in this schema that records a fact about a particular photograph. Repeats once per attribute recorded in that image.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: shu_xing_lei_bie_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shu_xing_lei_bie_id
+    description: |-
+      shu_xing_lei_bie_id records which attribute class was assigned to an object.
+
+      Foreign key to shu_xing_lei_bie.shu_xing_lei_bie_id. Look up the attribute name there rather than treating this column's number as meaningful on its own. If one shu_xing_lei_bie_id appears against several dui_xiang_yang_ben_id values within the same image, that attribute is shared by several objects in that image.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: dui_xiang_yang_ben_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dui_xiang_yang_ben_id
+    description: |-
+      dui_xiang_yang_ben_id identifies the object within the image that an attribute was recorded against.
+
+      Same object-sample numbering as tu_xiang_dui_xiang.dui_xiang_yang_ben_id — meaningful only together with tu_xiang_id, since the number restarts in every image. If one tu_xiang_id has several dui_xiang_yang_ben_id values here, that image has several objects with attributes recorded.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  metrics:
+  - name: metric_image_and_language_attribute_count_per_object
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(shu_xing_lei_bie_id)
+    description: |-
+      attribute count per object: the number of attribute classes, counting shu_xing_lei_bie_id, that tu_xiang_dui_xiang_shu_xing records against one object within one image.
+
+      Group tu_xiang_dui_xiang_shu_xing by tu_xiang_id and dui_xiang_yang_ben_id together, then count shu_xing_lei_bie_id, to get how many attribute classes are attached to one detected object. The object with the highest number of attribute classes is the group with the largest count; grouping by dui_xiang_yang_ben_id alone mixes objects from different images because that id restarts in every image.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "attribute count per object"
+        }
+  - name: metric_image_and_language_attribute_usage_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(dui_xiang_yang_ben_id)
+    description: |-
+      attribute usage count: the number of objects, counting dui_xiang_yang_ben_id, that tu_xiang_dui_xiang_shu_xing records against one shu_xing_lei_bie_id.
+
+      Group tu_xiang_dui_xiang_shu_xing by shu_xing_lei_bie_id and count dui_xiang_yang_ben_id to get how many objects carry one attribute class. The attribute class with the highest number of objects is the group with the largest count; a question asking for multiple objects sharing an attribute is asking whether this count is two or more for that attribute.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "attribute usage count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: tu_xiang_guan_xi
+  source: image_and_language.tu_xiang_guan_xi
+  description: |-
+    tu_xiang_guan_xi records a relationship between an ordered pair of objects detected in the same image.
+
+    Grain: one row per (image, first object, second object, predicate) relationship — a scene-graph edge such as "object 1 is sitting on object 2". A pair of objects can carry several rows if more than one predicate applies to them, and a row where dui_xiang_1_yang_ben_id equals dui_xiang_2_yang_ben_id describes an object relating to itself. Easily confused with tu_xiang_dui_xiang, which lists the objects themselves rather than the relationships between them. Joins to tu_xiang_dui_xiang on the image and object sample id (for both dui_xiang_1_yang_ben_id and dui_xiang_2_yang_ben_id) to identify the two objects, and to wei_yu_guan_xi_lei_bie on wei_yu_guan_xi_lei_bie_id for the predicate's caption.
+  fields:
+  - name: tu_xiang_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tu_xiang_id
+    description: |-
+      tu_xiang_id is the identifier of the image a relationship was recorded in.
+
+      Integer image identifier, shared with every other table in this schema that records a fact about a particular photograph. Both objects in a relationship row always belong to this same image.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: wei_yu_guan_xi_lei_bie_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wei_yu_guan_xi_lei_bie_id
+    description: |-
+      wei_yu_guan_xi_lei_bie_id records which predicate class describes a relationship.
+
+      Foreign key to wei_yu_guan_xi_lei_bie.wei_yu_guan_xi_lei_bie_id. Look up the predicate's caption there rather than treating this column's number as meaningful on its own.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: dui_xiang_1_yang_ben_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dui_xiang_1_yang_ben_id
+    description: |-
+      dui_xiang_1_yang_ben_id identifies the first (subject) object in a relationship.
+
+      Same object-sample numbering as tu_xiang_dui_xiang.dui_xiang_yang_ben_id — meaningful only together with tu_xiang_id. When this equals dui_xiang_2_yang_ben_id in the same row, the relationship is a self-relation.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: dui_xiang_2_yang_ben_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dui_xiang_2_yang_ben_id
+    description: |-
+      dui_xiang_2_yang_ben_id identifies the second, receiving object in a relationship.
+
+      Same object-sample numbering as tu_xiang_dui_xiang.dui_xiang_yang_ben_id — meaningful only together with tu_xiang_id. When this equals dui_xiang_1_yang_ben_id in the same row, the relationship is a self-relation.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  metrics:
+  - name: metric_image_and_language_relationship_pair_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(tu_xiang_id)
+    description: |-
+      relationship pair count: the number of relationship rows, counting tu_xiang_id, recorded in tu_xiang_guan_xi for a scoped set of object pairs.
+
+      Counts rows of tu_xiang_guan_xi. A question about pairs of objects, as opposed to relationships in general, excludes self-relations first — filter to dui_xiang_1_yang_ben_id <> dui_xiang_2_yang_ben_id before counting, since a self-relation is one object relating to itself rather than a pair of two different objects.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "relationship pair count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "Applies to tu_xiang_guan_xi rows where dui_xiang_1_yang_ben_id = dui_xiang_2_yang_ben_id within the same tu_xiang_id. Distinguishes an object's relationship to itself from the ordinary case of two different objects in the pair, and is the boundary condition behind any question asking for self-relations specifically.",
+            "id": "term_image_and_language_self_relation",
+            "name": "self-relation",
+            "summary": "A self-relation (self-relations are rows of this kind) is a self-relation relationship in tu_xiang_guan_xi where dui_xiang_1_yang_ben_id equals dui_xiang_2_yang_ben_id, meaning an object relates to itself rather than to a different object.",
+            "synonyms": [
+              "self-relation",
+              "self-relations",
+              "self-relation relationship"
+            ]
+          }
+        ]
+      }
+- name: wei_yu_guan_xi_lei_bie
+  source: image_and_language.wei_yu_guan_xi_lei_bie
+  description: |-
+    wei_yu_guan_xi_lei_bie is the predicate-class dictionary, naming every kind of relationship that can connect two detected objects.
+
+    One row per predicate class (a verb or preposition such as 'on', 'parked on', 'containing' or 'inside of'). Grain: one row per wei_yu_guan_xi_lei_bie_id. Easily confused with tu_xiang_guan_xi, which records the actual relationship rows between object pairs rather than the predicate vocabulary. Joins to tu_xiang_guan_xi on wei_yu_guan_xi_lei_bie_id to attach a predicate's caption to a relationship.
+  fields:
+  - name: wei_yu_guan_xi_lei_bie_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wei_yu_guan_xi_lei_bie_id
+    description: |-
+      wei_yu_guan_xi_lei_bie_id is the unique identifier of a predicate class.
+
+      Integer surrogate key of wei_yu_guan_xi_lei_bie, one value per distinct predicate class. Referenced from tu_xiang_guan_xi.wei_yu_guan_xi_lei_bie_id to classify a relationship.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: wei_yu_guan_xi_lei_bie_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wei_yu_guan_xi_lei_bie_ming
+    description: |-
+      wei_yu_guan_xi_lei_bie_ming is the caption text of a predicate class.
+
+      Free-text phrase such as 'on', 'parked on', 'containing', 'covers', 'showing a', 'of' or 'inside of' — the words that describe how the first object relates to the second. Distinct within the table; one caption per wei_yu_guan_xi_lei_bie_id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "wei_yu_guan_xi_lei_bie.wei_yu_guan_xi_lei_bie_ming holds the predicate caption as free text, for example 'on', 'parked on', 'containing' or 'inside of'. tu_xiang_guan_xi.wei_yu_guan_xi_lei_bie_id records which predicate applies to which pair of objects in an image.",
+              "id": "term_image_and_language_predicate_class",
+              "name": "predicate class",
+              "summary": "A predicted relation class, or relationship, is what wei_yu_guan_xi_lei_bie_ming names among the predicted classes; captions of prediction classes are read from that column, and analysts also say predicted class or simply relation for the same thing.",
+              "synonyms": [
+                "relation",
+                "relationship",
+                "predicted class",
+                "predicted classes",
+                "predicted relation class",
+                "captions of prediction classes"
+              ]
+            }
+          ]
+        }
+  - name: wei_yu_guan_xi_fen_lei_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wei_yu_guan_xi_fen_lei_id
+    description: |-
+      wei_yu_guan_xi_fen_lei_id, an integer column on the predicate-class table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: wei_yu_guan_xi_fen_lei_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wei_yu_guan_xi_fen_lei_ming
+    description: |-
+      wei_yu_guan_xi_fen_lei_ming, a text column on the predicate-class table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: wei_zhi_guan_xi_fen_lei
+  source: image_and_language.wei_zhi_guan_xi_fen_lei
+  description: |-
+    wei_zhi_guan_xi_fen_lei is a small standalone table in this schema, unrelated to object detection.
+
+    This table is not dependable for analysis. Its rows do not correspond to the business facts the rest of the schema records, and no other table's foreign key points at it. Do not use it to answer a question, and do not join it to any other table.
+  fields:
+  - name: wei_zhi_guan_xi_fen_lei_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wei_zhi_guan_xi_fen_lei_id
+    description: |-
+      wei_zhi_guan_xi_fen_lei_id, an integer column on wei_zhi_guan_xi_fen_lei.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: wei_zhi_guan_xi_fen_lei_mingcheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wei_zhi_guan_xi_fen_lei_mingcheng
+    description: |-
+      wei_zhi_guan_xi_fen_lei_mingcheng, a text column on wei_zhi_guan_xi_fen_lei.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_image_and_language_dui_xiang_lei_bie_tu_xiang_dui_xiang_aa259906
+  from: tu_xiang_dui_xiang
+  to: dui_xiang_lei_bie
+  from_columns:
+  - dui_xiang_lei_bie_id
+  to_columns:
+  - dui_xiang_lei_bie_id
+  ai_context:
+    instructions: |-
+      Connects dui_xiang_lei_bie to tu_xiang_dui_xiang so a detected object can be labelled with its object class name.
+
+      Equates the class id on the dictionary side with the class id recorded on each detection. One object class in dui_xiang_lei_bie applies to many detections in tu_xiang_dui_xiang, so filter or group on dui_xiang_lei_bie_ming (or the id) after this join rather than expecting one row per class.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between dui_xiang_lei_bie and tu_xiang_dui_xiang in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_image_and_language_shu_xing_lei_bie_tu_xiang_dui_xiang_shu_xing_b67f04be
+  from: tu_xiang_dui_xiang_shu_xing
+  to: shu_xing_lei_bie
+  from_columns:
+  - shu_xing_lei_bie_id
+  to_columns:
+  - shu_xing_lei_bie_id
+  ai_context:
+    instructions: |-
+      Connects shu_xing_lei_bie to tu_xiang_dui_xiang_shu_xing so an object-attribute assignment can be labelled with its attribute name.
+
+      Equates the attribute class id on the dictionary side with the attribute class id recorded against each object. One attribute class in shu_xing_lei_bie applies to many rows in tu_xiang_dui_xiang_shu_xing, so filter or group on shu_xing_lei_bie_ming (or the id) after this join rather than expecting one row per attribute.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between shu_xing_lei_bie and tu_xiang_dui_xiang_shu_xing in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_image_and_language_tu_xiang_guan_xi_wei_yu_guan_xi_lei_bie_1214f117
+  from: tu_xiang_guan_xi
+  to: wei_yu_guan_xi_lei_bie
+  from_columns:
+  - wei_yu_guan_xi_lei_bie_id
+  to_columns:
+  - wei_yu_guan_xi_lei_bie_id
+  ai_context:
+    instructions: |-
+      Connects tu_xiang_guan_xi to wei_yu_guan_xi_lei_bie so a relationship row can be labelled with its predicate caption.
+
+      Equates the predicate class id on the relationship side with the predicate class id on the dictionary side. One predicate class in wei_yu_guan_xi_lei_bie applies to many relationship rows in tu_xiang_guan_xi, so filter or group on wei_yu_guan_xi_lei_bie_ming (or the id) after this join rather than expecting one row per predicate.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between tu_xiang_guan_xi and wei_yu_guan_xi_lei_bie in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_7474",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0000",
+          "sql": "SELECT COUNT(\"T1\".\"tu_xiang_id\") FROM (SELECT \"tu_xiang_id\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" GROUP BY \"tu_xiang_id\" HAVING COUNT(\"dui_xiang_yang_ben_id\") > 20) AS \"T1\"",
+          "summary": "How many images have over 20 object samples?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7475",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0001",
+          "sql": "SELECT \"tu_xiang_id\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" GROUP BY \"tu_xiang_id\" ORDER BY COUNT(\"dui_xiang_yang_ben_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "What is the ID of the image with the most number of object samples?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7477",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0002",
+          "sql": "SELECT SUM(CASE WHEN \"tu_xiang_id\" = 5 THEN 1 ELSE 0 END) FROM \"image_and_language\".\"tu_xiang_guan_xi\" WHERE \"dui_xiang_1_yang_ben_id\" = \"dui_xiang_2_yang_ben_id\"",
+          "summary": "How many self-relations are there between the object samples in image no.5?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7482",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0003",
+          "sql": "SELECT \"T1\".\"wei_yu_guan_xi_lei_bie_ming\" FROM \"image_and_language\".\"wei_yu_guan_xi_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_guan_xi\" AS \"T2\" ON \"T1\".\"wei_yu_guan_xi_lei_bie_id\" = \"T2\".\"wei_yu_guan_xi_lei_bie_id\" WHERE \"T2\".\"tu_xiang_id\" = 1 AND \"T2\".\"dui_xiang_1_yang_ben_id\" = 8 AND \"T2\".\"dui_xiang_2_yang_ben_id\" = 4",
+          "summary": "What is the relation between object sample no.8 and object sample no.4 in image no.1?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7486",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0004",
+          "sql": "SELECT \"T2\".\"tu_xiang_id\" FROM \"image_and_language\".\"wei_yu_guan_xi_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_guan_xi\" AS \"T2\" ON \"T1\".\"wei_yu_guan_xi_lei_bie_id\" = \"T2\".\"wei_yu_guan_xi_lei_bie_id\" WHERE \"T1\".\"wei_yu_guan_xi_lei_bie_ming\" = 'parked on' AND \"T2\".\"dui_xiang_1_yang_ben_id\" <> \"T2\".\"dui_xiang_2_yang_ben_id\" GROUP BY \"T2\".\"tu_xiang_id\" HAVING COUNT(\"T2\".\"tu_xiang_id\") > 2",
+          "summary": "Please list the IDs of all the images with more than 2 pairs of object samples with the relation \"parked on\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7487",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0005",
+          "sql": "SELECT \"T1\".\"wei_yu_guan_xi_lei_bie_ming\" FROM \"image_and_language\".\"wei_yu_guan_xi_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_guan_xi\" AS \"T2\" ON \"T1\".\"wei_yu_guan_xi_lei_bie_id\" = \"T2\".\"wei_yu_guan_xi_lei_bie_id\" WHERE \"T2\".\"tu_xiang_id\" = 5 AND \"T2\".\"dui_xiang_1_yang_ben_id\" = \"T2\".\"dui_xiang_2_yang_ben_id\"",
+          "summary": "To which predicted relation class does the self-relation of the object sample in image no.5 belong?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7490",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0006",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T1\".\"dui_xiang_lei_bie_ming\" = 'man' THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"dui_xiang_lei_bie_id\"), 0) FROM \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"tu_xiang_id\" = 1",
+          "summary": "What is the percentage of the object samples in the class of \"man\" in image no.1?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7491",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0007",
+          "sql": "SELECT COUNT(\"shu_xing_lei_bie_id\") FROM \"image_and_language\".\"shu_xing_lei_bie\"",
+          "summary": "State the total number of the attribute classes."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7492",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0008",
+          "sql": "SELECT COUNT(\"dui_xiang_lei_bie_id\") FROM \"image_and_language\".\"dui_xiang_lei_bie\"",
+          "summary": "How many object classes are there in the database?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7493",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0009",
+          "sql": "SELECT COUNT(\"wei_yu_guan_xi_lei_bie_id\") FROM \"image_and_language\".\"wei_yu_guan_xi_lei_bie\"",
+          "summary": "Provide the number of predicted classes."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7494",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0010",
+          "sql": "SELECT \"T2\".\"x\", \"T2\".\"y\", \"T2\".\"kuan\", \"T2\".\"gao\" FROM \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"tu_xiang_id\" = 2324765 AND \"T1\".\"dui_xiang_lei_bie_ming\" = 'kite'",
+          "summary": "Give the bounding box of the kite in image no.2324765."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7495",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0011",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"shu_xing_lei_bie_ming\" = 'white' THEN 1 ELSE 0 END) FROM \"image_and_language\".\"tu_xiang_dui_xiang_shu_xing\" AS \"T1\" INNER JOIN \"image_and_language\".\"shu_xing_lei_bie\" AS \"T2\" ON \"T1\".\"shu_xing_lei_bie_id\" = \"T2\".\"shu_xing_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 2347915",
+          "summary": "How many white objects are there in image no.2347915?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7498",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0012",
+          "sql": "SELECT \"T2\".\"dui_xiang_1_yang_ben_id\" FROM \"image_and_language\".\"wei_yu_guan_xi_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_guan_xi\" AS \"T2\" ON \"T1\".\"wei_yu_guan_xi_lei_bie_id\" = \"T2\".\"wei_yu_guan_xi_lei_bie_id\" WHERE \"T2\".\"tu_xiang_id\" = 2345524 AND \"T1\".\"wei_yu_guan_xi_lei_bie_ming\" = 'lying on' AND \"T2\".\"dui_xiang_2_yang_ben_id\" = 1",
+          "summary": "Give the object number of the sample which has the relationship of \"lying on\" with object sample no.1 from image no.2345524."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7499",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0013",
+          "sql": "SELECT COUNT(\"T2\".\"dui_xiang_yang_ben_id\") FROM \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"tu_xiang_id\" = 6 AND \"T1\".\"dui_xiang_lei_bie_ming\" = 'food'",
+          "summary": "How many samples of food object are there in image no.6?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7500",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0014",
+          "sql": "SELECT COUNT(\"T\".\"tu_xiang_id\") FROM (SELECT \"T2\".\"tu_xiang_id\" FROM \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"dui_xiang_lei_bie_ming\" = 'suit' GROUP BY \"T2\".\"tu_xiang_id\") AS \"T\"",
+          "summary": "Give the number of images containing the object sample of \"suit\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7501",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0015",
+          "sql": "SELECT \"T1\".\"wei_yu_guan_xi_lei_bie_ming\" FROM \"image_and_language\".\"wei_yu_guan_xi_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_guan_xi\" AS \"T2\" ON \"T1\".\"wei_yu_guan_xi_lei_bie_id\" = \"T2\".\"wei_yu_guan_xi_lei_bie_id\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T3\" ON \"T2\".\"dui_xiang_1_yang_ben_id\" = \"T3\".\"dui_xiang_yang_ben_id\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T4\" ON \"T3\".\"dui_xiang_lei_bie_id\" = \"T4\".\"dui_xiang_lei_bie_id\" WHERE (\"T4\".\"dui_xiang_lei_bie_ming\" = 'feathers' OR \"T4\".\"dui_xiang_lei_bie_ming\" = 'onion') AND \"T2\".\"tu_xiang_id\" = 2345528 GROUP BY \"T1\".\"wei_yu_guan_xi_lei_bie_ming\"",
+          "summary": "What is the relationship between \"feathers\" and \"onion\" in image no.2345528?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7506",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0016",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T1\".\"dui_xiang_lei_bie_ming\" = 'broccoli' THEN \"T2\".\"dui_xiang_yang_ben_id\" ELSE NULL END) AS REAL) / NULLIF(COUNT(CASE WHEN \"T1\".\"dui_xiang_lei_bie_ming\" = 'tomato' THEN \"T2\".\"dui_xiang_yang_ben_id\" ELSE NULL END), 0) AS \"times\" FROM \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\"",
+          "summary": "How many times is the number of images containing \"broccoli\" than \"tomato\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7508",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0017",
+          "sql": "SELECT DISTINCT \"tu_xiang_id\" FROM \"image_and_language\".\"tu_xiang_guan_xi\" WHERE \"dui_xiang_1_yang_ben_id\" = \"dui_xiang_2_yang_ben_id\"",
+          "summary": "List all the ids of the images that have a self-relation relationship."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7510",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0018",
+          "sql": "SELECT \"dui_xiang_lei_bie_id\" FROM \"image_and_language\".\"dui_xiang_lei_bie\" WHERE \"dui_xiang_lei_bie_ming\" IN ('bus', 'train', 'aeroplane', 'car', 'etc')",
+          "summary": "What are the id of all the objects belonging to the transportation class?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7511",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0019",
+          "sql": "SELECT \"shu_xing_lei_bie_id\" FROM \"image_and_language\".\"shu_xing_lei_bie\" WHERE \"shu_xing_lei_bie_ming\" = 'very large'",
+          "summary": "What are the corresponding classes for the \"very large bike\" attribute?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7512",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0020",
+          "sql": "SELECT \"dui_xiang_lei_bie_id\" FROM \"image_and_language\".\"dui_xiang_lei_bie\" WHERE \"dui_xiang_lei_bie_ming\" = 'onion'",
+          "summary": "What is the unique id number identifying the onion object class?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7517",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0021",
+          "sql": "SELECT \"T1\".\"tu_xiang_id\" AS \"IMGID\" FROM \"image_and_language\".\"tu_xiang_dui_xiang_shu_xing\" AS \"T1\" INNER JOIN \"image_and_language\".\"shu_xing_lei_bie\" AS \"T2\" ON \"T1\".\"shu_xing_lei_bie_id\" = \"T2\".\"shu_xing_lei_bie_id\" WHERE \"T2\".\"shu_xing_lei_bie_ming\" = 'white' GROUP BY \"T1\".\"tu_xiang_id\" ORDER BY COUNT(\"T1\".\"shu_xing_lei_bie_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which image has the highest number of \"white\" class attributes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7518",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0022",
+          "sql": "SELECT \"T2\".\"x\", \"T2\".\"y\" FROM \"image_and_language\".\"tu_xiang_guan_xi\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T2\" ON \"T1\".\"tu_xiang_id\" = \"T2\".\"tu_xiang_id\" WHERE \"T1\".\"wei_yu_guan_xi_lei_bie_id\" = 98",
+          "summary": "What are the x and y coordinates of all the images with a prediction relationship class id of 98?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7520",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0023",
+          "sql": "SELECT \"T1\".\"dui_xiang_lei_bie_ming\" FROM \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"x\" = 0 AND \"T2\".\"y\" = 0 GROUP BY \"T1\".\"dui_xiang_lei_bie_ming\"",
+          "summary": "List all the explanations about object classes of all the images with an x and y coordinate of 0."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7521",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0024",
+          "sql": "SELECT \"T2\".\"wei_yu_guan_xi_lei_bie_ming\" FROM \"image_and_language\".\"tu_xiang_guan_xi\" AS \"T1\" INNER JOIN \"image_and_language\".\"wei_yu_guan_xi_lei_bie\" AS \"T2\" ON \"T1\".\"wei_yu_guan_xi_lei_bie_id\" = \"T2\".\"wei_yu_guan_xi_lei_bie_id\" WHERE \"T1\".\"dui_xiang_1_yang_ben_id\" = \"T1\".\"dui_xiang_2_yang_ben_id\" GROUP BY \"T2\".\"wei_yu_guan_xi_lei_bie_ming\"",
+          "summary": "What are the captions of all the self-relation relationship prediction classes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7522",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0025",
+          "sql": "SELECT \"T2\".\"x\", \"T2\".\"y\", \"T2\".\"gao\", \"T2\".\"kuan\" FROM \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"tu_xiang_id\" = 2222 AND \"T1\".\"dui_xiang_lei_bie_ming\" = 'feathers'",
+          "summary": "Give all the bounding boxes for image 2222 whose object classes are feathers."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7523",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0026",
+          "sql": "SELECT COUNT(\"T2\".\"wei_yu_guan_xi_lei_bie_id\") FROM \"image_and_language\".\"tu_xiang_guan_xi\" AS \"T1\" INNER JOIN \"image_and_language\".\"wei_yu_guan_xi_lei_bie\" AS \"T2\" ON \"T1\".\"wei_yu_guan_xi_lei_bie_id\" = \"T2\".\"wei_yu_guan_xi_lei_bie_id\" WHERE \"T1\".\"dui_xiang_1_yang_ben_id\" <> \"T1\".\"dui_xiang_2_yang_ben_id\" AND \"T2\".\"wei_yu_guan_xi_lei_bie_ming\" = 'on'",
+          "summary": "Among the objects that have multiple relations, how many images whose captions for the prediction class ids are \"on\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7524",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0027",
+          "sql": "SELECT \"T1\".\"dui_xiang_lei_bie_ming\" FROM \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"x\" = 0 AND \"T2\".\"y\" = 0 AND \"T2\".\"kuan\" = 135 AND \"T2\".\"gao\" = 212",
+          "summary": "What is the object class of the image with a bounding box of 0, 0, 135, 212?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7525",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0028",
+          "sql": "SELECT \"T1\".\"kuan\", \"T1\".\"gao\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 3 AND \"T2\".\"dui_xiang_lei_bie_ming\" = 'keyboard'",
+          "summary": "Provide the dimensions of the bounding box that contains the keyboard that was spotted in image no. 3."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7527",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0029",
+          "sql": "SELECT \"T1\".\"x\", \"T1\".\"y\", \"T1\".\"kuan\", \"T1\".\"gao\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 285930 AND \"T2\".\"dui_xiang_lei_bie_ming\" = 'onion'",
+          "summary": "Define the onion's bounding box on image no. 285930."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7529",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0030",
+          "sql": "SELECT \"T2\".\"shu_xing_lei_bie_ming\" FROM \"image_and_language\".\"tu_xiang_dui_xiang_shu_xing\" AS \"T1\" INNER JOIN \"image_and_language\".\"shu_xing_lei_bie\" AS \"T2\" ON \"T1\".\"shu_xing_lei_bie_id\" = \"T2\".\"shu_xing_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 5 GROUP BY \"T2\".\"shu_xing_lei_bie_ming\" HAVING COUNT(\"T2\".\"shu_xing_lei_bie_ming\") > 2",
+          "summary": "On image no. 5, name the attributes that are composed of multiple objects."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7532",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0031",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"tu_xiang_id\") FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"dui_xiang_lei_bie_ming\" = 'bridge'",
+          "summary": "How many images contain 'bridge' as an object element?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7539",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0032",
+          "sql": "SELECT \"shu_xing_lei_bie_id\" FROM \"image_and_language\".\"tu_xiang_dui_xiang_shu_xing\" WHERE \"tu_xiang_id\" = 20 GROUP BY \"shu_xing_lei_bie_id\" ORDER BY COUNT(\"shu_xing_lei_bie_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "On image no. 20, identify the attribute ID that is composed of the highest number of objects."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7543",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0033",
+          "sql": "SELECT \"dui_xiang_lei_bie_ming\" FROM \"image_and_language\".\"dui_xiang_lei_bie\" WHERE \"dui_xiang_lei_bie_id\" = 10",
+          "summary": "State the explanation about object class 10."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7544",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0034",
+          "sql": "SELECT \"T2\".\"dui_xiang_lei_bie_ming\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"x\" = 422 AND \"T1\".\"y\" = 63 AND \"T1\".\"kuan\" = 77 AND \"T1\".\"gao\" = 363",
+          "summary": "Name the object class of the image with a bounding (422, 63, 77, 363)."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7545",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0035",
+          "sql": "SELECT \"wei_yu_guan_xi_lei_bie_ming\" FROM \"image_and_language\".\"wei_yu_guan_xi_lei_bie\" WHERE \"wei_yu_guan_xi_lei_bie_id\" = 12",
+          "summary": "What is the caption for the prediction class id 12?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7547",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0036",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"dui_xiang_lei_bie_ming\" = 'tip' THEN 1 ELSE 0 END) FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 908",
+          "summary": "How many object samples in image no.908 are in the class of tip?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7548",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0037",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"dui_xiang_lei_bie_ming\" = 'kitchen' THEN 1 ELSE 0 END) FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 41",
+          "summary": "List out the number of object samples in image no.41 which are in the class of \"kitchen\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7549",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0038",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"tu_xiang_id\") FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"dui_xiang_lei_bie_ming\" = 'paint'",
+          "summary": "Count the image numbers that contain the \"paint\" object."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7550",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0039",
+          "sql": "SELECT SUM(CASE WHEN \"T1\".\"tu_xiang_id\" = 2315533 THEN 1 ELSE 0 END) FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"dui_xiang_lei_bie_ming\" = 'clouds'",
+          "summary": "How many samples of clouds are there in the image no.2315533?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7552",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0040",
+          "sql": "SELECT \"T1\".\"x\", \"T1\".\"y\", \"T1\".\"kuan\", \"T1\".\"gao\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 1344 AND \"T2\".\"dui_xiang_lei_bie_ming\" = 'spoon'",
+          "summary": "What is the bounding box of \"spoon\" in image id 1344?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7553",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0041",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"dui_xiang_lei_bie_ming\" = 'surface' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"dui_xiang_lei_bie_id\"), 0) FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 2654",
+          "summary": "What is the percentage of \"surface\" object samples in image No.2654?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7554",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0042",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"tu_xiang_id\") FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"dui_xiang_lei_bie_ming\" = 'wood'",
+          "summary": "How many images include the \"wood\" objects?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7555",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0043",
+          "sql": "SELECT \"T2\".\"dui_xiang_lei_bie_ming\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" ORDER BY \"T1\".\"gao\" DESC NULLS LAST LIMIT 1",
+          "summary": "State the object class of the image with tallest bounding box."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7556",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0044",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"dui_xiang_lei_bie_ming\" = 'airplane' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"dui_xiang_lei_bie_ming\"), 0) FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\"",
+          "summary": "Calculate the percentage of \"airplane\" object class in the table."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7557",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0045",
+          "sql": "SELECT COUNT(\"T1\".\"tu_xiang_id\") FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"dui_xiang_lei_bie_ming\" = 'animal' AND \"T1\".\"tu_xiang_id\" = 660",
+          "summary": "How many samples of animal objects are there in image no.660?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7558",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0046",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"dui_xiang_lei_bie_ming\" = 'bed' THEN 1 ELSE 0 END) FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 1098",
+          "summary": "Name number of samples of \"bed\" object are there in the image No.1098?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7561",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0047",
+          "sql": "SELECT \"tu_xiang_id\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" GROUP BY \"tu_xiang_id\" HAVING COUNT(\"tu_xiang_id\") > 20",
+          "summary": "Which images have more than 20 object samples?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7562",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0048",
+          "sql": "SELECT \"dui_xiang_yang_ben_id\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" WHERE \"tu_xiang_id\" = 8 ORDER BY \"kuan\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which object in image 8 is the widest? State its object sample ID."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7564",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0049",
+          "sql": "SELECT \"dui_xiang_yang_ben_id\" FROM \"image_and_language\".\"tu_xiang_dui_xiang_shu_xing\" GROUP BY \"dui_xiang_yang_ben_id\" ORDER BY COUNT(\"dui_xiang_yang_ben_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which object has the highest attribute classes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7565",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0050",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"tu_xiang_id\" = 1 THEN 1 ELSE 0 END) AS REAL) / NULLIF(SUM(CASE WHEN \"tu_xiang_id\" = 6 THEN 1 ELSE 0 END), 0) FROM \"image_and_language\".\"tu_xiang_dui_xiang\"",
+          "summary": "What is the ratio between the number of object samples in image 1 and the number of object samples in image 6?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7566",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0051",
+          "sql": "SELECT CAST(COUNT(\"dui_xiang_yang_ben_id\") AS REAL) / NULLIF(COUNT(DISTINCT \"tu_xiang_id\"), 0) FROM \"image_and_language\".\"tu_xiang_dui_xiang\"",
+          "summary": "Calculate the average of object samples for the image."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7567",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0052",
+          "sql": "SELECT DISTINCT \"T2\".\"tu_xiang_id\" FROM \"image_and_language\".\"shu_xing_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang_shu_xing\" AS \"T2\" ON \"T1\".\"shu_xing_lei_bie_id\" = \"T2\".\"shu_xing_lei_bie_id\" WHERE \"T1\".\"shu_xing_lei_bie_ming\" = 'wired'",
+          "summary": "List all the IDs of images that have objects with the attributes of 'wired'."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7573",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0053",
+          "sql": "SELECT \"dui_xiang_lei_bie_ming\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" GROUP BY \"T2\".\"dui_xiang_lei_bie_ming\" ORDER BY COUNT(\"T1\".\"dui_xiang_lei_bie_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "State the name of the object class that has in most images."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7574",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0054",
+          "sql": "SELECT \"T1\".\"gao\", \"T1\".\"kuan\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 1 AND \"T2\".\"dui_xiang_lei_bie_ming\" = 'van'",
+          "summary": "State the width and height of the object with the class of 'van' in image 1."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7576",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0055",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"dui_xiang_lei_bie_ming\" = 'street lights' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"dui_xiang_yang_ben_id\"), 0) FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\"",
+          "summary": "Calculate the percentage of object samples that are related to street lights."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7579",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0056",
+          "sql": "SELECT COUNT(\"tu_xiang_id\") FROM \"image_and_language\".\"tu_xiang_dui_xiang\" WHERE \"dui_xiang_yang_ben_id\" < 15",
+          "summary": "How many images have less than 15 object samples?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7582",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0057",
+          "sql": "SELECT COUNT(\"T1\".\"tu_xiang_id\") FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"dui_xiang_lei_bie_ming\" = 'vegetables' OR \"T2\".\"dui_xiang_lei_bie_ming\" = 'fruits'",
+          "summary": "How many images have \"vegetable\" and \"fruits\" as their object classes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7584",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0058",
+          "sql": "SELECT \"T2\".\"dui_xiang_lei_bie_ming\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"x\" = 5 AND \"T1\".\"y\" = 5",
+          "summary": "List all the object classes of the images that have a (5,5) coordinate."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7585",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0059",
+          "sql": "SELECT COUNT(\"T1\".\"tu_xiang_id\") FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"dui_xiang_lei_bie_ming\" = 'keyboard'",
+          "summary": "How many images have \"keyboard\" as their object class?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7586",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0060",
+          "sql": "SELECT \"T1\".\"kuan\", \"T1\".\"gao\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"dui_xiang_lei_bie_ming\" = 'keyboard' AND \"T1\".\"x\" = 5 AND \"T1\".\"y\" = 647",
+          "summary": "What are the width and height of the bounding box of the object with \"keyboard\" as their object class and (5, 647) as their coordinate?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7587",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0061",
+          "sql": "SELECT \"T2\".\"tu_xiang_id\" FROM \"image_and_language\".\"shu_xing_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang_shu_xing\" AS \"T2\" ON \"T1\".\"shu_xing_lei_bie_id\" = \"T2\".\"shu_xing_lei_bie_id\" WHERE \"T1\".\"shu_xing_lei_bie_ming\" = 'horse'",
+          "summary": "List all the ID of the images that have an attribute class of \"horse\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7589",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0062",
+          "sql": "SELECT \"T1\".\"shu_xing_lei_bie_ming\" FROM \"image_and_language\".\"shu_xing_lei_bie\" AS \"T1\" INNER JOIN \"image_and_language\".\"tu_xiang_dui_xiang_shu_xing\" AS \"T2\" ON \"T1\".\"shu_xing_lei_bie_id\" = \"T2\".\"shu_xing_lei_bie_id\" WHERE \"T2\".\"tu_xiang_id\" = 15",
+          "summary": "List all the attribute classes of the image ID \"15\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7594",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0063",
+          "sql": "SELECT AVG(\"T1\".\"tu_xiang_id\") FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"dui_xiang_lei_bie_ming\" = 'keyboard'",
+          "summary": "Calculate the average number of images with an attribute class of \"keyboard\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7597",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0064",
+          "sql": "SELECT \"kuan\", \"gao\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" WHERE \"dui_xiang_yang_ben_id\" = 2",
+          "summary": "List all bounding box widths and heights of object sample ID 2."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7598",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0065",
+          "sql": "SELECT COUNT(\"tu_xiang_id\") FROM \"image_and_language\".\"tu_xiang_dui_xiang\" WHERE \"tu_xiang_id\" = 12 AND \"y\" = 0",
+          "summary": "In the Y coordinate of image ID 12, how many are 0?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7601",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0066",
+          "sql": "SELECT \"T1\".\"tu_xiang_id\", \"T1\".\"x\", \"T1\".\"y\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T2\".\"dui_xiang_lei_bie_ming\" = 'pizza' LIMIT 10",
+          "summary": "Write 10 coordinates with the object class \"pizza.\""
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7602",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0067",
+          "sql": "SELECT \"T1\".\"tu_xiang_id\", \"T2\".\"dui_xiang_lei_bie_ming\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"x\" = 126 AND \"T1\".\"y\" = 363",
+          "summary": "What object class is in the X and Y coordinates of 126 and 363?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7603",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0068",
+          "sql": "SELECT \"T2\".\"dui_xiang_lei_bie_ming\" FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 56 GROUP BY \"T2\".\"dui_xiang_lei_bie_ming\" ORDER BY COUNT(\"T2\".\"dui_xiang_lei_bie_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "What is the most common object class of image ID 56?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7607",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0069",
+          "sql": "SELECT \"T2\".\"wei_yu_guan_xi_lei_bie_ming\" FROM \"image_and_language\".\"tu_xiang_guan_xi\" AS \"T1\" INNER JOIN \"image_and_language\".\"wei_yu_guan_xi_lei_bie\" AS \"T2\" ON \"T1\".\"wei_yu_guan_xi_lei_bie_id\" = \"T2\".\"wei_yu_guan_xi_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 4434 ORDER BY \"T2\".\"wei_yu_guan_xi_lei_bie_ming\" DESC NULLS LAST LIMIT 1",
+          "summary": "Name the most common predicate class of image ID 4434."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7611",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_image_and_language_0070",
+          "sql": "SELECT \"T2\".\"dui_xiang_lei_bie_ming\", AVG(\"T1\".\"kuan\"), AVG(\"T1\".\"gao\") FROM \"image_and_language\".\"tu_xiang_dui_xiang\" AS \"T1\" INNER JOIN \"image_and_language\".\"dui_xiang_lei_bie\" AS \"T2\" ON \"T1\".\"dui_xiang_lei_bie_id\" = \"T2\".\"dui_xiang_lei_bie_id\" WHERE \"T1\".\"tu_xiang_id\" = 47 GROUP BY \"T2\".\"dui_xiang_lei_bie_ming\"",
+          "summary": "What is the average width and height of the objects in image ID 47? List their object classes as well."
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between tu_xiang_dui_xiang and tu_xiang_dui_xiang_shu_xing in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Equates tu_xiang_id on both sides. On its own this only confirms both rows describe the same image, and an image holds many detected objects and many attribute rows, so combine this with the companion join on dui_xiang_yang_ben_id (see the sibling join between these two tables) to land on one specific object's attributes rather than every attribute recorded anywhere in the image.",
+          "cardinality": "many_to_many",
+          "id": "join_image_and_language_tu_xiang_dui_xiang_tu_xiang_dui_xiang_shu_xing_5126338d",
+          "left_table": "image_and_language.tu_xiang_dui_xiang",
+          "on": "image_and_language.tu_xiang_dui_xiang.tu_xiang_id = image_and_language.tu_xiang_dui_xiang_shu_xing.tu_xiang_id",
+          "right_table": "image_and_language.tu_xiang_dui_xiang_shu_xing",
+          "summary": "Matches tu_xiang_dui_xiang to tu_xiang_dui_xiang_shu_xing by image, one half of the compound key that pins an attribute to a single detected object."
+        },
+        {
+          "audit": {
+            "evidence": "equality between tu_xiang_dui_xiang and tu_xiang_dui_xiang_shu_xing in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Equates dui_xiang_yang_ben_id on both sides. On its own this is not selective, because that id restarts in every image, so the same number matches an unrelated object in a different image. Combine this with the companion join on tu_xiang_id (see the sibling join between these two tables) so both the image and the object sample id agree before treating the result as one object's attributes.",
+          "cardinality": "many_to_many",
+          "id": "join_image_and_language_tu_xiang_dui_xiang_tu_xiang_dui_xiang_shu_xing_b20928d7",
+          "left_table": "image_and_language.tu_xiang_dui_xiang",
+          "on": "image_and_language.tu_xiang_dui_xiang.dui_xiang_yang_ben_id = image_and_language.tu_xiang_dui_xiang_shu_xing.dui_xiang_yang_ben_id",
+          "right_table": "image_and_language.tu_xiang_dui_xiang_shu_xing",
+          "summary": "Matches tu_xiang_dui_xiang to tu_xiang_dui_xiang_shu_xing by object sample id, the other half of the compound key that pins an attribute to a single detected object."
+        },
+        {
+          "audit": {
+            "evidence": "equality between tu_xiang_dui_xiang and tu_xiang_guan_xi in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Equates dui_xiang_yang_ben_id on tu_xiang_dui_xiang with dui_xiang_2_yang_ben_id on tu_xiang_guan_xi. On its own this is not selective, because the object sample id restarts in every image, so also match tu_xiang_id (see the sibling joins between these two tables) before treating a matched row as the actual second object of that relationship.",
+          "cardinality": "many_to_many",
+          "id": "join_image_and_language_tu_xiang_dui_xiang_tu_xiang_guan_xi_1cd94612",
+          "left_table": "image_and_language.tu_xiang_dui_xiang",
+          "on": "image_and_language.tu_xiang_dui_xiang.dui_xiang_yang_ben_id = image_and_language.tu_xiang_guan_xi.dui_xiang_2_yang_ben_id",
+          "right_table": "image_and_language.tu_xiang_guan_xi",
+          "summary": "Matches tu_xiang_dui_xiang to tu_xiang_guan_xi by the second object's sample id, part of identifying the receiving object in a relationship."
+        },
+        {
+          "audit": {
+            "evidence": "equality between tu_xiang_dui_xiang and tu_xiang_guan_xi in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Equates dui_xiang_yang_ben_id on tu_xiang_dui_xiang with dui_xiang_1_yang_ben_id on tu_xiang_guan_xi. On its own this is not selective, because the object sample id restarts in every image, so also match tu_xiang_id (see the sibling joins between these two tables) before treating a matched row as the actual first object of that relationship.",
+          "cardinality": "many_to_many",
+          "id": "join_image_and_language_tu_xiang_dui_xiang_tu_xiang_guan_xi_45827456",
+          "left_table": "image_and_language.tu_xiang_dui_xiang",
+          "on": "image_and_language.tu_xiang_dui_xiang.dui_xiang_yang_ben_id = image_and_language.tu_xiang_guan_xi.dui_xiang_1_yang_ben_id",
+          "right_table": "image_and_language.tu_xiang_guan_xi",
+          "summary": "Matches tu_xiang_dui_xiang to tu_xiang_guan_xi by the first object's sample id, part of identifying the subject object in a relationship."
+        },
+        {
+          "audit": {
+            "evidence": "equality between tu_xiang_dui_xiang and tu_xiang_guan_xi in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Equates tu_xiang_id on both sides. An image holds many detected objects and many relationship rows, so this alone is not enough to pick out the two specific objects a relationship connects — combine it with the object-sample-id joins between these two tables (one for dui_xiang_1_yang_ben_id, one for dui_xiang_2_yang_ben_id) to resolve a relationship's endpoints.",
+          "cardinality": "many_to_many",
+          "id": "join_image_and_language_tu_xiang_dui_xiang_tu_xiang_guan_xi_fc55a9d5",
+          "left_table": "image_and_language.tu_xiang_dui_xiang",
+          "on": "image_and_language.tu_xiang_dui_xiang.tu_xiang_id = image_and_language.tu_xiang_guan_xi.tu_xiang_id",
+          "right_table": "image_and_language.tu_xiang_guan_xi",
+          "summary": "Matches tu_xiang_dui_xiang to tu_xiang_guan_xi by image, confirming a relationship's objects and the relationship row belong to the same photograph."
+        }
+      ]
+    }

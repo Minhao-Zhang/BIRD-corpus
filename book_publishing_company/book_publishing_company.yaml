@@ -1,31 +1,4108 @@
-asset_type: schema
-id: book_publishing_company
+version: 0.2.0.dev0
 name: book_publishing_company
-summary: book_publishing_company tracks publishers, authors, titles, royalty schedules, employees, job levels, bookstores, discounts, and sales orders, for questions about contracts, pricing, royalties, and store sales volume.
-body: >
-  A publisher (editeurs) employs staff (employes), each holding a job (postes) with a numeric
-  level range, and releases titles (titres). Each title can have several credited authors
-  (auteurs), bridged through titres_auteurs, which records billing order and royalty share; a
-  title can also carry a tiered royalty schedule (baremes_droits) that sets a royalty rate per
-  range of year-to-date sales. Bookstores (magasins) place sales orders for titles (ventes) and
-  may run quantity-based discount programs (remises). A publisher's press kit and logo are kept
-  separately in info_editeurs. Three tables mirror real ones but are not dependable for analysis:
-  auteurs_oeuvres duplicates author-title contribution facts that belong in titres_auteurs,
-  points_vente duplicates store facts that belong in magasins, and transactions_ventes duplicates
-  sales-order facts that belong in ventes.
-rules:
-- Never select, filter, or join on a column from auteurs_oeuvres, points_vente, or
-  transactions_ventes — use titres_auteurs, magasins, and ventes instead for author credits,
-  store records, and sales orders.
-- Join on the plain id_ columns (id_auteur, id_titre, id_editeur, id_magasin, id_poste), never on
-  a same-table identifiant_* or *_code column such as identifiant_auteur or poste_code, which are
-  unreliable for analysis.
-- pourcentage_droit on titres is a title's current headline royalty rate; the same column name on
-  baremes_droits is the rate for one sales-volume tier, not the same value.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  book_publishing_company tracks publishers, authors, titles, royalty schedules, employees, job levels, bookstores, discounts, and sales orders, for questions about contracts, pricing, royalties, and store sales volume.
+
+  A publisher (editeurs) employs staff (employes), each holding a job (postes) with a numeric level range, and releases titles (titres). Each title can have several credited authors (auteurs), bridged through titres_auteurs, which records billing order and royalty share; a title can also carry a tiered royalty schedule (baremes_droits) that sets a royalty rate per range of year-to-date sales. Bookstores (magasins) place sales orders for titles (ventes) and may run quantity-based discount programs (remises). A publisher's press kit and logo are kept separately in info_editeurs. Three tables mirror real ones but are not dependable for analysis: auteurs_oeuvres duplicates author-title contribution facts that belong in titres_auteurs, points_vente duplicates store facts that belong in magasins, and transactions_ventes duplicates sales-order facts that belong in ventes.
+ai_context:
+  instructions: |-
+    Never select, filter, or join on a column from auteurs_oeuvres, points_vente, or transactions_ventes — use titres_auteurs, magasins, and ventes instead for author credits, store records, and sales orders.
+    Join on the plain id_ columns (id_auteur, id_titre, id_editeur, id_magasin, id_poste), never on a same-table identifiant_* or *_code column such as identifiant_auteur or poste_code, which are unreliable for analysis.
+    pourcentage_droit on titres is a title's current headline royalty rate; the same column name on baremes_droits is the rate for one sales-volume tier, not the same value.
+datasets:
+- name: auteurs
+  source: book_publishing_company.auteurs
+  description: |
+    auteurs is the roster of book authors under contract with the publishing company, one row per author.
+
+    One row per author, identified by id_auteur. An author may co-write multiple titles; the link to titres runs through titres_auteurs, which records each author's royalty share and billing order on a title. contrat marks whether the author is currently under contract. Do not confuse this table with auteurs_oeuvres, whose contributor records are not dependable.
+  fields:
+  - name: id_auteur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_auteur
+    description: |
+      id_auteur, the unique identifier for an author, used to link an author to their titles.
+
+      A hyphenated code shaped like a US Social Security number, e.g. 172-32-1176 or 998-72-3567. Primary key of auteurs; titres_auteurs.id_auteur should match one row here. Do not substitute identifiant_auteur, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nom_famille
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_famille
+    description: |
+      nom_famille, an author's family or last name, recorded on the auteurs table.
+
+      Free-text surname, e.g. Gringlesby, O'Leary, or del Castillo. Combine with prenom to form an author's full name; there is no separate full-name column.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: prenom
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prenom
+    description: |
+      prenom, an author's given or first name, recorded on the auteurs table.
+
+      Free-text first name, e.g. Heather, Burt, or Akiko. Do not confuse with prenom_usuel, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: telephone
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: telephone
+    description: |
+      telephone, the contact phone number on file for an author.
+
+      Formatted as an area code and a local number, e.g. 415 935-4228. Not validated against any other table; used to reach the author directly.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: adresse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse
+    description: |
+      adresse, the street-level mailing address recorded for an author.
+
+      Free-text street address, e.g. 22 Cleveland Av. #14 or PO Box 792. Paired with ville, province and code_postal for the author's full postal address. Do not confuse with adresse_postale, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ville
+    description: |
+      ville, the city an author lives in, recorded on the auteurs table.
+
+      Free-text city name, e.g. San Jose or Walnut Creek. Paired with province and code_postal for the author's full address.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: province
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: province
+    description: |
+      province, the two-letter state code for an author's mailing address.
+
+      A two-letter US state abbreviation, e.g. CA, TN, or UT. A filter naming a state resolves to province equalling that code.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: code_postal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_postal
+    description: |
+      code_postal, the postal or zip code for an author's mailing address.
+
+      A five-digit US zip code, e.g. 94595 or 95688. Paired with adresse, ville and province.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: contrat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: contrat
+    description: |
+      contrat, whether an author currently holds a signed contract with the publisher.
+
+      A flag: 0 means the author is not on contract, 1 means the author is on contract. Every sampled author in this corpus reads 0, so a filter expecting 1 returns no rows in the sample even though the column is meaningful in general.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "auteurs.contrat = 1 means \"on contract\"; contrat = 0 means \"not on contract\". Every author sampled in this corpus reads 0, so a filter expecting contrat = 1 returns no rows here even though the coding is meaningful in general.\n",
+              "id": "term_book_publishing_company_on_contract",
+              "name": "contract status",
+              "summary": "contract status (on contract, not on contract): whether an author currently holds a contract, coded on contrat.",
+              "synonyms": [
+                "on contract",
+                "not on contract",
+                "contract status"
+              ]
+            }
+          ]
+        }
+  - name: identifiant_auteur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_auteur
+    description: |
+      identifiant_auteur, a text column on the auteurs table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: adresse_postale
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse_postale
+    description: |
+      adresse_postale, a text column on the auteurs table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: prenom_usuel
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prenom_usuel
+    description: |
+      prenom_usuel, a text column on the auteurs table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: auteurs_oeuvres
+  source: book_publishing_company.auteurs_oeuvres
+  description: |
+    auteurs_oeuvres is a table of contributor records that is not dependable for analysis.
+
+    Every column in this table is unreliable for analysis; the business facts about which author contributed to which title, in what order, and for what royalty share belong in titres_auteurs. Do not join, filter, or select from this table when answering a question about authorship, contribution order, or royalty share.
+  fields:
+  - name: id_contributeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_contributeur
+    description: |
+      id_contributeur, a text column on the auteurs_oeuvres table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_ouvrage
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_ouvrage
+    description: |
+      id_ouvrage, a text column on the auteurs_oeuvres table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ordre_contribution
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ordre_contribution
+    description: |
+      ordre_contribution, a numeric column on the auteurs_oeuvres table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: pourcentage_royalties
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pourcentage_royalties
+    description: |
+      pourcentage_royalties, a numeric column on the auteurs_oeuvres table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: baremes_droits
+  source: book_publishing_company.baremes_droits
+  description: |
+    baremes_droits is the royalty schedule that sets a title's pourcentage_droit for each range of year-to-date sales.
+
+    One row per title and sales-range combination: plage_min and plage_max bound a range of year-to-date units sold (titres.ventes_annee), and pourcentage_droit is the royalty rate that applies to sales within that range. A title with tiered royalties has multiple rows here, one per tier. Joins to titres on id_titre. Do not confuse with the suspect columns identifiant_titre, borne_superieure and borne_inferieure, which are not dependable.
+  fields:
+  - name: id_titre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_titre
+    description: |
+      id_titre, the title a royalty range applies to, joining baremes_droits to titres.
+
+      Foreign key to titres.id_titre. A title with several royalty tiers appears on multiple rows here, one per plage_min/plage_max range.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: plage_min
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: plage_min
+    description: |
+      plage_min, the lower bound of the sales range a royalty tier applies to.
+
+      An integer count of year-to-date units sold, e.g. 0, 5001, or 20001. A sales figure below plage_min falls outside this tier. A tier without a minimum-range amount has plage_min not equal to zero excluded, i.e. the filter is plage_min <> 0.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "baremes_droits.plage_min is the lower bound of the year-to-date sales range a royalty tier applies to. \"Without minimum range amount\" filters plage_min <> 0; the tier applying above a given sales figure has that figure at or above its plage_min and below its plage_max.\n",
+              "id": "term_book_publishing_company_low_range",
+              "name": "low range",
+              "summary": "low range (also called minimum range): the floor of a royalty tier's sales range, recorded as plage_min.",
+              "synonyms": [
+                "low range",
+                "minimum range"
+              ]
+            }
+          ]
+        }
+  - name: plage_max
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: plage_max
+    description: |
+      plage_max, the upper bound of the sales range a royalty tier applies to.
+
+      An integer count of year-to-date units sold, e.g. 5000, 8000, or 12000. Paired with plage_min to bound the tier that pourcentage_droit applies to.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "baremes_droits.plage_max is the upper bound of the year-to-date sales range a royalty tier applies to, paired with plage_min. \"Range\" alone, without qualifying as low or high, means the span between plage_min and plage_max together.\n",
+              "id": "term_book_publishing_company_high_range",
+              "name": "high range",
+              "summary": "high range: the ceiling of a royalty tier's sales range, recorded as plage_max on baremes_droits.",
+              "synonyms": [
+                "high range"
+              ]
+            }
+          ]
+        }
+  - name: pourcentage_droit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pourcentage_droit
+    description: |
+      pourcentage_droit, the royalty percentage rate that applies within one sales tier.
+
+      An integer percentage, e.g. 10, 14, or 24. The same column name appears on titres as a title's current overall royalty rate; here it is the rate for one tier of the schedule rather than the title's headline rate.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: identifiant_titre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_titre
+    description: |
+      identifiant_titre, a text column on the baremes_droits table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: borne_superieure
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: borne_superieure
+    description: |
+      borne_superieure, a numeric column on the baremes_droits table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: borne_inferieure
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: borne_inferieure
+    description: |
+      borne_inferieure, a numeric column on the baremes_droits table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: editeurs
+  source: book_publishing_company.editeurs
+  description: |
+    editeurs is the roster of publishing houses under contract, one row per publisher.
+
+    One row per publisher, identified by id_editeur. A publisher releases many titles (see titres) and employs staff (see employes); its press kit and logo live in the separate info_editeurs table, one row each. Do not confuse with the suspect columns identifiant_maison, commune and nation, which are not dependable.
+  fields:
+  - name: id_editeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_editeur
+    description: |
+      id_editeur, the unique identifier for a publisher, used to link a publisher to its titles and staff.
+
+      A four-digit code, e.g. 0736 or 9999. Primary key of editeurs; titres.id_editeur and employes.id_editeur reference it. Do not substitute identifiant_maison, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nom_editeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_editeur
+    description: |
+      nom_editeur, the name of a publishing house, recorded on the editeurs table.
+
+      Free-text company name, e.g. New Moon Books or Five Lakes Publishing. This is what a business question means by "publisher" when it names a company rather than an id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "When a business question names a publisher rather than an id, it means editeurs.nom_editeur. \"Published by X\" and \"publisher X\" both filter nom_editeur = 'X'; join editeurs to titres on id_editeur to find what a named publisher has released.\n",
+              "id": "term_book_publishing_company_publisher_name",
+              "name": "publisher name",
+              "summary": "publisher name (also called publisher, published by): the company name recorded on the editeurs table.",
+              "synonyms": [
+                "publisher",
+                "publisher name",
+                "published by"
+              ]
+            }
+          ]
+        }
+  - name: ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ville
+    description: |
+      ville, the city where a publisher is headquartered, recorded on the editeurs table.
+
+      Free-text city name, e.g. Boston or Munich. Paired with province and pays for the publisher's full location. Do not confuse with commune, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: province
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: province
+    description: |
+      province, the state or province code for a publisher's headquarters.
+
+      A short region code, e.g. CA, NY, or TX; can be blank for a non-US publisher. Paired with ville and pays.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: pays
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pays
+    description: |
+      pays, the country a publisher is located in, recorded on the editeurs table.
+
+      Free-text country name, e.g. USA, Germany, or France. A "US publisher" filter is pays = 'USA'; the negated form excludes publishers where pays is not 'USA'. Do not confuse with nation, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "\"US publisher\" filters editeurs.pays = 'USA'; a publisher \"not located at USA\" filters pays <> 'USA'. Other pays values observed include Germany and France.\n",
+              "id": "term_book_publishing_company_us_publisher",
+              "name": "US publisher",
+              "summary": "US publisher: a publisher located in the United States, recorded when editeurs.pays equals USA.",
+              "synonyms": [
+                "US publisher"
+              ]
+            }
+          ]
+        }
+  - name: identifiant_maison
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_maison
+    description: |
+      identifiant_maison, a text column on the editeurs table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: commune
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: commune
+    description: |
+      commune, a text column on the editeurs table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nation
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nation
+    description: |
+      nation, a text column on the editeurs table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: employes
+  source: book_publishing_company.employes
+  description: |
+    employes is the staff roster of the publishing company, one row per employee.
+
+    One row per employee, identified by id_employe. Each employee holds one job, described by joining to postes on id_poste, and works for one publisher, described by joining to editeurs on id_editeur. niveau_poste is the employee's own numeric job level, which should sit between the niveau_min and niveau_max recorded on their job's row in postes. Do not confuse with the suspect columns identifiant_poste, echelon_poste and identifiant_editeur, which are not dependable.
+  fields:
+  - name: id_employe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_employe
+    description: |
+      id_employe, the unique identifier for an employee, recorded on the employes table.
+
+      A code combining initials, digits and a trailing gender letter, e.g. MAP77183M or A-C71970F. Primary key of employes.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: prenom
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prenom
+    description: |
+      prenom, an employee's given or first name, recorded on the employes table.
+
+      Free-text first name, e.g. Miguel, Paul, or Margaret. Combine with nom_famille and initiale_milieu for a full employee name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: initiale_milieu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: initiale_milieu
+    description: |
+      initiale_milieu, an employee's middle-name initial, recorded on the employes table.
+
+      A single letter such as A, M, or T; blank when no middle initial is on file. Rendered between prenom and nom_famille.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nom_famille
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_famille
+    description: |
+      nom_famille, an employee's family or last name, recorded on the employes table.
+
+      Free-text surname, e.g. Paolino, Henriot, or Smith. Combine with prenom to form an employee's full name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_poste
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_poste
+    description: |
+      id_poste, an employee's job identifier, joining employes to postes.
+
+      Foreign key to postes.id_poste, giving the employee's job title and permitted level range. Do not substitute identifiant_poste, which is unreliable for analysis.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: niveau_poste
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: niveau_poste
+    description: |
+      niveau_poste, an employee's own numeric job level, recorded on the employes table.
+
+      A higher value means a higher job level, e.g. 35 up to 215 in this sample. Should fall between the niveau_min and niveau_max of the job named by id_poste; a filter for "job level greater than 200" is niveau_poste > 200. Do not confuse with echelon_poste, which is unreliable for analysis.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "A higher niveau_poste means a higher job level. \"Job level greater than 200\" filters niveau_poste > 200; the highest and lowest job levels among employees are MAX(niveau_poste) and MIN(niveau_poste). Distinct from postes.niveau_min and niveau_max, which bound the level range permitted for a job rather than record one employee's own level.\n",
+              "id": "term_book_publishing_company_job_level",
+              "name": "job level",
+              "summary": "job level: an employee's own numeric standing recorded as niveau_poste on the employes table.",
+              "synonyms": [
+                "job level"
+              ]
+            }
+          ]
+        }
+  - name: id_editeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_editeur
+    description: |
+      id_editeur, the publisher an employee works for, joining employes to editeurs.
+
+      Foreign key to editeurs.id_editeur. Do not substitute identifiant_editeur, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: date_embauche
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_embauche
+    description: |
+      date_embauche, the date an employee was hired, recorded on the employes table.
+
+      A timestamp, e.g. 1988-06-19 or 1994-05-01. "Hired before year 1990" filters YEAR(date_embauche) < 1990; the employee hired earliest is the row with MIN(date_embauche).
+    datatype: DateTimeTz
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "timestamp with time zone"
+        }
+  - name: identifiant_poste
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_poste
+    description: |
+      identifiant_poste, a numeric column on the employes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: echelon_poste
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: echelon_poste
+    description: |
+      echelon_poste, a numeric column on the employes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: identifiant_editeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_editeur
+    description: |
+      identifiant_editeur, a text column on the employes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_book_publishing_company_earliest_hire_date
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(date_embauche)
+    description: |
+      earliest hire date: the smallest date_embauche across employees, optionally within a filtered set.
+
+      MIN(date_embauche) over employes, optionally after filtering by id_editeur or id_poste, gives the earliest hire date in scope. "Hired the earliest" means this metric; the employee row itself is found with ORDER BY date_embauche ASC LIMIT 1.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "earliest hire date"
+        }
+  - name: metric_book_publishing_company_employee_headcount
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id_employe)
+    description: |
+      employee headcount: the number of employes rows, optionally grouped by publisher or job.
+
+      COUNT(id_employe) over employes, grouped by id_editeur, gives one publisher's staff count; the publisher with the "most hired employees" is the id_editeur with the largest such grouped count (ORDER BY COUNT(id_employe) DESC LIMIT 1). Grouped by id_poste instead, it gives the headcount for one job.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "employee headcount"
+        }
+  - name: metric_book_publishing_company_highest_job_level
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(niveau_poste)
+    description: |
+      highest job level: the largest niveau_poste across employees, optionally within a filtered or grouped set.
+
+      MAX(niveau_poste) over employes, optionally after filtering by id_poste or id_editeur, gives the highest job level held in scope. The employee row itself is found with ORDER BY niveau_poste DESC LIMIT 1.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest job level"
+        }
+  - name: metric_book_publishing_company_lowest_job_level
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(niveau_poste)
+    description: |
+      lowest job level: the smallest niveau_poste across employees, optionally within a filtered or grouped set.
+
+      MIN(niveau_poste) over employes, optionally after filtering by id_poste or id_editeur, gives the lowest job level held in scope. The employee row itself is found with ORDER BY niveau_poste ASC LIMIT 1.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "lowest job level"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: info_editeurs
+  source: book_publishing_company.info_editeurs
+  description: |
+    info_editeurs holds each publisher's press kit, one row per publisher.
+
+    One row per publisher, identified by id_editeur, carrying its logo image and a free-text press description. A thin, mostly binary side table to editeurs; it does not carry titles, staff, or sales. Do not confuse with the suspect columns identifiant_editeur_info, embleme and dossier_presse, which are not dependable.
+  fields:
+  - name: id_editeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_editeur
+    description: |
+      id_editeur, the publisher this press information belongs to, joining info_editeurs to editeurs.
+
+      Foreign key to editeurs.id_editeur. Do not substitute identifiant_editeur_info, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: logo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: logo
+    description: |
+      logo, the binary image data for a publisher's logo, recorded on the info_editeurs table.
+
+      A GIF image stored as raw binary data, one per publisher. Not human-readable text; do not confuse with embleme, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: info_presse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: info_presse
+    description: |
+      info_presse, the free-text press description for a publisher, recorded on the info_editeurs table.
+
+      A short paragraph naming the publisher and its city, e.g. "This is sample text data for Scootney Books, publisher 9952 ... located in New York". Do not confuse with dossier_presse, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: identifiant_editeur_info
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_editeur_info
+    description: |
+      identifiant_editeur_info, a text column on the info_editeurs table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: embleme
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: embleme
+    description: |
+      embleme, a text column on the info_editeurs table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: dossier_presse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dossier_presse
+    description: |
+      dossier_presse, a text column on the info_editeurs table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: magasins
+  source: book_publishing_company.magasins
+  description: |
+    magasins is the roster of bookstores that place sales orders, one row per store.
+
+    One row per store, identified by id_magasin. A store places sales orders recorded in ventes and may run discount programs recorded in remises, both keyed on id_magasin. Do not confuse this table with points_vente, a table of store records that is not dependable, nor with its suspect columns code_magasin, localite_magasin and region.
+  fields:
+  - name: id_magasin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_magasin
+    description: |
+      id_magasin, the unique identifier for a store, used to link a store to its sales and discounts.
+
+      A four-digit code, e.g. 7066 or 8042. Primary key of magasins; ventes.id_magasin and remises.id_magasin reference it. Do not substitute code_magasin, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nom_magasin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_magasin
+    description: |
+      nom_magasin, the name of a bookstore, recorded on the magasins table.
+
+      Free-text store name, e.g. Barnum's or Bookbeat. This is what a business question means by "store" when it names a business rather than an id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "When a business question names a store rather than an id, it means magasins.nom_magasin. Join magasins to ventes on id_magasin to find the orders a named store placed, or to remises on id_magasin for its discount programs.\n",
+              "id": "term_book_publishing_company_store_name",
+              "name": "store name",
+              "summary": "store name (also called store): the business name of a bookstore, recorded as nom_magasin.",
+              "synonyms": [
+                "store",
+                "store name"
+              ]
+            }
+          ]
+        }
+  - name: adresse_magasin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse_magasin
+    description: |
+      adresse_magasin, the street-level address of a store, recorded on the magasins table.
+
+      Free-text street address, e.g. 567 Pasadena Ave. or 24-A Avogadro Way. Paired with ville, province and code_postal.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ville
+    description: |
+      ville, the city a store is located in, recorded on the magasins table.
+
+      Free-text city name, e.g. Fremont, Tustin, or Remulade. Do not confuse with localite_magasin, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: province
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: province
+    description: |
+      province, the two-letter state code for a store's location, recorded on the magasins table.
+
+      A two-letter US state abbreviation, e.g. CA, OR, or WA. Do not confuse with region, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: code_postal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_postal
+    description: |
+      code_postal, the postal or zip code for a store's address, recorded on the magasins table.
+
+      A five-digit US zip code, e.g. 89076 or 98056.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: code_magasin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_magasin
+    description: |
+      code_magasin, a text column on the magasins table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: localite_magasin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: localite_magasin
+    description: |
+      localite_magasin, a text column on the magasins table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: region
+    description: |
+      region, a text column on the magasins table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: points_vente
+  source: book_publishing_company.points_vente
+  description: |
+    points_vente is a table of store records that is not dependable for analysis.
+
+    Every column in this table is unreliable for analysis; the business facts about which stores exist, where they are located, and what they are called belong in magasins. Do not join, filter, or select from this table when answering a question about stores.
+  fields:
+  - name: id_point_vente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_point_vente
+    description: |
+      id_point_vente, a text column on the points_vente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_point_vente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_point_vente
+    description: |
+      nom_point_vente, a text column on the points_vente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: adresse_site
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse_site
+    description: |
+      adresse_site, a text column on the points_vente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: commune
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: commune
+    description: |
+      commune, a text column on the points_vente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: region
+    description: |
+      region, a text column on the points_vente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: code_postal_local
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_postal_local
+    description: |
+      code_postal_local, a text column on the points_vente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: postes
+  source: book_publishing_company.postes
+  description: |
+    postes is the catalogue of job titles employees can hold, one row per job.
+
+    One row per job, identified by id_poste, naming the job's title (description_poste) and the numeric level range (niveau_min to niveau_max) an employee in that job is expected to fall within — compare against employes.niveau_poste. Do not confuse with the suspect columns poste_code, niveau_maximal and profil_poste, which are not dependable.
+  fields:
+  - name: id_poste
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_poste
+    description: |
+      id_poste, the unique identifier for a job, used to link a job to the employees who hold it.
+
+      A small integer, e.g. 1 through 14. Primary key of postes; employes.id_poste references it. Do not substitute poste_code, which is unreliable for analysis.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: description_poste
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: description_poste
+    description: |
+      description_poste, the free-text title of a job, recorded on the postes table.
+
+      Free-text job title, e.g. Designer, Publisher, Sales Representative, Public Relations Manager, or "New Hire - Job not specified". A filter naming a job, such as "designer" or "publisher", resolves to description_poste equalling that text. Do not confuse with profil_poste, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "postes.description_poste holds free-text job names such as Designer, Publisher, or Sales Representative. A question naming a job, such as \"designer\" or \"publisher and designer are job descriptions\", filters description_poste equal to that text; join postes to employes on id_poste to find who holds it.\n",
+              "id": "term_book_publishing_company_job_description",
+              "name": "job description",
+              "summary": "job description (also called job title): the free-text job name recorded on the postes table.",
+              "synonyms": [
+                "job description",
+                "job title"
+              ]
+            }
+          ]
+        }
+  - name: niveau_min
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: niveau_min
+    description: |
+      niveau_min, the lowest job level permitted for a job, recorded on the postes table.
+
+      An integer, e.g. 10 up to 175 in this sample. Paired with niveau_max to bound the range that employes.niveau_poste is expected to fall within for that job.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: niveau_max
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: niveau_max
+    description: |
+      niveau_max, the highest job level permitted for a job, recorded on the postes table.
+
+      An integer, e.g. 10 up to 250 in this sample. Paired with niveau_min; the level an employee still has left to reach it is niveau_max minus their own niveau_poste. Do not confuse with niveau_maximal, which is unreliable for analysis.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "\"Max level for his position\" and \"maximum level in their job designation\" both refer to postes.niveau_max for the employee's job (join employes to postes on id_poste). The level an employee still has left to reach it is niveau_max minus their own employes.niveau_poste.\n",
+              "id": "term_book_publishing_company_job_level_ceiling",
+              "name": "job level ceiling",
+              "summary": "job level ceiling (also called max level, maximum level): the highest niveau_poste a job permits, recorded as niveau_max.",
+              "synonyms": [
+                "max level",
+                "maximum level",
+                "job level ceiling"
+              ]
+            }
+          ]
+        }
+  - name: poste_code
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: poste_code
+    description: |
+      poste_code, a numeric column on the postes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: niveau_maximal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: niveau_maximal
+    description: |
+      niveau_maximal, a numeric column on the postes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: profil_poste
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: profil_poste
+    description: |
+      profil_poste, a text column on the postes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: remises
+  source: book_publishing_company.remises
+  description: |
+    remises records the discount programs a store offers, one row per program.
+
+    One row per discount program, keyed to a store by id_magasin. qte_min and qte_max bound the order-quantity range the program applies to, and taux_remise gives the discount rate for that range. Do not confuse with the suspect columns categorie_remise, pourcentage_remise and quantite_max, which are not dependable.
+  fields:
+  - name: type_remise
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: type_remise
+    description: |
+      type_remise, the category of a discount program, recorded on the remises table.
+
+      Free-text label, e.g. Volume Discount, Customer Discount, or Initial Customer. Do not confuse with categorie_remise, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_magasin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_magasin
+    description: |
+      id_magasin, the store a discount program applies to, joining remises to magasins.
+
+      Foreign key to magasins.id_magasin. A store can run several discount programs, one row each.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: qte_min
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: qte_min
+    description: |
+      qte_min, the minimum order quantity required to qualify for a discount, recorded on the remises table.
+
+      An integer, e.g. 100. The floor of the quantity range a discount program covers, paired with qte_max.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: qte_max
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: qte_max
+    description: |
+      qte_max, the maximum order quantity a discount program covers, recorded on the remises table.
+
+      An integer, e.g. 1000. The ceiling of the quantity range, paired with qte_min. Do not confuse with quantite_max, which is unreliable for analysis.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: taux_remise
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: taux_remise
+    description: |
+      taux_remise, the discount rate applied within a quantity range, recorded on the remises table.
+
+      A percentage, e.g. 10.5, 6.7, or 5.0. Do not confuse with pourcentage_remise, which is unreliable for analysis.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: pourcentage_remise
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pourcentage_remise
+    description: |
+      pourcentage_remise, a numeric column on the remises table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: categorie_remise
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: categorie_remise
+    description: |
+      categorie_remise, a text column on the remises table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: quantite_max
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: quantite_max
+    description: |
+      quantite_max, a numeric column on the remises table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: titres
+  source: book_publishing_company.titres
+  description: |
+    titres is the catalogue of published books, one row per title.
+
+    One row per title, identified by id_titre. A title belongs to one publisher (id_editeur), can have several credited authors (see titres_auteurs), can carry a tiered royalty schedule (see baremes_droits), and is sold through stores (see ventes). pourcentage_droit here is the title's current headline royalty rate, distinct from the tier-specific rate on baremes_droits. Do not confuse with the suspect columns identifiant_editeur_titre, code_titre and avance_sur_royalties, which are not dependable.
+  fields:
+  - name: id_titre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_titre
+    description: |
+      id_titre, the unique identifier for a title, used to link a title to its authors, sales and royalty schedule.
+
+      A code such as BU1032 or PS2091. Primary key of titres; baremes_droits.id_titre, titres_auteurs.id_titre and ventes.id_titre reference it. Do not substitute code_titre, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: titre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titre
+    description: |
+      titre, the published name of a book, recorded on the titres table.
+
+      Free-text book title, such as "Fifty Years in Buckingham Palace Kitchens". This is what a business question means by "title" or "book" when it names one rather than an id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: type
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: type
+    description: |
+      type, the subject category a title is classified under, recorded on the titres table.
+
+      Free-text category, e.g. business, popular_comp, trad_cook, psychology, mod_cook, or UNDECIDED. A "business books" or "business titre" filter is type = 'business'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "\"Business books\" and \"business titre\" both filter titres.type = 'business'. type also takes other free-text category values such as popular_comp, trad_cook, psychology, mod_cook, and UNDECIDED; the same pattern of filtering type to a literal category name applies to any of them.\n",
+              "id": "term_book_publishing_company_business_title",
+              "name": "business title",
+              "summary": "business title (also called business books, business titre): a title categorized as business in the type column.",
+              "synonyms": [
+                "business books",
+                "business titre",
+                "business title"
+              ]
+            }
+          ]
+        }
+  - name: id_editeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_editeur
+    description: |
+      id_editeur, the publisher of a title, joining titres to editeurs.
+
+      Foreign key to editeurs.id_editeur.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: prix
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prix
+    description: |
+      prix, the retail price of a title, recorded on the titres table.
+
+      A dollar amount, e.g. 7.99 or 19.99; can be null for an unpriced title. "Over $15" is prix > 15. The cheapest book is the row with MIN(prix); the most expensive is MAX(prix).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: avance
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: avance
+    description: |
+      avance, the advance payment made to a title's authors, recorded on the titres table.
+
+      A dollar amount, e.g. 5000.0 or 10125.0; can be null. The title with the most pre-paid amount is the row with MAX(avance). Do not confuse with avance_sur_royalties, which is unreliable for analysis.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: pourcentage_droit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pourcentage_droit
+    description: |
+      pourcentage_droit, a title's current overall royalty percentage, recorded on the titres table.
+
+      An integer percentage, e.g. 10 up to 24; can be null. Distinct from the same-named column on baremes_droits, which is the rate for one sales tier rather than the title's headline rate. "At least 10%" filters pourcentage_droit >= 10; an average rate divides SUM(pourcentage_droit) by a row count.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ventes_annee
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ventes_annee
+    description: |
+      ventes_annee, a title's year-to-date unit sales, recorded on the titres table.
+
+      An integer count, e.g. 111 up to 15096; can be null. An average across titles is AVG(ventes_annee).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: notes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: notes
+    description: |
+      notes, free-text remarks describing a title, recorded on the titres table.
+
+      A short descriptive paragraph about the book's content, e.g. "Helpful hints on how to use your electronic resources to the best advantage." A question asking what is said "about the titre" is asking for this column's text.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: date_publication
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_publication
+    description: |
+      date_publication, the date a title was published, recorded on the titres table.
+
+      A timestamp, e.g. 1991-06-09. "Published in 1991" or "published in year 1991" filters YEAR(date_publication) = 1991.
+    datatype: DateTimeTz
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "timestamp with time zone"
+        }
+  - name: identifiant_editeur_titre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_editeur_titre
+    description: |
+      identifiant_editeur_titre, a text column on the titres table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: code_titre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_titre
+    description: |
+      code_titre, a text column on the titres table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: avance_sur_royalties
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: avance_sur_royalties
+    description: |
+      avance_sur_royalties, a numeric column on the titres table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_book_publishing_company_average_royalty_rate
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(pourcentage_droit)
+    description: |
+      average royalty rate: the mean pourcentage_droit across titles, optionally within a filtered or grouped set.
+
+      AVG(pourcentage_droit) over titres, optionally after filtering by id_editeur or type, gives the average headline royalty rate for the titles in scope. Distinct from averaging the tier-specific pourcentage_droit on baremes_droits, which is a different column on a different table despite sharing the name.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average royalty rate"
+        }
+  - name: metric_book_publishing_company_average_year_to_date_sales
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(ventes_annee)
+    description: |
+      average year to date sales: the mean ventes_annee across titles, optionally within a filtered or grouped set.
+
+      AVG(ventes_annee) over titres, optionally after filtering by type or joining to editeurs, gives the average year-to-date unit sales for the titles in scope.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average year to date sales"
+        }
+  - name: metric_book_publishing_company_cheapest_book_price
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(prix)
+    description: |
+      cheapest book price: the lowest prix across titles, optionally within a filtered or grouped set.
+
+      MIN(prix) over titres, optionally after filtering (for example by type or id_editeur), gives the cheapest book's price in scope. The row itself, not just the value, is found with ORDER BY prix ASC LIMIT 1 or an equivalent subquery.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "cheapest book price"
+        }
+  - name: metric_book_publishing_company_highest_advance
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(avance)
+    description: |
+      highest advance: the largest avance paid to a title's authors, optionally within a filtered set.
+
+      MAX(avance) over titres gives the largest pre-paid advance in scope. "Most pre-paid amount" means this metric; the title row itself is found with ORDER BY avance DESC LIMIT 1.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest advance"
+        }
+  - name: metric_book_publishing_company_highest_book_price
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(prix)
+    description: |
+      highest book price: the largest prix across titles, optionally within a filtered or grouped set.
+
+      MAX(prix) over titres, optionally after filtering (for example by type or id_editeur), gives the most expensive book's price in scope. The row itself is found with ORDER BY prix DESC LIMIT 1 or an equivalent subquery.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest book price"
+        }
+  - name: metric_book_publishing_company_titles_published_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id_titre)
+    description: |
+      titles published count: the number of titres rows, optionally grouped by publisher or author.
+
+      COUNT(id_titre) over titres, grouped by id_editeur, gives one publisher's title count; the publisher that "most titre published" is the id_editeur with the largest such grouped count (ORDER BY COUNT(id_titre) DESC LIMIT 1). Joined through titres_auteurs and grouped by id_auteur instead, it gives one author's title count.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "titles published count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: titres_auteurs
+  source: book_publishing_company.titres_auteurs
+  description: |
+    titres_auteurs is the bridge that credits authors to titles, one row per author-title credit.
+
+    One row per author-title pairing, linking auteurs to titres. A title with several co-authors has one row per author here, each carrying that author's billing order (ordre_auteur) and royalty share (pourcentage_droit_auteur); for a shared title, the shares across its rows add to 100. Do not confuse with auteurs_oeuvres, a table of contributor records that is not dependable, nor with the suspect columns identifiant_auteur_associe, identifiant_titre_associe and position_auteur.
+  fields:
+  - name: id_auteur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_auteur
+    description: |
+      id_auteur, the author credited on a title, joining titres_auteurs to auteurs.
+
+      Foreign key to auteurs.id_auteur. Do not substitute identifiant_auteur_associe, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_titre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_titre
+    description: |
+      id_titre, the title an author is credited on, joining titres_auteurs to titres.
+
+      Foreign key to titres.id_titre. Do not substitute identifiant_titre_associe, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ordre_auteur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ordre_auteur
+    description: |
+      ordre_auteur, the billing order of an author on a shared title, recorded on the titres_auteurs table.
+
+      A small integer, 1, 2, or 3 in this sample, where 1 is the first-listed author. Do not confuse with position_auteur, which is unreliable for analysis.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: pourcentage_droit_auteur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pourcentage_droit_auteur
+    description: |
+      pourcentage_droit_auteur, one author's share of a title's royalty, recorded on the titres_auteurs table.
+
+      An integer percentage, e.g. 30, 50, 75, or 100. When a title has several credited authors their pourcentage_droit_auteur values across those rows add to 100.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: identifiant_auteur_associe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_auteur_associe
+    description: |
+      identifiant_auteur_associe, a text column on the titres_auteurs table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: identifiant_titre_associe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_titre_associe
+    description: |
+      identifiant_titre_associe, a text column on the titres_auteurs table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: position_auteur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: position_auteur
+    description: |
+      position_auteur, a numeric column on the titres_auteurs table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: transactions_ventes
+  source: book_publishing_company.transactions_ventes
+  description: |
+    transactions_ventes is a table of sales-order records that is not dependable for analysis.
+
+    Every column in this table is unreliable for analysis; the business facts about which stores ordered which titles, in what quantity, and on what date belong in ventes. Do not join, filter, or select from this table when answering a question about sales orders.
+  fields:
+  - name: id_point_vente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_point_vente
+    description: |
+      id_point_vente, a text column on the transactions_ventes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: reference_commande
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: reference_commande
+    description: |
+      reference_commande, a text column on the transactions_ventes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: date_transaction
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_transaction
+    description: |
+      date_transaction, a date column on the transactions_ventes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: DateTimeTz
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "timestamp with time zone",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: quantite_vendue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: quantite_vendue
+    description: |
+      quantite_vendue, a numeric column on the transactions_ventes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: modalites_paiement
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: modalites_paiement
+    description: |
+      modalites_paiement, a text column on the transactions_ventes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_ouvrage
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_ouvrage
+    description: |
+      id_ouvrage, a text column on the transactions_ventes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ventes
+  source: book_publishing_company.ventes
+  description: |
+    ventes is the record of sales orders that stores place for titles, one row per order line.
+
+    One row per order line, linking a store (id_magasin) to a title (id_titre) with an order date, quantity, and payment terms. A title's total units sold is the sum of quantite across its ventes rows; a store's order history is the set of ventes rows sharing its id_magasin. Do not confuse this table with transactions_ventes, a table of sales-order records that is not dependable, nor with the suspect columns identifiant_magasin, identifiant_titre_vente and date_commande_client.
+  fields:
+  - name: id_magasin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_magasin
+    description: |
+      id_magasin, the store where a sales order was placed, joining ventes to magasins.
+
+      Foreign key to magasins.id_magasin. Do not substitute identifiant_magasin, which is unreliable for analysis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: num_commande
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: num_commande
+    description: |
+      num_commande, the order number for a sales transaction, recorded on the ventes table.
+
+      An alphanumeric code, e.g. TQ456 or 423LL922. Identifies one order line; a question about "ventes in the store" is asking about rows keyed by this order number.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: date_commande
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_commande
+    description: |
+      date_commande, the date a sales order was placed, recorded on the ventes table.
+
+      A timestamp, e.g. 1992-06-15. "Sold on" and "order happened on" refer to this column; "year 1992" filters YEAR(date_commande) = 1992. Do not confuse with date_commande_client, which is unreliable for analysis.
+    datatype: DateTimeTz
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "timestamp with time zone"
+        }
+  - name: quantite
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: quantite
+    description: |
+      quantite, the number of copies ordered on a sales line, recorded on the ventes table.
+
+      An integer, e.g. 10 up to 75. "Sold more than average" filters quantite > AVG(quantite); the largest single order is the row with MAX(quantite), and a title's total units sold sums quantite across its rows.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: conditions_paiement
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: conditions_paiement
+    description: |
+      conditions_paiement, the payment terms agreed for a sales order, recorded on the ventes table.
+
+      One of a small set of terms, e.g. 'Net 60', 'Net 30', or 'ON invoice'. "Net 60 payment terms" filters conditions_paiement = 'Net 60'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "conditions_paiement is drawn from a small closed set of values: 'Net 60', 'Net 30', and 'ON invoice'. \"Net 60 payment terms\" filters conditions_paiement = 'Net 60'. The share of order volume paid on a given term divides the summed quantite of orders carrying that term by the summed quantite of all orders, times 100.\n",
+              "id": "term_book_publishing_company_payment_terms",
+              "name": "payment terms",
+              "summary": "payment terms (Net 60, Net 30, ON invoice): the terms of payment agreed for a sales order.",
+              "synonyms": [
+                "payment terms",
+                "Net 60",
+                "Net 30",
+                "ON invoice"
+              ]
+            }
+          ]
+        }
+  - name: id_titre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_titre
+    description: |
+      id_titre, the title sold on a sales line, joining ventes to titres.
+
+      Foreign key to titres.id_titre.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: identifiant_magasin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_magasin
+    description: |
+      identifiant_magasin, a text column on the ventes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: identifiant_titre_vente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_titre_vente
+    description: |
+      identifiant_titre_vente, a text column on the ventes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: date_commande_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_commande_client
+    description: |
+      date_commande_client, a date column on the ventes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: DateTimeTz
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "timestamp with time zone",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_book_publishing_company_average_order_quantity
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(quantite)
+    description: |
+      average order quantity: the mean quantite across sales orders in ventes.
+
+      AVG(quantite) over ventes, optionally after filtering or joining, gives the average number of copies ordered per line. "Sold more than average" is a boundary condition built on this metric: quantite > (SELECT AVG(quantite) FROM ventes), comparing one order against the computed mean rather than a fixed threshold.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average order quantity"
+        }
+  - name: metric_book_publishing_company_book_sales_volume
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUM(quantite)
+    description: |
+      book sales volume: the total quantite summed across a title's or store's sales orders.
+
+      SUM(quantite) over ventes, grouped by id_titre, gives one title's total units sold across all its orders; grouped by id_magasin instead, it gives one store's total order volume. A "bestseller" or the title that "sells the best" is the id_titre with the largest such grouped sum (ORDER BY SUM(quantite) DESC LIMIT 1), and "most ordered quantity" is the single order row with the largest quantite rather than a grouped total.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "book sales volume"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_book_publishing_company_auteurs_titres_auteurs_7945f040
+  from: titres_auteurs
+  to: auteurs
+  from_columns:
+  - id_auteur
+  to_columns:
+  - id_auteur
+  ai_context:
+    instructions: |
+      auteurs joins to titres_auteurs on id_auteur to reach every title an author is credited on.
+
+      One auteurs row can match many titres_auteurs rows, since an author may co-write several titles. Join titres_auteurs onward to titres on id_titre to reach each title's own price, type and sales figures.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between auteurs and titres_auteurs in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_book_publishing_company_baremes_droits_titres_660d4469
+  from: baremes_droits
+  to: titres
+  from_columns:
+  - id_titre
+  to_columns:
+  - id_titre
+  ai_context:
+    instructions: |
+      baremes_droits joins to titres on id_titre to attach a title's tiered royalty schedule.
+
+      Many baremes_droits rows can match one titres row, since a title with several sales tiers has one baremes_droits row per tier. Each row's plage_min and plage_max bound a range of titres.ventes_annee, and its pourcentage_droit gives the royalty rate that applies within that range.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between baremes_droits and titres in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_book_publishing_company_editeurs_employes_aceee999
+  from: employes
+  to: editeurs
+  from_columns:
+  - id_editeur
+  to_columns:
+  - id_editeur
+  ai_context:
+    instructions: |
+      editeurs joins to employes on id_editeur to list every employee working for a publisher.
+
+      One editeurs row can match many employes rows, since a publisher employs several staff. Join employes onward to postes on id_poste to see each employee's job title and level range.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between editeurs and employes in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_book_publishing_company_editeurs_info_editeurs_1e2655aa
+  from: editeurs
+  to: info_editeurs
+  from_columns:
+  - id_editeur
+  to_columns:
+  - id_editeur
+  ai_context:
+    instructions: |
+      editeurs joins to info_editeurs on id_editeur to reach a publisher's press kit and logo.
+
+      One editeurs row matches at most one info_editeurs row, holding the publisher's logo image and free-text press description.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between editeurs and info_editeurs in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_book_publishing_company_editeurs_titres_ebe8583b
+  from: titres
+  to: editeurs
+  from_columns:
+  - id_editeur
+  to_columns:
+  - id_editeur
+  ai_context:
+    instructions: |
+      editeurs joins to titres on id_editeur to list every title a publisher has released.
+
+      One editeurs row can match many titres rows, since a publisher releases several titles. Join titres onward to titres_auteurs on id_titre to reach the authors of each one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between editeurs and titres in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_book_publishing_company_employes_postes_530487eb
+  from: employes
+  to: postes
+  from_columns:
+  - id_poste
+  to_columns:
+  - id_poste
+  ai_context:
+    instructions: |
+      employes joins to postes on id_poste to attach an employee's job title and level range.
+
+      Many employes rows can match one postes row, since several employees can share a job. The matched postes row's niveau_min and niveau_max bound the niveau_poste values expected for that job. This is the ordinary employee-to-job join; compare with the separate join on employes.niveau_poste = postes.niveau_max, which matches by level value instead of by job id.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between employes and postes in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_book_publishing_company_magasins_remises_bba57b6a
+  from: remises
+  to: magasins
+  from_columns:
+  - id_magasin
+  to_columns:
+  - id_magasin
+  ai_context:
+    instructions: |
+      magasins joins to remises on id_magasin to list the discount programs offered by a store.
+
+      One magasins row can match many remises rows, since a store can run several discount programs across different order-quantity tiers.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between magasins and remises in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_book_publishing_company_magasins_ventes_634954f5
+  from: ventes
+  to: magasins
+  from_columns:
+  - id_magasin
+  to_columns:
+  - id_magasin
+  ai_context:
+    instructions: |
+      magasins joins to ventes on id_magasin to list every sales order placed at a store.
+
+      One magasins row can match many ventes rows, since a store places many orders over time. Join ventes onward to titres on id_titre to see which title each order was for.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between magasins and ventes in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_book_publishing_company_titres_titres_auteurs_d1512a1a
+  from: titres_auteurs
+  to: titres
+  from_columns:
+  - id_titre
+  to_columns:
+  - id_titre
+  ai_context:
+    instructions: |
+      titres joins to titres_auteurs on id_titre to list every author credited on a title.
+
+      One titres row can match many titres_auteurs rows when a title has multiple co-authors; each matched row's ordre_auteur and pourcentage_droit_auteur give that author's billing order and royalty share.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between titres and titres_auteurs in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_book_publishing_company_titres_ventes_c96d2dd5
+  from: ventes
+  to: titres
+  from_columns:
+  - id_titre
+  to_columns:
+  - id_titre
+  ai_context:
+    instructions: |
+      titres joins to ventes on id_titre to list every sales order that included a title.
+
+      One titres row can match many ventes rows, since a title is sold across many orders and stores. Sum ventes.quantite across these matched rows for a title's total unit sales.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between titres and ventes in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_168",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0000",
+          "sql": "SELECT \"T2\".\"titre\" FROM \"book_publishing_company\".\"ventes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"titres\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" WHERE TO_CHAR(CAST(\"T1\".\"date_commande\" AS TIMESTAMP), 'YYYY') = '1992' ORDER BY \"T1\".\"quantite\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the title with the most ordered quantity in year 1992?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_170",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0001",
+          "sql": "SELECT \"T1\".\"titre\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"baremes_droits\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" WHERE \"T2\".\"plage_min\" = 0 AND \"T2\".\"pourcentage_droit\" >= 10",
+          "summary": "What is the title that have at least 10% royalty without minimum range amount."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_171",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0002",
+          "sql": "SELECT \"T1\".\"titre\", \"T2\".\"pourcentage_droit\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"baremes_droits\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" WHERE \"T2\".\"plage_min\" > 10000 AND \"T2\".\"plage_max\" < 50000 AND \"T1\".\"id_titre\" = 'BU2075'",
+          "summary": "State the title and royalty percentage for title ID BU2075 between 10000 to 50000 range."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_172",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0003",
+          "sql": "SELECT \"T1\".\"titre\", \"T2\".\"plage_min\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"baremes_droits\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" ORDER BY \"T2\".\"pourcentage_droit\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among the titles with royalty percentage, which title has the greatest royalty percentage. State it's minimum range to enjoy this royalty percentage."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_175",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0004",
+          "sql": "SELECT \"T1\".\"titre\", \"T1\".\"notes\", \"T2\".\"nom_editeur\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" WHERE TO_CHAR(CAST(\"T1\".\"date_publication\" AS TIMESTAMP), 'YYYY') = '1991'",
+          "summary": "List all titles published in year 1991. Also provide notes details of the title and the publisher's name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_176",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0005",
+          "sql": "SELECT \"T1\".\"titre\", \"T2\".\"quantite\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"ventes\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" INNER JOIN \"book_publishing_company\".\"magasins\" AS \"T3\" ON \"T2\".\"id_magasin\" = \"T3\".\"id_magasin\" WHERE \"T2\".\"quantite\" > 20 AND \"T3\".\"province\" = 'CA'",
+          "summary": "List all titles with sales of quantity more than 20 and store located in the CA state."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_179",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0006",
+          "sql": "SELECT \"T2\".\"nom_magasin\", CAST(SUM(CASE WHEN \"conditions_paiement\" = 'Net 30' THEN \"quantite\" ELSE 0 END) AS REAL) * 100 / NULLIF(SUM(\"quantite\"), 0) FROM \"book_publishing_company\".\"ventes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"magasins\" AS \"T2\" ON \"T1\".\"id_magasin\" = \"T2\".\"id_magasin\" WHERE \"T1\".\"id_magasin\" = '7066' GROUP BY \"T2\".\"nom_magasin\"",
+          "summary": "Name the store with ID 7066 and calculate the percentage of the the quantity ordered that were on 'Net 30' payment terms."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_180",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0007",
+          "sql": "SELECT \"T2\".\"nom_editeur\", AVG(\"T1\".\"ventes_annee\") FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" WHERE \"T1\".\"id_editeur\" = '0877' GROUP BY \"T2\".\"nom_editeur\"",
+          "summary": "State the publisher name for publisher ID 877? Calculate its average year to date sales."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_181",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0008",
+          "sql": "SELECT \"prenom\", \"nom_famille\" FROM \"book_publishing_company\".\"employes\" WHERE TO_CHAR(CAST(\"date_embauche\" AS TIMESTAMP), 'YYYY') < '1990'",
+          "summary": "Name all employees who were hired before year 1990."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_182",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0009",
+          "sql": "SELECT \"prenom\", \"nom_famille\", TO_CHAR(\"date_embauche\", 'YYYY-MM-DD HH24:MI:SS') || '.0' FROM \"book_publishing_company\".\"employes\" ORDER BY \"niveau_poste\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Which employee has the lowest job level. State the first name, last name and when he /she was hired."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_183",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0010",
+          "sql": "SELECT TO_CHAR(CAST(\"date_embauche\" AS TIMESTAMP), 'YYYY') FROM \"book_publishing_company\".\"employes\" GROUP BY TO_CHAR(CAST(\"date_embauche\" AS TIMESTAMP), 'YYYY') ORDER BY COUNT(\"id_employe\") DESC NULLS LAST LIMIT 1",
+          "summary": "In which year has the most hired employees?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_184",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0011",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"nom_famille\" FROM \"book_publishing_company\".\"employes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"postes\" AS \"T2\" ON \"T1\".\"id_poste\" = \"T2\".\"id_poste\" WHERE \"T1\".\"niveau_poste\" = \"T2\".\"niveau_max\"",
+          "summary": "List all employees who are at the maximum level in their job designation."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_186",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0012",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"nom_famille\", \"T2\".\"nom_editeur\" FROM \"book_publishing_company\".\"employes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" WHERE \"T2\".\"pays\" <> 'USA'",
+          "summary": "Who are the employees working for publisher not located in USA? State the employee's name and publisher name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_187",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0013",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"nom_famille\", \"T3\".\"description_poste\" FROM \"book_publishing_company\".\"employes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" INNER JOIN \"book_publishing_company\".\"postes\" AS \"T3\" ON \"T1\".\"id_poste\" = \"T3\".\"id_poste\" WHERE \"T2\".\"nom_editeur\" = 'GGG&G'",
+          "summary": "List all employees working for publisher 'GGG&G'. State their name and job description."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_188",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0014",
+          "sql": "SELECT DISTINCT \"T2\".\"nom_editeur\", \"T1\".\"type\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" ORDER BY \"T2\".\"nom_editeur\" NULLS FIRST",
+          "summary": "For each publisher, state the type of titles they published order by the publisher name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_189",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0015",
+          "sql": "SELECT \"T2\".\"nom_editeur\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" WHERE TO_CHAR(CAST(\"T1\".\"date_publication\" AS TIMESTAMP), 'YYYY') = '1991' GROUP BY \"T1\".\"id_editeur\", \"T2\".\"nom_editeur\" ORDER BY COUNT(\"T1\".\"id_titre\") DESC NULLS LAST LIMIT 1",
+          "summary": "Name the publisher which has the most titles published in 1991."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_190",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0016",
+          "sql": "SELECT \"T1\".\"titre\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" WHERE \"T2\".\"nom_editeur\" = 'Binnet & Hardley' ORDER BY \"T1\".\"prix\" DESC NULLS LAST LIMIT 1",
+          "summary": "Name the title with the highest price published by 'Binnet & Hardley'."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_191",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0017",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"nom_famille\", \"T2\".\"description_poste\" FROM \"book_publishing_company\".\"employes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"postes\" AS \"T2\" ON \"T1\".\"id_poste\" = \"T2\".\"id_poste\" WHERE \"T1\".\"niveau_poste\" > 200",
+          "summary": "Among all employees, who have job level greater than 200. State the employee name and job description."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_192",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0018",
+          "sql": "SELECT \"T3\".\"prenom\", \"T3\".\"nom_famille\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"titres_auteurs\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" INNER JOIN \"book_publishing_company\".\"auteurs\" AS \"T3\" ON \"T2\".\"id_auteur\" = \"T3\".\"id_auteur\" WHERE \"T1\".\"type\" = 'business'",
+          "summary": "Name all the authors for all business titles."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_194",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0019",
+          "sql": "SELECT \"T1\".\"titre\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"titres_auteurs\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" INNER JOIN \"book_publishing_company\".\"auteurs\" AS \"T3\" ON \"T2\".\"id_auteur\" = \"T3\".\"id_auteur\" WHERE \"T3\".\"contrat\" = '0' AND \"T3\".\"province\" = 'CA' ORDER BY \"T1\".\"ventes_annee\" DESC NULLS LAST LIMIT 1",
+          "summary": "For all authors from CA who are not on contract, which title of his/hers has the most year to date sales."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_197",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0020",
+          "sql": "SELECT \"T1\".\"titre\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" WHERE \"T1\".\"ventes_annee\" > (SELECT AVG(\"ventes_annee\") FROM \"book_publishing_company\".\"titres\")",
+          "summary": "List all titles which have year to date sales higher than the average order by pubisher name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_200",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0021",
+          "sql": "SELECT \"T1\".\"prenom\" FROM \"book_publishing_company\".\"employes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"postes\" AS \"T2\" ON \"T1\".\"id_poste\" = \"T2\".\"id_poste\" WHERE \"T2\".\"description_poste\" = 'Managing Editor'",
+          "summary": "Please list the first names of the employees who work as Managing Editor."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_201",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0022",
+          "sql": "SELECT \"T2\".\"niveau_max\" FROM \"book_publishing_company\".\"employes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"postes\" AS \"T2\" ON \"T1\".\"id_poste\" = \"T2\".\"id_poste\" ORDER BY \"T1\".\"date_embauche\" NULLS FIRST LIMIT 1",
+          "summary": "What is the highest level of job to get to for the employee who got hired the earliest?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_202",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0023",
+          "sql": "SELECT \"T2\".\"ville\" FROM \"book_publishing_company\".\"ventes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"magasins\" AS \"T2\" ON \"T1\".\"id_magasin\" = \"T2\".\"id_magasin\" GROUP BY \"T2\".\"ville\" ORDER BY SUM(\"T1\".\"quantite\") DESC NULLS LAST LIMIT 1",
+          "summary": "In which city is the store with the highest total sales quantity located?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_204",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0024",
+          "sql": "SELECT \"T2\".\"nom_magasin\" FROM \"book_publishing_company\".\"ventes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"magasins\" AS \"T2\" ON \"T1\".\"id_magasin\" = \"T2\".\"id_magasin\" INNER JOIN \"book_publishing_company\".\"titres\" AS \"T3\" ON \"T1\".\"id_titre\" = \"T3\".\"id_titre\" WHERE \"T3\".\"titre\" = 'Life Without Fear'",
+          "summary": "Please list the stores that ordered the book \"Life Without Fear\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_205",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0025",
+          "sql": "SELECT COUNT(\"T1\".\"id_magasin\") FROM \"book_publishing_company\".\"ventes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"magasins\" AS \"T2\" ON \"T1\".\"id_magasin\" = \"T2\".\"id_magasin\" INNER JOIN \"book_publishing_company\".\"titres\" AS \"T3\" ON \"T1\".\"id_titre\" = \"T3\".\"id_titre\" WHERE \"T2\".\"province\" = 'Massachusetts'",
+          "summary": "Among the stores that have ordered the book \"Life Without Fear\", how many of them are located in Massachusetts?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_207",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0026",
+          "sql": "SELECT \"T2\".\"nom_editeur\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" ORDER BY \"T1\".\"prix\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the publisher that has published the most expensive book?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_208",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0027",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id_editeur\") FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" WHERE \"T2\".\"pays\" = 'USA' AND \"T1\".\"prix\" > 15",
+          "summary": "Among the publishers in the USA, how many of them have published books that are over $15?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_209",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0028",
+          "sql": "SELECT \"T1\".\"notes\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"ventes\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" ORDER BY \"T2\".\"quantite\" DESC NULLS LAST LIMIT 3",
+          "summary": "Please give more detailed information about the first three books that sell the best."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_211",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0029",
+          "sql": "SELECT CAST(SUM(\"T2\".\"quantite\") AS REAL) / NULLIF(COUNT(\"T1\".\"id_titre\"), 0) FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"ventes\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" WHERE \"T1\".\"titre\" = 'Life Without Fear'",
+          "summary": "What is the average quantity of each order for the book \"Life Without Fear\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_213",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0030",
+          "sql": "SELECT \"titre\" FROM \"book_publishing_company\".\"titres\" WHERE \"type\" = 'business' ORDER BY \"prix\" NULLS FIRST LIMIT 1",
+          "summary": "Which one is the cheapest business book?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_214",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0031",
+          "sql": "SELECT \"type\" FROM \"book_publishing_company\".\"titres\" ORDER BY \"avance\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which type of book had the most pre-paid amount?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_215",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0032",
+          "sql": "SELECT \"pourcentage_droit\" FROM \"book_publishing_company\".\"titres\" ORDER BY \"ventes_annee\" DESC NULLS LAST LIMIT 1",
+          "summary": "What's the royalty for the bestseller book?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_216",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0033",
+          "sql": "SELECT \"niveau_poste\" FROM \"book_publishing_company\".\"employes\" WHERE \"nom_famille\" = 'O''Rourke'",
+          "summary": "Which job level is O'Rourke at?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_218",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0034",
+          "sql": "SELECT \"T1\".\"contrat\" FROM \"book_publishing_company\".\"auteurs\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"titres_auteurs\" AS \"T2\" ON \"T1\".\"id_auteur\" = \"T2\".\"id_auteur\" INNER JOIN \"book_publishing_company\".\"titres\" AS \"T3\" ON \"T2\".\"id_titre\" = \"T3\".\"id_titre\" WHERE \"T3\".\"titre\" = 'Sushi, Anyone?'",
+          "summary": "Is the author of \"Sushi, Anyone?\" on the contract?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_219",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0035",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"initiale_milieu\", \"T1\".\"nom_famille\" FROM \"book_publishing_company\".\"employes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"postes\" AS \"T2\" ON \"T1\".\"id_poste\" = \"T2\".\"id_poste\" ORDER BY \"T1\".\"niveau_poste\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which publisher had the highest job level? Give his/her full name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_220",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0036",
+          "sql": "SELECT \"T2\".\"description_poste\" FROM \"book_publishing_company\".\"employes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"postes\" AS \"T2\" ON \"T1\".\"id_poste\" = \"T2\".\"id_poste\" WHERE \"T1\".\"prenom\" = 'Pedro' AND \"T1\".\"initiale_milieu\" = 'S' AND \"T1\".\"nom_famille\" = 'Afonso'",
+          "summary": "What's Pedro S Afonso's job title?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_221",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0037",
+          "sql": "SELECT \"T2\".\"niveau_max\" - \"T1\".\"niveau_poste\" FROM \"book_publishing_company\".\"employes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"postes\" AS \"T2\" ON \"T1\".\"id_poste\" = \"T2\".\"id_poste\" WHERE \"T1\".\"prenom\" = 'Diego' AND \"T1\".\"initiale_milieu\" = 'W' AND \"T1\".\"nom_famille\" = 'Roel'",
+          "summary": "How many levels are there left for Diego W Roel to reach if he/she could go to the max level for his/her position?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_222",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0038",
+          "sql": "SELECT \"T1\".\"notes\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"ventes\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" WHERE TO_CHAR(CAST(\"T2\".\"date_commande\" AS TIMESTAMP), 'YYYY-MM-DD') = '1994-09-14'",
+          "summary": "What's on the notes for the order happened on 1994/9/14?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_223",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0039",
+          "sql": "SELECT DISTINCT \"T1\".\"type\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"ventes\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" WHERE TO_CHAR(CAST(\"T2\".\"date_commande\" AS TIMESTAMP), 'YYYY-MM-DD') = '1993-05-29'",
+          "summary": "List the type of the book for the order which was sold on 1993/5/29."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_226",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0040",
+          "sql": "SELECT \"T2\".\"ville\" FROM \"book_publishing_company\".\"employes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" WHERE \"T1\".\"prenom\" = 'Victoria' AND \"T1\".\"initiale_milieu\" = 'P' AND \"T1\".\"nom_famille\" = 'Ashworth'",
+          "summary": "Which city did Victoria P Ashworth work in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_227",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0041",
+          "sql": "SELECT COUNT(\"T1\".\"num_commande\") FROM \"book_publishing_company\".\"ventes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"magasins\" AS \"T2\" ON \"T1\".\"id_magasin\" = \"T2\".\"id_magasin\" WHERE \"T2\".\"ville\" = 'Remulade'",
+          "summary": "How many sales did the store in Remulade make?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_229",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0042",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"description_poste\" = 'publisher' THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T2\".\"description_poste\" = 'designer' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id_poste\"), 0) FROM \"book_publishing_company\".\"employes\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"postes\" AS \"T2\" ON \"T1\".\"id_poste\" = \"T2\".\"id_poste\"",
+          "summary": "Among all the employees, how many percent more for the publishers than designers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_231",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0043",
+          "sql": "SELECT DISTINCT \"T1\".\"titre\", \"T1\".\"type\", \"T1\".\"prix\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"baremes_droits\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" WHERE \"T2\".\"pourcentage_droit\" > (SELECT CAST(SUM(\"pourcentage_droit\") AS REAL) / NULLIF(COUNT(\"id_titre\"), 0) FROM \"book_publishing_company\".\"baremes_droits\")",
+          "summary": "Which titles has above average royalty rate? Give those title's name, type and price?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_233",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0044",
+          "sql": "SELECT \"T1\".\"titre\", \"T1\".\"type\", \"T1\".\"prix\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" WHERE \"T2\".\"nom_editeur\" = 'New Moon Books' ORDER BY \"T1\".\"prix\" NULLS FIRST",
+          "summary": "List the title name, type, and price of the titles published by New Moon Books. Arrange the list in ascending order of price."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_234",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0045",
+          "sql": "SELECT \"T1\".\"titre\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" INNER JOIN \"book_publishing_company\".\"baremes_droits\" AS \"T3\" ON \"T1\".\"id_titre\" = \"T3\".\"id_titre\" WHERE \"T2\".\"pays\" = 'USA' ORDER BY \"T1\".\"pourcentage_droit\" DESC NULLS LAST",
+          "summary": "In the books published by US publishers, which book has the highest royalty? List these books in the descending order of royalty."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_237",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0046",
+          "sql": "SELECT \"T1\".\"titre\", \"T2\".\"nom_editeur\", \"T1\".\"prix\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" WHERE \"T1\".\"notes\" = 'Helpful hints on how to use your electronic resources to the best advantage.'",
+          "summary": "Which title is about helpful hints on how to use your electronic resources, which publisher published it and what is the price of this book?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_238",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0047",
+          "sql": "SELECT \"T1\".\"titre\", \"T2\".\"nom_editeur\", \"T1\".\"ventes_annee\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T2\" ON \"T1\".\"id_editeur\" = \"T2\".\"id_editeur\" WHERE \"T1\".\"notes\" = 'Carefully researched study of the effects of strong emotions on the body. Metabolic charts included.'",
+          "summary": "Of the titles, which title is about the Carefully researched study of the effects of strong emotions on the body, which state-based publisher published this book, and what is the year-to-date sale?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_239",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_book_publishing_company_0048",
+          "sql": "SELECT \"T1\".\"titre\" FROM \"book_publishing_company\".\"titres\" AS \"T1\" INNER JOIN \"book_publishing_company\".\"ventes\" AS \"T2\" ON \"T1\".\"id_titre\" = \"T2\".\"id_titre\" INNER JOIN \"book_publishing_company\".\"editeurs\" AS \"T3\" ON \"T1\".\"id_editeur\" = \"T3\".\"id_editeur\" WHERE \"T2\".\"quantite\" > (SELECT CAST(SUM(\"quantite\") AS REAL) / NULLIF(COUNT(\"id_titre\"), 0) FROM \"book_publishing_company\".\"ventes\") AND \"T3\".\"province\" = 'CA' ORDER BY \"T2\".\"quantite\" DESC NULLS LAST LIMIT 5",
+          "summary": "Name the top five titles that sold more than average and list them in descending order of the number of sales in California stores?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between employes and postes in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "This is a level-based join, not the id_poste foreign key: it matches an employee's current niveau_poste exactly against some job's niveau_max, which is how \"the maximum level in their job designation\" is expressed. Use the ordinary employes-to-postes join on id_poste to attach an employee's own job regardless of level.\n",
+          "cardinality": "many_to_many",
+          "id": "join_book_publishing_company_employes_postes_5dc5bdcf",
+          "left_table": "book_publishing_company.employes",
+          "on": "book_publishing_company.employes.niveau_poste = book_publishing_company.postes.niveau_max",
+          "right_table": "book_publishing_company.postes",
+          "summary": "employes joins to postes on niveau_poste equal to niveau_max, finding employees at the ceiling of a job's level range."
+        }
+      ]
+    }

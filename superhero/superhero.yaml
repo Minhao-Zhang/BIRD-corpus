@@ -1,29 +1,3866 @@
-asset_type: schema
-id: superhero
+version: 0.2.0.dev0
 name: superhero
-summary: superhero catalogs comic-book superheroes and tracks each hero's alignment, gender, race, publisher, height, weight, eye/hair/skin colour, scored attributes, and superpowers.
-body: >
-  One central table, superheld, holds one row per superhero and carries foreign keys out to five
-  small lookup tables: ausrichtung (alignment: Good, Bad, Neutral), geschlecht (gender), rasse
-  (race or species), verlag (publisher), and farbe (colour names, referenced three times for eye,
-  hair, and skin colour). Two link tables, held_eigenschaft and held_kraft, each connect a hero to
-  many rows of a second kind of fact: held_eigenschaft scores a hero on named attributes such as
-  Strength and Speed, and held_kraft lists the named superpowers a hero has. Every table in this
-  schema carries a small set of extra columns whose names look like a duplicate of the real
-  identifier or label next to them (a second id, a "_fk" or "_ref" suffix, a renamed label
-  column); those are marked unreliable on the column itself and must not be used for lookups,
-  filters, or joins. Three tables (held_faehigkeit, held_merkmal, merkmal_typ) are unreliable in
-  their entirety.
-rules:
-- Join a hero to alignment, gender, race, publisher, or colour only through the plain id columns
-  named in joins/ (ausrichtung_id, geschlecht_id, rasse_id, verlag_id, augenfarbe_id,
-  haarfarbe_id, hautfarbe_id); never through a column marked reliability.status = suspect.
-- Treat gr_e_cm = 0 and gewicht_kg = 0 as a missing height or weight, not a real zero, when
-  computing an average, minimum, or maximum.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  superhero catalogs comic-book superheroes and tracks each hero's alignment, gender, race, publisher, height, weight, eye/hair/skin colour, scored attributes, and superpowers.
+
+  One central table, superheld, holds one row per superhero and carries foreign keys out to five small lookup tables: ausrichtung (alignment: Good, Bad, Neutral), geschlecht (gender), rasse (race or species), verlag (publisher), and farbe (colour names, referenced three times for eye, hair, and skin colour). Two link tables, held_eigenschaft and held_kraft, each connect a hero to many rows of a second kind of fact: held_eigenschaft scores a hero on named attributes such as Strength and Speed, and held_kraft lists the named superpowers a hero has. Every table in this schema carries a small set of extra columns whose names look like a duplicate of the real identifier or label next to them (a second id, a "_fk" or "_ref" suffix, a renamed label column); those are marked unreliable on the column itself and must not be used for lookups, filters, or joins. Three tables (held_faehigkeit, held_merkmal, merkmal_typ) are unreliable in their entirety.
+ai_context:
+  instructions: |-
+    Join a hero to alignment, gender, race, publisher, or colour only through the plain id columns named in joins/ (ausrichtung_id, geschlecht_id, rasse_id, verlag_id, augenfarbe_id, haarfarbe_id, hautfarbe_id); never through a column marked reliability.status = suspect.
+    Treat gr_e_cm = 0 and gewicht_kg = 0 as a missing height or weight, not a real zero, when computing an average, minimum, or maximum.
+datasets:
+- name: ausrichtung
+  source: superhero.ausrichtung
+  description: |
+    The ausrichtung table is a short reference list naming each alignment category a superhero can be assigned.
+
+    One row per alignment category, four rows in the seed data: Good, Bad, Neutral, and N/A for an unrecorded alignment. superheld.ausrichtung_id points back to this table's id column to record which alignment a hero carries; join on ausrichtung.id = superheld.ausrichtung_id. In the current data id 1 is Good, id 2 is Bad, id 3 is Neutral, and id 4 is N/A. Do not confuse this table with the ausrichtungs_id and gesinnung columns defined below: both repeat this table's own id and label but are not dependable for lookups or joins.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The primary key of the ausrichtung table, a small integer identifying one alignment category.
+
+      One value per alignment category, 1 through 4. Referenced by superheld.ausrichtung_id; join on ausrichtung.id = superheld.ausrichtung_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ausrichtung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ausrichtung
+    description: |
+      ausrichtung holds the alignment label recorded on this row, describing whether a superhero is portrayed as heroic, villainous, or morally neutral.
+
+      One of four values: 'Good', 'Bad', 'Neutral', or 'N/A' when the alignment was not recorded. A question about "good superheroes" or "bad superheroes" resolves to this column by joining superheld.ausrichtung_id to ausrichtung.id and filtering here.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "A superhero's alignment describes whether they act heroically, villainously, or somewhere in between. It is stored as a label on the ausrichtung table and referenced from superheld.ausrichtung_id. In the current data, ausrichtung.id 1 is Good, 2 is Bad, 3 is Neutral, and 4 is N/A when the alignment was not recorded. A question about \"good superheroes\" or \"bad superheroes\" filters ausrichtung.ausrichtung after joining superheld.ausrichtung_id to ausrichtung.id, not the unreliable superheld.ausrichtung_fk_id column.\n",
+              "id": "term_superhero_alignment",
+              "name": "alignment",
+              "summary": "alignment is whether a superhero is good, bad, or neutral, the moral category recorded in ausrichtung and referenced by superheld.ausrichtung_id.",
+              "synonyms": [
+                "alignment",
+                "good",
+                "bad",
+                "neutral"
+              ]
+            }
+          ]
+        }
+  - name: ausrichtungs_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ausrichtungs_id
+    description: |
+      ausrichtungs_id, an integer column on the ausrichtung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: gesinnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: gesinnung
+    description: |
+      gesinnung, a text column on the ausrichtung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: eigenschaft
+  source: superhero.eigenschaft
+  description: |
+    The eigenschaft table is a short reference list naming each attribute a superhero can be scored on.
+
+    One row per attribute, six in total: Intelligence, Strength, Speed, Durability, Power, and Combat. held_eigenschaft.eigenschaft_id points back to this table's id to record which attribute a scored value belongs to; join on eigenschaft.id = held_eigenschaft.eigenschaft_id. Do not confuse this table with the eigenschafts_id and eigenschaftsbezeichnung columns defined below: both repeat this table's own id and name but are not dependable for lookups or joins.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The primary key of the eigenschaft table, a small integer identifying one attribute.
+
+      One value per attribute (six rows: Intelligence, Strength, Speed, Durability, Power, Combat). Referenced by held_eigenschaft.eigenschaft_id; join on eigenschaft.id = held_eigenschaft.eigenschaft_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: eigenschaftsname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: eigenschaftsname
+    description: |
+      eigenschaftsname is the name of the attribute recorded on this row, one of the six traits a superhero is scored against.
+
+      One of 'Intelligence', 'Strength', 'Speed', 'Durability', 'Power', or 'Combat'. A question about a hero's strength or speed filters this column after joining held_eigenschaft to this table on eigenschaft_id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "The six attributes recorded are Intelligence, Strength, Speed, Durability, Power, and Combat. A question about how strong or fast a hero is joins held_eigenschaft to eigenschaft on eigenschaft_id and filters eigenschaftsname to the attribute named, then reads the numeric score from held_eigenschaft.eigenschaftswert.\n",
+              "id": "term_superhero_attribute",
+              "name": "attribute",
+              "summary": "attribute, or attribute name, is one of six traits a superhero is scored on, held in eigenschaft.eigenschaftsname.",
+              "synonyms": [
+                "attribute",
+                "attribute name"
+              ]
+            }
+          ]
+        }
+  - name: eigenschafts_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: eigenschafts_id
+    description: |
+      eigenschafts_id, an integer column on the eigenschaft table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: eigenschaftsbezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: eigenschaftsbezeichnung
+    description: |
+      eigenschaftsbezeichnung, a text column on the eigenschaft table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: farbe
+  source: superhero.farbe
+  description: |
+    The farbe table is a shared reference list of colour names used for a superhero's eyes, hair, and skin.
+
+    One row per colour, 35 in the seed data, covering both simple colours and compound ones written with a slash. superheld.augenfarbe_id, superheld.haarfarbe_id, and superheld.hautfarbe_id each reference this same table's id from a different column, once for eye colour, once for hair colour, and once for skin colour; join on farbe.id equal to whichever of those three columns the question is about. The value 'No Colour' is the sentinel used when a hero has no colour recorded for that feature. Do not confuse this table with the farben_id and farbton columns defined below: both repeat this table's own id and name but are not dependable for lookups or joins.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The primary key of the farbe table, a small integer identifying one colour.
+
+      One value per colour (35 rows). Referenced by superheld.augenfarbe_id, superheld.haarfarbe_id, and superheld.hautfarbe_id, depending on which feature's colour is being looked up.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: farbe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: farbe
+    description: |
+      farbe is the colour name recorded on this row, used for a superhero's eyes, hair, or skin depending on which foreign key points here.
+
+      Simple names like 'Blue', 'Amber', 'Grey', 'Gold', or 'Black', and compound names like 'Green/Blue' for a colour that mixes two hues. 'No Colour' marks a feature with no colour recorded.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: farben_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: farben_id
+    description: |
+      farben_id, an integer column on the farbe table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: farbton
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: farbton
+    description: |
+      farbton, a text column on the farbe table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: geschlecht
+  source: superhero.geschlecht
+  description: |
+    The geschlecht table is a short reference list naming each gender a superhero can be recorded with.
+
+    One row per gender, three in the seed data: Male, Female, and N/A for unrecorded. superheld.geschlecht_id points back to this table's id; join on geschlecht.id = superheld.geschlecht_id. In the current data id 2 is Female. Do not confuse this table with the geschlechts_id and geschlechtsbezeichnung columns defined below: both repeat this table's own id and label but are not dependable for lookups or joins.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The primary key of the geschlecht table, a small integer identifying one gender.
+
+      One value per gender (three rows: Male, Female, N/A). Referenced by superheld.geschlecht_id; join on geschlecht.id = superheld.geschlecht_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: geschlecht
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geschlecht
+    description: |
+      geschlecht is the gender label recorded on this row.
+
+      One of 'Male', 'Female', or 'N/A' when gender was not recorded. A question about female or male superheroes filters this column after joining superheld.geschlecht_id to geschlecht.id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "A superhero's gender is stored as a label on the geschlecht table and referenced from superheld.geschlecht_id. In the current data, geschlecht.id 2 is Female. A question about female or male superheroes filters geschlecht.geschlecht after joining superheld.geschlecht_id to geschlecht.id, not the unreliable superheld.geschlechts_fk_id column. N/A marks a hero whose gender was not recorded.\n",
+              "id": "term_superhero_gender",
+              "name": "gender",
+              "summary": "gender is whether a superhero is female or male, recorded in geschlecht and referenced by superheld.geschlecht_id.",
+              "synonyms": [
+                "gender",
+                "female",
+                "male"
+              ]
+            }
+          ]
+        }
+  - name: geschlechts_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geschlechts_id
+    description: |
+      geschlechts_id, an integer column on the geschlecht table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: geschlechtsbezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geschlechtsbezeichnung
+    description: |
+      geschlechtsbezeichnung, a text column on the geschlecht table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: held_eigenschaft
+  source: superhero.held_eigenschaft
+  description: |
+    The held_eigenschaft table records how strongly each superhero scores on each attribute.
+
+    One row per hero-attribute pair: held_id identifies the hero and eigenschaft_id identifies the attribute, with eigenschaftswert holding the score. A hero with six attributes scored contributes six rows here. Join held_eigenschaft.held_id to superheld.id for the hero and held_eigenschaft.eigenschaft_id to eigenschaft.id for the attribute name. Do not confuse this table with the eigenschaft_ref_id, held_ref_id, and eigenschaft_wert columns defined below: all three repeat this table's own identifiers and score but are not dependable for lookups, filters, or joins.
+  fields:
+  - name: held_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: held_id
+    description: |
+      held_id identifies the superhero this scored attribute belongs to.
+
+      References superheld.id; join held_eigenschaft.held_id = superheld.id to bring in the hero's name and other facts.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: eigenschaft_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: eigenschaft_id
+    description: |
+      eigenschaft_id identifies the attribute being scored on this row.
+
+      References eigenschaft.id; join held_eigenschaft.eigenschaft_id = eigenschaft.id to bring in the attribute's name, such as Strength or Speed.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: eigenschaftswert
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: eigenschaftswert
+    description: |
+      eigenschaftswert is the numeric score recorded for this superhero on this attribute.
+
+      An integer, observed from 10 to 100 in the seed data, where a higher number means the hero is more skilled or powerful in that attribute. A value of 100 is the maximum observed score. Filter this column after joining to eigenschaft on eigenschaftsname to ask about a specific attribute, such as strength or speed.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "An integer, observed from 10 to 100 in the seed data, where a higher number means the hero is more skilled or powerful in that attribute. To ask about the strongest, fastest, weakest, or slowest hero on a specific trait, join held_eigenschaft to eigenschaft on eigenschaft_id, filter eigenschaftsname to that trait (for example Strength or Speed), and take the maximum or minimum of eigenschaftswert. A value of 100 is the highest observed score.\n",
+              "id": "term_superhero_attribute_value",
+              "name": "attribute value",
+              "summary": "attribute value, also called score or values, is how strongly a superhero rates on one attribute, held in held_eigenschaft.eigenschaftswert.",
+              "synonyms": [
+                "attribute value",
+                "score",
+                "values"
+              ]
+            }
+          ]
+        }
+  - name: eigenschaft_ref_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: eigenschaft_ref_id
+    description: |
+      eigenschaft_ref_id, an integer column on the held_eigenschaft table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: held_ref_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: held_ref_id
+    description: |
+      held_ref_id, an integer column on the held_eigenschaft table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: eigenschaft_wert
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: eigenschaft_wert
+    description: |
+      eigenschaft_wert, an integer column on the held_eigenschaft table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_superhero_average_attribute_value
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(eigenschaftswert)
+    description: |
+      average attribute value is the mean score across hero-attribute pairs, computed from held_eigenschaft.eigenschaftswert.
+
+      AVG(eigenschaftswert), taken over held_eigenschaft. To restrict this to one attribute, such as the average strength across all superheroes, join held_eigenschaft to eigenschaft on eigenschaft_id and filter eigenschaftsname first.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average attribute value"
+        }
+  - name: metric_superhero_max_attribute_value
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(eigenschaftswert)
+    description: |
+      max attribute value is the highest score recorded on a trait, used to find the strongest or fastest superhero from held_eigenschaft.eigenschaftswert.
+
+      MAX(eigenschaftswert). To ask "who is the strongest" or "who is the fastest", join held_eigenschaft to eigenschaft on eigenschaft_id, filter eigenschaftsname to the trait named (for example 'Strength' or 'Speed'), then take the row with the maximum eigenschaftswert and join back to superheld for the hero's name.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "max attribute value"
+        }
+  - name: metric_superhero_min_attribute_value
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(eigenschaftswert)
+    description: |
+      min attribute value is the lowest score recorded on a trait, used to find the weakest or slowest superhero from held_eigenschaft.eigenschaftswert.
+
+      MIN(eigenschaftswert). To ask "who is the weakest" or "who is the slowest", join held_eigenschaft to eigenschaft on eigenschaft_id, filter eigenschaftsname to the trait named (for example 'Durability' or 'Speed'), then take the row with the minimum eigenschaftswert and join back to superheld for the hero's name.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "min attribute value"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: held_faehigkeit
+  source: superhero.held_faehigkeit
+  description: |
+    The held_faehigkeit table links a hero identifier to an ability identifier.
+
+    This table is not dependable for analysis. Do not use it to answer questions or as a join path between superheroes and any other table.
+  fields:
+  - name: held_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: held_ref
+    description: |
+      held_ref, an integer column on the held_faehigkeit table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: faehigkeit_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: faehigkeit_id
+    description: |
+      faehigkeit_id, an integer column on the held_faehigkeit table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: held_kraft
+  source: superhero.held_kraft
+  description: |
+    The held_kraft table records which superpowers each superhero has.
+
+    One row per hero-power pair: held_id identifies the hero and kraft_id identifies the power. A hero with five powers contributes five rows here. Join held_kraft.held_id to superheld.id for the hero and held_kraft.kraft_id to superkraft.id for the power's name. Do not confuse this table with the held_fk_id and kraft_fk_id columns defined below: both repeat this table's own identifiers but are not dependable for lookups or joins.
+  fields:
+  - name: held_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: held_id
+    description: |
+      held_id identifies the superhero who has this power.
+
+      References superheld.id; join held_kraft.held_id = superheld.id to bring in the hero's name and other facts.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: kraft_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kraft_id
+    description: |
+      kraft_id identifies the superpower held on this row.
+
+      References superkraft.id; join held_kraft.kraft_id = superkraft.id to bring in the power's name.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: held_fk_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: held_fk_id
+    description: |
+      held_fk_id, an integer column on the held_kraft table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: kraft_fk_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kraft_fk_id
+    description: |
+      kraft_fk_id, an integer column on the held_kraft table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_superhero_power_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(kraft_id)
+    description: |
+      power count is how many superpowers a superhero has, counting rows of held_kraft grouped by hero.
+
+      COUNT(kraft_id), grouped by held_id, gives the number of powers each hero has; the hero with the most powers is the one with the largest count. Grouped by kraft_id instead, the same count gives the number of heroes sharing a given power, which is how "the power that superheroes have the most" is answered.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "power count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: held_merkmal
+  source: superhero.held_merkmal
+  description: |
+    The held_merkmal table links a hero identifier to a characteristic identifier and a numeric value.
+
+    This table is not dependable for analysis. Do not use it to answer questions or as a join path between superheroes and any other table.
+  fields:
+  - name: held_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: held_ref
+    description: |
+      held_ref, an integer column on the held_merkmal table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: merkmal_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: merkmal_id
+    description: |
+      merkmal_id, an integer column on the held_merkmal table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: merkmal_wert
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: merkmal_wert
+    description: |
+      merkmal_wert, an integer column on the held_merkmal table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: merkmal_typ
+  source: superhero.merkmal_typ
+  description: |
+    The merkmal_typ table is a short reference list of characteristic identifiers and names.
+
+    This table is not dependable for analysis. Do not use it to answer questions or as a join path to any other table.
+  fields:
+  - name: merkmal_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: merkmal_id
+    description: |
+      merkmal_id, an integer column on the merkmal_typ table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: merkmal_bezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: merkmal_bezeichnung
+    description: |
+      merkmal_bezeichnung, a text column on the merkmal_typ table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: rasse
+  source: superhero.rasse
+  description: |
+    The rasse table is a reference list naming each race or species a superhero can belong to.
+
+    One row per race, 61 in the seed data, ranging from Human and Alien to more specific groups like God / Eternal, Mutant, or Vampire. superheld.rasse_id points back to this table's id; join on rasse.id = superheld.rasse_id. Do not confuse this table with the rasse_id_2 and rassenbezeichnung columns defined below: both repeat this table's own id and name but are not dependable for lookups or joins.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The primary key of the rasse table, a small integer identifying one race.
+
+      One value per race (61 rows). Referenced by superheld.rasse_id; join on rasse.id = superheld.rasse_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: rasse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rasse
+    description: |
+      rasse is the race or species name recorded on this row.
+
+      Values range from broad groups such as 'Human' and 'Alien' to specific ones such as 'Mutant', 'God / Eternal', or 'Vampire'. A question about alien or vampire superheroes filters this column after joining superheld.rasse_id to rasse.id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Values range from broad groups such as 'Human' and 'Alien' to more specific ones such as 'Mutant', 'God / Eternal', or 'Vampire'. A question about alien or vampire superheroes joins superheld.rasse_id to rasse.id and filters rasse.rasse.\n",
+              "id": "term_superhero_race",
+              "name": "race",
+              "summary": "race, also called species or group, is the broad category a superhero belongs to, held in rasse.rasse.",
+              "synonyms": [
+                "race",
+                "species",
+                "group"
+              ]
+            }
+          ]
+        }
+  - name: rasse_id_2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rasse_id_2
+    description: |
+      rasse_id_2, an integer column on the rasse table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: rassenbezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rassenbezeichnung
+    description: |
+      rassenbezeichnung, a text column on the rasse table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: superheld
+  source: superhero.superheld
+  description: |
+    The superheld table is the central catalog of superheroes, one row per hero with their name, appearance, and publisher.
+
+    One row per superhero. heldenname is the hero's public name and vollst_ndiger_name is their full or civilian name when known. geschlecht_id, augenfarbe_id, haarfarbe_id, hautfarbe_id, rasse_id, verlag_id, and ausrichtung_id are foreign keys into geschlecht, farbe (used three times, once each for eye colour, hair colour, and skin colour), rasse, verlag, and ausrichtung respectively. gr_e_cm and gewicht_kg hold height and weight. Do not confuse this table with the ausrichtung_fk_id, augenfarbe_fk_id, and geschlechts_fk_id columns defined below: all three repeat other columns on this same row but are not dependable for lookups or joins.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The primary key of the superheld table, a unique integer identifying one superhero.
+
+      Referenced by held_eigenschaft.held_id and held_kraft.held_id to attach attribute scores and powers to this hero.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: heldenname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: heldenname
+    description: |
+      heldenname is the public superhero name by which a hero is known.
+
+      The name most questions mean by "hero" or "superhero", for example 'Spider-Man' or 'Batman'. Mostly unique in the seed data, with a small number of repeated names across different publishers.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "The name most questions mean by \"hero\", \"superhero\", or just \"name\", for example 'Spider-Man' or 'Batman'. This is heldenname, not vollst_ndiger_name, which holds the person's civilian name instead. Mostly unique in the seed data, with a small number of repeated names across different publishers.\n",
+              "id": "term_superhero_hero_name",
+              "name": "hero name",
+              "summary": "hero name, also called superhero name or simply name, is the public name a superhero is known by, held in superheld.heldenname.",
+              "synonyms": [
+                "hero name",
+                "superhero name",
+                "name"
+              ]
+            }
+          ]
+        }
+  - name: vollst_ndiger_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: vollst_ndiger_name
+    description: |
+      vollst_ndiger_name is the full or civilian name of the superhero, when it is known.
+
+      The person's given and family name, for example 'Peter Parker'. Missing for some heroes: recorded as NULL or as the literal placeholder '-' rather than a real name. Filter it with a prefix pattern, such as LIKE 'John%', to find heroes whose civilian first name is John.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "The person's given and family name behind the mask, for example 'Peter Parker'. Missing for some heroes: recorded as NULL or as the literal placeholder '-' rather than a real name, so a question about heroes \"without a full name\" should test for both. Filter with a prefix pattern, such as LIKE 'John%', to find heroes whose civilian first name is John.\n",
+              "id": "term_superhero_full_name",
+              "name": "full name",
+              "summary": "full name, also called real name or civilian name, is the given and family name of a superhero, held in superheld.vollst_ndiger_name.",
+              "synonyms": [
+                "full name",
+                "real name",
+                "civilian name"
+              ]
+            }
+          ]
+        }
+  - name: geschlecht_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geschlecht_id
+    description: |
+      geschlecht_id is the identifier of the gender recorded for this superhero.
+
+      References geschlecht.id; join superheld.geschlecht_id = geschlecht.id to get 'Male', 'Female', or 'N/A'.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: augenfarbe_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: augenfarbe_id
+    description: |
+      augenfarbe_id is the identifier of the colour recorded for this superhero's eyes.
+
+      References farbe.id; join superheld.augenfarbe_id = farbe.id to get the eye colour name, such as 'Blue' or 'Amber'. farbe.id = 1 ('No Colour') marks a hero with no eye colour recorded.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "References farbe.id; join superheld.augenfarbe_id = farbe.id to get the colour name, such as 'Blue' or 'Amber'. farbe.id 7 is Blue in the current data. Do not confuse with hair colour (haarfarbe_id) or skin colour (hautfarbe_id), which reference the same farbe table through a different column, or with the unreliable superheld.augenfarbe_fk_id.\n",
+              "id": "term_superhero_eye_colour",
+              "name": "eye colour",
+              "summary": "eye colour, also spelled eye color or called eyes, is the colour recorded for a superhero's eyes, held in superheld.augenfarbe_id.",
+              "synonyms": [
+                "eye colour",
+                "eye color",
+                "eyes"
+              ]
+            }
+          ]
+        }
+  - name: haarfarbe_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: haarfarbe_id
+    description: |
+      haarfarbe_id is the identifier of the colour recorded for this superhero's hair.
+
+      References farbe.id; join superheld.haarfarbe_id = farbe.id to get the hair colour name, such as 'Blond' or 'Black'.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "References farbe.id; join superheld.haarfarbe_id = farbe.id to get the colour name, such as 'Blond' or 'Black'. Do not confuse with eye colour (augenfarbe_id) or skin colour (hautfarbe_id), which reference the same farbe table through a different column.\n",
+              "id": "term_superhero_hair_colour",
+              "name": "hair colour",
+              "summary": "hair colour, also spelled hair color or called hair, is the colour recorded for a superhero's hair, held in superheld.haarfarbe_id.",
+              "synonyms": [
+                "hair colour",
+                "hair color",
+                "hair"
+              ]
+            }
+          ]
+        }
+  - name: hautfarbe_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: hautfarbe_id
+    description: |
+      hautfarbe_id is the identifier of the colour recorded for this superhero's skin.
+
+      References farbe.id; join superheld.hautfarbe_id = farbe.id to get the skin colour name, such as 'Gold' or 'Blue'.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "References farbe.id; join superheld.hautfarbe_id = farbe.id to get the colour name, such as 'Gold' or 'Blue'. Do not confuse with eye colour (augenfarbe_id) or hair colour (haarfarbe_id), which reference the same farbe table through a different column.\n",
+              "id": "term_superhero_skin_colour",
+              "name": "skin colour",
+              "summary": "skin colour, also spelled skin color, is the colour recorded for a superhero's skin, held in superheld.hautfarbe_id.",
+              "synonyms": [
+                "skin colour",
+                "skin color"
+              ]
+            }
+          ]
+        }
+  - name: rasse_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rasse_id
+    description: |
+      rasse_id is the identifier of the race recorded for this superhero.
+
+      References rasse.id; join superheld.rasse_id = rasse.id to get the race name, such as 'Human' or 'Alien'. NULL for a small number of heroes whose race was not recorded.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: verlag_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verlag_id
+    description: |
+      verlag_id is the identifier of the publisher that owns this superhero.
+
+      References verlag.id; join superheld.verlag_id = verlag.id to get the publisher name, such as 'Marvel Comics' or 'DC Comics'.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ausrichtung_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ausrichtung_id
+    description: |
+      ausrichtung_id is the identifier of the moral alignment recorded for this superhero.
+
+      References ausrichtung.id; join superheld.ausrichtung_id = ausrichtung.id to get 'Good', 'Bad', 'Neutral', or 'N/A'. NULL for a small number of heroes whose alignment was not recorded.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: gr_e_cm
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: gr_e_cm
+    description: |
+      gr_e_cm is the height of this superhero in centimeters.
+
+      An integer in centimeters. A value of 0, or a NULL, means the height was not recorded rather than that the hero has zero height.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "An integer in centimeters. A value of 0, or a NULL, means the height was not recorded rather than that the hero has zero height; exclude those rows before averaging or ranking. A height of over 200cm is a common filter threshold seen in business questions.\n",
+              "id": "term_superhero_height",
+              "name": "height",
+              "summary": "height, or heights, is how tall a superhero is in centimeters, held in superheld.gr_e_cm.",
+              "synonyms": [
+                "height",
+                "heights"
+              ]
+            }
+          ]
+        }
+  - name: gewicht_kg
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: gewicht_kg
+    description: |
+      gewicht_kg is the weight of this superhero in kilograms.
+
+      An integer in kilograms. A value of 0, or a NULL, means the weight was not recorded rather than that the hero weighs nothing.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "An integer in kilograms. A value of 0, or a NULL, means the weight was not recorded rather than that the hero weighs nothing; exclude those rows before averaging or ranking. \"Missing weight data\" refers to exactly this: gewicht_kg = 0 or gewicht_kg IS NULL.\n",
+              "id": "term_superhero_weight",
+              "name": "weight",
+              "summary": "weight is how much a superhero weighs in kilograms, held in superheld.gewicht_kg.",
+              "synonyms": [
+                "weight"
+              ]
+            }
+          ]
+        }
+  - name: ausrichtung_fk_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ausrichtung_fk_id
+    description: |
+      ausrichtung_fk_id, an integer column on the superheld table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: augenfarbe_fk_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: augenfarbe_fk_id
+    description: |
+      augenfarbe_fk_id, an integer column on the superheld table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: geschlechts_fk_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geschlechts_fk_id
+    description: |
+      geschlechts_fk_id, an integer column on the superheld table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_superhero_average_height
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(gr_e_cm)
+    description: |
+      average height is the mean height in centimeters across superheroes, computed from superheld.gr_e_cm.
+
+      AVG(gr_e_cm). A row with gr_e_cm = 0 or NULL means the height was not recorded; exclude those rows first (WHERE gr_e_cm > 0) so the average is not pulled down by missing data recorded as zero.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average height"
+        }
+  - name: metric_superhero_average_weight
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(gewicht_kg)
+    description: |
+      average weight is the mean weight in kilograms across superheroes, computed from superheld.gewicht_kg.
+
+      AVG(gewicht_kg). A row with gewicht_kg = 0 or NULL means the weight was not recorded; exclude those rows first (WHERE gewicht_kg > 0) so the average is not pulled down by missing data recorded as zero.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average weight"
+        }
+  - name: metric_superhero_hero_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id)
+    description: |
+      hero count is the total number of superheroes recorded, counting rows of superheld.
+
+      COUNT(id), taken over superheld, either unfiltered for the total roster size or filtered (for example on gender, alignment, or publisher) as the numerator or denominator of a percentage.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "hero count"
+        }
+  - name: metric_superhero_max_height
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(gr_e_cm)
+    description: |
+      max height is the greatest recorded height in centimeters, identifying the tallest superhero from superheld.gr_e_cm.
+
+      MAX(gr_e_cm). To name the tallest hero rather than just the number, order superheld by gr_e_cm descending and take the top row, or filter to gr_e_cm = MAX(gr_e_cm). Treat 0 as missing, not as a real height, when ranking.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "max height"
+        }
+  - name: metric_superhero_max_weight
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(gewicht_kg)
+    description: |
+      max weight is the greatest recorded weight in kilograms, identifying the heaviest superhero from superheld.gewicht_kg.
+
+      MAX(gewicht_kg). To name the heaviest hero rather than just the number, order superheld by gewicht_kg descending and take the top row, or filter to gewicht_kg = MAX(gewicht_kg). Treat 0 as missing, not as a real weight, when ranking.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "max weight"
+        }
+  - name: metric_superhero_percent_share
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: 100.0 * COUNT(*) FILTER (WHERE :filter) / COUNT(*)
+    description: |
+      percent share is what percentage of all superheroes match a filter, whether gender, alignment, or publisher, out of every hero in superheld.
+
+      100.0 * COUNT(heroes matching the filter) / COUNT(*), both counts taken over superheld (joined to whichever lookup table the filter lives on). Recurs across many business questions: the percentage of female heroes, the percentage published by Marvel Comics, the percentage with a bad alignment. The denominator is always every hero, not just the ones matching some other condition, unless the question says otherwise.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "percent share"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: superkraft
+  source: superhero.superkraft
+  description: |
+    The superkraft table is a reference list naming each superpower a superhero can have.
+
+    One row per superpower, 167 in the seed data, ranging from broad abilities like Super Strength to specific ones like Wind Control or Death Touch. held_kraft.kraft_id points back to this table's id; join on superkraft.id = held_kraft.kraft_id. Do not confuse this table with the superkraft_id and kraft_bezeichnung columns defined below: both repeat this table's own id and name but are not dependable for lookups or joins.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The primary key of the superkraft table, a unique integer identifying one superpower.
+
+      Referenced by held_kraft.kraft_id; join on superkraft.id = held_kraft.kraft_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: kraftname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kraftname
+    description: |
+      kraftname is the name of the superpower recorded on this row.
+
+      For example 'Agility', 'Super Strength', 'Wind Control', 'Death Touch', or 'Stealth'. A question naming a specific power filters this column after joining held_kraft to this table on kraft_id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Names range from broad abilities such as 'Agility' or 'Super Strength' to specific ones such as 'Wind Control' or 'Death Touch'. A hero's powers are found by joining held_kraft to superkraft on kraft_id; the heroes who have a given power are found by filtering superkraft.kraftname and joining back through held_kraft to superheld.\n",
+              "id": "term_superhero_power_name",
+              "name": "superpower",
+              "summary": "superpower, also called power or powers, is a named ability a superhero has, held in superkraft.kraftname.",
+              "synonyms": [
+                "superpower",
+                "power",
+                "powers"
+              ]
+            }
+          ]
+        }
+  - name: superkraft_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: superkraft_id
+    description: |
+      superkraft_id, an integer column on the superkraft table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: kraft_bezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kraft_bezeichnung
+    description: |
+      kraft_bezeichnung, a text column on the superkraft table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: verlag
+  source: superhero.verlag
+  description: |
+    The verlag table is a reference list naming each publisher that owns one or more superheroes.
+
+    One row per publisher, 25 in the seed data, including comic publishers such as Marvel Comics and DC Comics as well as a handful of film and television studios. superheld.verlag_id points back to this table's id; join on verlag.id = superheld.verlag_id. Do not confuse this table with the verlag_id_2 and verlag_bezeichnung columns defined below: both repeat this table's own id and name but are not dependable for lookups or joins.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The primary key of the verlag table, a unique integer identifying one publisher.
+
+      Referenced by superheld.verlag_id; join on verlag.id = superheld.verlag_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: verlagsname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verlagsname
+    description: |
+      verlagsname is the name of the publisher recorded on this row.
+
+      For example 'Marvel Comics', 'DC Comics', or 'Dark Horse Comics'. A question about who published a hero filters this column after joining superheld.verlag_id to verlag.id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Values include comic publishers such as 'Marvel Comics', 'DC Comics', and 'Dark Horse Comics', as well as a handful of film and television studios. A question about who published a hero joins superheld.verlag_id to verlag.id and filters or groups on verlagsname.\n",
+              "id": "term_superhero_publisher",
+              "name": "publisher",
+              "summary": "publisher is the comic-book or media company that owns a superhero, held in verlag.verlagsname.",
+              "synonyms": [
+                "publisher"
+              ]
+            }
+          ]
+        }
+  - name: verlag_id_2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verlag_id_2
+    description: |
+      verlag_id_2, an integer column on the verlag table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: verlag_bezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verlag_bezeichnung
+    description: |
+      verlag_bezeichnung, a text column on the verlag table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_superhero_ausrichtung_superheld_d6fb32ff
+  from: superheld
+  to: ausrichtung
+  from_columns:
+  - ausrichtung_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins ausrichtung to superheld to attach a hero's alignment label to its row.
+
+      One ausrichtung row can match many superheld rows, since many heroes can share the same alignment. Use this join to filter or display alignment (Good, Bad, Neutral, N/A) alongside a hero's name. Do not join through superheld.ausrichtung_fk_id; it is an unreliable duplicate of ausrichtung_id.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ausrichtung and superheld in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_superhero_eigenschaft_held_eigenschaft_479e8a77
+  from: held_eigenschaft
+  to: eigenschaft
+  from_columns:
+  - eigenschaft_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins eigenschaft to held_eigenschaft to name the attribute a scored value belongs to.
+
+      One eigenschaft row (one of six attributes such as Strength or Speed) can match many held_eigenschaft rows, one per hero scored on that attribute. Use this join to filter a scored value by attribute name before comparing eigenschaftswert across heroes. Do not join through held_eigenschaft.eigenschaft_ref_id; it is an unreliable duplicate of eigenschaft_id.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between eigenschaft and held_eigenschaft in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_superhero_farbe_superheld_779e36c0
+  from: superheld
+  to: farbe
+  from_columns:
+  - augenfarbe_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins farbe to superheld through augenfarbe_id to name a hero's eye colour.
+
+      One farbe row (a colour such as Blue or Amber) can match many superheld rows, one per hero with that eye colour. This is one of three joins from farbe to superheld, each through a different foreign key: this one is for eye colour specifically, not hair or skin. Do not join through superheld.augenfarbe_fk_id; it is an unreliable duplicate of augenfarbe_id.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between farbe and superheld in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_superhero_farbe_superheld_da8188ed
+  from: superheld
+  to: farbe
+  from_columns:
+  - hautfarbe_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins farbe to superheld through hautfarbe_id to name a hero's skin colour.
+
+      One farbe row (a colour such as Gold or Blue) can match many superheld rows, one per hero with that skin colour. This is one of three joins from farbe to superheld, each through a different foreign key: this one is for skin colour specifically, not eyes or hair.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between farbe and superheld in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_superhero_farbe_superheld_f6a8f46c
+  from: superheld
+  to: farbe
+  from_columns:
+  - haarfarbe_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins farbe to superheld through haarfarbe_id to name a hero's hair colour.
+
+      One farbe row (a colour such as Blond or Black) can match many superheld rows, one per hero with that hair colour. This is one of three joins from farbe to superheld, each through a different foreign key: this one is for hair colour specifically, not eyes or skin.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between farbe and superheld in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_superhero_geschlecht_superheld_344f7e01
+  from: superheld
+  to: geschlecht
+  from_columns:
+  - geschlecht_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins geschlecht to superheld to attach a hero's gender label to its row.
+
+      One geschlecht row can match many superheld rows, since many heroes can share the same gender. Use this join to filter or display gender (Male, Female, N/A) alongside a hero's name. Do not join through superheld.geschlechts_fk_id; it is an unreliable duplicate of geschlecht_id.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between geschlecht and superheld in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_superhero_held_eigenschaft_superheld_1d1dc4d4
+  from: held_eigenschaft
+  to: superheld
+  from_columns:
+  - held_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins held_eigenschaft to superheld to attach a hero's name to each scored attribute.
+
+      Many held_eigenschaft rows (one per attribute a hero is scored on) match one superheld row. Use this join to bring in the hero's name when comparing eigenschaftswert scores across heroes, or filter by heldenname before looking at a hero's attribute scores.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between held_eigenschaft and superheld in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_superhero_held_kraft_superheld_44094606
+  from: held_kraft
+  to: superheld
+  from_columns:
+  - held_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins held_kraft to superheld to attach a hero's name to each power it has.
+
+      Many held_kraft rows (one per power a hero has) match one superheld row. Use this join to bring in the hero's name when listing which heroes have a given power, or filter by heldenname before listing a hero's powers.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between held_kraft and superheld in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_superhero_held_kraft_superkraft_2cd46cf7
+  from: held_kraft
+  to: superkraft
+  from_columns:
+  - kraft_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins held_kraft to superkraft to name the power a hero has.
+
+      Many held_kraft rows (one per hero who has a given power) match one superkraft row. Use this join to bring in the power's name, such as Agility or Death Touch, when listing a hero's powers. Do not join through held_kraft.kraft_fk_id; it is an unreliable duplicate of kraft_id.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between held_kraft and superkraft in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_superhero_rasse_superheld_82a201ac
+  from: superheld
+  to: rasse
+  from_columns:
+  - rasse_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins rasse to superheld to attach a hero's race or species to its row.
+
+      One rasse row can match many superheld rows, since many heroes can share the same race. Use this join to filter or display race, such as Human, Alien, or Vampire, alongside a hero's name.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between rasse and superheld in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_superhero_superheld_verlag_7b6e578f
+  from: superheld
+  to: verlag
+  from_columns:
+  - verlag_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins superheld to verlag to name the publisher that owns a hero.
+
+      Many superheld rows (one per hero published by a given publisher) match one verlag row. Use this join to bring in the publisher's name, such as Marvel Comics or DC Comics, when filtering or grouping heroes by who published them.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between superheld and verlag in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question 717",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0000",
+          "sql": "SELECT \"T3\".\"kraftname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_kraft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"superkraft\" AS \"T3\" ON \"T2\".\"kraft_id\" = \"T3\".\"id\" WHERE \"T1\".\"heldenname\" = '3-D Man'",
+          "summary": "Please list all the superpowers of 3-D Man."
+        },
+        {
+          "audit": {
+            "evidence": "train question 719",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0001",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_kraft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"superkraft\" AS \"T3\" ON \"T2\".\"kraft_id\" = \"T3\".\"id\" WHERE \"T3\".\"kraftname\" = 'Super Strength' AND \"T1\".\"gr_e_cm\" > 200",
+          "summary": "Among the superheroes with the super power of \"Super Strength\", how many of them have a height of over 200cm?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 720",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0002",
+          "sql": "SELECT DISTINCT \"T1\".\"vollst_ndiger_name\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_kraft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" GROUP BY \"T1\".\"vollst_ndiger_name\" HAVING COUNT(\"T2\".\"kraft_id\") > 15",
+          "summary": "Please list the full names of all the superheroes with over 15 super powers."
+        },
+        {
+          "audit": {
+            "evidence": "train question 721",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0003",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" WHERE \"T2\".\"farbe\" = 'Blue'",
+          "summary": "How many superheroes have blue eyes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 722",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0004",
+          "sql": "SELECT \"T2\".\"farbe\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"hautfarbe_id\" = \"T2\".\"id\" WHERE \"T1\".\"heldenname\" = 'Apocalypse'",
+          "summary": "What is the colour of Apocalypse's skin?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 723",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0005",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_kraft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"superkraft\" AS \"T3\" ON \"T2\".\"kraft_id\" = \"T3\".\"id\" INNER JOIN \"superhero\".\"farbe\" AS \"T4\" ON \"T1\".\"augenfarbe_id\" = \"T4\".\"id\" WHERE \"T3\".\"kraftname\" = 'Agility' AND \"T4\".\"farbe\" = 'Blue'",
+          "summary": "Among the superheroes with blue eyes, how many of them have the super power of \"Agility\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 725",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0006",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" WHERE \"T2\".\"verlagsname\" = 'Marvel Comics'",
+          "summary": "How many superheroes are published by Marvel Comics?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 726",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0007",
+          "sql": "SELECT \"heldenname\", \"gr_e_cm\", RANK() OVER (ORDER BY \"gr_e_cm\" DESC NULLS LAST) AS \"HeightRank\" FROM \"superhero\".\"superheld\" INNER JOIN \"superhero\".\"verlag\" ON \"superheld\".\"verlag_id\" = \"verlag\".\"id\" WHERE \"verlag\".\"verlagsname\" = 'Marvel Comics'",
+          "summary": "Rank heroes published by Marvel Comics by their height in descending order."
+        },
+        {
+          "audit": {
+            "evidence": "train question 728",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0008",
+          "sql": "SELECT \"farbe\".\"farbe\" AS \"EyeColor\", COUNT(\"superheld\".\"id\") AS \"Count\", RANK() OVER (ORDER BY COUNT(\"superheld\".\"id\") DESC NULLS LAST) AS \"PopularityRank\" FROM \"superhero\".\"superheld\" INNER JOIN \"superhero\".\"farbe\" ON \"superheld\".\"augenfarbe_id\" = \"farbe\".\"id\" INNER JOIN \"superhero\".\"verlag\" ON \"superheld\".\"verlag_id\" = \"verlag\".\"id\" WHERE \"verlag\".\"verlagsname\" = 'Marvel Comics' GROUP BY \"farbe\".\"farbe\"",
+          "summary": "Rank superheroes from Marvel Comics by their eye color popularity, starting with the most common color."
+        },
+        {
+          "audit": {
+            "evidence": "train question 730",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0009",
+          "sql": "SELECT \"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" WHERE EXISTS(SELECT 1 FROM \"superhero\".\"held_kraft\" AS \"T2\" INNER JOIN \"superhero\".\"superkraft\" AS \"T3\" ON \"T2\".\"kraft_id\" = \"T3\".\"id\" WHERE \"T3\".\"kraftname\" = 'Super Strength' AND \"T1\".\"id\" = \"T2\".\"held_id\") AND EXISTS(SELECT 1 FROM \"superhero\".\"verlag\" AS \"T4\" WHERE \"T4\".\"verlagsname\" = 'Marvel Comics' AND \"T1\".\"verlag_id\" = \"T4\".\"id\")",
+          "summary": "List the superheroes from Marvel Comics who have the super power of 'Super Strength'."
+        },
+        {
+          "audit": {
+            "evidence": "train question 731",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0010",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" WHERE \"T2\".\"verlagsname\" = 'DC Comics'",
+          "summary": "How many superheroes did DC Comics publish?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 732",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0011",
+          "sql": "SELECT \"T2\".\"verlagsname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"held_eigenschaft\" AS \"T3\" ON \"T1\".\"id\" = \"T3\".\"held_id\" INNER JOIN \"superhero\".\"eigenschaft\" AS \"T4\" ON \"T3\".\"eigenschaft_id\" = \"T4\".\"id\" WHERE \"T4\".\"eigenschaftsname\" = 'Speed' ORDER BY \"T3\".\"eigenschaftswert\" NULLS FIRST LIMIT 1",
+          "summary": "Which publisher published the slowest superhero?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 733",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0012",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"farbe\" AS \"T3\" ON \"T1\".\"augenfarbe_id\" = \"T3\".\"id\" WHERE \"T2\".\"verlagsname\" = 'Marvel Comics' AND \"T3\".\"farbe\" = 'Gold'",
+          "summary": "How many gold-eyed superheroes did Marvel Comics publish?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 734",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0013",
+          "sql": "SELECT \"T2\".\"verlagsname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" WHERE \"T1\".\"heldenname\" = 'Blue Beetle II'",
+          "summary": "What is the publisher's name of Blue Beetle II?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 735",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0014",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"haarfarbe_id\" = \"T2\".\"id\" WHERE \"T2\".\"farbe\" = 'Blond'",
+          "summary": "How many superheroes with blonde hair are there?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 738",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0015",
+          "sql": "SELECT \"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" WHERE EXISTS(SELECT 1 FROM \"superhero\".\"held_eigenschaft\" AS \"T2\" INNER JOIN \"superhero\".\"eigenschaft\" AS \"T3\" ON \"T2\".\"eigenschaft_id\" = \"T3\".\"id\" WHERE \"T3\".\"eigenschaftsname\" = 'Durability' AND \"T2\".\"eigenschaftswert\" < 50 AND \"T1\".\"id\" = \"T2\".\"held_id\")",
+          "summary": "Which superheroes have a durability attribute value of less than 50?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 739",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0016",
+          "sql": "SELECT \"T1\".\"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_kraft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"superkraft\" AS \"T3\" ON \"T2\".\"kraft_id\" = \"T3\".\"id\" WHERE \"T3\".\"kraftname\" = 'Death Touch'",
+          "summary": "What are the names of the superheroes with the power of death touch?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 741",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0017",
+          "sql": "SELECT \"T1\".\"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_kraft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" GROUP BY \"T1\".\"heldenname\" ORDER BY COUNT(\"T2\".\"held_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the superhero that has the most powers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 742",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0018",
+          "sql": "SELECT COUNT(\"T1\".\"heldenname\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"rasse\" AS \"T2\" ON \"T1\".\"rasse_id\" = \"T2\".\"id\" WHERE \"T2\".\"rasse\" = 'Vampire'",
+          "summary": "How many vampire superheroes are there?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 743",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0019",
+          "sql": "SELECT (CAST(COUNT(*) AS REAL) * 100 / NULLIF((SELECT COUNT(*) FROM \"superhero\".\"superheld\"), 0)), CAST(SUM(CASE WHEN \"T2\".\"verlagsname\" = 'Marvel Comics' THEN 1 ELSE 0 END) AS REAL) FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"ausrichtung\" AS \"T3\" ON \"T3\".\"id\" = \"T1\".\"ausrichtung_id\" WHERE \"T3\".\"ausrichtung\" = 'Bad'",
+          "summary": "What is the percentage of superheroes who act in their own self-interest or make decisions based on their own moral code? Indicate how many of the said superheroes were published by Marvel Comics."
+        },
+        {
+          "audit": {
+            "evidence": "train question 744",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0020",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"verlagsname\" = 'Marvel Comics' THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T2\".\"verlagsname\" = 'DC Comics' THEN 1 ELSE 0 END) FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\"",
+          "summary": "Between DC and Marvel Comics, which publisher has published more superheroes? Find the difference in the number of superheroes they have published."
+        },
+        {
+          "audit": {
+            "evidence": "train question 745",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0021",
+          "sql": "SELECT \"id\" FROM \"superhero\".\"verlag\" WHERE \"verlagsname\" = 'Star Trek'",
+          "summary": "Give the publisher ID of Star Trek."
+        },
+        {
+          "audit": {
+            "evidence": "train question 746",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0022",
+          "sql": "SELECT AVG(\"eigenschaftswert\") FROM \"superhero\".\"held_eigenschaft\"",
+          "summary": "Calculate the average attribute value of all superheroes."
+        },
+        {
+          "audit": {
+            "evidence": "train question 747",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0023",
+          "sql": "SELECT COUNT(\"id\") FROM \"superhero\".\"superheld\" WHERE \"vollst_ndiger_name\" IS NULL",
+          "summary": "What is the total number of superheroes without full name?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 748",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0024",
+          "sql": "SELECT \"T2\".\"farbe\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" WHERE \"T1\".\"id\" = 75",
+          "summary": "What is the eye colour of superhero with superhero ID 75?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 750",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0025",
+          "sql": "SELECT AVG(\"T1\".\"gewicht_kg\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"geschlecht\" AS \"T2\" ON \"T1\".\"geschlecht_id\" = \"T2\".\"id\" WHERE \"T2\".\"geschlecht\" = 'Female'",
+          "summary": "What is the average weight of all female superheroes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 752",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0026",
+          "sql": "SELECT \"T1\".\"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"rasse\" AS \"T2\" ON \"T1\".\"rasse_id\" = \"T2\".\"id\" WHERE \"T2\".\"rasse\" = 'Alien'",
+          "summary": "Give the name of the alien superheroes."
+        },
+        {
+          "audit": {
+            "evidence": "train question 753",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0027",
+          "sql": "SELECT DISTINCT \"T1\".\"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" WHERE \"T1\".\"gr_e_cm\" BETWEEN 170 AND 190 AND \"T2\".\"farbe\" = 'No Colour'",
+          "summary": "Among the superheroes with height from 170 to 190, list the names of the superheroes with no eye color."
+        },
+        {
+          "audit": {
+            "evidence": "train question 756",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0028",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"ausrichtung\" AS \"T2\" ON \"T1\".\"ausrichtung_id\" = \"T2\".\"id\" WHERE \"T2\".\"ausrichtung\" = 'Bad'",
+          "summary": "How many bad superheroes are there?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 757",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0029",
+          "sql": "SELECT \"T2\".\"rasse\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"rasse\" AS \"T2\" ON \"T1\".\"rasse_id\" = \"T2\".\"id\" WHERE \"T1\".\"gewicht_kg\" = 169",
+          "summary": "Identify the race of the superhero who weighed 169 kg."
+        },
+        {
+          "audit": {
+            "evidence": "train question 759",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0030",
+          "sql": "SELECT \"T2\".\"farbe\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" ORDER BY \"T1\".\"gewicht_kg\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the eye clolour of the heaviest superhero?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 760",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0031",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T2\".\"verlagsname\" = 'Marvel Comics' THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id\"), 0) FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" WHERE \"T1\".\"gr_e_cm\" BETWEEN 150 AND 180",
+          "summary": "In superheroes with height between 150 to 180, what is the percentage of heroes published by Marvel Comics?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 762",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0032",
+          "sql": "SELECT \"T2\".\"kraftname\" FROM \"superhero\".\"held_kraft\" AS \"T1\" INNER JOIN \"superhero\".\"superkraft\" AS \"T2\" ON \"T1\".\"kraft_id\" = \"T2\".\"id\" GROUP BY \"T2\".\"kraftname\" ORDER BY COUNT(\"T1\".\"held_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which power do superheroes have the most of?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 764",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0033",
+          "sql": "SELECT DISTINCT \"T2\".\"kraftname\" FROM \"superhero\".\"held_kraft\" AS \"T1\" INNER JOIN \"superhero\".\"superkraft\" AS \"T2\" ON \"T1\".\"kraft_id\" = \"T2\".\"id\" WHERE \"T1\".\"held_id\" = 1",
+          "summary": "What are the superpowers of heroes with ID 1?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 765",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0034",
+          "sql": "SELECT COUNT(\"T1\".\"held_id\") FROM \"superhero\".\"held_kraft\" AS \"T1\" INNER JOIN \"superhero\".\"superkraft\" AS \"T2\" ON \"T1\".\"kraft_id\" = \"T2\".\"id\" WHERE \"T2\".\"kraftname\" = 'Stealth'",
+          "summary": "How many heroes have stealth power?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 768",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0035",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" WHERE \"T2\".\"verlagsname\" = 'Dark Horse Comics'",
+          "summary": "How many superheroes were published by Dark Horse Comics?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 770",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0036",
+          "sql": "SELECT \"T2\".\"farbe\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" WHERE \"T1\".\"vollst_ndiger_name\" = 'Abraham Sapien'",
+          "summary": "What is the eyes colour of Abraham Sapien?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 772",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0037",
+          "sql": "SELECT \"T1\".\"augenfarbe_id\", \"T1\".\"haarfarbe_id\", \"T1\".\"hautfarbe_id\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T2\".\"id\" = \"T1\".\"verlag_id\" INNER JOIN \"superhero\".\"geschlecht\" AS \"T3\" ON \"T3\".\"id\" = \"T1\".\"geschlecht_id\" WHERE \"T2\".\"verlagsname\" = 'Dark Horse Comics' AND \"T3\".\"geschlecht\" = 'Female'",
+          "summary": "List the eyes, hair and skin colour of all female superheroes published by Dark Horse Comics."
+        },
+        {
+          "audit": {
+            "evidence": "train question 773",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0038",
+          "sql": "SELECT \"T1\".\"heldenname\", \"T2\".\"verlagsname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" WHERE \"T1\".\"augenfarbe_id\" = \"T1\".\"haarfarbe_id\" AND \"T1\".\"augenfarbe_id\" = \"T1\".\"hautfarbe_id\"",
+          "summary": "Which superhero has the same eyes, hair and skin colour? Indicate the publisher of the superhero."
+        },
+        {
+          "audit": {
+            "evidence": "train question 774",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0039",
+          "sql": "SELECT \"T2\".\"rasse\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"rasse\" AS \"T2\" ON \"T1\".\"rasse_id\" = \"T2\".\"id\" WHERE \"T1\".\"heldenname\" = 'A-Bomb'",
+          "summary": "Which group does superhero A-Bomb belong to?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 775",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0040",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T3\".\"farbe\" = 'Blue' THEN \"T1\".\"id\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id\"), 0) FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"geschlecht\" AS \"T2\" ON \"T1\".\"geschlecht_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"farbe\" AS \"T3\" ON \"T1\".\"hautfarbe_id\" = \"T3\".\"id\" WHERE \"T2\".\"geschlecht\" = 'Female'",
+          "summary": "What is the percentage of blue female superheroes among all female superheroes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 776",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0041",
+          "sql": "SELECT \"T1\".\"heldenname\", \"T2\".\"rasse\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"rasse\" AS \"T2\" ON \"T1\".\"rasse_id\" = \"T2\".\"id\" WHERE \"T1\".\"vollst_ndiger_name\" = 'Charles Chandler'",
+          "summary": "Provide the hero name and race of Charles Chandler."
+        },
+        {
+          "audit": {
+            "evidence": "train question 777",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0042",
+          "sql": "SELECT \"T2\".\"geschlecht\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"geschlecht\" AS \"T2\" ON \"T1\".\"geschlecht_id\" = \"T2\".\"id\" WHERE \"T1\".\"heldenname\" = 'Agent 13'",
+          "summary": "What is the gender of Agent 13 hero?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 778",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0043",
+          "sql": "SELECT \"T1\".\"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_kraft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"superkraft\" AS \"T3\" ON \"T2\".\"kraft_id\" = \"T3\".\"id\" WHERE \"T3\".\"kraftname\" = 'Adaptation'",
+          "summary": "Provide superheroes' names who have the adaptation power."
+        },
+        {
+          "audit": {
+            "evidence": "train question 779",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0044",
+          "sql": "SELECT COUNT(\"T1\".\"kraft_id\") FROM \"superhero\".\"held_kraft\" AS \"T1\" INNER JOIN \"superhero\".\"superheld\" AS \"T2\" ON \"T1\".\"held_id\" = \"T2\".\"id\" WHERE \"T2\".\"heldenname\" = 'Amazo'",
+          "summary": "How many powers does Amazo hero have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 780",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0045",
+          "sql": "SELECT \"T3\".\"kraftname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_kraft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"superkraft\" AS \"T3\" ON \"T2\".\"kraft_id\" = \"T3\".\"id\" WHERE \"T1\".\"vollst_ndiger_name\" = 'Hunter Zolomon'",
+          "summary": "List the powers of Hunter Zolomon."
+        },
+        {
+          "audit": {
+            "evidence": "train question 781",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0046",
+          "sql": "SELECT \"T1\".\"gr_e_cm\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" WHERE \"T2\".\"farbe\" = 'Amber'",
+          "summary": "Provide the heights of the heroes whose eye colours are amber."
+        },
+        {
+          "audit": {
+            "evidence": "train question 782",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0047",
+          "sql": "SELECT \"T1\".\"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" AND \"T1\".\"haarfarbe_id\" = \"T2\".\"id\" WHERE \"T2\".\"farbe\" = 'Black'",
+          "summary": "List the heroes' names whose eyes and hair colours are both black."
+        },
+        {
+          "audit": {
+            "evidence": "train question 783",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0048",
+          "sql": "SELECT \"T2\".\"farbe\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"farbe\" AS \"T3\" ON \"T1\".\"hautfarbe_id\" = \"T3\".\"id\" WHERE \"T3\".\"farbe\" = 'Gold'",
+          "summary": "Provide the eye colours of the heroes whose skin colours are gold."
+        },
+        {
+          "audit": {
+            "evidence": "train question 784",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0049",
+          "sql": "SELECT \"T1\".\"vollst_ndiger_name\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"rasse\" AS \"T2\" ON \"T1\".\"rasse_id\" = \"T2\".\"id\" WHERE \"T2\".\"rasse\" = 'Vampire'",
+          "summary": "Provide the full names of vampire heroes."
+        },
+        {
+          "audit": {
+            "evidence": "train question 786",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0050",
+          "sql": "SELECT COUNT(\"T1\".\"held_id\") FROM \"superhero\".\"held_eigenschaft\" AS \"T1\" INNER JOIN \"superhero\".\"eigenschaft\" AS \"T2\" ON \"T1\".\"eigenschaft_id\" = \"T2\".\"id\" WHERE \"T2\".\"eigenschaftsname\" = 'Strength' AND \"T1\".\"eigenschaftswert\" = (SELECT MAX(\"eigenschaftswert\") FROM \"superhero\".\"held_eigenschaft\")",
+          "summary": "How many heroes have the highest attribute value in strength?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 788",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0051",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T2\".\"verlagsname\" = 'Marvel Comics' THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id\"), 0) FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"geschlecht\" AS \"T3\" ON \"T1\".\"geschlecht_id\" = \"T3\".\"id\" WHERE \"T3\".\"geschlecht\" = 'Female'",
+          "summary": "How many percent of female heroes were published by Marvel Comics?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 789",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0052",
+          "sql": "SELECT CAST(SUM(\"T1\".\"gewicht_kg\") AS REAL) / NULLIF(COUNT(\"T1\".\"id\"), 0) FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"rasse\" AS \"T2\" ON \"T1\".\"rasse_id\" = \"T2\".\"id\" WHERE \"T2\".\"rasse\" = 'Alien'",
+          "summary": "Find the average weight of the heroes who are aliens."
+        },
+        {
+          "audit": {
+            "evidence": "train question 790",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0053",
+          "sql": "SELECT (SELECT \"gewicht_kg\" FROM \"superhero\".\"superheld\" WHERE \"vollst_ndiger_name\" LIKE 'Emil Blonsky') - (SELECT \"gewicht_kg\" FROM \"superhero\".\"superheld\" WHERE \"vollst_ndiger_name\" LIKE 'Charles Chandler') AS \"CALCULATE\"",
+          "summary": "Calculate the difference between Emil Blonsky's weight and Charles Chandler's weight."
+        },
+        {
+          "audit": {
+            "evidence": "train question 791",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0054",
+          "sql": "SELECT CAST(SUM(\"gr_e_cm\") AS REAL) / NULLIF(COUNT(\"id\"), 0) FROM \"superhero\".\"superheld\"",
+          "summary": "Calculate the average height for each superhero."
+        },
+        {
+          "audit": {
+            "evidence": "train question 795",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0055",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"ausrichtung\" AS \"T2\" ON \"T1\".\"ausrichtung_id\" = \"T2\".\"id\" WHERE \"T2\".\"ausrichtung\" = 'Neutral'",
+          "summary": "How many superheroes have a neutral alignment?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 796",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0056",
+          "sql": "SELECT \"T3\".\"eigenschaftsname\", \"T2\".\"eigenschaftswert\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_eigenschaft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"eigenschaft\" AS \"T3\" ON \"T2\".\"eigenschaft_id\" = \"T3\".\"id\" WHERE \"T1\".\"heldenname\" = '3-D Man'",
+          "summary": "State all of 3-D Man's attributes along with their values."
+        },
+        {
+          "audit": {
+            "evidence": "train question 797",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0057",
+          "sql": "SELECT \"T1\".\"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"farbe\" AS \"T3\" ON \"T1\".\"haarfarbe_id\" = \"T3\".\"id\" WHERE \"T2\".\"farbe\" = 'Blue' AND \"T3\".\"farbe\" = 'Brown'",
+          "summary": "Which superheroes have blue eyes with brown hair?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 798",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0058",
+          "sql": "SELECT \"T2\".\"verlagsname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" WHERE \"T1\".\"heldenname\" IN ('Hawkman', 'Karate Kid', 'Speedy')",
+          "summary": "What is the publisher for Hawkman, Karate Kid and Speedy?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 799",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0059",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" WHERE \"T2\".\"id\" = 1",
+          "summary": "How many superheroes didn't have any publisher?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 800",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0060",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T2\".\"farbe\" = 'Blue' THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id\"), 0) FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\"",
+          "summary": "Calculate the percentage of superheroes with blue eyes."
+        },
+        {
+          "audit": {
+            "evidence": "train question 802",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0061",
+          "sql": "SELECT \"heldenname\" FROM \"superhero\".\"superheld\" ORDER BY \"gr_e_cm\" DESC NULLS LAST LIMIT 1",
+          "summary": "Who is the tallest superhero?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 803",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0062",
+          "sql": "SELECT \"id\" FROM \"superhero\".\"superkraft\" WHERE \"kraftname\" = 'Cryokinesis'",
+          "summary": "What is the power ID of cryokinesis?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 804",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0063",
+          "sql": "SELECT \"heldenname\" FROM \"superhero\".\"superheld\" WHERE \"id\" = 294",
+          "summary": "Provide the name of superhero with superhero ID 294."
+        },
+        {
+          "audit": {
+            "evidence": "train question 806",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0064",
+          "sql": "SELECT \"T2\".\"farbe\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" WHERE \"T1\".\"vollst_ndiger_name\" = 'Karen Beecher-Duncan'",
+          "summary": "Provide the eye colour of the superhero who has Karen Beecher-Duncan as their full name."
+        },
+        {
+          "audit": {
+            "evidence": "train question 809",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0065",
+          "sql": "SELECT \"T2\".\"verlagsname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" WHERE \"T1\".\"id\" = 38",
+          "summary": "What is the publisher name of the superhero ID 38?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 811",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0066",
+          "sql": "SELECT \"T4\".\"ausrichtung\", \"T3\".\"kraftname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_kraft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"superkraft\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"kraft_id\" INNER JOIN \"superhero\".\"ausrichtung\" AS \"T4\" ON \"T1\".\"ausrichtung_id\" = \"T4\".\"id\" WHERE \"T1\".\"heldenname\" = 'Atom IV'",
+          "summary": "Give the alignment and superpowers of the superhero named Atom IV."
+        },
+        {
+          "audit": {
+            "evidence": "train question 812",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0067",
+          "sql": "SELECT \"T1\".\"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" WHERE \"T2\".\"farbe\" = 'Blue' LIMIT 5",
+          "summary": "List down at least five full names of superheroes with blue eyes."
+        },
+        {
+          "audit": {
+            "evidence": "train question 814",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0068",
+          "sql": "SELECT DISTINCT \"T2\".\"farbe\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"hautfarbe_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"held_eigenschaft\" AS \"T3\" ON \"T1\".\"id\" = \"T3\".\"held_id\" WHERE \"T3\".\"eigenschaftswert\" = 100",
+          "summary": "List the skin colour of the superheroes with 100 attribute value."
+        },
+        {
+          "audit": {
+            "evidence": "train question 815",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0069",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"ausrichtung\" AS \"T2\" ON \"T1\".\"ausrichtung_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"geschlecht\" AS \"T3\" ON \"T1\".\"geschlecht_id\" = \"T3\".\"id\" WHERE \"T2\".\"ausrichtung\" = 'Good' AND \"T3\".\"geschlecht\" = 'Female'",
+          "summary": "Count the good female superheroes."
+        },
+        {
+          "audit": {
+            "evidence": "train question 816",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0070",
+          "sql": "SELECT \"T1\".\"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_eigenschaft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" WHERE \"T2\".\"eigenschaftswert\" BETWEEN 75 AND 80",
+          "summary": "Provide the names of superheroes with attribute value between 75 to 80."
+        },
+        {
+          "audit": {
+            "evidence": "train question 817",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0071",
+          "sql": "SELECT \"T3\".\"rasse\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"haarfarbe_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"rasse\" AS \"T3\" ON \"T1\".\"rasse_id\" = \"T3\".\"id\" INNER JOIN \"superhero\".\"geschlecht\" AS \"T4\" ON \"T1\".\"geschlecht_id\" = \"T4\".\"id\" WHERE \"T2\".\"farbe\" = 'Blue' AND \"T4\".\"geschlecht\" = 'Male'",
+          "summary": "Give the race of the blue-haired male superhero."
+        },
+        {
+          "audit": {
+            "evidence": "train question 818",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0072",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T3\".\"geschlecht\" = 'Female' THEN \"T1\".\"id\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id\"), 0) FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"ausrichtung\" AS \"T2\" ON \"T1\".\"ausrichtung_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"geschlecht\" AS \"T3\" ON \"T1\".\"geschlecht_id\" = \"T3\".\"id\" WHERE \"T2\".\"ausrichtung\" = 'Bad'",
+          "summary": "Among the bad superheroes, what is the percentage of female superheroes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 819",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0073",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"id\" = 7 THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T2\".\"id\" = 1 THEN 1 ELSE 0 END) FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" WHERE \"T1\".\"gewicht_kg\" = 0 OR \"T1\".\"gewicht_kg\" IS NULL",
+          "summary": "In superheroes with missing weight data, calculate the difference between the number of superheroes with blue eyes and no eye color."
+        },
+        {
+          "audit": {
+            "evidence": "train question 820",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0074",
+          "sql": "SELECT \"T2\".\"eigenschaftswert\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_eigenschaft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"eigenschaft\" AS \"T3\" ON \"T2\".\"eigenschaft_id\" = \"T3\".\"id\" WHERE \"T1\".\"heldenname\" = 'Hulk' AND \"T3\".\"eigenschaftsname\" = 'Strength'",
+          "summary": "How strong is the Hulk?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 821",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0075",
+          "sql": "SELECT \"T3\".\"kraftname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_kraft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"superkraft\" AS \"T3\" ON \"T2\".\"kraft_id\" = \"T3\".\"id\" WHERE \"T1\".\"heldenname\" = 'Ajax'",
+          "summary": "List down Ajax's superpowers."
+        },
+        {
+          "audit": {
+            "evidence": "train question 823",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0076",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"geschlecht\" AS \"T3\" ON \"T1\".\"geschlecht_id\" = \"T3\".\"id\" WHERE \"T2\".\"verlagsname\" = 'Marvel Comics' AND \"T3\".\"geschlecht\" = 'Female'",
+          "summary": "How many female superheroes are in Marvel Comics?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 824",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0077",
+          "sql": "SELECT \"T1\".\"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_kraft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"superkraft\" AS \"T3\" ON \"T2\".\"kraft_id\" = \"T3\".\"id\" WHERE \"T3\".\"kraftname\" = 'Wind Control' ORDER BY \"T1\".\"heldenname\" NULLS FIRST",
+          "summary": "Identify superheroes who can control wind and list their names in alphabetical order."
+        },
+        {
+          "audit": {
+            "evidence": "train question 826",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0078",
+          "sql": "SELECT \"T1\".\"heldenname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" WHERE \"T2\".\"verlagsname\" = 'DC Comics' ORDER BY \"T1\".\"gewicht_kg\" DESC NULLS LAST LIMIT 1",
+          "summary": "Identify the heaviest superhero in DC Comics."
+        },
+        {
+          "audit": {
+            "evidence": "train question 827",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0079",
+          "sql": "SELECT AVG(\"T1\".\"gr_e_cm\") FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"rasse\" AS \"T3\" ON \"T1\".\"rasse_id\" = \"T3\".\"id\" WHERE \"T2\".\"verlagsname\" = 'Dark Horse Comics' AND \"T3\".\"rasse\" <> 'Human'",
+          "summary": "What is the average height of a non-human superhero in Dark Horse Comics?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 828",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0080",
+          "sql": "SELECT COUNT(\"T3\".\"heldenname\") FROM \"superhero\".\"held_eigenschaft\" AS \"T1\" INNER JOIN \"superhero\".\"eigenschaft\" AS \"T2\" ON \"T1\".\"eigenschaft_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"superheld\" AS \"T3\" ON \"T1\".\"held_id\" = \"T3\".\"id\" WHERE \"T2\".\"eigenschaftsname\" = 'Speed' AND \"T1\".\"eigenschaftswert\" = 100",
+          "summary": "Count the fastest superheroes."
+        },
+        {
+          "audit": {
+            "evidence": "train question 829",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0081",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"verlagsname\" = 'DC Comics' THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T2\".\"verlagsname\" = 'Marvel Comics' THEN 1 ELSE 0 END) FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\"",
+          "summary": "Which publisher created more superheroes: DC or Marvel Comics? Find the difference in the number of superheroes."
+        },
+        {
+          "audit": {
+            "evidence": "train question 830",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0082",
+          "sql": "SELECT \"T3\".\"eigenschaftsname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_eigenschaft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"eigenschaft\" AS \"T3\" ON \"T2\".\"eigenschaft_id\" = \"T3\".\"id\" WHERE \"T1\".\"heldenname\" = 'Black Panther' ORDER BY \"T2\".\"eigenschaftswert\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Identify the weakest attribute of the Black Panther."
+        },
+        {
+          "audit": {
+            "evidence": "train question 831",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0083",
+          "sql": "SELECT \"T2\".\"farbe\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" WHERE \"T1\".\"heldenname\" = 'Abomination'",
+          "summary": "What is Abomination's eye colour?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 833",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0084",
+          "sql": "SELECT \"heldenname\" FROM \"superhero\".\"superheld\" WHERE \"vollst_ndiger_name\" = 'Charles Chandler'",
+          "summary": "Name the superhero, otherwise known as Charles Chandler."
+        },
+        {
+          "audit": {
+            "evidence": "train question 834",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0085",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T3\".\"geschlecht\" = 'Female' THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id\"), 0) FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"verlag\" AS \"T2\" ON \"T1\".\"verlag_id\" = \"T2\".\"id\" INNER JOIN \"superhero\".\"geschlecht\" AS \"T3\" ON \"T1\".\"geschlecht_id\" = \"T3\".\"id\" WHERE \"T2\".\"verlagsname\" = 'George Lucas'",
+          "summary": "Among all superheroes created by George Lucas, identify the percentage of female superheroes."
+        },
+        {
+          "audit": {
+            "evidence": "train question 836",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0086",
+          "sql": "SELECT COUNT(\"id\") FROM \"superhero\".\"superheld\" WHERE \"vollst_ndiger_name\" LIKE 'John%'",
+          "summary": "What is the total number of superheroes that have John as their first name?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 837",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0087",
+          "sql": "SELECT \"held_id\" FROM \"superhero\".\"held_eigenschaft\" WHERE \"eigenschaftswert\" = (SELECT MIN(\"eigenschaftswert\") FROM \"superhero\".\"held_eigenschaft\")",
+          "summary": "Give the hero ID of superhero with the lowest attribute value."
+        },
+        {
+          "audit": {
+            "evidence": "train question 838",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0088",
+          "sql": "SELECT \"vollst_ndiger_name\" FROM \"superhero\".\"superheld\" WHERE \"heldenname\" = 'Alien'",
+          "summary": "Provide the full name of the superhero named Alien."
+        },
+        {
+          "audit": {
+            "evidence": "train question 839",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0089",
+          "sql": "SELECT \"T1\".\"vollst_ndiger_name\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" WHERE \"T1\".\"gewicht_kg\" < 100 AND \"T2\".\"farbe\" = 'Brown'",
+          "summary": "In superheroes with weight less than 100, list the full name of the superheroes with brown eyes."
+        },
+        {
+          "audit": {
+            "evidence": "train question 840",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0090",
+          "sql": "SELECT \"T2\".\"eigenschaftswert\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_eigenschaft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" WHERE \"T1\".\"heldenname\" = 'Aquababy'",
+          "summary": "List the attribute value of the superhero named Aquababy."
+        },
+        {
+          "audit": {
+            "evidence": "train question 841",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0091",
+          "sql": "SELECT \"T1\".\"gewicht_kg\", \"T2\".\"rasse\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"rasse\" AS \"T2\" ON \"T1\".\"rasse_id\" = \"T2\".\"id\" WHERE \"T1\".\"id\" = 40",
+          "summary": "Provide the weight and race of the superhero with superhero ID 40."
+        },
+        {
+          "audit": {
+            "evidence": "train question 843",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0092",
+          "sql": "SELECT \"T1\".\"held_id\" FROM \"superhero\".\"held_kraft\" AS \"T1\" INNER JOIN \"superhero\".\"superkraft\" AS \"T2\" ON \"T1\".\"kraft_id\" = \"T2\".\"id\" WHERE \"T2\".\"kraftname\" = 'Intelligence'",
+          "summary": "List the hero ID of superheroes have intellegence as their power."
+        },
+        {
+          "audit": {
+            "evidence": "train question 844",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0093",
+          "sql": "SELECT \"T2\".\"farbe\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"farbe\" AS \"T2\" ON \"T1\".\"augenfarbe_id\" = \"T2\".\"id\" WHERE \"T1\".\"heldenname\" = 'Blackwulf'",
+          "summary": "Give the eye colour of Blackwulf."
+        },
+        {
+          "audit": {
+            "evidence": "train question 845",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_superhero_0094",
+          "sql": "SELECT \"T3\".\"kraftname\" FROM \"superhero\".\"superheld\" AS \"T1\" INNER JOIN \"superhero\".\"held_kraft\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"held_id\" INNER JOIN \"superhero\".\"superkraft\" AS \"T3\" ON \"T2\".\"kraft_id\" = \"T3\".\"id\" WHERE \"T1\".\"gr_e_cm\" * 100 > (SELECT AVG(\"gr_e_cm\") FROM \"superhero\".\"superheld\") * 80",
+          "summary": "List the power of superheroes with height greater than 80% of the average height of all superheroes."
+        }
+      ]
+    }

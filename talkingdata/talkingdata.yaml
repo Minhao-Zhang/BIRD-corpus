@@ -1,27 +1,4074 @@
-asset_type: schema
-id: talkingdata
+version: 0.2.0.dev0
 name: talkingdata
-summary: talkingdata tracks mobile app usage events by device, including installed and active apps, app
-  behaviour labels and categories, each device's phone brand and model, and its user's gender and age
-  group, for demographic and app-usage analysis.
-body: 'talkingdata is organized around the device (id_appareil): evenements records one row per app-usage
-  event for a device, with evenements_applications and evenements_applications_pertinents recording which
-  applications were installed or active during an event. genre_age (and its training and test splits genre_age_entrainement
-  and genre_age_test) records a device''s gender and age group, and marque_telephone_modele_appareil records
-  its phone brand and model. categories_etiquettes and etiquettes_applications record which behaviour
-  category each application belongs to, and applications_tous lists every distinct application id. catalogue_etiquettes
-  and repartition_soumissions are not dependable for analysis, and evenements_pertinents and evenements_applications_pertinents
-  each carry a few extra columns that are not dependable either; see each table''s own notes for which
-  columns to avoid.'
-rules:
-- Never select, filter, or join on a column from catalogue_etiquettes or repartition_soumissions - every
-  column in both tables is unreliable for analysis.
-- Join a device's events, demographics, and phone details through id_appareil; join app-level tables through
-  id_application; join label tables through id_etiquette.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |-
+  talkingdata tracks mobile app usage events by device, including installed and active apps, app behaviour labels and categories, each device's phone brand and model, and its user's gender and age group, for demographic and app-usage analysis.
+
+  talkingdata is organized around the device (id_appareil): evenements records one row per app-usage event for a device, with evenements_applications and evenements_applications_pertinents recording which applications were installed or active during an event. genre_age (and its training and test splits genre_age_entrainement and genre_age_test) records a device's gender and age group, and marque_telephone_modele_appareil records its phone brand and model. categories_etiquettes and etiquettes_applications record which behaviour category each application belongs to, and applications_tous lists every distinct application id. catalogue_etiquettes and repartition_soumissions are not dependable for analysis, and evenements_pertinents and evenements_applications_pertinents each carry a few extra columns that are not dependable either; see each table's own notes for which columns to avoid.
+ai_context:
+  instructions: |-
+    Never select, filter, or join on a column from catalogue_etiquettes or repartition_soumissions - every column in both tables is unreliable for analysis.
+    Join a device's events, demographics, and phone details through id_appareil; join app-level tables through id_application; join label tables through id_etiquette.
+datasets:
+- name: applications_tous
+  source: talkingdata.applications_tous
+  description: |-
+    applications_tous holds one row per distinct application id referenced anywhere else in the talkingdata schema.
+
+    Grain: one row per application. This is the id-only dimension other app tables join back to through id_application - etiquettes_applications for an app's behaviour label, and evenements_applications_pertinents for its per-event install and activity status. It carries no descriptive attributes of its own; look up a category through categories_etiquettes and an install or activity flag through evenements_applications or evenements_applications_pertinents.
+  fields:
+  - name: id_application
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_application
+    description: |-
+      The unique identifier for an application, id_application.
+
+      A large signed integer, one value per row in this table (500 of 500 sampled rows distinct). Join to etiquettes_applications.id_application for the app's behaviour label and to evenements_applications_pertinents.id_application for its install and activity status per event.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to applications_tous.id_application. The source documentation for this column also calls it an app user id, since each id_application value stands in for one user of that app. The same column recurs on etiquettes_applications, evenements_applications, and evenements_applications_pertinents.",
+              "id": "term_talkingdata_app_id",
+              "name": "app id",
+              "summary": "app id (application id, app user id): the identifier for an application, id_application in applications_tous.",
+              "synonyms": [
+                "app id",
+                "application id",
+                "app user id"
+              ]
+            }
+          ]
+        }
+  - name: identifiant_application
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_application
+    description: |-
+      identifiant_application, a numeric column on the applications_tous table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: catalogue_etiquettes
+  source: talkingdata.catalogue_etiquettes
+  description: |-
+    catalogue_etiquettes is a table of label-catalog records that is not dependable for analysis.
+
+    Every column in catalogue_etiquettes is unreliable and does not correspond to real label or category facts. Do not use this table, or any of its columns, to answer a question. Use categories_etiquettes for a label's id and category name, and etiquettes_applications for which applications carry a label.
+  fields:
+  - name: id_libelle
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_libelle
+    description: |-
+      id_libelle, a numeric column on the catalogue_etiquettes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_categorie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_categorie
+    description: |-
+      nom_categorie, a text column on the catalogue_etiquettes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: categories_etiquettes
+  source: talkingdata.categories_etiquettes
+  description: |-
+    categories_etiquettes is the label catalog for the talkingdata schema, giving each id_etiquette its business category name.
+
+    Grain: one row per label. id_etiquette is the label's identifier and categorie is its human-readable category, such as a behaviour or interest classification used to describe an app. Join to etiquettes_applications on id_etiquette to see which applications carry a label. identifiant_etiquette_categorie and libelle_categorie sit alongside the real columns but are not dependable for analysis.
+  fields:
+  - name: id_etiquette
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_etiquette
+    description: |-
+      The unique identifier for a label, id_etiquette.
+
+      Integer label id (10 to 994 in the sample, 500 of 500 sampled rows distinct). Join to etiquettes_applications.id_etiquette to find every application carrying this label.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to categories_etiquettes.id_etiquette. The same column also appears on etiquettes_applications.id_etiquette, where it records which label an application carries. One label can apply to many applications.",
+              "id": "term_talkingdata_label",
+              "name": "label",
+              "summary": "label (labels, label id): the behaviour or interest id assigned to an application, id_etiquette in categories_etiquettes.",
+              "synonyms": [
+                "label",
+                "labels",
+                "label id"
+              ]
+            }
+          ]
+        }
+  - name: categorie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: categorie
+    description: |-
+      The business category name assigned to a label, categorie.
+
+      Free-text category such as Real Estate Agents, Gyro, Doctors, or a game-prefixed value like game-Fishing (470 of 500 sampled rows distinct, 2 null). Called "app category" or "behaviour category" in business language. A value beginning with the game- prefix marks a games-related category.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to categories_etiquettes.categorie. Free-text values such as Real Estate Agents, Doctors, or Gyro. Reach it from an application through etiquettes_applications.id_etiquette.",
+              "id": "term_talkingdata_app_category",
+              "name": "app category",
+              "summary": "app category (category, behaviour category): the business category name assigned to a label in categories_etiquettes.",
+              "synonyms": [
+                "app category",
+                "category",
+                "behaviour category"
+              ]
+            },
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to categories_etiquettes.categorie. Values following this convention look like game-Fishing; a question about game-related apps should filter categorie for the game- prefix rather than an exact single value.",
+              "id": "term_talkingdata_game_category",
+              "name": "game category",
+              "summary": "game category (game, games): a categorie value in categories_etiquettes that starts with the game- prefix.",
+              "synonyms": [
+                "game category",
+                "game",
+                "games"
+              ]
+            }
+          ]
+        }
+  - name: identifiant_etiquette_categorie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_etiquette_categorie
+    description: |-
+      identifiant_etiquette_categorie, a numeric column on the categories_etiquettes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: libelle_categorie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: libelle_categorie
+    description: |-
+      libelle_categorie, a text column on the categories_etiquettes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: etiquettes_applications
+  source: talkingdata.etiquettes_applications
+  description: |-
+    etiquettes_applications records which label id_etiquette applies to which application id_application.
+
+    Grain: one row per application-label assignment; an application can carry more than one label, and a label can apply to many applications. Join to applications_tous on id_application for the app dimension, and to categories_etiquettes on id_etiquette for the label's category name. application_associe_id and identifiant_etiquette sit alongside the real columns but are not dependable for analysis.
+  fields:
+  - name: id_application
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_application
+    description: |-
+      The application id, id_application, that a label is assigned to.
+
+      Large signed integer application id (500 of 500 sampled rows distinct). Each id_application here also represents one app user in the source data. Join to categories_etiquettes.id_etiquette (through id_etiquette on this row) to see the label's category name, and to evenements_applications.id_application for the app's per-event install and activity status.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_etiquette
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_etiquette
+    description: |-
+      The label id, id_etiquette, assigned to an application.
+
+      Integer label id (86 of 500 sampled rows distinct - a label typically covers many applications). Join to categories_etiquettes.id_etiquette for the label's category name.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: application_associe_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: application_associe_id
+    description: |-
+      application_associe_id, a numeric column on the etiquettes_applications table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: identifiant_etiquette
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_etiquette
+    description: |-
+      identifiant_etiquette, a numeric column on the etiquettes_applications table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_talkingdata_app_label_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id_application)
+    description: |-
+      app label count: the number of applications carrying a given label in etiquettes_applications.
+
+      COUNT(id_application) grouped by id_etiquette over etiquettes_applications. "Most app users", "more app users", and "lowest number of users" in this schema's training questions all compare this count across labels or categories - join to categories_etiquettes.id_etiquette first when the comparison is phrased by category name rather than by raw label id.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "dimensions": [
+            "id_etiquette"
+          ],
+          "name": "app label count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: evenements
+  source: talkingdata.evenements
+  description: |-
+    evenements records one row per app-usage event, with its device id_appareil, timestamp, and location.
+
+    Grain: one row per event, keyed by id_evenement. Every event belongs to exactly one device (id_appareil); join to genre_age or marque_telephone_modele_appareil on id_appareil to bring in that device's demographics or phone details, and to evenements_applications on id_evenement to see which applications were installed or active during the event. Not to be confused with evenements_pertinents, a table with the same column names that also carries a few columns that are not dependable for analysis.
+  fields:
+  - name: id_evenement
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_evenement
+    description: |-
+      The unique identifier for an event, id_evenement.
+
+      Integer event id (1 to 99 in the sample, 500 of 500 sampled rows distinct). Join to evenements_applications.id_evenement for the applications active during this event.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to evenements.id_evenement. The same column also appears on evenements_applications.id_evenement (which apps were active) and, under the same name but a different table, on evenements_pertinents for the relevant-event variant.",
+              "id": "term_talkingdata_event_id",
+              "name": "event id",
+              "summary": "event id (event number, event no): the identifier for one app-usage event, id_evenement in evenements.",
+              "synonyms": [
+                "event id",
+                "event number",
+                "event no"
+              ]
+            }
+          ]
+        }
+  - name: id_appareil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_appareil
+    description: |-
+      The device id, id_appareil, on which an event occurred.
+
+      Large signed integer device id (441 of 500 sampled rows distinct, so one device can log more than one event). Join to genre_age.id_appareil for the device's gender and age group, and to marque_telephone_modele_appareil.id_appareil for its phone brand and model.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: horodatage
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: horodatage
+    description: |-
+      The date and time an event occurred, horodatage.
+
+      Timestamp covering late April to early May 2016 in the sample (2016-04-30 through 2016-05-04). Common phrasings filter this column by date, such as a specific day in May 2016 or a whole year like 2016.
+    datatype: DateTimeTz
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "timestamp with time zone",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to evenements.horodatage. The sample spans late April through early May 2016. A column with the same name exists on evenements_pertinents but stores a plain integer there rather than a timestamp.",
+              "id": "term_talkingdata_event_time",
+              "name": "event time",
+              "summary": "event time (timestamp, event timestamp): the date and time an event was logged, horodatage in evenements.",
+              "synonyms": [
+                "event time",
+                "timestamp",
+                "event timestamp"
+              ]
+            }
+          ]
+        }
+  - name: longitude
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: longitude
+    description: |-
+      The longitude coordinate recorded for an event's location, longitude.
+
+      Decimal degrees (0.0 to 88.0 in the sample). Paired with latitude on the same row to form the event's location coordinate: (longitude, latitude). A value of 0.0 marks an unknown or unrecorded location.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: latitude
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: latitude
+    description: |-
+      The latitude coordinate recorded for an event's location, latitude.
+
+      Decimal degrees (0.0 to 48.0 in the sample). Paired with longitude on the same row to form the event's location coordinate: (longitude, latitude). A value of 0.0 marks an unknown or unrecorded location.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  metrics:
+  - name: metric_talkingdata_earliest_event_time
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(horodatage)
+    description: |-
+      earliest event time: the minimum horodatage value across events in evenements.
+
+      MIN(horodatage) over the evenements rows in scope. "Earliest time" and "oldest event" in this schema's training questions both mean this minimum, not the oldest device user by age.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "earliest event time"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "Bound to the evenements table. A location is the pair (longitude, latitude) read from the two columns on the same row; a value of 0.0 in either column marks an unknown or unrecorded position.",
+            "id": "term_talkingdata_location",
+            "name": "location coordinates",
+            "summary": "location coordinates (location, coordinates): an event's position, given by evenements.longitude paired with evenements.latitude.",
+            "synonyms": [
+              "location",
+              "coordinates",
+              "location coordinates"
+            ]
+          }
+        ]
+      }
+- name: evenements_applications
+  source: talkingdata.evenements_applications
+  description: |-
+    evenements_applications records whether an application was installed and active during a specific event, id_evenement.
+
+    Grain: one row per event-application pair. Join to evenements on id_evenement for the event's device, time, and location, and to applications_tous or etiquettes_applications on id_application for the app's identity and label. Not to be confused with evenements_applications_pertinents, a table with the same columns and grain.
+  fields:
+  - name: id_evenement
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_evenement
+    description: |-
+      The event id, id_evenement, an install and activity record belongs to.
+
+      Integer event id (17 of 500 sampled rows distinct). Join to evenements.id_evenement for that event's device, time, and location.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_application
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_application
+    description: |-
+      The application id, id_application, whose install and activity status is recorded.
+
+      Large signed integer application id (309 of 500 sampled rows distinct). Join to applications_tous.id_application or etiquettes_applications.id_application for the app's identity and label.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: est_installee
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: est_installee
+    description: |-
+      Whether an application was installed at the time of an event, est_installee.
+
+      Flag column: 1 means installed. The sampled rows are entirely 1, so a query filtering for not-installed rows may return nothing from this sample.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to evenements_applications.est_installee. 1 means installed; 0 would mean not installed, though the sampled rows are entirely 1. The same column and coding appear on evenements_applications_pertinents.est_installee.",
+              "id": "term_talkingdata_installed",
+              "name": "installed",
+              "summary": "installed (not installed, install status): whether an application was present on a device at event time, est_installee in evenements_applications.",
+              "synonyms": [
+                "installed",
+                "not installed",
+                "install status"
+              ]
+            }
+          ]
+        }
+  - name: est_active
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: est_active
+    description: |-
+      Whether an application was active at the time of an event, est_active.
+
+      Flag column: 0 means not active, 1 means active (both values appear in the sample).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to evenements_applications.est_active. 1 means active and 0 means not active; both values appear in the sample. The same column and coding appear on evenements_applications_pertinents.est_active.",
+              "id": "term_talkingdata_active",
+              "name": "active",
+              "summary": "active (not active, activity status): whether an application was in use at event time, est_active in evenements_applications.",
+              "synonyms": [
+                "active",
+                "not active",
+                "activity status"
+              ]
+            }
+          ]
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: evenements_applications_pertinents
+  source: talkingdata.evenements_applications_pertinents
+  description: |-
+    evenements_applications_pertinents records install and activity status for applications during events singled out as relevant, paired with evenements_pertinents.
+
+    Grain: one row per relevant event-application pair, with the same columns as evenements_applications but scoped to the events also listed in evenements_pertinents. Join to evenements_pertinents on id_evenement, and to applications_tous on id_application.
+  fields:
+  - name: id_evenement
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_evenement
+    description: |-
+      The event id, id_evenement, of a relevant install and activity record.
+
+      Integer event id (17 of 500 sampled rows distinct). Join to evenements_pertinents.id_evenement for that event's device, time, and location.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_application
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_application
+    description: |-
+      The application id, id_application, whose relevant install and activity status is recorded.
+
+      Large signed integer application id (309 of 500 sampled rows distinct). Join to applications_tous.id_application for the app's identity.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: est_installee
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: est_installee
+    description: |-
+      Whether an application was installed at the time of a relevant event, est_installee.
+
+      Flag column: 1 means installed; the sampled rows are entirely 1.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: est_active
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: est_active
+    description: |-
+      Whether an application was active at the time of a relevant event, est_active.
+
+      Flag column: 0 means not active, 1 means active (both values appear in the sample).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: evenements_pertinents
+  source: talkingdata.evenements_pertinents
+  description: |-
+    evenements_pertinents records one row per event singled out as relevant, mirroring evenements's columns for device, time, and location.
+
+    Grain: one row per relevant event, keyed by id_evenement. Paired with evenements_applications_pertinents on id_evenement, and with genre_age on id_appareil for device demographics - though in the sampled rows id_appareil is always null, so that join will not resolve here. horodatage in this table is stored as a plain integer rather than a timestamp, unlike evenements.horodatage. identifiant_appareil, identifiant_evenement, and coord_latitude sit alongside the real columns but are not dependable for analysis.
+  fields:
+  - name: id_evenement
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_evenement
+    description: |-
+      The unique identifier for a relevant event, id_evenement.
+
+      Integer event id (500 of 500 sampled rows distinct, values in the low hundred-thousands). Join to evenements_applications_pertinents.id_evenement for the applications active during this event.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_appareil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_appareil
+    description: |-
+      The device id, id_appareil, that a relevant event belongs to.
+
+      Large signed integer device id in evenements - in the 500 sampled rows of this table the column is always null, so treat any join through it as unresolved until confirmed against the loaded data.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: horodatage
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: horodatage
+    description: |-
+      The time value recorded for a relevant event, horodatage.
+
+      Stored as a plain integer in this table rather than as a timestamp (unlike the same-named column in evenements). Values in the sample are large signed integers (172 of 500 distinct) rather than readable dates.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: longitude
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: longitude
+    description: |-
+      The longitude value recorded for a relevant event, longitude.
+
+      Decimal column; every sampled row holds 1.0, so it carries no location signal in the loaded sample.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: latitude
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: latitude
+    description: |-
+      The latitude value recorded for a relevant event, latitude.
+
+      Decimal column taking only 0.0 or 1.0 in the sample, unlike the wider degree range on evenements.latitude.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: identifiant_appareil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_appareil
+    description: |-
+      identifiant_appareil, a numeric column on the evenements_pertinents table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: identifiant_evenement
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_evenement
+    description: |-
+      identifiant_evenement, a numeric column on the evenements_pertinents table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: coord_latitude
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: coord_latitude
+    description: |-
+      coord_latitude, a numeric column on the evenements_pertinents table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: genre_age
+  source: talkingdata.genre_age
+  description: |-
+    genre_age records a device's gender and age group, keyed by id_appareil.
+
+    Grain: one row per device, though genre, age, and groupe are null for many devices in the sample (467 of 500 null) - those are devices with no demographic label. Join to evenements on id_appareil for that device's events, and to marque_telephone_modele_appareil on id_appareil for its phone brand and model. identifiant_appareil_associe, age_estime, and sexe sit alongside the real columns but are not dependable for analysis.
+  fields:
+  - name: id_appareil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_appareil
+    description: |-
+      The unique identifier for a device, id_appareil.
+
+      Large signed integer device id (500 of 500 sampled rows distinct). Join to evenements.id_appareil for this device's events, and to marque_telephone_modele_appareil.id_appareil for its phone brand and model.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: genre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: genre
+    description: |-
+      The gender of a device's user, genre.
+
+      Text code: M for male, F for female (467 of 500 sampled rows null). Business language calls this male or female, or men or women.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to genre_age.genre, which also appears with the same coding in genre_age_entrainement.genre. F marks a female user and M marks a male user; roughly half the sampled genre_age rows are null because not every device has a demographic label.",
+              "id": "term_talkingdata_female",
+              "name": "female",
+              "summary": "female (women, female users): the gender code F recorded for a device's user.",
+              "synonyms": [
+                "female",
+                "women",
+                "female users"
+              ]
+            },
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to genre_age.genre. M marks a male user and F marks a female user. One evidence phrasing in this schema's training questions also writes the value as Male instead of M - check both spellings if a filter written that way returns nothing.",
+              "id": "term_talkingdata_male",
+              "name": "male",
+              "summary": "male (men, male users): the gender code M recorded for a device's user, the counterpart to a female record.",
+              "synonyms": [
+                "male",
+                "men",
+                "male users"
+              ]
+            }
+          ]
+        }
+  - name: age
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: age
+    description: |-
+      The age of a device's user, age.
+
+      Integer age in years, 12 to 69 in the sample (467 of 500 sampled rows null, 20 distinct values among the rest). Common phrasings compare this column directly, such as an age over 30 or under 23.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: groupe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: groupe
+    description: |-
+      The gender-and-age bracket assigned to a device, groupe.
+
+      Text code combining gender and an age range, for example M39+, M22-, M29-31, or F27-28 (10 distinct values in the sample, 467 of 500 null). The leading letter is the gender and the trailing numbers or +/- sign mark the age bracket.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to genre_age.groupe. A text code combining a gender letter with an age range, for example M39+, M22-, M29-31, or F27-28. The same column and coding also appears in genre_age_entrainement.groupe with a different set of bracket boundaries in the sample.",
+              "id": "term_talkingdata_age_group",
+              "name": "age group",
+              "summary": "age group (groupe, group): the gender-and-age bracket code assigned to a device in genre_age and genre_age_entrainement.",
+              "synonyms": [
+                "age group",
+                "groupe",
+                "group"
+              ]
+            }
+          ]
+        }
+  - name: identifiant_appareil_associe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_appareil_associe
+    description: |-
+      identifiant_appareil_associe, a numeric column on the genre_age table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: age_estime
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: age_estime
+    description: |-
+      age_estime, a numeric column on the genre_age table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: sexe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sexe
+    description: |-
+      sexe, a text column on the genre_age table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_talkingdata_female_user_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(genre = 'F')
+    description: |-
+      female user count: the number of genre_age rows whose genre value is female.
+
+      COUNT of genre_age rows filtered to genre = 'F'. "Most female users" in this schema's training questions compares this count across a grouping such as phone model, by joining genre_age to marque_telephone_modele_appareil on id_appareil first.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "female user count"
+        }
+  - name: metric_talkingdata_oldest_user_age
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(age)
+    description: |-
+      oldest user age: the maximum age value across devices in genre_age.
+
+      MAX(age) over the genre_age rows in scope. Pair with genre_age.genre to ask for the oldest male or oldest female user specifically; "oldest device user" and "oldest user" in this schema's training questions both mean this maximum.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "oldest user age"
+        }
+  - name: metric_talkingdata_youngest_user_age
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(age)
+    description: |-
+      youngest user age: the minimum age value across devices in genre_age.
+
+      MIN(age) over the genre_age rows in scope. "Youngest user" in this schema's training questions means this minimum.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "youngest user age"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: genre_age_entrainement
+  source: talkingdata.genre_age_entrainement
+  description: |-
+    genre_age_entrainement is the training split of device gender and age labels, keyed by id_appareil.
+
+    Grain: one row per device in the training split; unlike genre_age, genre, age, and groupe are populated for every row here (no nulls in the sample). Join to evenements or marque_telephone_modele_appareil on id_appareil the same way as genre_age. age_cible, appareil_entrainement_id, and sexe_predominant sit alongside the real columns but are not dependable for analysis.
+  fields:
+  - name: id_appareil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_appareil
+    description: |-
+      The unique identifier for a device in the training split, id_appareil.
+
+      Large signed integer device id (500 of 500 sampled rows distinct).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: genre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: genre
+    description: |-
+      The gender of a device's user in the training split, genre.
+
+      Text code: M for male, F for female. Unlike genre_age, this column has no nulls in the sample.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: age
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: age
+    description: |-
+      The age of a device's user in the training split, age.
+
+      Integer age in years, 16 to 83 in the sample (50 distinct values, no nulls).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: groupe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: groupe
+    description: |-
+      The gender-and-age bracket assigned to a device in the training split, groupe.
+
+      Text code combining gender and an age range, for example F24-26, F29-32, F43+, M27-28, or M23-26 (12 distinct values in the sample, no nulls).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: age_cible
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: age_cible
+    description: |-
+      age_cible, a numeric column on the genre_age_entrainement table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: appareil_entrainement_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: appareil_entrainement_id
+    description: |-
+      appareil_entrainement_id, a numeric column on the genre_age_entrainement table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: sexe_predominant
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sexe_predominant
+    description: |-
+      sexe_predominant, a text column on the genre_age_entrainement table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: genre_age_test
+  source: talkingdata.genre_age_test
+  description: |-
+    genre_age_test is the test split of devices awaiting a gender and age prediction, keyed by id_appareil.
+
+    Grain: one row per device in the test split; unlike genre_age_entrainement, this table carries no gender, age, or group columns to predict. Join to evenements or marque_telephone_modele_appareil on id_appareil the same way as genre_age. appareil_test_id sits alongside the real column but is not dependable for analysis.
+  fields:
+  - name: id_appareil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_appareil
+    description: |-
+      The unique identifier for a device in the test split, id_appareil.
+
+      Large signed integer device id (500 of 500 sampled rows distinct).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: appareil_test_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: appareil_test_id
+    description: |-
+      appareil_test_id, a numeric column on the genre_age_test table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: marque_telephone_modele_appareil
+  source: talkingdata.marque_telephone_modele_appareil
+  description: |-
+    marque_telephone_modele_appareil records the phone brand and device model for a device, keyed by id_appareil.
+
+    Grain: one row per device; a device id can repeat with more than one brand or model recorded for it in the source data. Join to evenements or genre_age on id_appareil to combine phone details with a device's events or demographics. identifiant_appareil_modele, nom_modele_appareil, and marque_mobile sit alongside the real columns but are not dependable for analysis.
+  fields:
+  - name: id_appareil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_appareil
+    description: |-
+      The unique identifier for a device, id_appareil.
+
+      Large signed integer device id (500 of 500 sampled rows distinct).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: marque_telephone
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: marque_telephone
+    description: |-
+      The phone brand of a device, marque_telephone.
+
+      Text brand name, for example OPPO, LG, vivo, Lenovo, or LOGO, including brand names written in Chinese characters (32 distinct values in the sample). Business language calls this the brand. The same brand name can repeat across many device models.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to marque_telephone_modele_appareil.marque_telephone. Values include OPPO, LG, vivo, Lenovo, and brand names written in Chinese characters. A brand repeats across every device model it makes, so counting distinct devices per brand needs a GROUP BY rather than a distinct count of the brand column alone.",
+              "id": "term_talkingdata_phone_brand",
+              "name": "phone brand",
+              "summary": "phone brand (brand): the manufacturer name recorded for a device in marque_telephone_modele_appareil.",
+              "synonyms": [
+                "phone brand",
+                "brand"
+              ]
+            }
+          ]
+        }
+  - name: modele_appareil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: modele_appareil
+    description: |-
+      The device model of a device, modele_appareil.
+
+      Text model name or code, for example R7, R3, G2, X1, or N3, including model names written in Chinese characters (203 distinct values in the sample). Business language calls this the model or device model. Always paired with marque_telephone for the model's brand.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to marque_telephone_modele_appareil.modele_appareil. Values include short codes like R7, R3, G2, X1, or N3 as well as model names written in Chinese characters. Always paired with marque_telephone on the same row for the model's brand.",
+              "id": "term_talkingdata_device_model",
+              "name": "device model",
+              "summary": "device model (model, phone model): the specific model name recorded for a device in marque_telephone_modele_appareil.",
+              "synonyms": [
+                "device model",
+                "model",
+                "phone model"
+              ]
+            }
+          ]
+        }
+  - name: identifiant_appareil_modele
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_appareil_modele
+    description: |-
+      identifiant_appareil_modele, a numeric column on the marque_telephone_modele_appareil table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_modele_appareil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_modele_appareil
+    description: |-
+      nom_modele_appareil, a text column on the marque_telephone_modele_appareil table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: marque_mobile
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: marque_mobile
+    description: |-
+      marque_mobile, a text column on the marque_telephone_modele_appareil table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_talkingdata_most_common_device_model
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(modele_appareil)
+    description: |-
+      most common device model: the modele_appareil value with the highest device count in marque_telephone_modele_appareil.
+
+      Group marque_telephone_modele_appareil by modele_appareil, take COUNT(id_appareil) per model, and keep the model with the largest count. Pair with marque_telephone in the same GROUP BY when a question asks for the most common model of a specific brand.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "dimensions": [
+            "modele_appareil"
+          ],
+          "name": "most common device model"
+        }
+  - name: metric_talkingdata_most_common_phone_brand
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(marque_telephone)
+    description: |-
+      most common phone brand: the marque_telephone value with the highest device count in marque_telephone_modele_appareil.
+
+      Group marque_telephone_modele_appareil by marque_telephone, take COUNT(id_appareil) per brand, and keep the brand with the largest count. "Brand that is most common" and "device models that are commonly used" in this schema's training questions both follow this GROUP BY, COUNT, then take-the-max pattern.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "dimensions": [
+            "marque_telephone"
+          ],
+          "name": "most common phone brand"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: repartition_soumissions
+  source: talkingdata.repartition_soumissions
+  description: |-
+    repartition_soumissions is a table of prediction-submission records that is not dependable for analysis.
+
+    Every column in repartition_soumissions is unreliable and does not correspond to real prediction facts. Do not use this table, or any of its columns, to answer a question. Use soumission_exemple for a device's predicted gender-and-age bracket probabilities, and genre_age_test for the device awaiting prediction.
+  fields:
+  - name: id_terminal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_terminal
+    description: |-
+      id_terminal, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: femme_moins_23
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: femme_moins_23
+    description: |-
+      femme_moins_23, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: femme_24_26
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: femme_24_26
+    description: |-
+      femme_24_26, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: femme_27_28
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: femme_27_28
+    description: |-
+      femme_27_28, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: femme_29_32
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: femme_29_32
+    description: |-
+      femme_29_32, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: femme_33_42
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: femme_33_42
+    description: |-
+      femme_33_42, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: femme_plus_43
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: femme_plus_43
+    description: |-
+      femme_plus_43, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: homme_moins_22
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: homme_moins_22
+    description: |-
+      homme_moins_22, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: homme_23_26
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: homme_23_26
+    description: |-
+      homme_23_26, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: homme_27_28
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: homme_27_28
+    description: |-
+      homme_27_28, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: homme_29_31
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: homme_29_31
+    description: |-
+      homme_29_31, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: homme_32_38
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: homme_32_38
+    description: |-
+      homme_32_38, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: homme_plus_39
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: homme_plus_39
+    description: |-
+      homme_plus_39, a numeric column on the repartition_soumissions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: soumission_exemple
+  source: talkingdata.soumission_exemple
+  description: |-
+    soumission_exemple gives, for each device id_appareil, the predicted probability that its user falls in each gender-and-age bracket.
+
+    Grain: one row per device. Each of the twelve f_*/m_* columns holds the predicted probability for one gender-and-age bracket (female or male crossed with an age range), and a row's twelve probabilities are the submission format for the device-id prediction task. Join to genre_age_test on id_appareil for the device awaiting prediction. prop_fem_moins_23, prop_fem_24_26, and prop_fem_27_28 sit alongside the real columns but are not dependable for analysis.
+  fields:
+  - name: id_appareil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_appareil
+    description: |-
+      The unique identifier for a device awaiting a bracket prediction, id_appareil.
+
+      Large signed integer device id (500 of 500 sampled rows distinct). Join to genre_age_test.id_appareil for the same device.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: f_moins_23
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: f_moins_23
+    description: |-
+      The predicted probability that a device's user is female and under 23, f_moins_23.
+
+      Decimal probability; every sampled row holds 0.0833 (one twelfth).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: f_24_26
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: f_24_26
+    description: |-
+      The predicted probability that a device's user is female aged 24 to 26, f_24_26.
+
+      Decimal probability; every sampled row holds 0.0833 (one twelfth).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: f_27_28
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: f_27_28
+    description: |-
+      The predicted probability that a device's user is female aged 27 to 28, f_27_28.
+
+      Decimal probability; every sampled row holds 0.0833 (one twelfth).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: f_29_32
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: f_29_32
+    description: |-
+      The predicted probability that a device's user is female aged 29 to 32, f_29_32.
+
+      Decimal probability; every sampled row holds 0.0833 (one twelfth).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: f_33_42
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: f_33_42
+    description: |-
+      The predicted probability that a device's user is female aged 33 to 42, f_33_42.
+
+      Decimal probability; every sampled row holds 0.0833 (one twelfth).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: f_plus_43
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: f_plus_43
+    description: |-
+      The predicted probability that a device's user is female aged 43 or older, f_plus_43.
+
+      Decimal probability; every sampled row holds 0.0833 (one twelfth).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: m_moins_22
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: m_moins_22
+    description: |-
+      The predicted probability that a device's user is male and under 22, m_moins_22.
+
+      Decimal probability; every sampled row holds 0.0833 (one twelfth).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: m_23_26
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: m_23_26
+    description: |-
+      The predicted probability that a device's user is male aged 23 to 26, m_23_26.
+
+      Decimal probability; every sampled row holds 0.0833 (one twelfth).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: m_27_28
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: m_27_28
+    description: |-
+      The predicted probability that a device's user is male aged 27 to 28, m_27_28.
+
+      Decimal probability; every sampled row holds 0.0833 (one twelfth).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: m_29_31
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: m_29_31
+    description: |-
+      The predicted probability that a device's user is male aged 29 to 31, m_29_31.
+
+      Decimal probability; every sampled row holds 0.0833 (one twelfth).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: m_32_38
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: m_32_38
+    description: |-
+      The predicted probability that a device's user is male aged 32 to 38, m_32_38.
+
+      Decimal probability; every sampled row holds 0.0833 (one twelfth).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: m_plus_39
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: m_plus_39
+    description: |-
+      The predicted probability that a device's user is male aged 39 or older, m_plus_39.
+
+      Decimal probability; every sampled row holds 0.0833 (one twelfth).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: prop_fem_moins_23
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prop_fem_moins_23
+    description: |-
+      prop_fem_moins_23, a numeric column on the soumission_exemple table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: prop_fem_24_26
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prop_fem_24_26
+    description: |-
+      prop_fem_24_26, a numeric column on the soumission_exemple table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: prop_fem_27_28
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prop_fem_27_28
+    description: |-
+      prop_fem_27_28, a numeric column on the soumission_exemple table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_talkingdata_applications_tous_etiquettes_applications_6fe36434
+  from: etiquettes_applications
+  to: applications_tous
+  from_columns:
+  - id_application
+  to_columns:
+  - id_application
+  ai_context:
+    instructions: |-
+      Match an application in applications_tous to its label assignments in etiquettes_applications by id_application.
+
+      Joins applications_tous.id_application to etiquettes_applications.id_application. An application can carry more than one label, so this is one-to-many from applications_tous into etiquettes_applications; use it to bring a label's category (via etiquettes_applications.id_etiquette) onto an application.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between applications_tous and etiquettes_applications in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_talkingdata_applications_tous_evenements_applications_pertinents_60908669
+  from: evenements_applications_pertinents
+  to: applications_tous
+  from_columns:
+  - id_application
+  to_columns:
+  - id_application
+  ai_context:
+    instructions: |-
+      Match an application in applications_tous to its relevant per-event install and activity rows in evenements_applications_pertinents by id_application.
+
+      Joins applications_tous.id_application to evenements_applications_pertinents.id_application. An application can appear in many relevant events, so this is one-to-many from applications_tous into evenements_applications_pertinents.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between applications_tous and evenements_applications_pertinents in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_talkingdata_categories_etiquettes_etiquettes_applications_f1e06916
+  from: etiquettes_applications
+  to: categories_etiquettes
+  from_columns:
+  - id_etiquette
+  to_columns:
+  - id_etiquette
+  ai_context:
+    instructions: |-
+      Match a label in categories_etiquettes to the applications carrying it in etiquettes_applications by id_etiquette.
+
+      Joins categories_etiquettes.id_etiquette to etiquettes_applications.id_etiquette. A label typically applies to many applications, so this is one-to-many from categories_etiquettes into etiquettes_applications; use it to bring a label's category name onto an application-label row.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between categories_etiquettes and etiquettes_applications in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_talkingdata_evenements_applications_pertinents_evenements_pertinents_be080f7b
+  from: evenements_applications_pertinents
+  to: evenements_pertinents
+  from_columns:
+  - id_evenement
+  to_columns:
+  - id_evenement
+  ai_context:
+    instructions: |-
+      Match a relevant event's install and activity rows in evenements_applications_pertinents to the event itself in evenements_pertinents by id_evenement.
+
+      Joins evenements_applications_pertinents.id_evenement to evenements_pertinents.id_evenement. Multiple applications are recorded for one event, so this is many-to-one from evenements_applications_pertinents into evenements_pertinents; use it to bring the event's time and location onto its per-application activity rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between evenements_applications_pertinents and evenements_pertinents in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_talkingdata_evenements_evenements_applications_3df61c8b
+  from: evenements_applications
+  to: evenements
+  from_columns:
+  - id_evenement
+  to_columns:
+  - id_evenement
+  ai_context:
+    instructions: |-
+      Match an event in evenements to its per-application install and activity rows in evenements_applications by id_evenement.
+
+      Joins evenements.id_evenement to evenements_applications.id_evenement. Multiple applications can be recorded for one event, so this is one-to-many from evenements into evenements_applications; use it to see which applications were installed or active during a specific event.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between evenements and evenements_applications in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_talkingdata_evenements_genre_age_c4555d4b
+  from: evenements
+  to: genre_age
+  from_columns:
+  - id_appareil
+  to_columns:
+  - id_appareil
+  ai_context:
+    instructions: |-
+      Match an event in evenements to its device's gender and age group in genre_age by id_appareil.
+
+      Joins evenements.id_appareil to genre_age.id_appareil. A device can log many events, so this is many-to-one from evenements into genre_age; use it to bring a device's gender and age group onto its events. Many devices have no demographic label in the sample, so this join can legitimately return no match.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between evenements and genre_age in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_talkingdata_evenements_marque_telephone_modele_appareil_e2db3ad4
+  from: evenements
+  to: marque_telephone_modele_appareil
+  from_columns:
+  - id_appareil
+  to_columns:
+  - id_appareil
+  ai_context:
+    instructions: |-
+      Match an event in evenements to its device's phone brand and model in marque_telephone_modele_appareil by id_appareil.
+
+      Joins evenements.id_appareil to marque_telephone_modele_appareil.id_appareil. A device can log many events, so this is many-to-one from evenements into marque_telephone_modele_appareil; use it to bring a device's phone brand and model onto its events.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between evenements and marque_telephone_modele_appareil in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_talkingdata_genre_age_marque_telephone_modele_appareil_6beb9d30
+  from: genre_age
+  to: marque_telephone_modele_appareil
+  from_columns:
+  - id_appareil
+  to_columns:
+  - id_appareil
+  ai_context:
+    instructions: |-
+      Match a device's gender and age group in genre_age to its phone brand and model in marque_telephone_modele_appareil by id_appareil.
+
+      Joins genre_age.id_appareil to marque_telephone_modele_appareil.id_appareil. Both tables carry at most one row per device, so this is a one-to-one join; use it to combine a device's demographics with its phone brand and model.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between genre_age and marque_telephone_modele_appareil in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_1039",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0000",
+          "sql": "SELECT \"id_appareil\" FROM \"talkingdata\".\"genre_age\" WHERE \"age\" = (SELECT MAX(\"age\") FROM \"talkingdata\".\"genre_age\")",
+          "summary": "What is the device id of the oldest user?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1042",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0001",
+          "sql": "SELECT COUNT(\"genre\") FROM \"talkingdata\".\"genre_age\" WHERE \"age\" > 50 AND \"genre\" = 'F'",
+          "summary": "How many female users over the age of 50 are there?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1044",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0002",
+          "sql": "SELECT \"genre\" FROM \"talkingdata\".\"genre_age\" WHERE \"age\" = (SELECT MIN(\"age\") FROM \"talkingdata\".\"genre_age\")",
+          "summary": "What is the gender of the youngest user?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1046",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0003",
+          "sql": "SELECT \"T1\".\"modele_appareil\" FROM \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T1\" INNER JOIN \"talkingdata\".\"genre_age\" AS \"T2\" ON \"T2\".\"id_appareil\" = \"T1\".\"id_appareil\" ORDER BY \"T2\".\"age\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the model of the oldest user's device?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1047",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0004",
+          "sql": "SELECT COUNT(\"T1\".\"id_application\") FROM \"talkingdata\".\"etiquettes_applications\" AS \"T1\" INNER JOIN \"talkingdata\".\"categories_etiquettes\" AS \"T2\" ON \"T2\".\"id_etiquette\" = \"T1\".\"id_etiquette\" WHERE \"T2\".\"categorie\" = 'Home Decoration'",
+          "summary": "How many users are there in the Home Decoration category?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1049",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0005",
+          "sql": "SELECT COUNT(\"T1\".\"genre\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T2\".\"id_appareil\" = \"T1\".\"id_appareil\" WHERE \"T1\".\"genre\" = 'F' AND \"T2\".\"modele_appareil\" = 'ZenFone 5'",
+          "summary": "How many female users use ZenFone 5 devices?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1055",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0006",
+          "sql": "SELECT COUNT(\"T2\".\"id_application\") FROM \"talkingdata\".\"categories_etiquettes\" AS \"T1\" INNER JOIN \"talkingdata\".\"etiquettes_applications\" AS \"T2\" ON \"T2\".\"id_etiquette\" = \"T1\".\"id_etiquette\" WHERE \"T1\".\"categorie\" = 'MOBA'",
+          "summary": "How many users belong to the MOBA category?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1057",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0007",
+          "sql": "SELECT \"longitude\", \"latitude\" FROM \"talkingdata\".\"evenements\" WHERE TO_CHAR(\"horodatage\", 'YYYY-MM-DD') = '2016-05-08'",
+          "summary": "What were the locations of the events on 8th May, 2016?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1058",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0008",
+          "sql": "SELECT \"id_application\", CASE WHEN \"est_installee\" = 1 THEN 'YES' ELSE 'NO' END AS \"status\" FROM \"talkingdata\".\"evenements_applications\" WHERE \"id_evenement\" = 844",
+          "summary": "List the app users IDs and installed status for the event ID of 844."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1059",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0009",
+          "sql": "SELECT COUNT(\"id_evenement\") FROM \"talkingdata\".\"evenements\" WHERE TO_CHAR(\"horodatage\", 'YYYY-MM-DD') = '2016-04-30'",
+          "summary": "How many events were there on 30th April, 2016?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1062",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0010",
+          "sql": "SELECT \"id_etiquette\" FROM \"talkingdata\".\"categories_etiquettes\" WHERE \"categorie\" IN ('online shopping', 'online malls')",
+          "summary": "What are the labels' IDs of online shopping and online malls categories?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1065",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0011",
+          "sql": "SELECT \"T1\".\"genre\", \"T1\".\"age\" FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"evenements\" AS \"T2\" ON \"T2\".\"id_appareil\" = \"T1\".\"id_appareil\" WHERE \"T2\".\"id_evenement\" = 15251",
+          "summary": "Describe the device user gender and age of the event ID of 15251."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1066",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0012",
+          "sql": "SELECT COUNT(\"T2\".\"id_evenement\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"evenements\" AS \"T2\" ON \"T2\".\"id_appareil\" = \"T1\".\"id_appareil\" WHERE \"T1\".\"genre\" = 'M' AND TO_CHAR(\"horodatage\", 'YYYY-MM-DD') = '2016-05-04' AND \"T1\".\"age\" = 88",
+          "summary": "How many events did the 88-years-old male users participate on 4th May,2016?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1067",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0013",
+          "sql": "SELECT DISTINCT \"T1\".\"age\", \"T1\".\"genre\", COUNT(\"T2\".\"id_evenement\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"evenements\" AS \"T2\" ON \"T2\".\"id_appareil\" = \"T1\".\"id_appareil\" WHERE \"T2\".\"longitude\" = -102 AND \"T2\".\"latitude\" = 38 GROUP BY \"T1\".\"age\", \"T1\".\"genre\", \"T2\".\"longitude\", \"T2\".\"latitude\"",
+          "summary": "Describe the ages, genders and numbers of events participated by the users at coordinates of (-102,38)."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1069",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0014",
+          "sql": "SELECT DISTINCT \"T1\".\"categorie\" FROM \"talkingdata\".\"categories_etiquettes\" AS \"T1\" INNER JOIN \"talkingdata\".\"etiquettes_applications\" AS \"T2\" ON \"T2\".\"id_etiquette\" = \"T1\".\"id_etiquette\" INNER JOIN \"talkingdata\".\"evenements_applications\" AS \"T3\" ON \"T3\".\"id_application\" = \"T2\".\"id_application\" WHERE \"T3\".\"id_evenement\" = 155",
+          "summary": "List the included categories in the event ID of 155."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1071",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0015",
+          "sql": "SELECT COUNT(\"T2\".\"id_application\") FROM \"talkingdata\".\"categories_etiquettes\" AS \"T1\" INNER JOIN \"talkingdata\".\"etiquettes_applications\" AS \"T2\" ON \"T2\".\"id_etiquette\" = \"T1\".\"id_etiquette\" WHERE \"T1\".\"categorie\" = 'science fiction'",
+          "summary": "How many app IDs were included under science fiction category?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1072",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0016",
+          "sql": "SELECT \"T2\".\"age\", \"T2\".\"genre\" FROM \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T1\" INNER JOIN \"talkingdata\".\"genre_age\" AS \"T2\" ON \"T2\".\"id_appareil\" = \"T1\".\"id_appareil\" WHERE \"T1\".\"marque_telephone\" = 'LG' AND \"T1\".\"modele_appareil\" = 'L70'",
+          "summary": "What are the ages and genders of the LG L70 users?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1073",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0017",
+          "sql": "SELECT SUM(CASE WHEN \"T1\".\"categorie\" = 'Industry tag' THEN 1 ELSE 0 END) * 100 / NULLIF(COUNT(\"T2\".\"id_application\"), 0) AS \"per\" FROM \"talkingdata\".\"categories_etiquettes\" AS \"T1\" INNER JOIN \"talkingdata\".\"etiquettes_applications\" AS \"T2\" ON \"T2\".\"id_etiquette\" = \"T1\".\"id_etiquette\"",
+          "summary": "Calculate the percentage of the app user IDs under Industry tag category."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1078",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0018",
+          "sql": "SELECT COUNT(\"id_appareil\") FROM \"talkingdata\".\"genre_age\" WHERE \"genre\" = 'M'",
+          "summary": "How many device users are male?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1079",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0019",
+          "sql": "SELECT MAX(\"age\") FROM \"talkingdata\".\"genre_age\"",
+          "summary": "What is the age of the oldest device user?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1080",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0020",
+          "sql": "SELECT COUNT(\"id_appareil\") FROM \"talkingdata\".\"genre_age\" WHERE \"age\" < 30 AND \"genre\" = 'F'",
+          "summary": "Among the female users of the devices, how many of them are under 30?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1081",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0021",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T1\" INNER JOIN \"talkingdata\".\"genre_age\" AS \"T2\" ON \"T2\".\"id_appareil\" = \"T1\".\"id_appareil\" WHERE \"T2\".\"genre\" = 'F' AND \"T1\".\"modele_appareil\" = 'Galaxy Note 2'",
+          "summary": "Among the users who use a Galaxy Note 2, how many of them are female?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1083",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0022",
+          "sql": "SELECT \"modele_appareil\" FROM \"talkingdata\".\"marque_telephone_modele_appareil\" WHERE \"id_appareil\" IN (SELECT \"id_appareil\" FROM \"talkingdata\".\"genre_age\" WHERE \"age\" = (SELECT MAX(\"age\") FROM \"talkingdata\".\"genre_age\"))",
+          "summary": "What is the device model of the device used by the oldest user?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1087",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0023",
+          "sql": "SELECT DISTINCT \"T1\".\"categorie\" FROM \"talkingdata\".\"categories_etiquettes\" AS \"T1\" INNER JOIN \"talkingdata\".\"etiquettes_applications\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\" INNER JOIN \"talkingdata\".\"evenements_applications\" AS \"T3\" ON \"T2\".\"id_application\" = \"T3\".\"id_application\" WHERE \"T3\".\"id_evenement\" = 2 AND \"T3\".\"est_active\" = 0",
+          "summary": "Please list the categories of the app users who are not active when event no.2 happened."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1090",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0024",
+          "sql": "SELECT \"T2\".\"id_evenement\" FROM \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T1\" INNER JOIN \"talkingdata\".\"evenements\" AS \"T2\" ON \"T2\".\"id_appareil\" = \"T1\".\"id_appareil\" WHERE \"T1\".\"marque_telephone\" = 'vivo'",
+          "summary": "Please list the IDs of the events happened on all the vivo devices."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1091",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0025",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T1\" INNER JOIN \"talkingdata\".\"evenements\" AS \"T2\" ON \"T2\".\"id_appareil\" = \"T1\".\"id_appareil\" WHERE \"T1\".\"marque_telephone\" = 'vivo' AND \"T2\".\"id_evenement\" = 2",
+          "summary": "Among the devices with event no.2 happening, how many of them are vivo devices?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1093",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0026",
+          "sql": "SELECT COUNT(\"T1\".\"id_evenement\") FROM \"talkingdata\".\"evenements\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_evenement\" = \"T2\".\"id_appareil\" WHERE TO_CHAR(CAST(\"T1\".\"horodatage\" AS TIMESTAMP), 'YYYY') = '2016' AND \"T2\".\"marque_telephone\" = 'vivo'",
+          "summary": "How many events in total have happened on all the vivo devices in the year 2016?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1094",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0027",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T1\".\"genre\" = 'F' AND \"T2\".\"marque_telephone\" = 'vivo' AND \"T1\".\"age\" < 30",
+          "summary": "Among the users who uses a vivo device, how many of them are female and under 30?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1095",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0028",
+          "sql": "SELECT \"T\".\"categorie\" FROM (SELECT \"T1\".\"categorie\", COUNT(\"T2\".\"id_application\") AS \"num\" FROM \"talkingdata\".\"categories_etiquettes\" AS \"T1\" INNER JOIN \"talkingdata\".\"etiquettes_applications\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\" GROUP BY \"T1\".\"id_etiquette\", \"T1\".\"categorie\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the category that the most app users belong to?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1098",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0029",
+          "sql": "SELECT SUM(CASE WHEN \"T1\".\"groupe\" = 'M23-26' THEN 1.0 ELSE 0 END) / NULLIF(COUNT(\"T1\".\"id_appareil\"), 0) AS \"per\" FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"marque_telephone\" = 'vivo'",
+          "summary": "Among all the users who use a vivo device, what is the percentage of the users in the M23-26 user group?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1102",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0030",
+          "sql": "SELECT MAX(\"age\") FROM \"talkingdata\".\"genre_age\" WHERE \"genre\" = 'M'",
+          "summary": "What is the age of the oldest male user of the app?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1104",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0031",
+          "sql": "SELECT MIN(\"age\") FROM \"talkingdata\".\"genre_age\" WHERE \"genre\" = 'F'",
+          "summary": "What is the age of the youngest female user of the app?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1105",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0032",
+          "sql": "SELECT COUNT(\"id_appareil\") FROM \"talkingdata\".\"marque_telephone_modele_appareil\" WHERE \"marque_telephone\" = 'vivo'",
+          "summary": "How many models does the VIVO phone brand released?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1106",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0033",
+          "sql": "SELECT \"modele_appareil\" FROM \"talkingdata\".\"marque_telephone_modele_appareil\" WHERE \"marque_telephone\" = 'OPPO' LIMIT 15",
+          "summary": "List at least 15 phone models released under the OPPO brand."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1107",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0034",
+          "sql": "SELECT \"T1\".\"modele_appareil\" FROM \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T1\" INNER JOIN \"talkingdata\".\"genre_age\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"groupe\" = 'M39+' AND \"T2\".\"genre\" = 'M' LIMIT 10",
+          "summary": "List at least 10 device models that male users over the age of 39 usually use."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1110",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0035",
+          "sql": "SELECT COUNT(\"T1\".\"id_application\") FROM \"talkingdata\".\"etiquettes_applications\" AS \"T1\" INNER JOIN \"talkingdata\".\"categories_etiquettes\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\" WHERE \"T2\".\"categorie\" = 'game-Art Style'",
+          "summary": "How many users belong to \"game-Art Style\" category?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1111",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0036",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"marque_telephone\" = 'OPPO' AND \"T1\".\"genre\" = 'M'",
+          "summary": "Provide the total number of the male users that use OPPO as their phone brand."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1113",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0037",
+          "sql": "SELECT \"T1\".\"categorie\" FROM \"talkingdata\".\"categories_etiquettes\" AS \"T1\" INNER JOIN \"talkingdata\".\"etiquettes_applications\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\" ORDER BY \"T2\".\"id_etiquette\" NULLS FIRST LIMIT 3",
+          "summary": "List at least 3 categories with the lowest number of users."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1114",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0038",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"modele_appareil\" = 'Galaxy Ace Plus' AND \"T1\".\"genre\" = 'M'",
+          "summary": "How many male users use the Galaxy Ace Plus model?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1116",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0039",
+          "sql": "SELECT \"T\".\"modele_appareil\" FROM (SELECT \"T2\".\"modele_appareil\", COUNT(\"T2\".\"modele_appareil\") AS \"num\" FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T1\".\"genre\" = 'F' GROUP BY \"T2\".\"modele_appareil\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 5",
+          "summary": "List at least 5 device models that are commonly used by female users."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1120",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0040",
+          "sql": "SELECT COUNT(\"id_appareil\") FROM \"talkingdata\".\"marque_telephone_modele_appareil\" WHERE \"modele_appareil\" = '中兴'",
+          "summary": "Give the number of device models for \"中兴\" phone brand."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1121",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0041",
+          "sql": "SELECT \"groupe\" FROM \"talkingdata\".\"genre_age\" WHERE \"age\" = '24'",
+          "summary": "Which group does age 24 belong to?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1123",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0042",
+          "sql": "SELECT COUNT(\"id_evenement\") FROM \"talkingdata\".\"evenements\" WHERE TO_CHAR(\"horodatage\", 'YYYY-MM-DD') = '2016-05-06'",
+          "summary": "Provide the number of events that happened on 2016/5/6."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1125",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0043",
+          "sql": "SELECT COUNT(\"T2\".\"id_application\") FROM \"talkingdata\".\"categories_etiquettes\" AS \"T1\" INNER JOIN \"talkingdata\".\"etiquettes_applications\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\" WHERE \"T1\".\"categorie\" = 'game-Fishing'",
+          "summary": "Give the number of \"game-Fishing\" apps."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1130",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0044",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T1\" INNER JOIN \"talkingdata\".\"genre_age\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T1\".\"modele_appareil\" = 'Galaxy S5' AND \"T2\".\"genre\" = 'M'",
+          "summary": "How many male users of the \"Galaxy S5\" device model?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1139",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0045",
+          "sql": "SELECT \"genre\" FROM \"talkingdata\".\"genre_age\" WHERE \"age\" = (SELECT MAX(\"age\") FROM \"talkingdata\".\"genre_age\")",
+          "summary": "Is the oldest device user male or female?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1146",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0046",
+          "sql": "SELECT \"T1\".\"longitude\", \"T1\".\"latitude\" FROM \"talkingdata\".\"evenements\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"modele_appareil\" = 'Galaxy Note 2'",
+          "summary": "Please list the location coordinates of all the Galaxy Note 2 devices when an event happened."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1147",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0047",
+          "sql": "SELECT \"T1\".\"modele_appareil\" FROM \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T1\" INNER JOIN \"talkingdata\".\"genre_age\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"genre\" = 'F'",
+          "summary": "Please list all the models of the devices used by a female user."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1151",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0048",
+          "sql": "SELECT \"T\".\"modele_appareil\" FROM (SELECT \"T2\".\"modele_appareil\", COUNT(\"T2\".\"modele_appareil\") AS \"num\" FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T1\".\"age\" > 30 AND \"T1\".\"genre\" = 'F' GROUP BY \"T2\".\"modele_appareil\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the device model used by the most female users over 30?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1152",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0049",
+          "sql": "SELECT \"T2\".\"modele_appareil\" FROM \"talkingdata\".\"evenements\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T1\".\"longitude\" = 121 AND \"T1\".\"latitude\" = 31",
+          "summary": "Please list the models of all the devices with an event under the location coordinates (121, 31)."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1153",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0050",
+          "sql": "SELECT \"T\".\"categorie\" FROM (SELECT \"T2\".\"categorie\", COUNT(\"T1\".\"id_application\") AS \"num\" FROM \"talkingdata\".\"etiquettes_applications\" AS \"T1\" INNER JOIN \"talkingdata\".\"categories_etiquettes\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\" GROUP BY \"T2\".\"categorie\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 3",
+          "summary": "What are the top 3 categories with the most app users?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1157",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0051",
+          "sql": "SELECT CASE WHEN SUM(CASE WHEN \"T2\".\"categorie\" = 'Securities' THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T2\".\"categorie\" = 'Finance' THEN 1 ELSE 0 END) > 0 THEN 'Securities' ELSE 'Finance' END AS \"diff\" FROM \"talkingdata\".\"etiquettes_applications\" AS \"T1\" INNER JOIN \"talkingdata\".\"categories_etiquettes\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\"",
+          "summary": "Which category has more app users, Securities or Finance?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1158",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0052",
+          "sql": "SELECT \"T2\".\"modele_appareil\" FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T1\".\"groupe\" = 'M23-26'",
+          "summary": "Please list the device models of all the devices used by a user in the M23-26 user group."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1159",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0053",
+          "sql": "SELECT AVG(\"T1\".\"age\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"marque_telephone\" = 'vivo' AND \"T1\".\"genre\" = 'F'",
+          "summary": "What is the average age of the female users who uses a vivo device?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1161",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0054",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"categorie\" = 'Securities' THEN 1 ELSE 0 END) / NULLIF(SUM(CASE WHEN \"T2\".\"categorie\" = 'Finance' THEN 1 ELSE 0 END), 0) AS \"per\" FROM \"talkingdata\".\"etiquettes_applications\" AS \"T1\" INNER JOIN \"talkingdata\".\"categories_etiquettes\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\"",
+          "summary": "What is the ratio of the number of app users that belong to the Securities category to the number of app users that belong to the Finance category?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1162",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0055",
+          "sql": "SELECT \"id_etiquette\" FROM \"talkingdata\".\"categories_etiquettes\" WHERE \"categorie\" = 'Third-party card management'",
+          "summary": "What is the label ID of \"Third-party card management\" category?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1166",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0056",
+          "sql": "SELECT COUNT(\"id_evenement\") FROM \"talkingdata\".\"evenements\" WHERE \"longitude\" = -156",
+          "summary": "How many events were participated by the users at longitude of \"-156\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1167",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0057",
+          "sql": "SELECT COUNT(\"id_application\") FROM \"talkingdata\".\"etiquettes_applications\" WHERE \"id_etiquette\" = 48",
+          "summary": "How many app users belong to label ID of \"48\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1171",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0058",
+          "sql": "SELECT \"T2\".\"id_application\" FROM \"talkingdata\".\"categories_etiquettes\" AS \"T1\" INNER JOIN \"talkingdata\".\"etiquettes_applications\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\" WHERE \"T1\".\"categorie\" = 'game-Rowing'",
+          "summary": "List down the app IDs under the category of game-Rowing ."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1172",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0059",
+          "sql": "SELECT \"T1\".\"id_etiquette\", \"T2\".\"id_application\" FROM \"talkingdata\".\"categories_etiquettes\" AS \"T1\" INNER JOIN \"talkingdata\".\"etiquettes_applications\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\" WHERE \"T1\".\"categorie\" = 'Chinese Classical Mythology'",
+          "summary": "What are the label IDs and app IDs of the Chinese Classical Mythology category?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1173",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0060",
+          "sql": "SELECT COUNT(\"T1\".\"id_application\"), \"T2\".\"longitude\", \"T2\".\"latitude\" FROM \"talkingdata\".\"evenements_applications\" AS \"T1\" INNER JOIN \"talkingdata\".\"evenements\" AS \"T2\" ON \"T1\".\"id_evenement\" = \"T2\".\"id_evenement\" WHERE \"T1\".\"id_evenement\" = 79641 GROUP BY \"T2\".\"longitude\", \"T2\".\"latitude\"",
+          "summary": "Describe the number of app IDs and location of the event ID \"79641\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1176",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0061",
+          "sql": "SELECT SUM(CASE WHEN \"T1\".\"genre\" = 'M' THEN 1 ELSE 0 END) / NULLIF(SUM(CASE WHEN \"T1\".\"genre\" = 'F' THEN 1 ELSE 0 END), 0) AS \"per\" FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"marque_telephone\" = 'vivo' AND \"T2\".\"modele_appareil\" = 'X5Pro'",
+          "summary": "What is the ratio of male and female users of vivo X5pro model?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1184",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0062",
+          "sql": "SELECT COUNT(\"id_appareil\") FROM \"talkingdata\".\"marque_telephone_modele_appareil\" WHERE \"modele_appareil\" = 'A51'",
+          "summary": "How many devices belong to model \"A51\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1186",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0063",
+          "sql": "SELECT COUNT(\"id_etiquette\") FROM \"talkingdata\".\"categories_etiquettes\" WHERE \"categorie\" = 'game-card'",
+          "summary": "How many labels belong to the game-card category?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1188",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0064",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"modele_appareil\" = 'Galaxy Note 2' AND \"T1\".\"age\" < 30",
+          "summary": "How many users who are under 30 years old use device model of Galaxy Note 2?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1194",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0065",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T1\".\"genre\" = 'F' AND \"T2\".\"modele_appareil\" = 'MI 3'",
+          "summary": "How many female users use device model of MI 3?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1195",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0066",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"modele_appareil\" = 'Desire 820' AND \"T1\".\"genre\" = 'M'",
+          "summary": "Among the male users, how many users use device model of Desire 820?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1196",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0067",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"modele_appareil\" = 'ELIFE E7 Mini' AND \"T1\".\"age\" > 20",
+          "summary": "Among the users who are above 20, how many users use device model of ELIFE E7 Mini?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1198",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0068",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T1\".\"genre\" = 'M' AND \"T2\".\"marque_telephone\" = 'HTC'",
+          "summary": "Give the number of male users who use phone branded HTC."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1199",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0069",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T1\".\"age\" BETWEEN 20 AND 60 AND \"T2\".\"marque_telephone\" = 'TCL'",
+          "summary": "How many users who are between 20 and 60 use phone brand of TCL?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1204",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0070",
+          "sql": "SELECT COUNT(\"id_application\") FROM \"talkingdata\".\"etiquettes_applications\" WHERE \"id_etiquette\" = 7",
+          "summary": "How many apps are labeled 7?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1205",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0071",
+          "sql": "SELECT \"id_appareil\" FROM \"talkingdata\".\"genre_age_entrainement\" WHERE \"age\" BETWEEN 29 AND 31 AND \"genre\" = 'F'",
+          "summary": "Identify by their id all the devices that are used by women who are in the age range of 29 to 31 years."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1206",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0072",
+          "sql": "SELECT \"T2\".\"id_application\" FROM \"talkingdata\".\"categories_etiquettes\" AS \"T1\" INNER JOIN \"talkingdata\".\"etiquettes_applications\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\" WHERE \"T1\".\"categorie\" = 'game-stress reliever'",
+          "summary": "Identify by their id all the apps that belong to the game-stress reliever category."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1209",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0073",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"evenements_pertinents\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" INNER JOIN \"talkingdata\".\"evenements_applications_pertinents\" AS \"T3\" ON \"T2\".\"id_evenement\" = \"T3\".\"id_evenement\" WHERE \"T1\".\"genre\" = 'M' AND \"T3\".\"est_active\" = 0 AND \"T1\".\"age\" < 23",
+          "summary": "How many men under the age of 23 have apps installed but are not active on their devices?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1210",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0074",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"evenements_pertinents\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" INNER JOIN \"talkingdata\".\"evenements_applications_pertinents\" AS \"T3\" ON \"T2\".\"id_evenement\" = \"T3\".\"id_evenement\" WHERE \"T1\".\"age\" < 23 AND \"T1\".\"genre\" = 'F' AND \"T3\".\"est_active\" = 0 AND \"T3\".\"est_installee\" = 1",
+          "summary": "How many women have apps from the game-Finding fault category installed on their device?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1218",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0075",
+          "sql": "SELECT \"id_evenement\" FROM \"talkingdata\".\"evenements\" WHERE \"longitude\" = 0 AND \"latitude\" = 0 LIMIT 3",
+          "summary": "Please list any three events that have the longitude and latitude of 0."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1220",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0076",
+          "sql": "SELECT \"id_appareil\" FROM \"talkingdata\".\"genre_age\" WHERE \"genre\" = 'F' LIMIT 3",
+          "summary": "Please list any three devices that are owned by female users."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1221",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0077",
+          "sql": "SELECT \"categorie\", \"id_etiquette\" FROM \"talkingdata\".\"categories_etiquettes\" WHERE \"categorie\" LIKE '%game%' LIMIT 5",
+          "summary": "Please list any five app categories that are related to games, along with their label ID."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1224",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0078",
+          "sql": "SELECT CASE WHEN SUM(CASE WHEN \"T1\".\"genre\" = 'M' THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T1\".\"genre\" = 'F' THEN 1 ELSE 0 END) > 0 THEN 'M' ELSE 'F' END AS \"genre\" FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"modele_appareil\" = 'Galaxy Note 2'",
+          "summary": "Which gender owned more of the Galaxy Note 2 device model?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1227",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0079",
+          "sql": "SELECT COUNT(\"T2\".\"id_application\") FROM \"talkingdata\".\"categories_etiquettes\" AS \"T1\" INNER JOIN \"talkingdata\".\"etiquettes_applications\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\" WHERE \"T1\".\"categorie\" = 'comics'",
+          "summary": "How many users belong to the same behavior category as comics?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1229",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0080",
+          "sql": "SELECT COUNT(\"T1\".\"id_appareil\") FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"evenements_pertinents\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"longitude\" = 114 AND \"T1\".\"genre\" = 'M'",
+          "summary": "How many male users have the log of events at the same longitude of 114?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1232",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0081",
+          "sql": "SELECT \"T1\".\"groupe\" FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T2\".\"marque_telephone\" = 'LG' AND \"T2\".\"modele_appareil\" = 'Nexus 4'",
+          "summary": "Please provide the age group of any LG Nexus 4 device users."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1236",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0082",
+          "sql": "SELECT COUNT(\"id_appareil\") FROM \"talkingdata\".\"marque_telephone_modele_appareil\" WHERE \"marque_telephone\" = 'OPPO'",
+          "summary": "How many OPPO devices are there?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1239",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0083",
+          "sql": "SELECT COUNT(\"T1\".\"id_application\") FROM \"talkingdata\".\"etiquettes_applications\" AS \"T1\" INNER JOIN \"talkingdata\".\"categories_etiquettes\" AS \"T2\" ON \"T1\".\"id_etiquette\" = \"T2\".\"id_etiquette\" WHERE \"T2\".\"categorie\" = 'Equity Fund'",
+          "summary": "How many of the apps belong in the \"Equity Fund\" category?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1243",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_talkingdata_0084",
+          "sql": "SELECT \"T\".\"marque_telephone\" FROM (SELECT \"T2\".\"marque_telephone\", COUNT(\"T2\".\"marque_telephone\") AS \"num\" FROM \"talkingdata\".\"genre_age\" AS \"T1\" INNER JOIN \"talkingdata\".\"marque_telephone_modele_appareil\" AS \"T2\" ON \"T1\".\"id_appareil\" = \"T2\".\"id_appareil\" WHERE \"T1\".\"age\" BETWEEN 20 AND 30 GROUP BY \"T2\".\"marque_telephone\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which brand is most common among people in their twenties?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between etiquettes_applications and evenements_applications in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Joins etiquettes_applications.id_application to evenements_applications.id_application. An application can carry more than one label and appear in more than one event, so this is many-to-many; use it to combine an app's behaviour label with its install or activity status during specific events.",
+          "cardinality": "many_to_many",
+          "id": "join_talkingdata_etiquettes_applications_evenements_applications_156da4dd",
+          "left_table": "talkingdata.etiquettes_applications",
+          "on": "talkingdata.etiquettes_applications.id_application = talkingdata.evenements_applications.id_application",
+          "right_table": "talkingdata.evenements_applications",
+          "summary": "Match an application's label assignments in etiquettes_applications to its per-event install and activity rows in evenements_applications by id_application."
+        },
+        {
+          "audit": {
+            "evidence": "equality between evenements and marque_telephone_modele_appareil in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "The ON clause equates evenements.id_evenement with marque_telephone_modele_appareil.id_appareil - an event id compared to a device id, not the more common id_appareil-to-id_appareil path used by the other join between these two tables. Prefer that other join (on id_appareil) for ordinary phone-brand-by-device questions, and use this one only when a query specifically needs an event id treated as a device id, as gold SQL for this schema does at least once.",
+          "id": "join_talkingdata_evenements_marque_telephone_modele_appareil_87a011ca",
+          "left_table": "talkingdata.evenements",
+          "on": "talkingdata.evenements.id_evenement = talkingdata.marque_telephone_modele_appareil.id_appareil",
+          "right_table": "talkingdata.marque_telephone_modele_appareil",
+          "summary": "Ties an event's id_evenement in evenements to a device id in marque_telephone_modele_appareil, a join pattern found in gold SQL that differs from the usual device-based path between the two tables."
+        },
+        {
+          "audit": {
+            "evidence": "equality between evenements_pertinents and genre_age in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Joins evenements_pertinents.id_appareil to genre_age.id_appareil, the same pattern as evenements to genre_age. In the sampled rows evenements_pertinents.id_appareil is always null, so confirm this column is populated in the full data before relying on this join.",
+          "id": "join_talkingdata_evenements_pertinents_genre_age_8043e393",
+          "left_table": "talkingdata.evenements_pertinents",
+          "on": "talkingdata.evenements_pertinents.id_appareil = talkingdata.genre_age.id_appareil",
+          "right_table": "talkingdata.genre_age",
+          "summary": "Match a relevant event in evenements_pertinents to its device's gender and age group in genre_age by id_appareil."
+        }
+      ]
+    }

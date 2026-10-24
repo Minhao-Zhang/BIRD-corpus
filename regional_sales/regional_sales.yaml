@@ -1,41 +1,2709 @@
-asset_type: schema
-id: regional_sales
+version: 0.2.0.dev0
 name: regional_sales
-summary: The regional_sales database tracks a retailer's sales orders, discounts, and net
-  profit across sales channels, warehouses, stores, customers, products, and sales teams, plus
-  store demographics and state-to-region groupings.
-body: >
-  commandes_vente is the fact table, one row per sales order line, referencing clients, produits,
-  equipe_vente and emplacements_magasin. Net profit is never stored directly: it is
-  prix_unitaire minus cout_unitaire for the order line, and remise_appliquee records the
-  discount applied as a fraction (0.2 means a 20% discount). Order, ship, delivery, and
-  procurement dates are stored as text in M/D/YY form with a two-digit year (17 means 2017, 20
-  means 2020).
+description: |
+  The regional_sales database tracks a retailer's sales orders, discounts, and net profit across sales channels, warehouses, stores, customers, products, and sales teams, plus store demographics and state-to-region groupings.
 
-  Several tables and columns look like alternate sources for the same facts but are not
-  dependable: clients.identifiant_client and clients.nom_complet_client duplicate clients' own
-  id_client and nom_client; commandes_vente.identifiant_client_commande,
-  identifiant_produit_commande and identifiant_equipe_vente duplicate its own id_client,
-  id_produit and id_equipe_vente; emplacements_magasin.code_province_magasin, code_zone and
-  code_zone_geo shadow or duplicate its own code_etat and identifiant_magasin duplicates its own
-  id_magasin; equipe_vente.identifiant_equipe, nom_equipe and zone_couverte duplicate its own
-  id_equipe_vente, equipe_vente and region; produits.identifiant_produit and
-  designation_produit duplicate produits' own id_produit and nom_produit; regions.code_province,
-  territoire and nom_province duplicate regions' own code_etat, region and etat; and the
-  groupes_commerciaux and zones_geographiques tables are not dependable at all. None of these
-  should be read, filtered on, or joined on.
-rules:
-  - Compute net profit as commandes_vente.prix_unitaire minus commandes_vente.cout_unitaire; do
-    not read it from any other column.
-  - Join commandes_vente to clients, produits, equipe_vente and emplacements_magasin using
-    id_client, id_produit, id_equipe_vente and id_magasin; never using an identifiant_* column.
-  - Join emplacements_magasin to regions using code_etat; never using code_province,
-    code_province_magasin, code_zone, or code_zone_geo, and never treating
-    groupes_commerciaux or zones_geographiques as a source of region data.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+  commandes_vente is the fact table, one row per sales order line, referencing clients, produits, equipe_vente and emplacements_magasin. Net profit is never stored directly: it is prix_unitaire minus cout_unitaire for the order line, and remise_appliquee records the discount applied as a fraction (0.2 means a 20% discount). Order, ship, delivery, and procurement dates are stored as text in M/D/YY form with a two-digit year (17 means 2017, 20 means 2020).
+  Several tables and columns look like alternate sources for the same facts but are not dependable: clients.identifiant_client and clients.nom_complet_client duplicate clients' own id_client and nom_client; commandes_vente.identifiant_client_commande, identifiant_produit_commande and identifiant_equipe_vente duplicate its own id_client, id_produit and id_equipe_vente; emplacements_magasin.code_province_magasin, code_zone and code_zone_geo shadow or duplicate its own code_etat and identifiant_magasin duplicates its own id_magasin; equipe_vente.identifiant_equipe, nom_equipe and zone_couverte duplicate its own id_equipe_vente, equipe_vente and region; produits.identifiant_produit and designation_produit duplicate produits' own id_produit and nom_produit; regions.code_province, territoire and nom_province duplicate regions' own code_etat, region and etat; and the groupes_commerciaux and zones_geographiques tables are not dependable at all. None of these should be read, filtered on, or joined on.
+ai_context:
+  instructions: |-
+    Compute net profit as commandes_vente.prix_unitaire minus commandes_vente.cout_unitaire; do not read it from any other column.
+    Join commandes_vente to clients, produits, equipe_vente and emplacements_magasin using id_client, id_produit, id_equipe_vente and id_magasin; never using an identifiant_* column.
+    Join emplacements_magasin to regions using code_etat; never using code_province, code_province_magasin, code_zone, or code_zone_geo, and never treating groupes_commerciaux or zones_geographiques as a source of region data.
+datasets:
+- name: clients
+  source: regional_sales.clients
+  description: |
+    The clients table holds regional_sales's customer directory, one row per customer that places orders through commandes_vente.
+
+    One row per customer. id_client is the primary identifier and is the column commandes_vente.id_client references when attributing an order to its buyer. nom_client holds the customer's company name.
+    This table also carries identifiant_client and nom_complet_client, which look like duplicates of id_client and nom_client but are not dependable and must not be used for any customer question.
+  fields:
+  - name: id_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_client
+    description: |
+      id_client is the unique numeric identifier for a customer, used to link a customer to their orders.
+
+      Integer primary key of clients, one distinct value per customer (50 distinct in a 50-row sample, values 1 through 50). This is the column commandes_vente.id_client references; do not substitute identifiant_client, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nom_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_client
+    description: |
+      nom_client holds a customer's company name.
+
+      Text company name, for example New Ltd, Amylin Group, Dharma Ltd, WakeFern, or Capweld (50 distinct in a 50-row sample); names commonly end in "Ltd" or "Group". This is the reliable name column; nom_complet_client on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: identifiant_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_client
+    description: |
+      identifiant_client, a numeric column on the clients table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must not be used to join to other tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_complet_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_complet_client
+    description: |
+      nom_complet_client, a text column on the clients table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: commandes_vente
+  source: regional_sales.commandes_vente
+  description: |
+    commandes_vente is regional_sales's sales-order fact table, one row per order line placed by a customer through a channel and warehouse.
+
+    One row per sales order line, identified by numero_commande. Each row references a customer (id_client), a sales team member (id_equipe_vente), a store (id_magasin) and a product (id_produit), plus the channel, warehouse, quantity, discount, unit price and unit cost for that line. Net profit is not stored: it is prix_unitaire minus cout_unitaire.
+    This table also carries identifiant_client_commande, identifiant_produit_commande and identifiant_equipe_vente, which look like duplicates of id_client, id_produit and id_equipe_vente but are not dependable and must not be used.
+  fields:
+  - name: numero_commande
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: numero_commande
+    description: |
+      numero_commande is the unique identifier printed on a sales order.
+
+      Text order number formatted like "SO - 0004095" (500 distinct in a 500-row sample). One value per order line; use it to reference a specific order.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: canal_vente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: canal_vente
+    description: |
+      canal_vente records the sales channel through which an order was placed.
+
+      Text category, one of In-Store, Online, Distributor, or Wholesale (4 distinct in a 500-row sample). Used to compare channel performance, for example counting orders per channel.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "canal_vente takes one of four values: In-Store, Online, Distributor, or Wholesale. \"In-store sales\", \"online orders\" or \"orders online\", and \"via wholesale channel\" are equality filters on canal_vente against the matching literal (canal_vente = 'In-Store', 'Online', or 'Wholesale'). \"Most preferred sales channel\" groups orders by canal_vente and takes the value with the highest COUNT(numero_commande).\n",
+              "id": "term_regional_sales_sales_channel",
+              "name": "sales channel",
+              "summary": "Sales channel (channel, point of sale, in-store, online, distributor, wholesale): how an order in canal_vente was placed.",
+              "synonyms": [
+                "channel",
+                "point of sale",
+                "in-store",
+                "online",
+                "distributor",
+                "wholesale"
+              ]
+            }
+          ]
+        }
+  - name: code_entrepot
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_entrepot
+    description: |
+      code_entrepot identifies the warehouse an order was shipped from.
+
+      Text warehouse code formatted like WARE-MKL1006 (6 distinct in a 500-row sample: WARE-MKL1006, WARE-NBV1002, WARE-NMK1003, WARE-PUJ1005, WARE-UHY1004, WARE-XYS1001). Orders sharing the same code_entrepot shipped from the same warehouse.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: date_approvisionnement
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_approvisionnement
+    description: |
+      date_approvisionnement records the date the order's product was procured.
+
+      Text date in M/D/YY form with a two-digit year (17 means 2017, 20 means 2020), for example 5/15/19 or 10/27/18 (11 distinct in a 500-row sample).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: date_commande
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_commande
+    description: |
+      date_commande records the date the order was placed.
+
+      Text date in M/D/YY form with a two-digit year, for example 9/15/19 or 1/10/20 (385 distinct in a 500-row sample). Filter a year or month with SUBSTR against this text field, for example SUBSTR(date_commande, -2) = '20' for orders placed in 2020.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: date_expedition
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_expedition
+    description: |
+      date_expedition records the date the order was shipped.
+
+      Text date in M/D/YY form with a two-digit year, for example 9/29/19 or 1/10/19 (386 distinct in a 500-row sample).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: date_livraison
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_livraison
+    description: |
+      date_livraison records the date the order was delivered to the customer.
+
+      Text date in M/D/YY form with a two-digit year, for example 10/6/19 or 1/1/20 (388 distinct in a 500-row sample). The gap between date_livraison and date_commande measures delivery speed: a smaller gap is a faster delivery.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: code_devise
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_devise
+    description: |
+      code_devise records the currency an order's monetary amounts are denominated in.
+
+      Text currency code; every sampled order uses USD (1 distinct value in a 500-row sample).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_equipe_vente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_equipe_vente
+    description: |
+      id_equipe_vente identifies the sales team member credited with the order.
+
+      Integer foreign key to equipe_vente.id_equipe_vente (28 distinct in a 500-row sample). This is the reliable link to a sales team member; identifiant_equipe_vente on this same table is a separate, unreliable copy and must not be used.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_client
+    description: |
+      id_client identifies the customer who placed the order.
+
+      Integer foreign key to clients.id_client (50 distinct in a 500-row sample). This is the reliable link to a customer; identifiant_client_commande on this same table is a separate, unreliable copy and must not be used.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_magasin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_magasin
+    description: |
+      id_magasin identifies the store the order was fulfilled from.
+
+      Integer foreign key to emplacements_magasin.id_magasin (267 distinct in a 500-row sample).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_produit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_produit
+    description: |
+      id_produit identifies the product that was ordered.
+
+      Integer foreign key to produits.id_produit (47 distinct in a 500-row sample). This is the reliable link to a product; identifiant_produit_commande on this same table is a separate, unreliable copy and must not be used.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: quantite_commandee
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: quantite_commandee
+    description: |
+      quantite_commandee records how many units of the product were ordered.
+
+      Integer quantity from 1 to 8 (8 distinct in a 500-row sample); a higher value means a larger order or greater customer need.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: remise_appliquee
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: remise_appliquee
+    description: |
+      remise_appliquee records the discount applied to the order as a fraction.
+
+      Decimal fraction from 0.05 to 0.4 (7 distinct in a 500-row sample); 0.2 means a 20% discount was applied, 0.1 means a 10% discount.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "remise_appliquee stores the discount as a decimal fraction, not a percentage: 0.1 is a 10% discount, 0.2 is a 20% discount. A question phrased as a percentage (\"10% discount\", \"applied 10% discount\", \"20% discount\") becomes an equality filter on the equivalent fraction -- remise_appliquee = 0.1 or remise_appliquee = 0.2 -- not on the literal percentage number. \"Discount levels applied\" refers to the set of non-null remise_appliquee values, currently ranging from 0.05 to 0.4.\n",
+              "id": "term_regional_sales_discount_rate",
+              "name": "discount rate",
+              "summary": "Discount rate (discount, discount applied, discount level): the fraction of an order's price that remise_appliquee records as a markdown.",
+              "synonyms": [
+                "discount",
+                "discount applied",
+                "discount level"
+              ]
+            }
+          ]
+        }
+  - name: prix_unitaire
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prix_unitaire
+    description: |
+      prix_unitaire records the unit price charged for the ordered product.
+
+      Text-formatted USD amount with a thousands comma, for example "4,013.30" or "180.90" (290 distinct in a 500-row sample). Net profit is prix_unitaire minus cout_unitaire.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: cout_unitaire
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cout_unitaire
+    description: |
+      cout_unitaire records the unit cost the retailer paid for the ordered product.
+
+      Text-formatted USD amount with a thousands comma, for example "3,210.64" or "142.91" (483 distinct in a 500-row sample). Net profit is prix_unitaire minus cout_unitaire, never the other way around.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: identifiant_client_commande
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_client_commande
+    description: |
+      identifiant_client_commande, a numeric column on the commandes_vente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must not be used to join to other tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: identifiant_produit_commande
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_produit_commande
+    description: |
+      identifiant_produit_commande, a numeric column on the commandes_vente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must not be used to join to other tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: identifiant_equipe_vente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_equipe_vente
+    description: |
+      identifiant_equipe_vente, a numeric column on the commandes_vente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must not be used to join to other tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_regional_sales_net_profit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prix_unitaire - cout_unitaire
+    description: |
+      Net profit is the margin an order line earned, computed as its unit price minus its unit cost.
+
+      Computed as commandes_vente.prix_unitaire minus commandes_vente.cout_unitaire for a single order line; both columns are stored as text with a thousands comma, so cast them to a numeric type before subtracting. To answer "total net profit", "average net profit", "highest net profit", or "lowest net profit", wrap this per-line expression in SUM, AVG, MAX, or MIN across the order lines in question -- for example SUM(prix_unitaire - cout_unitaire) filtered to a product or channel for "total net profit of above 5000 USD" for that group. Never substitute a stored price or cost column from another table; prix_unitaire and cout_unitaire on commandes_vente are the only reliable source.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "net profit"
+        }
+  - name: metric_regional_sales_total_orders
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(numero_commande)
+    description: |
+      Total orders is the count of sales-order lines in commandes_vente that match the question's filters.
+
+      Computed as COUNT(numero_commande) over the order lines in question. Apply the question's filters before counting -- a channel with canal_vente, a warehouse with code_entrepot, a customer, store, product or sales team through the corresponding foreign key, or a date range against date_commande, date_expedition, date_approvisionnement, or date_livraison. A "highest" or "least" count of orders (for example "the highest number of orders in 2018") groups by the dimension in question and takes MAX or MIN of this count.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "total orders"
+        }
+  - name: metric_regional_sales_total_quantity_ordered
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUM(quantite_commandee)
+    description: |
+      Total quantity ordered is the sum of units ordered across the order lines in question, grouped by product, customer, or sales team member.
+
+      Computed as SUM(quantite_commandee) over the order lines in question, for example filtered to a single equipe_vente.equipe_vente for "products sold by" a given sales team member, or to a single produits.nom_produit for units sold of one product. "Minimum quantity" or "order quantity greater than 5" refer to the same column, quantite_commandee, applied with MIN or a direct comparison instead of SUM.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "total quantity ordered"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: emplacements_magasin
+  source: regional_sales.emplacements_magasin
+  description: |
+    emplacements_magasin is regional_sales's store directory, one row per store location with its geography and demographics.
+
+    One row per store, identified by id_magasin. Each row records the store's city, county, state, type of municipality, coordinates, population and income figures, land and water area, and time zone. commandes_vente.id_magasin references this table's id_magasin to attribute an order to the store that fulfilled it, and code_etat joins to regions.code_etat to attach a Census region.
+    This table also carries code_province_magasin, code_zone and code_zone_geo, which look like duplicates of code_etat but are not dependable, and identifiant_magasin, which looks like a duplicate of id_magasin but is not dependable either. None of these should be read, filtered on, or joined on.
+  fields:
+  - name: id_magasin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_magasin
+    description: |
+      id_magasin is the unique numeric identifier for a store.
+
+      Integer primary key of emplacements_magasin, one distinct value per store (367 distinct in a 367-row sample). This is the column commandes_vente.id_magasin references; do not substitute identifiant_magasin, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nom_ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_ville
+    description: |
+      nom_ville records the city the store is located in.
+
+      Text city name, for example Moreno Valley, McKinney, Alexandria, or Grand Rapids (351 distinct in a 367-row sample).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: comt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: comt
+    description: |
+      comt records the county the store is located in.
+
+      Full county name, for example Riverside County, Collin County, or DuPage County (228 distinct in a 367-row sample).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: code_etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_etat
+    description: |
+      code_etat is the two-letter postal abbreviation of the store's state.
+
+      Two-letter state abbreviation, for example CA, TX, VA, IL, or MI (45 distinct in a 367-row sample). This is the column that joins emplacements_magasin to regions.code_etat.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: etat
+    description: |
+      etat records the full name of the store's state.
+
+      Full state name, for example California, Texas, Virginia, Illinois, or Michigan (45 distinct in a 367-row sample); spells out the abbreviation code_etat carries.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: type
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: type
+    description: |
+      type classifies the kind of municipality the store's location is.
+
+      Text category, one of City, Town, CDP, Unified Government, Consolidated Government, Other, Township, Urban County, Borough, or Metropolitan Government (10 distinct in a 367-row sample).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: latitude
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: latitude
+    description: |
+      latitude is the north-south geographic coordinate of the store's location.
+
+      Decimal degrees, for example 33.93752 or 38.80484, ranging from about 21.3 to 48.0 (365 distinct in a 367-row sample). Used together with longitude to give the store's exact position.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: longitude
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: longitude
+    description: |
+      longitude is the east-west geographic coordinate of the store's location.
+
+      Decimal degrees, for example -117.23059 or -77.04692, ranging from about -100.4 to -99.7 (367 distinct in a 367-row sample). Used together with latitude to give the store's exact position.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: code_zone
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_zone
+    description: |
+      The North American telephone area code covering the store's location, held in code_zone.
+
+      A three-digit dialling code, running from 202 to 979 across 177 distinct values, one per store. Never null. It identifies a telephone region, not a sales territory: the sales hierarchy lives in zones_geographiques and the region columns on this table. Note that zones_geographiques carries its own column also called code_zone, holding two-letter state abbreviations from AL to WY, which is a different thing entirely.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: population
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: population
+    description: |
+      population records the store's city population.
+
+      Integer population count, from about 100,242 to 931,830 (361 distinct in a 367-row sample).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: revenu_menage
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: revenu_menage
+    description: |
+      revenu_menage records the median household income for the store's area.
+
+      Integer USD amount, observed from 0 to 3,113,535 (362 distinct in a 367-row sample).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: revenu_median
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: revenu_median
+    description: |
+      revenu_median records the median individual income for the store's area.
+
+      Integer USD amount, observed from 0 to 114,098 (357 distinct in a 367-row sample); a separate figure from revenu_menage, which is the household total.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: superficie_terre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: superficie_terre
+    description: |
+      superficie_terre records the land area of the store's municipality.
+
+      Integer area figure, from about 38,977,688 to 163,107,658 (362 distinct in a 367-row sample).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: superficie_eau
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: superficie_eau
+    description: |
+      superficie_eau records the water area of the store's municipality.
+
+      Integer area figure, observed from 0 to 852,118,618 (346 distinct in a 367-row sample); 0 means the municipality has no recorded water area.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: fuseau_horaire
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fuseau_horaire
+    description: |
+      fuseau_horaire records the time zone of the store's location.
+
+      Text time-zone name, for example America/Los Angeles, America/Chicago, or America/Phoenix (9 distinct in a 367-row sample).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: code_province_magasin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_province_magasin
+    description: |
+      code_province_magasin, a text column on the emplacements_magasin table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must not be used to join to other tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: identifiant_magasin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_magasin
+    description: |
+      identifiant_magasin, a numeric column on the emplacements_magasin table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must not be used to join to other tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: code_zone_geo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_zone_geo
+    description: |
+      code_zone_geo, a numeric column on the emplacements_magasin table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_regional_sales_average_household_income
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(revenu_menage)
+    description: |
+      Average household income is the mean household income across the store locations in question.
+
+      Computed as AVG(revenu_menage) over the stores in question. Do not confuse revenu_menage (household income) with revenu_median (the area's median individual income) on the same table; they are separate figures and this metric is defined only on revenu_menage.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average household income"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: equipe_vente
+  source: regional_sales.equipe_vente
+  description: |
+    equipe_vente is regional_sales's sales-team directory, one row per sales representative and the region they cover.
+
+    One row per sales team member, identified by id_equipe_vente. equipe_vente holds the member's full name, and region records the Census region they cover. commandes_vente.id_equipe_vente references this table's id_equipe_vente to credit an order to its sales team member.
+    This table also carries identifiant_equipe, nom_equipe and zone_couverte, which look like duplicates of id_equipe_vente, equipe_vente and region but are not dependable, and the groupes_commerciaux table looks like an alternate source of sales-team data but is not dependable either. None of these should be read, filtered on, or joined on.
+  fields:
+  - name: id_equipe_vente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_equipe_vente
+    description: |
+      id_equipe_vente is the unique numeric identifier for a sales team member.
+
+      Integer primary key of equipe_vente, one distinct value per member (28 distinct in a 28-row sample). This is the column commandes_vente.id_equipe_vente references; do not substitute identifiant_equipe, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: equipe_vente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: equipe_vente
+    description: |
+      equipe_vente holds the sales team member's full name.
+
+      Text person name, for example Roy Rice, Anthony Torres, or Joshua Little (28 distinct in a 28-row sample). This is the reliable name column; nom_equipe on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: region
+    description: |
+      region records the Census region the sales team member covers.
+
+      Text category, one of Midwest, West, South, or Northeast (4 distinct in a 28-row sample). This is the reliable region column; zone_couverte on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: identifiant_equipe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_equipe
+    description: |
+      identifiant_equipe, a numeric column on the equipe_vente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must not be used to join to other tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: zone_couverte
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zone_couverte
+    description: |
+      zone_couverte, a text column on the equipe_vente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_equipe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_equipe
+    description: |
+      nom_equipe, a text column on the equipe_vente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: groupes_commerciaux
+  source: regional_sales.groupes_commerciaux
+  description: |
+    groupes_commerciaux is a table in the regional_sales schema.
+
+    This table is not dependable for analysis. Do not use it, or any of its columns, to answer questions.
+  fields:
+  - name: id_groupe_commercial
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_groupe_commercial
+    description: |
+      id_groupe_commercial, a numeric column on the groupes_commerciaux table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_groupe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_groupe
+    description: |
+      nom_groupe, a text column on the groupes_commerciaux table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: zone_assignee
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zone_assignee
+    description: |
+      zone_assignee, a text column on the groupes_commerciaux table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: produits
+  source: regional_sales.produits
+  description: |
+    produits is regional_sales's product catalog, one row per distinct product name that commandes_vente orders reference.
+
+    One row per product, identified by id_produit. nom_produit holds the product's category name. commandes_vente.id_produit references this table's id_produit to attribute an order line to its product.
+    This table also carries identifiant_produit and designation_produit, which look like duplicates of id_produit and nom_produit but are not dependable and must not be used.
+  fields:
+  - name: id_produit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_produit
+    description: |
+      id_produit is the unique numeric identifier for a product.
+
+      Integer primary key of produits, one distinct value per product (47 distinct in a 47-row sample). This is the column commandes_vente.id_produit references; do not substitute identifiant_produit, a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nom_produit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_produit
+    description: |
+      nom_produit holds the product's category name.
+
+      Text category, for example Vases, Bedroom Furniture, Outdoor Decor, Accessories, or Cocktail Glasses (47 distinct in a 47-row sample). This is the reliable name column; designation_produit on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: identifiant_produit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_produit
+    description: |
+      identifiant_produit, a numeric column on the produits table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must not be used to join to other tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: designation_produit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: designation_produit
+    description: |
+      designation_produit, a text column on the produits table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: regions
+  source: regional_sales.regions
+  description: |
+    regions is regional_sales's state-to-region lookup, one row per US state with the Census region it belongs to.
+
+    One row per state, identified by code_etat. etat spells out the state's full name, and region names the Census region (Midwest, West, South, or Northeast) the state belongs to. emplacements_magasin.code_etat references this table's code_etat to attach a region to a store.
+    This table also carries code_province, territoire and nom_province, which look like duplicates of code_etat, region and etat but are not dependable and must not be used.
+  fields:
+  - name: code_etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_etat
+    description: |
+      code_etat is the two-letter postal abbreviation identifying a state.
+
+      Two-letter state abbreviation, for example DC, SD, TN, WA, or NE (48 distinct in a 48-row sample, including the District of Columbia). This is the column emplacements_magasin.code_etat joins to; do not substitute code_province, a separate, unreliable column on this same table.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: etat
+    description: |
+      etat records the full name of a state.
+
+      Full state name, for example District of Columbia, South Dakota, Tennessee, Washington, or Nebraska (48 distinct in a 48-row sample). This is the reliable name column; nom_province on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: region
+    description: |
+      region records the Census region a state belongs to.
+
+      Text category, one of South, Midwest, West, or Northeast (4 distinct in a 48-row sample). This is the reliable region column; territoire on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: code_province
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_province
+    description: |
+      code_province, a text column on the regions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must not be used to join to other tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: territoire
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: territoire
+    description: |
+      territoire, a text column on the regions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_province
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_province
+    description: |
+      nom_province, a text column on the regions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: zones_geographiques
+  source: regional_sales.zones_geographiques
+  description: |
+    zones_geographiques is a table in the regional_sales schema.
+
+    This table is not dependable for analysis. Do not use it, or any of its columns, to answer questions.
+  fields:
+  - name: code_zone
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_zone
+    description: |
+      code_zone, a text column on the zones_geographiques table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_zone
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_zone
+    description: |
+      nom_zone, a text column on the zones_geographiques table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: secteur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: secteur
+    description: |
+      secteur, a text column on the zones_geographiques table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_regional_sales_clients_commandes_vente_878fbc57
+  from: commandes_vente
+  to: clients
+  from_columns:
+  - id_client
+  to_columns:
+  - id_client
+  ai_context:
+    instructions: |
+      Joins clients to commandes_vente on id_client, attributing each order to the customer who placed it.
+
+      clients.id_client is the customer's primary key; commandes_vente.id_client records which customer placed each order. One customer can appear in many order rows (50 distinct customers among 500 sampled orders), so join clients to commandes_vente as one-to-many. Do not join using identifiant_client or identifiant_client_commande, which are separate, unreliable columns.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between clients and commandes_vente in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_regional_sales_commandes_vente_emplacements_magasin_00cf12d5
+  from: commandes_vente
+  to: emplacements_magasin
+  from_columns:
+  - id_magasin
+  to_columns:
+  - id_magasin
+  ai_context:
+    instructions: |
+      Joins commandes_vente to emplacements_magasin on id_magasin, attributing each order to the store that fulfilled it.
+
+      commandes_vente.id_magasin records which store fulfilled each order; emplacements_magasin.id_magasin is the store's primary key. One store can appear in many order rows (267 distinct stores among 500 sampled orders), so join commandes_vente to emplacements_magasin as many-to-one. Do not join using identifiant_magasin, code_province_magasin, code_zone, or code_zone_geo, which are separate, unreliable columns.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between commandes_vente and emplacements_magasin in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_regional_sales_commandes_vente_equipe_vente_367fa258
+  from: commandes_vente
+  to: equipe_vente
+  from_columns:
+  - id_equipe_vente
+  to_columns:
+  - id_equipe_vente
+  ai_context:
+    instructions: |
+      Joins commandes_vente to equipe_vente on id_equipe_vente, crediting each order to the sales team member who sold it.
+
+      commandes_vente.id_equipe_vente records which sales team member sold each order; equipe_vente.id_equipe_vente is the member's primary key. One sales team member can appear in many order rows (28 distinct members among 500 sampled orders), so join commandes_vente to equipe_vente as many-to-one. Do not join using identifiant_equipe_vente or identifiant_equipe, which are separate, unreliable columns.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between commandes_vente and equipe_vente in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_regional_sales_commandes_vente_produits_acebef07
+  from: commandes_vente
+  to: produits
+  from_columns:
+  - id_produit
+  to_columns:
+  - id_produit
+  ai_context:
+    instructions: |
+      Joins commandes_vente to produits on id_produit, attributing each order line to the product that was ordered.
+
+      commandes_vente.id_produit records which product was ordered on each row; produits.id_produit is the product's primary key. One product can appear in many order rows (47 distinct products among 500 sampled orders), so join commandes_vente to produits as many-to-one. Do not join using identifiant_produit or identifiant_produit_commande, which are separate, unreliable columns.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between commandes_vente and produits in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_regional_sales_emplacements_magasin_regions_1698c673
+  from: emplacements_magasin
+  to: regions
+  from_columns:
+  - code_etat
+  to_columns:
+  - code_etat
+  ai_context:
+    instructions: |
+      Joins emplacements_magasin to regions on code_etat, attaching each store's Census region.
+
+      emplacements_magasin.code_etat records the state a store is in; regions.code_etat is the state's primary key. One state can contain many stores (45 distinct states among 367 sampled stores), so join emplacements_magasin to regions as many-to-one. Do not join using code_province_magasin or code_province, which are separate, unreliable columns.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between emplacements_magasin and regions in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_2575",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0000",
+          "sql": "SELECT \"region\" FROM \"regional_sales\".\"equipe_vente\" GROUP BY \"region\" ORDER BY COUNT(DISTINCT \"equipe_vente\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which region has the most number of sales team?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2576",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0001",
+          "sql": "SELECT \"T\" FROM (SELECT CASE WHEN \"nom_client\" LIKE '%Group%' THEN \"nom_client\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"clients\") WHERE NOT \"T\" IS NULL",
+          "summary": "List all the customers with name containing the word 'Group'."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2578",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0002",
+          "sql": "SELECT \"T2\".\"equipe_vente\", \"T2\".\"region\" FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"equipe_vente\" AS \"T2\" ON \"T2\".\"id_equipe_vente\" = \"T1\".\"id_equipe_vente\" WHERE \"T1\".\"numero_commande\" = 'SO - 000137'",
+          "summary": "Name the sales team and the region of order number 'SO - 000137'."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2579",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0003",
+          "sql": "SELECT DISTINCT \"T1\".\"id_produit\", \"T1\".\"nom_produit\" FROM \"regional_sales\".\"produits\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_produit\" = \"T1\".\"id_produit\" INNER JOIN \"regional_sales\".\"equipe_vente\" AS \"T3\" ON \"T3\".\"id_equipe_vente\" = \"T2\".\"id_equipe_vente\" WHERE \"T3\".\"equipe_vente\" = 'Douglas Tucker'",
+          "summary": "List all the order numbers along with its product name for each order under the sales team of 'Douglas Tucker'."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2581",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0004",
+          "sql": "SELECT DISTINCT \"T1\".\"numero_commande\", \"T2\".\"nom_ville\" FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"id_magasin\" = \"T1\".\"id_magasin\" WHERE \"T1\".\"canal_vente\" = 'In-Store'",
+          "summary": "List all the order numbers for In-Store sales and find the city where the store is located."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2585",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0005",
+          "sql": "SELECT \"T\" FROM (SELECT CASE WHEN \"T2\".\"canal_vente\" = 'Online' THEN \"T1\".\"nom_client\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"clients\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_client\" = \"T1\".\"id_client\") WHERE NOT \"T\" IS NULL",
+          "summary": "List the name of all customers who had made orders online."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2590",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0006",
+          "sql": "SELECT DISTINCT \"id_client\", \"nom_client\" FROM \"regional_sales\".\"clients\" WHERE \"nom_client\" LIKE 'W%' ORDER BY \"nom_client\" DESC NULLS LAST",
+          "summary": "List down the customer IDs and names that start with alphabet \"W\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2591",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0007",
+          "sql": "SELECT \"id_produit\", \"T\" FROM (SELECT \"id_produit\", CASE WHEN \"nom_produit\" LIKE '%Outdoor%' THEN \"nom_produit\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"produits\") WHERE NOT \"T\" IS NULL ORDER BY \"T\" DESC NULLS LAST",
+          "summary": "List down the product IDs and names that include the word \"Outdoor\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2593",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0008",
+          "sql": "SELECT \"nom_ville\", \"revenu_median\" FROM \"regional_sales\".\"emplacements_magasin\" WHERE \"etat\" = 'Florida' ORDER BY \"population\" DESC NULLS LAST LIMIT 1",
+          "summary": "Mention the most populated city and median income of the store in Florida state."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2595",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0009",
+          "sql": "SELECT DISTINCT \"T2\".\"id_magasin\", \"T2\".\"nom_ville\", \"T1\".\"etat\", \"T2\".\"type\" FROM \"regional_sales\".\"regions\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"code_etat\" = \"T1\".\"code_etat\" WHERE \"T2\".\"type\" = 'Borough' OR \"T2\".\"type\" = 'CDP'",
+          "summary": "List the ID, city, state and region for the store type which is fewer between borough and CDP."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2600",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0010",
+          "sql": "SELECT DISTINCT \"T2\".\"nom_ville\" FROM \"regional_sales\".\"regions\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"code_etat\" = \"T1\".\"code_etat\" WHERE \"T2\".\"etat\" = 'California' AND \"T2\".\"superficie_eau\" = '0'",
+          "summary": "List the store located cities with regions in no water area of California state."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2601",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0011",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"equipe_vente\" = 'Carlos Miller' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"numero_commande\"), 0) FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"equipe_vente\" AS \"T2\" ON \"T2\".\"id_equipe_vente\" = \"T1\".\"id_equipe_vente\"",
+          "summary": "Calculate the order percentage by \"Carlos Miller\" sales team."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2606",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0012",
+          "sql": "SELECT DISTINCT \"T\" FROM (SELECT CASE WHEN \"date_livraison\" = '6/13/18' THEN \"numero_commande\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"commandes_vente\") WHERE NOT \"T\" IS NULL",
+          "summary": "List out the name of orders which have delivery date of 6/13/2018."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2607",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0013",
+          "sql": "SELECT SUM(CASE WHEN \"quantite_commandee\" > 5 THEN 1 ELSE 0 END) FROM \"regional_sales\".\"commandes_vente\"",
+          "summary": "How many orders placed were with more than 5 product quantities?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2608",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0014",
+          "sql": "SELECT \"T\" FROM (SELECT CASE WHEN \"code_etat\" = 'GA' THEN \"etat\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"regions\") WHERE NOT \"T\" IS NULL",
+          "summary": "State the full name of state code \"GA\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2609",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0015",
+          "sql": "SELECT COUNT(DISTINCT \"T\") FROM (SELECT CASE WHEN \"region\" = 'Midwest' THEN \"code_etat\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"regions\") WHERE NOT \"T\" IS NULL",
+          "summary": "How many states located in the Midwest region?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2611",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0016",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T2\".\"nom_produit\" = 'Cookware' THEN \"T1\".\"date_livraison\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"produits\" AS \"T2\" ON \"T2\".\"id_produit\" = \"T1\".\"id_produit\") WHERE NOT \"T\" IS NULL",
+          "summary": "State the delivery date of cookware."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2616",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0017",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T1\".\"region\" = 'South' THEN \"T2\".\"nom_ville\" END AS \"T\" FROM \"regional_sales\".\"regions\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"code_etat\" = \"T1\".\"code_etat\") WHERE NOT \"T\" IS NULL",
+          "summary": "List out the city name of states located in South region."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2617",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0018",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T2\".\"type\" = 'Town' THEN \"T1\".\"region\" END AS \"T\" FROM \"regional_sales\".\"regions\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"code_etat\" = \"T1\".\"code_etat\") WHERE NOT \"T\" IS NULL",
+          "summary": "What is the region of stores which have type of \"Town\" in the list?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2618",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0019",
+          "sql": "SELECT SUM(CASE WHEN \"T1\".\"nom_client\" = 'Medsep Group' THEN 1 ELSE 0 END) FROM \"regional_sales\".\"clients\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_client\" = \"T1\".\"id_client\"",
+          "summary": "How many orders that Medsep Group had made?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2619",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0020",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T1\".\"nom_client\" = 'Ole Group' THEN \"T2\".\"remise_appliquee\" END AS \"T\" FROM \"regional_sales\".\"clients\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_client\" = \"T1\".\"id_client\") WHERE NOT \"T\" IS NULL",
+          "summary": "List out the discount levels applied for all orders from Ole Group."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2620",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0021",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T2\".\"date_expedition\" = '7/8/18' THEN \"T1\".\"nom_client\" END AS \"T\" FROM \"regional_sales\".\"clients\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_client\" = \"T1\".\"id_client\") WHERE NOT \"T\" IS NULL",
+          "summary": "State the customer name of orders which has shipped date in 7/8/2018."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2624",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0022",
+          "sql": "SELECT \"id_magasin\", \"latitude\", \"longitude\" FROM \"regional_sales\".\"emplacements_magasin\" WHERE \"nom_ville\" = 'Birmingham'",
+          "summary": "Please list the id and detailed position of all stores in Birmingham city."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2625",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0023",
+          "sql": "SELECT \"nom_ville\" FROM \"regional_sales\".\"emplacements_magasin\" ORDER BY \"population\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which city has the largest population?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2626",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0024",
+          "sql": "SELECT SUM(CASE WHEN \"etat\" = 'California' AND \"type\" = 'CDP' THEN 1 ELSE 0 END) FROM \"regional_sales\".\"emplacements_magasin\"",
+          "summary": "How many CDP stores are there in California?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2630",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0025",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T1\".\"date_commande\" = '5/31/18' THEN \"T2\".\"equipe_vente\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"equipe_vente\" AS \"T2\" ON \"T2\".\"id_equipe_vente\" = \"T1\".\"id_equipe_vente\") WHERE NOT \"T\" IS NULL",
+          "summary": "Please list all sale team names which had orders on 5/31/2018."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2631",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0026",
+          "sql": "SELECT \"T2\".\"equipe_vente\" FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"equipe_vente\" AS \"T2\" ON \"T2\".\"id_equipe_vente\" = \"T1\".\"id_equipe_vente\" WHERE \"T1\".\"date_commande\" LIKE '%/%/19' GROUP BY \"T2\".\"equipe_vente\" ORDER BY COUNT(\"T1\".\"numero_commande\") ASC NULLS FIRST LIMIT 1",
+          "summary": "Which sales team name has the least orders in 2019?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2633",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0027",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"comt\" = 'Orange County' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"numero_commande\"), 0) FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"id_magasin\" = \"T1\".\"id_magasin\" WHERE \"T1\".\"date_commande\" LIKE '%/%/18'",
+          "summary": "What is the percentage of total orders from stores in Orange County in 2018?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2635",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0028",
+          "sql": "SELECT \"id_equipe_vente\" FROM \"regional_sales\".\"commandes_vente\" WHERE \"date_commande\" LIKE '%/%/18' GROUP BY \"id_equipe_vente\" ORDER BY COUNT(\"id_equipe_vente\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which sales team id has the highest number of orders in 2018?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2636",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0029",
+          "sql": "SELECT DISTINCT \"T\" FROM (SELECT CASE WHEN \"numero_commande\" = 'SO - 000103' THEN \"cout_unitaire\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"commandes_vente\") WHERE NOT \"T\" IS NULL",
+          "summary": "What is the unit cost of order SO - 000103?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2637",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0030",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"comt\" = 'Maricopa County' AND \"date_commande\" LIKE '%/%/20' THEN 1 ELSE 0 END) FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"id_magasin\" = \"T1\".\"id_magasin\"",
+          "summary": "In 2020, what were the total orders of all stores in Maricopa County?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2644",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0031",
+          "sql": "SELECT SUM(CASE WHEN \"region\" = 'Northeast' THEN 1 ELSE 0 END) FROM \"regional_sales\".\"equipe_vente\"",
+          "summary": "How many sales team were from Northeast?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2647",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0032",
+          "sql": "SELECT \"T\" FROM (SELECT CASE WHEN \"id_produit\" BETWEEN 30 AND 40 THEN \"nom_produit\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"produits\") WHERE NOT \"T\" IS NULL",
+          "summary": "List all the name of products with the ID of 30 to 40."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2650",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0033",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"equipe_vente\" = 'Adam Hernandez' THEN 1 ELSE 0 END) FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"equipe_vente\" AS \"T2\" ON \"T2\".\"id_equipe_vente\" = \"T1\".\"id_equipe_vente\"",
+          "summary": "How many products sold by Adam Hernandez?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2651",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0034",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T2\".\"nom_ville\" = 'Daly City' THEN \"T1\".\"numero_commande\" END AS \"T\" FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"id_magasin\" = \"T1\".\"id_magasin\") WHERE NOT \"T\" IS NULL",
+          "summary": "List all orders where its products were shipped from Daly City."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2657",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0035",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T2\".\"equipe_vente\" = 'Samuel Fowler' THEN \"T1\".\"numero_commande\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"equipe_vente\" AS \"T2\" ON \"T2\".\"id_equipe_vente\" = \"T1\".\"id_equipe_vente\") WHERE NOT \"T\" IS NULL",
+          "summary": "State all the order numbers for sales team of Samuel Fowler."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2658",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0036",
+          "sql": "SELECT COUNT(\"T2\".\"numero_commande\") FROM \"regional_sales\".\"produits\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_produit\" = \"T1\".\"id_produit\" WHERE \"T1\".\"nom_produit\" = 'Baseball' AND \"T2\".\"date_commande\" LIKE '12/%/18'",
+          "summary": "Find the number of baseball ordered in December 2017."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2661",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0037",
+          "sql": "SELECT SUM(CASE WHEN \"code_entrepot\" = 'WARE-MKL1006' THEN 1 ELSE 0 END) - SUM(CASE WHEN \"code_entrepot\" = 'WARE-NBV1002' THEN 1 ELSE 0 END) AS \"difference\" FROM \"regional_sales\".\"commandes_vente\"",
+          "summary": "What is the difference in order number from \"WARE-MKL1006\" and \"WARE-NBV1002\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2662",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0038",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T2\".\"date_livraison\" LIKE '%/%/21' AND \"T1\".\"nom_client\" = 'Sundial ' THEN \"T3\".\"nom_produit\" END AS \"T\" FROM \"regional_sales\".\"clients\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_client\" = \"T1\".\"id_client\" INNER JOIN \"regional_sales\".\"produits\" AS \"T3\" ON \"T3\".\"id_produit\" = \"T2\".\"id_produit\") WHERE NOT \"T\" IS NULL",
+          "summary": "Describe the product names delivered in 2021 for the customer \"Sundial\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2663",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0039",
+          "sql": "SELECT DISTINCT \"T2\".\"id_magasin\", \"T1\".\"region\" FROM \"regional_sales\".\"regions\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"code_etat\" = \"T1\".\"code_etat\" WHERE \"T2\".\"etat\" = 'Michigan'",
+          "summary": "Write down the store IDs and region of the state \"Michigan\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2664",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0040",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"nom_client\" = 'Apollo Ltd' THEN 1 ELSE 0 END), SUM(CASE WHEN \"T2\".\"nom_client\" = 'Pacific Ltd' THEN 1 ELSE 0 END) FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"clients\" AS \"T2\" ON \"T2\".\"id_client\" = \"T1\".\"id_client\"",
+          "summary": "Compare the total number of orders between customer \"Apollo Ltd\" and \"Pacific Ltd\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2670",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0041",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T3\".\"fuseau_horaire\" = 'Pacific/Honolulu' AND \"T2\".\"canal_vente\" = 'Wholesale' THEN \"T1\".\"nom_produit\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"produits\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_produit\" = \"T1\".\"id_produit\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T3\" ON \"T3\".\"id_magasin\" = \"T2\".\"id_magasin\") WHERE NOT \"T\" IS NULL",
+          "summary": "Name the products via wholesale channel of the store under Pacific/Honolulu time zone."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2671",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0042",
+          "sql": "SELECT DISTINCT \"numero_commande\", \"nom_produit\" FROM (SELECT CASE WHEN \"T2\".\"date_commande\" = '6/6/18' THEN \"T2\".\"numero_commande\" ELSE NULL END AS \"numero_commande\", CASE WHEN \"T2\".\"date_commande\" = '6/6/18' THEN \"T1\".\"nom_produit\" ELSE NULL END AS \"nom_produit\" FROM \"regional_sales\".\"produits\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_produit\" = \"T1\".\"id_produit\") WHERE NOT \"numero_commande\" IS NULL AND NOT \"nom_produit\" IS NULL",
+          "summary": "List the order numbers and product names which were ordered on 6th June, 2018."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2674",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0043",
+          "sql": "SELECT DISTINCT \"T\" FROM (SELECT CASE WHEN \"id_client\" = 11 THEN \"date_approvisionnement\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"commandes_vente\") WHERE NOT \"T\" IS NULL",
+          "summary": "Indicate the procured dates for the customer whose ID is 11."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2675",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0044",
+          "sql": "SELECT SUM(CASE WHEN \"quantite_commandee\" = 1 AND \"canal_vente\" = 'Distributor' THEN 1 ELSE 0 END) FROM \"regional_sales\".\"commandes_vente\"",
+          "summary": "How many orders through distributor were for the minimum quantity?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2676",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0045",
+          "sql": "SELECT DISTINCT \"T\" FROM (SELECT CASE WHEN \"remise_appliquee\" = '0.1' AND \"canal_vente\" = 'In-Store' THEN \"id_equipe_vente\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"commandes_vente\") WHERE NOT \"T\" IS NULL",
+          "summary": "List by ID all sales teams that have sold products at a 10% discount in store."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2677",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0046",
+          "sql": "SELECT SUM(CASE WHEN \"population\" < 3000000 AND \"type\" = 'Borough' AND \"nom_ville\" = 'Brooklyn' THEN 1 ELSE 0 END) FROM \"regional_sales\".\"emplacements_magasin\"",
+          "summary": "How many Borough-type stores located in the city of Brooklyn have a population of less than 3 million?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2678",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0047",
+          "sql": "SELECT COUNT(DISTINCT \"T\") FROM (SELECT CASE WHEN \"region\" = 'Midwest' THEN \"etat\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"regions\") WHERE NOT \"T\" IS NULL",
+          "summary": "How many states are in the Midwest region?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2681",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0048",
+          "sql": "SELECT DISTINCT \"T3\".\"equipe_vente\" FROM \"regional_sales\".\"clients\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_client\" = \"T1\".\"id_client\" INNER JOIN \"regional_sales\".\"equipe_vente\" AS \"T3\" ON \"T3\".\"id_equipe_vente\" = \"T2\".\"id_equipe_vente\" WHERE \"T1\".\"nom_client\" = 'Apotheca, Ltd'",
+          "summary": "What are the names of the sales teams that have served to customer Apotheca, Ltd?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2682",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0049",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T3\".\"code_entrepot\" = 'WARE-UHY1004' THEN \"T1\".\"region\" END AS \"T\" FROM \"regional_sales\".\"regions\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"code_etat\" = \"T1\".\"code_etat\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T3\" ON \"T3\".\"id_magasin\" = \"T2\".\"id_magasin\") WHERE NOT \"T\" IS NULL",
+          "summary": "In which regions are the stores that have shipped products through the WARE-UHY1004 warehouse?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2683",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0050",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T4\".\"nom_produit\" = 'Audio' AND \"T3\".\"equipe_vente\" = 'Shawn Torres' THEN \"T1\".\"nom_ville\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"emplacements_magasin\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_magasin\" = \"T1\".\"id_magasin\" INNER JOIN \"regional_sales\".\"equipe_vente\" AS \"T3\" ON \"T3\".\"id_equipe_vente\" = \"T2\".\"id_equipe_vente\" INNER JOIN \"regional_sales\".\"produits\" AS \"T4\" ON \"T4\".\"id_produit\" = \"T2\".\"id_produit\") WHERE NOT \"T\" IS NULL",
+          "summary": "List all the cities where Shawn Torres sells Audio products."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2685",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0051",
+          "sql": "SELECT SUM(CASE WHEN \"T1\".\"date_approvisionnement\" = '10/27/18' AND \"T2\".\"nom_ville\" = 'Orlando' THEN 1 ELSE 0 END) FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"id_magasin\" = \"T1\".\"id_magasin\"",
+          "summary": "How many stores procured products on October 27, 2018, in the city of Oregon?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2686",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0052",
+          "sql": "SELECT \"canal_vente\" FROM (SELECT \"T1\".\"canal_vente\" FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"id_magasin\" = \"T1\".\"id_magasin\" ORDER BY \"T2\".\"revenu_median\" DESC NULLS LAST LIMIT 3) GROUP BY \"canal_vente\" ORDER BY COUNT(\"canal_vente\") DESC NULLS LAST LIMIT 1",
+          "summary": "What sales channels are used the most in the 3 places with the highest median income?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2691",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0053",
+          "sql": "SELECT \"T2\".\"region\" FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"equipe_vente\" AS \"T2\" ON \"T2\".\"id_equipe_vente\" = \"T1\".\"id_equipe_vente\" WHERE \"T1\".\"code_entrepot\" = 'WARE-MKL1006' GROUP BY \"T2\".\"region\" ORDER BY COUNT(\"T1\".\"numero_commande\") DESC NULLS LAST LIMIT 1",
+          "summary": "To which region does the sales team that has used the WARE-MKL1006 warehouse the most times for its shipments belong?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2693",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0054",
+          "sql": "SELECT SUM(CASE WHEN \"T1\".\"canal_vente\" = 'Online' AND \"T2\".\"nom_client\" = 'Ole Group' AND \"T1\".\"date_commande\" LIKE '5/%/19' THEN 1 ELSE 0 END) FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"clients\" AS \"T2\" ON \"T2\".\"id_client\" = \"T1\".\"id_client\"",
+          "summary": "How many online purchases did Ole Group make in May 2019?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2697",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0055",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"etat\" = 'New York' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"numero_commande\"), 0) FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"id_magasin\" = \"T1\".\"id_magasin\" WHERE \"T1\".\"date_commande\" = '4/4/20'",
+          "summary": "What percentage of sell orders on 04/04/2020 were for the state of New York?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2699",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0056",
+          "sql": "SELECT AVG(\"T2\".\"revenu_menage\") FROM \"regional_sales\".\"regions\" AS \"T1\" INNER JOIN \"regional_sales\".\"emplacements_magasin\" AS \"T2\" ON \"T2\".\"code_etat\" = \"T1\".\"code_etat\" WHERE \"T2\".\"etat\" = 'New Hampshire' AND \"T2\".\"type\" = 'City'",
+          "summary": "What is the average household income in cities in the state of New Hampshire where there are stores of the type city?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2707",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0057",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T3\".\"nom_produit\" = 'Cocktail Glasses' AND \"T2\".\"canal_vente\" = 'Online' THEN \"T1\".\"nom_client\" END AS \"T\" FROM \"regional_sales\".\"clients\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_client\" = \"T1\".\"id_client\" INNER JOIN \"regional_sales\".\"produits\" AS \"T3\" ON \"T3\".\"id_produit\" = \"T2\".\"id_produit\") WHERE NOT \"T\" IS NULL",
+          "summary": "Name of customers who have ordered Cocktail Glasses by online sales channel."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2710",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0058",
+          "sql": "SELECT DISTINCT \"T2\".\"equipe_vente\" FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"equipe_vente\" AS \"T2\" ON \"T2\".\"id_equipe_vente\" = \"T1\".\"id_equipe_vente\" WHERE \"T2\".\"region\" = 'Midwest' AND \"T1\".\"quantite_commandee\" > 5",
+          "summary": "Among sales teams in Midwest region, which sales team has an order quantity greater than 5?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2714",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0059",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"equipe_vente\" = 'Joshua Bennett' THEN \"region\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"equipe_vente\") WHERE NOT \"T\" IS NULL",
+          "summary": "Which region is Joshua Bennet located in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2718",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0060",
+          "sql": "SELECT SUM(CASE WHEN \"date_expedition\" LIKE '6/%/18' AND \"canal_vente\" = 'Online' THEN 1 ELSE 0 END) FROM \"regional_sales\".\"commandes_vente\"",
+          "summary": "How many online orders were shipped during the month of June 2018?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2728",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0061",
+          "sql": "SELECT COUNT(\"T1\".\"numero_commande\"), \"T2\".\"equipe_vente\" FROM \"regional_sales\".\"commandes_vente\" AS \"T1\" INNER JOIN \"regional_sales\".\"equipe_vente\" AS \"T2\" ON \"T2\".\"id_equipe_vente\" = \"T1\".\"id_equipe_vente\" WHERE \"T1\".\"date_expedition\" LIKE '%/%/20' GROUP BY \"T2\".\"equipe_vente\" ORDER BY COUNT(\"T1\".\"numero_commande\") DESC NULLS LAST LIMIT 1",
+          "summary": "How many orders were shipped by the sales team with the highest amount of shipped orders in 2020? Give the name of the said sales team."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2732",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0062",
+          "sql": "SELECT \"canal_vente\" FROM \"regional_sales\".\"commandes_vente\" WHERE \"date_commande\" LIKE '1/%/20' GROUP BY \"canal_vente\" ORDER BY COUNT(\"canal_vente\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which sales channel was most preferred in commercializing products in January 2020 based on the number of orders placed?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2733",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0063",
+          "sql": "SELECT \"T\" FROM (SELECT DISTINCT CASE WHEN \"T2\".\"numero_commande\" = 'SO - 0005951' THEN \"T1\".\"nom_produit\" ELSE NULL END AS \"T\" FROM \"regional_sales\".\"produits\" AS \"T1\" INNER JOIN \"regional_sales\".\"commandes_vente\" AS \"T2\" ON \"T2\".\"id_produit\" = \"T1\".\"id_produit\") WHERE NOT \"T\" IS NULL",
+          "summary": "Name the product that was registered in the sales order 'SO - 0005951'."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2737",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_regional_sales_0064",
+          "sql": "SELECT AVG(\"revenu_menage\") FROM \"regional_sales\".\"emplacements_magasin\" WHERE \"nom_ville\" = 'Glendale'",
+          "summary": "What is the average household income of Glendale?"
+        }
+      ]
+    }

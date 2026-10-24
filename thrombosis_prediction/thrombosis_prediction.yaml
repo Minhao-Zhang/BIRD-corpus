@@ -1,30 +1,3406 @@
-asset_type: schema
-id: thrombosis_prediction
+version: 0.2.0.dev0
 name: thrombosis_prediction
-summary: thrombosis_prediction holds patient records, laboratory blood tests, and antiphospholipid-syndrome examinations for autoimmune and rheumatic diseases, used to diagnose and grade the severity of thrombosis.
-body: >
-  A longitudinal rheumatology dataset studying antiphospholipid syndrome and other autoimmune and
-  connective-tissue diseases (systemic lupus erythematosus, mixed connective tissue disease,
-  progressive systemic sclerosis, Behcet's disease, rheumatoid arthritis) as risk factors for
-  thrombosis. patient carries one row per patient: demographics, diagnosed disease, and hospital
-  admission status. laboruntersuchung carries one row per routine laboratory blood-test panel
-  drawn on a patient, so one patient normally has many rows, one per test date. untersuchung
-  carries one row per antiphospholipid-specific clinical examination (anticardiolipin antibodies,
-  the lupus anticoagulant panel, ANA titer and pattern) and records thrombose, the diagnosed
-  degree of thrombosis that most questions about this schema are ultimately asking about. All
-  three tables share the same id values, one id per patient, and that is the only column they
-  should be joined on. patientenstamm and befundprotokoll mirror patient and untersuchung in
-  shape but do not correspond to the same underlying facts and are not usable for analysis.
-rules:
-- Join patient, laboruntersuchung, and untersuchung only on their shared id column; it names one
-  patient, not one row of any single table, so a patient with many laboruntersuchung rows and
-  many untersuchung rows will fan out if both are joined to it at once.
-- Answer schema questions from patient, laboruntersuchung, and untersuchung only. patientenstamm
-  and befundprotokoll are not dependable sources for this schema.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  thrombosis_prediction holds patient records, laboratory blood tests, and antiphospholipid-syndrome examinations for autoimmune and rheumatic diseases, used to diagnose and grade the severity of thrombosis.
+
+  A longitudinal rheumatology dataset studying antiphospholipid syndrome and other autoimmune and connective-tissue diseases (systemic lupus erythematosus, mixed connective tissue disease, progressive systemic sclerosis, Behcet's disease, rheumatoid arthritis) as risk factors for thrombosis. patient carries one row per patient: demographics, diagnosed disease, and hospital admission status. laboruntersuchung carries one row per routine laboratory blood-test panel drawn on a patient, so one patient normally has many rows, one per test date. untersuchung carries one row per antiphospholipid-specific clinical examination (anticardiolipin antibodies, the lupus anticoagulant panel, ANA titer and pattern) and records thrombose, the diagnosed degree of thrombosis that most questions about this schema are ultimately asking about. All three tables share the same id values, one id per patient, and that is the only column they should be joined on. patientenstamm and befundprotokoll mirror patient and untersuchung in shape but do not correspond to the same underlying facts and are not usable for analysis.
+ai_context:
+  instructions: |-
+    Join patient, laboruntersuchung, and untersuchung only on their shared id column; it names one patient, not one row of any single table, so a patient with many laboruntersuchung rows and many untersuchung rows will fan out if both are joined to it at once.
+    Answer schema questions from patient, laboruntersuchung, and untersuchung only. patientenstamm and befundprotokoll are not dependable sources for this schema.
+datasets:
+- name: befundprotokoll
+  source: thrombosis_prediction.befundprotokoll
+  description: |
+    The befundprotokoll table is an examination-shaped record that is not a dependable source of examination data (befundprotokoll).
+
+    Grain: one row per examination-like record, mirroring the shape of the untersuchung table. Values in this table are not dependable and do not correspond to the business facts an examination table would otherwise record. Do not use this table to answer questions; use untersuchung instead.
+  ai_context:
+    instructions: Do not use this table to answer questions; its data is not dependable.
+  fields:
+  - name: befund_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: befund_id
+    description: |
+      befund_id, an integer column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: datum_befund
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: datum_befund
+    description: |
+      datum_befund, a date column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: anticardiolipin_igg
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: anticardiolipin_igg
+    description: |
+      anticardiolipin_igg, a decimal column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: anticardiolipin_igm
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: anticardiolipin_igm
+    description: |
+      anticardiolipin_igm, a decimal column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ana_test
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ana_test
+    description: |
+      ana_test, an integer column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ana_musterbefund
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ana_musterbefund
+    description: |
+      ana_musterbefund, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: anticardiolipin_iga
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: anticardiolipin_iga
+    description: |
+      anticardiolipin_iga, an integer column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: befund_diagnose
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: befund_diagnose
+    description: |
+      befund_diagnose, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: kaolin_gerinnungszeit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kaolin_gerinnungszeit
+    description: |
+      kaolin_gerinnungszeit, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: rvvt_wert
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rvvt_wert
+    description: |
+      rvvt_wert, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: lac_test
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: lac_test
+    description: |
+      lac_test, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: klinische_symptome
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: klinische_symptome
+    description: |
+      klinische_symptome, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: thrombose_status
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: thrombose_status
+    description: |
+      thrombose_status, an integer column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: laboruntersuchung
+  source: thrombosis_prediction.laboruntersuchung
+  description: |
+    The laboruntersuchung table records one routine laboratory blood-test panel per row for a patient (laboruntersuchung).
+
+    Grain: one row per laboratory test panel drawn on a patient on a given date (datum); a patient normally has many rows, one per test date, so aggregate per patient before joining untersuchung at the same time or the result fans out. Each analyte column below (got through dna_ii) is one measured value in the panel, and several carry a normal reference range documented on the column itself; most analytes are null on any given panel because not every test is run every visit. laboruntersuchung_nr, albumin_wert, and alkalische_phosphatase look like a duplicate identifier or duplicate lab values but are not dependable; see each column's own note before using one.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The identifying patient id a laboratory test panel belongs to (id).
+
+      Foreign key to the id shared with patient and untersuchung; one patient has many laboruntersuchung rows, one per test date. Sample values: 43003, 48473, 549080.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: datum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: datum
+    description: |
+      The date a laboratory test panel was drawn (datum).
+
+      A calendar date ranging from 1981-02-03 to 1998-12-21 in this dataset, such as 1990-11-29. Use this column, not a column on patientenstamm or befundprotokoll, to filter lab panels to a year or date range.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: got
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: got
+    description: |
+      The AST glutamic oxaloacetic transaminase level measured in a lab panel (got).
+
+      Normal range is below 60. A value at or above 60 is the abnormal, elevated case business language calls the AST index above the normal range. About half the panels leave this null.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: gpt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: gpt
+    description: |
+      The ALT glutamic pyruvic transaminase level measured in a lab panel (gpt).
+
+      Normal range is below 60. Some business phrasings use a stricter cutoff such as a value greater than 30 rather than the documented normal-range threshold of 60 — check which boundary a specific question names. About half the panels leave this null.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ldh
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ldh
+    description: |
+      The lactate dehydrogenase level measured in a lab panel (ldh).
+
+      Normal range is below 500; a value at or above 500 is the abnormal, beyond-normal-range case. Roughly half the panels leave this null.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: alp
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: alp
+    description: |
+      The alkaline phosphatase level measured in a lab panel (alp).
+
+      Normal range is below 300. Distinct from alkalische_phosphatase further down this table, which does not carry this measurement reliably. Roughly half the panels leave this null.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: tp
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tp
+    description: |
+      The total protein level measured in a lab panel (tp).
+
+      Normal range is between 6.0 and 8.5; a value below 6.0 or above 8.5 is outside the normal range. About half the panels leave this null.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: alb
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: alb
+    description: |
+      The blood albumin level measured in a lab panel (alb).
+
+      Normal range is between 3.5 and 5.5; a value below 3.5 is low, and some business phrasings use 4 as a stricter lower cutoff instead. About half the panels leave this null.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: ua
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ua
+    description: |
+      The uric acid level measured in a lab panel (ua).
+
+      The normal range depends on the patient's sex, recorded on patient.geschlecht: below 8.0 for a male patient, below 6.5 for a female patient. A value at or above that sex-specific threshold is the abnormal, beyond-normal-range case. Roughly half the panels leave this null.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: un
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: un
+    description: |
+      The urea nitrogen level measured in a lab panel (un).
+
+      Normal range is below 30; a value of exactly 29 is the highest value still within the normal range. About half the panels leave this null.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: cre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cre
+    description: |
+      The creatinine level measured in a lab panel (cre).
+
+      Normal range is below 1.5; a value at or above 1.5 is the abnormal case. About half the panels leave this null.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: t_bil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: t_bil
+    description: |
+      The total bilirubin level measured in a lab panel (t_bil).
+
+      Normal range is below 2.0; a value at or above 2.0 is the abnormal, over-the-normal-range case. Roughly 60% of panels leave this null.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: t_cho
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: t_cho
+    description: |
+      The total cholesterol level measured in a lab panel (t_cho).
+
+      Normal range is below 250; a value at or above 250 is high cholesterol, the abnormal case. Roughly 56% of panels leave this null.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: tg
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tg
+    description: |
+      The triglyceride level measured in a lab panel (tg).
+
+      Normal range is below 200; a value at or above 200 is the abnormal, beyond-normal-range case. Most panels, about 73%, leave this null.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: cpk
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cpk
+    description: |
+      The creatinine phosphokinase level measured in a lab panel (cpk).
+
+      Normal range is below 250; a value at or above 250 is the abnormal, beyond-normal-range case. Most panels, about 80%, leave this null.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: glu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: glu
+    description: |
+      The blood glucose level measured in a lab panel (glu).
+
+      Normal range is below 180; a value at or above 180 is the abnormal case. Most panels, about 91%, leave this null.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: wbc
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wbc
+    description: |
+      The white blood cell count measured in a lab panel (wbc).
+
+      Normal range is between 3.5 and 9.0; a value below 3.5 or above 9.0 is outside the normal range. About 36% of panels leave this null.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: rbc
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rbc
+    description: |
+      The red blood cell count measured in a lab panel (rbc).
+
+      Normal range is between 3.5 and 6.0; a value at or below 3.5 or at or above 6.0 is the abnormal case. About 36% of panels leave this null.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: hgb
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: hgb
+    description: |
+      The hemoglobin level measured in a lab panel (hgb).
+
+      Normal range is between 10 and 17; a value below 10 is a low hemoglobin level. About 36% of panels leave this null.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: hct
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: hct
+    description: |
+      The hematocrit level measured in a lab panel (hct).
+
+      Normal range is between 29 and 52; a value at or above 52 is the elevated, above-normal case. About 36% of panels leave this null. The dataset's own documentation spells this analyte Hematoclit.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: plt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: plt
+    description: |
+      The platelet count measured in a lab panel (plt).
+
+      Normal range is between 100 and 400; a value at or below 100 or at or above 400 is outside the normal range. About 42% of panels leave this null.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: pt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pt
+    description: |
+      The prothrombin time measured in a lab panel (pt).
+
+      Normal range is below 14. Most panels, about 95%, leave this null, since prothrombin time is not part of the routine panel drawn on every visit.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: aptt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: aptt
+    description: |
+      The activated partial prothrombin time measured in a lab panel (aptt).
+
+      Normal range is below 45. This is measured on very few panels, about 1%, in this dataset.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: fg
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fg
+    description: |
+      The fibrinogen level measured in a lab panel (fg).
+
+      Normal range is between 150 and 450. This is measured on very few panels, about 4%, in this dataset.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: pic
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pic
+    description: |
+      The PIC value measured in a lab panel (pic).
+
+      A coagulation-related lab value drawn alongside aptt, fg, tat, and tat2; this dataset does not document a reference range for it. Measured on very few panels, about 1%, with sample values between 320 and 700.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: tat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tat
+    description: |
+      The TAT value measured in a lab panel (tat).
+
+      A coagulation-related lab value drawn alongside aptt, fg, pic, and tat2; this dataset does not document a reference range for it. Measured on very few panels, about 2%, with sample values between 83 and 161.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: tat2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tat2
+    description: |
+      The TAT2 value measured in a lab panel (tat2).
+
+      A second coagulation-related reading alongside tat; this dataset does not document a reference range for it. Measured on very few panels, about 1%, with sample values between 64 and 142.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: u_pro
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: u_pro
+    description: |
+      The proteinuria level measured in a lab panel (u_pro).
+
+      Normal range is between 0 and 30. Recorded as text rather than a plain number: values include plain numbers, the code TR for trace, and threshold notation like a value at or above 1000. About 35% of panels leave this null.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: igg
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: igg
+    description: |
+      The immunoglobulin G level measured in a lab panel (igg).
+
+      Normal range is between 900 and 2000; a value at or above 2000 is higher than normal. Measured on about 11% of panels.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: iga
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: iga
+    description: |
+      The immunoglobulin A level measured in a lab panel (iga).
+
+      Normal range is between 80 and 500. Measured on about 11% of panels, alongside igg and igm.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: igm
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: igm
+    description: |
+      The immunoglobulin M level measured in a lab panel (igm).
+
+      Normal range is between 40 and 400; a value at or below 40 or at or above 400 is the abnormal case. Measured on about 11% of panels.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: crp
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: crp
+    description: |
+      The C-reactive protein level measured in a lab panel (crp).
+
+      Recorded as text: normal is a hyphen, a plus-minus sign, or a numeric value below 1.0. Values at or above 2, recorded as a plain number or with a trailing plus sign, are the elevated case. About 37% of panels leave this null.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ra
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ra
+    description: |
+      The rheumatoid factor test result measured in a lab panel (ra).
+
+      A qualitative text result: a hyphen or a plus-minus sign is normal, and a plus sign or a stronger positive notation is abnormal. Distinct from rf, a separate rheumatoid-factor titer recorded as a number; a diagnose value naming rheumatoid arthritis is also unrelated to this column. Measured on about 14% of panels.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: rf
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rf
+    description: |
+      The RAHA rheumatoid factor titer measured in a lab panel (rf).
+
+      Normal range is below 20. Recorded as text: most values are a plain number, and some carry a less-than prefix meaning the titer fell below that reported bound. Measured on about 19% of panels; distinct from ra, a separate qualitative rheumatoid-factor result.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: c3
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: c3
+    description: |
+      The complement 3 level measured in a lab panel (c3).
+
+      Normal range is above 35; a value at or below 35 is the abnormal, low case. Measured on about 25% of panels.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: c4
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: c4
+    description: |
+      The complement 4 level measured in a lab panel (c4).
+
+      Normal range is above 10; a value at or below 10 is the abnormal, low case. Measured on about 25% of panels.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: rnp
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rnp
+    description: |
+      The anti-ribonuclear protein antibody test result measured in a lab panel (rnp).
+
+      Qualitative text result; documented normal values are a hyphen or a plus-minus sign, meaning negative or borderline negative, and any other value is positive or abnormal. Measured on very few panels, under 1%, in this dataset.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: sm
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sm
+    description: |
+      The anti-SM antibody test result measured in a lab panel (sm).
+
+      Qualitative text result, sometimes stored as a short numeric code rather than the plus or minus notation used on the other antibody columns in this table: a stored value of 0 means plus-minus (borderline negative), a stored value of 1 means plus (positive), and a stored value of the word negative means a hyphen (normal, negative). Measured on very few panels, under 1%, in this dataset.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: sc170
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sc170
+    description: |
+      The anti-scl70 antibody test result measured in a lab panel (sc170).
+
+      Qualitative text result; documented normal values are a hyphen, a plus-minus sign, or the word negative. Measured on very few panels, under 1%, in this dataset.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ssa
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ssa
+    description: |
+      The anti-SSA antibody test result measured in a lab panel (ssa).
+
+      Qualitative text result; documented normal values are a hyphen, a plus-minus sign, or the word negative, and any other value is abnormal. Measured on very few panels, under 1%, in this dataset.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ssb
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ssb
+    description: |
+      The anti-SSB antibody test result measured in a lab panel (ssb).
+
+      Qualitative text result; documented normal values are a hyphen or a plus-minus sign. Almost every panel in this dataset leaves this null.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zentromeer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zentromeer
+    description: |
+      The anti-centromere antibody test result measured in a lab panel (zentromeer).
+
+      Qualitative text result; documented normal values are a hyphen or a plus-minus sign. Measured on very few panels, under 1%, in this dataset.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: dna
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dna
+    description: |
+      The anti-DNA antibody level measured in a lab panel (dna).
+
+      Recorded as text even though values are numeric, such as 4.3; normal range is below 8. Measured on very few panels, under 1%, in this dataset.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: dna_ii
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dna_ii
+    description: |
+      A second anti-DNA antibody reading measured in a lab panel (dna_ii).
+
+      Normal range is below 8, matching dna. Not populated in this dataset's sample rows.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: laboruntersuchung_nr
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: laboruntersuchung_nr
+    description: |
+      laboruntersuchung_nr, an integer column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: albumin_wert
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: albumin_wert
+    description: |
+      albumin_wert, a decimal column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: alkalische_phosphatase
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: alkalische_phosphatase
+    description: |
+      alkalische_phosphatase, an integer column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_thrombosis_prediction_lab_panel_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id)
+    description: |
+      lab panel count per patient: how many laboratory test panels are recorded for a patient.
+
+      COUNT(id) grouped by id on laboruntersuchung, one count per patient. "A patient with two or more laboratory examinations" is this count filtered with HAVING COUNT(id) > 2. This counts laboruntersuchung rows specifically; a question about examinations on untersuchung instead needs the same COUNT(id) pattern applied to that table, since a patient's lab-panel count and examination count are independent.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "dimensions": [
+            "thrombosis_prediction.laboruntersuchung.id"
+          ],
+          "name": "lab panel count per patient"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "Applies to rnp, sm, sc170, ssa, ssb, zentromeer, and ra on laboruntersuchung: a hyphen or the word negative is the normal, negative result; a plus-minus sign is a borderline negative result, still counted as normal; a plus sign, or a stronger notation such as '2+', is a positive, abnormal result. \"Abnormal anti-ssa\", \"abnormal anti-sm\", and similar phrasings mean any value other than the normal set for that column. sm additionally stores this same three-way result as short numeric codes on some rows — see the sm column's own note for that mapping.\n",
+            "id": "term_thrombosis_prediction_antibody_test_notation",
+            "name": "antibody test notation",
+            "summary": "antibody test notation (normal antibody result, abnormal antibody result): the hyphen, plus-minus, and plus coding used across the antibody columns on laboruntersuchung.",
+            "synonyms": [
+              "antibody test notation",
+              "normal antibody result",
+              "abnormal antibody result"
+            ]
+          }
+        ]
+      }
+- name: patient
+  source: thrombosis_prediction.patient
+  description: |
+    The patient table holds one row per patient, recording demographics, diagnosed disease, and hospital admission status (patient).
+
+    Grain: one row per patient, identified by id. geschlecht, geburtsdatum, diagnose, aufnahmedatum, erstes_aufnahmedatum, and beschreibung are the demographic and diagnosis facts this table records; join laboruntersuchung and untersuchung to this table on id to bring in lab panels and antiphospholipid examinations for the same patient. datum_erster_aufnahme, patienten_id, and aufnahmezeitpunkt look like admission or identifier columns but are not dependable; see each column's own note before using one in a query. patientenstamm mirrors this table in shape but is not a dependable source of patient data.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The identifier of a patient, id, shared by patient, laboruntersuchung, and untersuchung.
+
+      Every patient has exactly one row in this table, keyed on id. laboruntersuchung and untersuchung carry the same id value for a patient's lab panels and examinations, so join all three tables on this column, not on patienten_id, which is not dependable. Sample values: 43003, 48473, 549080.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: geschlecht
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geschlecht
+    description: |
+      The recorded sex of a patient (geschlecht).
+
+      F means female, M means male; a small number of rows record an empty string instead. This is the column business questions asking for male patients or female patients resolve to.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to patient.geschlecht: M means male, F means female, and a small number of rows record an empty string instead of either code. patientenstamm.biologisches_geschlecht mirrors this column in shape but is not a dependable source of sex. Sex also gates which normal range applies to laboruntersuchung.ua (uric acid): below 8.0 is normal for a male patient, below 6.5 for a female patient.\n",
+              "id": "term_thrombosis_prediction_sex",
+              "name": "sex",
+              "summary": "sex (gender): the recorded male or female category of a patient, coded M for male and F for female.",
+              "synonyms": [
+                "sex",
+                "gender",
+                "male",
+                "female"
+              ]
+            }
+          ]
+        }
+  - name: geburtsdatum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geburtsdatum
+    description: |
+      The birth date of a patient (geburtsdatum).
+
+      A calendar date such as 1977-01-09 or 1917-04-18. A patient's age is derived by subtracting the year of geburtsdatum from the year of a reference date; a larger geburtsdatum value means a younger patient, since it is more recent.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: beschreibung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: beschreibung
+    description: |
+      The date a patient's information was first recorded in the system (beschreibung).
+
+      A calendar date such as 1998-08-03; null or missing means the recording date was not captured. Distinct from erstes_aufnahmedatum, which is the date the patient physically first came to the hospital — this column is about when the record was entered.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: erstes_aufnahmedatum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: erstes_aufnahmedatum
+    description: |
+      The date a patient first came to the hospital (erstes_aufnahmedatum).
+
+      A calendar date such as 1998-04-27; roughly a fifth of rows are null when the first-visit date was not captured. Use this column, not the unreliable datum_erster_aufnahme, to answer a question about when a patient first presented, was admitted, or came to the hospital.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: aufnahmedatum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: aufnahmedatum
+    description: |
+      Whether a patient was admitted to the hospital or followed at the outpatient clinic (aufnahmedatum).
+
+      A plus sign means the patient was admitted to the hospital (inpatient); a minus sign means the patient was followed at the outpatient clinic only. A few rows record a malformed '+(' or an empty string instead. Admitted, inpatient, or stayed in the hospital all resolve to the plus-sign value; outpatient or did not stay in the hospital resolve to the minus-sign value.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to patient.aufnahmedatum: a plus sign means inpatient, admitted to the hospital, or stayed in the hospital; a minus sign means outpatient, followed at the outpatient clinic, or did not stay in the hospital. A few rows record a malformed value such as '+(' or an empty string instead of a clean plus or minus. patientenstamm.letzte_aufnahme looks similar but is not a dependable source of admission status.\n",
+              "id": "term_thrombosis_prediction_admission_status",
+              "name": "admission status",
+              "summary": "admission status (inpatient, outpatient): whether a patient was admitted to the hospital (inpatient) or only followed at the outpatient clinic (outpatient).",
+              "synonyms": [
+                "admission status",
+                "inpatient",
+                "outpatient"
+              ]
+            }
+          ]
+        }
+  - name: diagnose
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: diagnose
+    description: |
+      The disease or diseases diagnosed for a patient (diagnose).
+
+      Free text naming one or more diagnosed conditions, including systemic lupus erythematosus, mixed connective tissue disease, progressive systemic sclerosis, Behcet's disease, and rheumatoid arthritis, referenced by full name or abbreviation; a row can list more than one diagnosis separated by a comma. Matching a specific disease name is a substring or exact text comparison against this column, not against an enumerated code.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to patient.diagnose (untersuchung carries its own separate diagnose column, which can disagree with patient's if a diagnosis changed between recording points). Free text naming one or more conditions by abbreviation or full name — SLE (systemic lupus erythematosus), MCTD (mixed connective tissue disease), PSS (progressive systemic sclerosis), APS (antiphospholipid syndrome), Behcet's disease, and RA (rheumatoid arthritis) among others — and a row can list more than one, separated by a comma. A diagnose value of RA or ra names rheumatoid arthritis and is unrelated to the ra column on laboruntersuchung, which holds a rheumatoid-factor lab test result rather than a diagnosis.\n",
+              "id": "term_thrombosis_prediction_diagnosis_name",
+              "name": "diagnosis",
+              "summary": "diagnosis (disease name, diagnose): the disease name recorded for a patient, an autoimmune or connective-tissue condition, in the diagnose column.",
+              "synonyms": [
+                "diagnosis",
+                "disease name",
+                "diagnose"
+              ]
+            }
+          ]
+        }
+  - name: datum_erster_aufnahme
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: datum_erster_aufnahme
+    description: |
+      datum_erster_aufnahme, a date column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: patienten_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: patienten_id
+    description: |
+      patienten_id, an integer column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: aufnahmezeitpunkt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: aufnahmezeitpunkt
+    description: |
+      aufnahmezeitpunkt, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_thrombosis_prediction_most_common_diagnosis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id)
+    description: |
+      most common diagnosis: which disease name in diagnose is recorded for the largest number of patients.
+
+      Bound to patient.diagnose: COUNT(id) grouped by diagnose, ordered descending, with the top row taken. Because diagnose can hold more than one disease per row separated by a comma, an exact-string grouping treats a row reading only "SLE" as a different group from one reading "SLE, MCTD" — decide whether a question wants exact-diagnose-string groups or per-disease counts before writing the GROUP BY.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "dimensions": [
+            "thrombosis_prediction.patient.diagnose"
+          ],
+          "name": "most common diagnosis"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: patientenstamm
+  source: thrombosis_prediction.patientenstamm
+  description: |
+    The patientenstamm table is a patient-shaped record that is not a dependable source of patient data (patientenstamm).
+
+    Grain: one row per patient-like record, mirroring the shape of the patient table. Values in this table are not dependable and do not correspond to the business facts a patient table would otherwise record. Do not use this table to answer questions; use patient instead.
+  ai_context:
+    instructions: Do not use this table to answer questions; its data is not dependable.
+  fields:
+  - name: patienten_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: patienten_id
+    description: |
+      patienten_id, an integer column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: biologisches_geschlecht
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: biologisches_geschlecht
+    description: |
+      biologisches_geschlecht, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: geboren_am
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geboren_am
+    description: |
+      geboren_am, a date column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: anmerkungen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: anmerkungen
+    description: |
+      anmerkungen, a date column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: erstaufnahme_datum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: erstaufnahme_datum
+    description: |
+      erstaufnahme_datum, a date column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: letzte_aufnahme
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: letzte_aufnahme
+    description: |
+      letzte_aufnahme, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: aerztliche_diagnose
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: aerztliche_diagnose
+    description: |
+      aerztliche_diagnose, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: untersuchung
+  source: thrombosis_prediction.untersuchung
+  description: |
+    The untersuchung table records one antiphospholipid-syndrome clinical examination per row for a patient (untersuchung).
+
+    Grain: one row per antiphospholipid-specific examination performed on a patient on a given date (untersuchungsdatum); a patient can have several examinations over time. Join to patient and laboruntersuchung on the shared id column. thrombose is the diagnosed degree of thrombosis most questions about this schema are ultimately asking about. datum_der_untersuchung, untersuchungs_nr, and anamnese_id look like a duplicate date or duplicate identifier but are not dependable; see each column's own note. befundprotokoll mirrors this table in shape but is not a dependable source of examination data.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The identifying patient id a clinical examination belongs to (id).
+
+      Foreign key to the id shared with patient and laboruntersuchung; one patient can have several untersuchung rows, one per examination date.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: untersuchungsdatum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: untersuchungsdatum
+    description: |
+      The date an antiphospholipid-syndrome examination was performed (untersuchungsdatum).
+
+      A calendar date ranging from 1989-04-18 to 1998-04-17 in this dataset. Use this column, not datum_der_untersuchung, to filter examinations to a year or date range.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: acl_igg
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: acl_igg
+    description: |
+      The anti-cardiolipin antibody IgG concentration measured in an examination (acl_igg).
+
+      A decimal concentration; this dataset does not document a numeric normal-range cutoff for it, and business phrasing "anti-Cardiolipin" without naming an immunoglobulin class more often refers to acl_igm than to this column. Observed from 0.0 to 1150.7 in a 500-row sample.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: acl_igm
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: acl_igm
+    description: |
+      The anti-cardiolipin antibody IgM concentration measured in an examination (acl_igm).
+
+      A decimal concentration; this is the column business phrasing "anti-Cardiolipin" resolves to when no immunoglobulin class is named. This dataset does not document a numeric normal-range cutoff for it. Observed from 0.0 to 187122.0 in a 500-row sample.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: ana
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ana
+    description: |
+      The anti-nucleus antibody concentration measured in an examination (ana).
+
+      An integer titer such as 0, 16, 64, 256, or 1024; this dataset does not document a numeric normal-range cutoff, though 0 is the negative case. Distinct from ana_muster, which records the staining pattern rather than the titer.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ana_muster
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ana_muster
+    description: |
+      The staining pattern observed on the ANA examination sheet (ana_muster).
+
+      Single-letter or comma-separated codes such as P for peripheral, S for speckled, D, or N; a row can combine more than one pattern. A question about a peripheral pattern or a pattern of only S is a text comparison against this column, not against ana.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: acl_iga
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: acl_iga
+    description: |
+      The anti-cardiolipin antibody IgA concentration measured in an examination (acl_iga).
+
+      An integer concentration; this dataset does not document a numeric normal-range cutoff for it. Sample values in this dataset range from 0 to several hundred.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: diagnose
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: diagnose
+    description: |
+      The disease or diseases diagnosed for a patient at the time of an examination (diagnose).
+
+      Free text naming one or more diagnosed conditions, such as systemic lupus erythematosus, rheumatoid arthritis, mixed connective tissue disease, or Behcet's disease; a row can list more than one diagnosis. This is a separate diagnose column from the one on patient — the two can disagree if a diagnosis changed between recording points.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: kct
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kct
+    description: |
+      The kaolin clotting time result, one measure of the degree of coagulation (kct).
+
+      A plus sign is positive, a minus sign is negative. "Positive measure of degree of coagulation" can mean this column alone, or this column, rvvt, or lac each being positive — check whether a question names one test or coagulation generally.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: rvvt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rvvt
+    description: |
+      The Russell's viper venom time result, one measure of the degree of coagulation (rvvt).
+
+      A plus sign is positive, a minus sign is negative; used together with kct and lac to judge overall degree of coagulation.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: lac
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: lac
+    description: |
+      The lupus anticoagulant test result, one measure of the degree of coagulation (lac).
+
+      A plus sign is positive, a minus sign is negative; used together with kct and rvvt to judge overall degree of coagulation.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: symptome
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: symptome
+    description: |
+      Other symptoms observed for a patient at an examination (symptome).
+
+      Free text describing clinical findings such as a stroke, embolism, or infarction event; null means no other symptoms were recorded. "Does not have any symptom" resolves to this column being null.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: thrombose
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: thrombose
+    description: |
+      The diagnosed degree of thrombosis for a patient at an examination (thrombose).
+
+      An integer code: 0 means no thrombosis (negative); 1 is the most serious positive case; 2 is severe; 3 is mild. Most questions about this schema are ultimately asking about this column. "Severe thrombosis" can mean a value of 2 alone, or a value of 1 or 2 together — check whether a question means severe specifically or any serious case.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to untersuchung.thrombose, an integer code: 0 is no thrombosis (negative); 1 is the most serious, most severe positive case; 2 is severe; 3 is mild. \"Severe thrombosis\" is ambiguous between a value of 2 alone and a value of 1 or 2 together — check whether a question is asking about the severe grade specifically or about any serious case.\n",
+              "id": "term_thrombosis_prediction_thrombosis_degree",
+              "name": "degree of thrombosis",
+              "summary": "degree of thrombosis (thrombosis level, severe thrombosis): the diagnosed severity of thrombosis, from no thrombosis up to the most serious case.",
+              "synonyms": [
+                "degree of thrombosis",
+                "thrombosis level",
+                "severe thrombosis"
+              ]
+            }
+          ]
+        }
+  - name: datum_der_untersuchung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: datum_der_untersuchung
+    description: |
+      datum_der_untersuchung, a date column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: untersuchungs_nr
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: untersuchungs_nr
+    description: |
+      untersuchungs_nr, an integer column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: anamnese_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: anamnese_id
+    description: |
+      anamnese_id, an integer column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "Three separate columns on untersuchung each measure degree of coagulation with the same coding, a plus sign for positive and a minus sign for negative: kct (kaolin clotting time), rvvt (Russell's viper venom time), and lac (lupus anticoagulant). A question naming one test by name resolves to that single column; a question about coagulation in general, without naming a specific test, resolves to any of the three being positive.\n",
+            "id": "term_thrombosis_prediction_coagulation_test_result",
+            "name": "degree of coagulation",
+            "summary": "degree of coagulation (measure of degree of coagulation): the positive or negative result of the kct, rvvt, and lac clotting tests recorded on untersuchung.",
+            "synonyms": [
+              "degree of coagulation",
+              "measure of degree of coagulation"
+            ]
+          }
+        ]
+      }
+relationships:
+- name: join_thrombosis_prediction_laboruntersuchung_patient_1805e118
+  from: laboruntersuchung
+  to: patient
+  from_columns:
+  - id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins laboruntersuchung to patient, matching each lab-test panel to the patient it belongs to by shared id.
+
+      laboruntersuchung.id equals patient.id. Many laboruntersuchung rows share one patient.id, so this is a many-to-one join from lab panels to the patient roster. Do not join through patienten_id on either side — it is unreliable and does not carry this relationship.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between laboruntersuchung and patient in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_thrombosis_prediction_patient_untersuchung_d85860a1
+  from: patient
+  to: untersuchung
+  from_columns:
+  - id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins patient to untersuchung, matching each antiphospholipid examination to the patient it belongs to by shared id.
+
+      patient.id equals untersuchung.id. Many untersuchung rows share one patient.id, so this is a many-to-one join from examinations to the patient roster. Do not join through patienten_id, untersuchungs_nr, or anamnese_id — they are unreliable and do not carry this relationship.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between patient and untersuchung in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+metrics:
+- name: metric_thrombosis_prediction_average_lab_value
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: AVG(lab_column)
+  description: |
+    average lab value: the mean of one laboratory analyte, an albumin, cholesterol, or uric acid reading among others, across a group of patients or panels.
+
+    A recurring pattern rather than one fixed column: "average blood albumin level" is AVG(alb), "average ua index" is AVG(ua), "average prothrombin time" is AVG(pt), and the same pattern applies to any single numeric column on laboruntersuchung. The same AVG pattern also applies to untersuchung's decimal columns, such as "average anti-Cardiolipin antibody (IgM)" computed as AVG(acl_igm). AVG already skips null readings, which are common since most analytes are not measured on every panel.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "thrombosis_prediction.laboruntersuchung",
+        "name": "average lab value"
+      }
+- name: metric_thrombosis_prediction_extreme_lab_value
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: MAX(lab_column)
+  description: |
+    extreme lab value: the highest or lowest recorded value of one laboratory analyte, a total cholesterol or total bilirubin reading among others.
+
+    A recurring pattern rather than one fixed column: "highest total cholesterol" is MAX(t_cho), "the highest total bilirubin" is MAX(t_bil), and the same MAX or MIN pattern applies to any single numeric column on laboruntersuchung. The same pattern also applies to untersuchung's decimal and integer columns, such as "highest anti-Cardiolipin antibody concentration" computed as MAX(acl_iga). "Highest ... within the normal range" adds a boundary filter before taking the maximum, for example the highest tg value that is still below 200 rather than the unfiltered maximum.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "thrombosis_prediction.laboruntersuchung",
+        "name": "extreme lab value"
+      }
+- name: metric_thrombosis_prediction_patient_age
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUBTRACT(YEAR(reference_date), YEAR(geburtsdatum))
+  description: |
+    patient age: how many years old a patient is, computed from geburtsdatum against a reference year.
+
+    Bound to patient.geburtsdatum: subtract the birth year from a reference year, most often the current year but sometimes a year named in the question, such as "age as of 1999" computed as 1999 minus the birth year. "50 years of age and above" and "under 18" are the same subtraction compared against a threshold. "Age gap" between two groups is the difference between the maximum and minimum birth year within a group, not one patient's own age. A larger geburtsdatum value is a more recent birth date and so a younger patient; "oldest patient" is MIN(geburtsdatum) and "youngest patient" is MAX(geburtsdatum).
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "thrombosis_prediction.patient",
+        "name": "patient age"
+      }
+- name: metric_thrombosis_prediction_share_meeting_condition
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: MULTIPLY(DIVIDE(COUNT(id_meeting_condition), COUNT(id)), 100)
+  description: |
+    share of patients meeting a condition: the percentage of patients, or lab panels, that satisfy a stated filter on sex, admission status, or a lab-value threshold.
+
+    A recurring pattern rather than one fixed filter: count patients where a condition holds, divide by the count of patients in the comparison group, and multiply by 100. Examples seen: the share of male patients who were admitted to the hospital divides COUNT(id) WHERE geschlecht = 'M' AND aufnahmedatum = '+' by COUNT(id) WHERE geschlecht = 'M'; the share of female patients born after 1930 divides COUNT(id) WHERE YEAR(geburtsdatum) > 1930 AND geschlecht = 'F' by COUNT(id) WHERE geschlecht = 'F'. When the condition is a lab-value threshold, join laboruntersuchung to patient on id first, then count distinct patient id values meeting the threshold rather than counting laboruntersuchung rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "thrombosis_prediction.patient",
+        "name": "share of patients meeting a condition"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question 1149",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0000",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"aufnahmedatum\" = '+' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(SUM(CASE WHEN \"aufnahmedatum\" = '-' THEN 1 ELSE 0 END), 0) FROM \"thrombosis_prediction\".\"patient\" WHERE \"geschlecht\" = 'M'",
+          "summary": "Are there more in-patient or outpatient who were male? What is the deviation in percentage?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1150",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0001",
+          "sql": "SELECT CAST(SUM(CASE WHEN TO_CHAR(CAST(\"geburtsdatum\" AS TIMESTAMP), 'YYYY') > '1930' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"thrombosis_prediction\".\"patient\" WHERE \"geschlecht\" = 'F'",
+          "summary": "What is the percentage of female patient were born after 1930?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1151",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0002",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"aufnahmedatum\" = '+' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"thrombosis_prediction\".\"patient\" WHERE TO_CHAR(CAST(\"geburtsdatum\" AS TIMESTAMP), 'YYYY') BETWEEN '1930' AND '1940'",
+          "summary": "For patient born between Year 1930 to 1940, how many percent of them were inpatient?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1153",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0003",
+          "sql": "SELECT \"T1\".\"diagnose\", \"T2\".\"datum\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"id\" = 30609",
+          "summary": "What is the disease patient '30609' diagnosed with. List all the date of laboratory tests done for this patient."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1155",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0004",
+          "sql": "SELECT DISTINCT \"T1\".\"id\", \"T1\".\"geschlecht\", \"T1\".\"geburtsdatum\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"ldh\" > 500",
+          "summary": "List the patient ID, sex and birthday of patient with LDH beyond normal range."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1157",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0005",
+          "sql": "SELECT DISTINCT \"T1\".\"id\", \"T1\".\"geschlecht\", \"T1\".\"diagnose\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"thrombose\" = 2",
+          "summary": "For patients with severe degree of thrombosis, list their ID, sex and disease the patient is diagnosed with."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1158",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0006",
+          "sql": "SELECT DISTINCT \"T1\".\"id\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE TO_CHAR(CAST(\"T1\".\"geburtsdatum\" AS TIMESTAMP), 'YYYY') = '1937' AND \"T2\".\"t_cho\" >= 250",
+          "summary": "List all patients who were born in 1937 whose total cholesterol was beyond the normal range."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1159",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0007",
+          "sql": "SELECT DISTINCT \"T1\".\"id\", \"T1\".\"geschlecht\", \"T1\".\"diagnose\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"alb\" < 3.5",
+          "summary": "For patient with albumin level lower than 3.5, list their ID, sex and diagnosis."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1160",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0008",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"geschlecht\" = 'F' AND (\"T2\".\"tp\" < 6.0 OR \"T2\".\"tp\" > 8.5) THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"geschlecht\" = 'F'",
+          "summary": "What is the percentage of female patient had total protein not within the normal range?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1162",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0009",
+          "sql": "SELECT COUNT(*) FROM \"thrombosis_prediction\".\"patient\" WHERE TO_CHAR(CAST(\"beschreibung\" AS TIMESTAMP), 'YYYY') = '1997' AND \"geschlecht\" = 'F' AND \"aufnahmedatum\" = '-'",
+          "summary": "How many female patients who came at the hospital in 1997 was immediately followed at the outpatient clinic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1164",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0010",
+          "sql": "SELECT COUNT(*) FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"geschlecht\" = 'F' AND TO_CHAR(CAST(\"T2\".\"untersuchungsdatum\" AS TIMESTAMP), 'YYYY') = '1997' AND \"T2\".\"thrombose\" = 1",
+          "summary": "How many of the patients with the most serious thrombosis cases examined in 1997 are women?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1166",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0011",
+          "sql": "SELECT \"T2\".\"symptome\", \"T1\".\"diagnose\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE NOT \"T2\".\"symptome\" IS NULL ORDER BY \"T1\".\"geburtsdatum\" DESC NULLS LAST LIMIT 1",
+          "summary": "What are the symptoms observed by the youngest patient to ever did a medical examination? Identify their diagnosis."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1167",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0012",
+          "sql": "SELECT CAST(COUNT(\"T1\".\"id\") AS REAL) / NULLIF(12, 0) FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE TO_CHAR(CAST(\"T2\".\"datum\" AS TIMESTAMP), 'YYYY') = '1998' AND \"T1\".\"geschlecht\" = 'M'",
+          "summary": "For the year that concluded on December 31, 1998, how many male patients on average were tested in the lab each month?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1172",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0013",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"t_bil\" >= 2.0 AND \"T1\".\"geschlecht\" = 'M'",
+          "summary": "How many male patients have elevated total bilirubin count?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1174",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0014",
+          "sql": "SELECT AVG(1999 - CAST(EXTRACT(YEAR FROM \"T2\".\"geburtsdatum\") AS INT)) FROM \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"patient\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"datum\" BETWEEN '1991-10-01' AND '1991-10-30'",
+          "summary": "What is the average age of patients as of year 1999 examined in the laboratory for the October of the year 1991?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1176",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0015",
+          "sql": "SELECT \"ana\" FROM \"thrombosis_prediction\".\"untersuchung\" WHERE \"id\" = 3605340 AND \"untersuchungsdatum\" = '1996-12-02'",
+          "summary": "What was the anti-nucleus antibody concentration level for the patient id 3605340 on 1996/12/2?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1179",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0016",
+          "sql": "SELECT \"acl_iga\", \"acl_igg\", \"acl_igm\" FROM \"thrombosis_prediction\".\"untersuchung\" WHERE \"id\" IN (SELECT \"id\" FROM \"thrombosis_prediction\".\"patient\" WHERE \"diagnose\" = 'SLE' AND \"beschreibung\" = '1994-02-19') AND \"untersuchungsdatum\" = '1993-11-12'",
+          "summary": "For the patient who was diagnosed with SLE on 1994/2/19, what was his/her anti-Cardiolipin antibody concentration status on 1993/11/12?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1186",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0017",
+          "sql": "SELECT \"id\" FROM \"thrombosis_prediction\".\"untersuchung\" WHERE \"untersuchungsdatum\" BETWEEN '1997-01-01' AND '1997-12-31' AND \"diagnose\" = 'Behcet'",
+          "summary": "Lists all patients by ID who were diagnosed with Behcet's and had their exams between 01/01/197 and 12/31/1997."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1187",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0018",
+          "sql": "SELECT DISTINCT \"id\" FROM \"thrombosis_prediction\".\"laboruntersuchung\" WHERE \"datum\" BETWEEN '1987-07-06' AND '1996-01-31' AND \"gpt\" > 30 AND \"alb\" < 4",
+          "summary": "How many patients who were examined between 1987/7/6 and 1996/1/31 had a GPT level greater than 30 and an ALB level less than 4? List them by their ID."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1189",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0019",
+          "sql": "SELECT COUNT(*) FROM \"thrombosis_prediction\".\"untersuchung\" WHERE \"thrombose\" = 2 AND \"ana_muster\" = 'S' AND \"acl_igm\" > (SELECT AVG(\"acl_igm\") * 1.2 FROM \"thrombosis_prediction\".\"untersuchung\" WHERE \"thrombose\" = 2 AND \"ana_muster\" = 'S')",
+          "summary": "What number of patients with a degree of thrombosis level 2 and ANA pattern of only S, have a level of anti-Cardiolip in antibody (IgM) 20% higher than average?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1191",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0020",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"diagnose\" = 'BEHCET' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"id\"), 0) FROM \"thrombosis_prediction\".\"patient\" WHERE TO_CHAR(CAST(\"erstes_aufnahmedatum\" AS TIMESTAMP), 'YYYY') = '1981' AND \"geschlecht\" = 'M'",
+          "summary": "What percentage of male patients who first presented to the hospital in 1981 were diagnosed with BEHCET?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1194",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0021",
+          "sql": "SELECT \"T1\".\"geschlecht\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"diagnose\" = 'PSS' AND \"T3\".\"crp\" = '2+' AND \"T3\".\"cre\" = 1.0 AND \"T3\".\"ldh\" = 123",
+          "summary": "What sex is the patient who in a medical examination was diagnosed with PSS and in a laboratory examination had a blood level of C-reactive protein de 2+, createnine 1 and LDH 123?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1196",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0022",
+          "sql": "SELECT \"symptome\" FROM \"thrombosis_prediction\".\"untersuchung\" WHERE \"diagnose\" = 'SLE' GROUP BY \"symptome\" ORDER BY COUNT(\"symptome\") DESC NULLS LAST LIMIT 1",
+          "summary": "What is the most common sign of patients with SLE disease?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1197",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0023",
+          "sql": "SELECT \"erstes_aufnahmedatum\", \"diagnose\" FROM \"thrombosis_prediction\".\"patient\" WHERE \"id\" = 48473",
+          "summary": "When was the medical information on patient number 48473 first documented, and what disease did she have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1198",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0024",
+          "sql": "SELECT COUNT(\"id\") FROM \"thrombosis_prediction\".\"patient\" WHERE \"geschlecht\" = 'F' AND \"diagnose\" = 'APS'",
+          "summary": "How many female patients were given an APS diagnosis?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1201",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0025",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"geschlecht\" = 'F' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"id\"), 0) FROM \"thrombosis_prediction\".\"patient\" WHERE \"diagnose\" = 'RA' AND TO_CHAR(CAST(\"geburtsdatum\" AS TIMESTAMP), 'YYYY') = '1980'",
+          "summary": "What percentage of patients who were born in 1980 and were diagnosed with RA are women?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1202",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0026",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"diagnose\" = 'Behcet' AND \"T1\".\"geschlecht\" = 'M' AND TO_CHAR(CAST(\"T2\".\"untersuchungsdatum\" AS TIMESTAMP), 'YYYY') BETWEEN '1995' AND '1997' AND \"T1\".\"aufnahmedatum\" = '-'",
+          "summary": "How many male patients who underwent testing between 1995 and 1997 and were subsequently diagnosed with Behcet disease did not stay in the hospital for treatment?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1203",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0027",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"wbc\" < 3.5 AND \"T1\".\"geschlecht\" = 'F'",
+          "summary": "How many patients who were female got white blood cells that were below 3.5?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1205",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0028",
+          "sql": "SELECT CASE WHEN (\"T1\".\"geschlecht\" = 'F' AND \"T2\".\"ua\" > 6.5) OR (\"T1\".\"geschlecht\" = 'M' AND \"T2\".\"ua\" > 8.0) THEN TRUE ELSE FALSE END FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"id\" = 57266",
+          "summary": "Was the patient with the number 57266's uric acid within a normal range?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1206",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0029",
+          "sql": "SELECT \"datum\" FROM \"thrombosis_prediction\".\"laboruntersuchung\" WHERE \"id\" = 48473 AND \"got\" >= 60",
+          "summary": "When is the laboratory examination of patient '48473' where his/her AST glutamic oxaloacetic transaminase (GOT) index is above the normal range."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1207",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0030",
+          "sql": "SELECT DISTINCT \"T1\".\"geschlecht\", \"T1\".\"geburtsdatum\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"got\" < 60 AND TO_CHAR(CAST(\"T2\".\"datum\" AS TIMESTAMP), 'YYYY') = '1994'",
+          "summary": "List all patients with their sex and date of birthday, whose AST glutamic oxaloacetic transaminase (GOT) index is within normal range for loboratory examination in 1994."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1212",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0031",
+          "sql": "SELECT \"T1\".\"aufnahmedatum\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"alp\" < 300",
+          "summary": "For patients with alkaliphophatase (ALP) within normal range, were they treated as inpatient or outpatient?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1213",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0032",
+          "sql": "SELECT \"T1\".\"id\", CASE WHEN \"T2\".\"alp\" < 300 THEN 'normal' ELSE 'abNormal' END FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"geburtsdatum\" = '1982-04-01'",
+          "summary": "Name the ID of the patient who is born on the April 1st, 1982. Is his/her alkaliphophatase (ALP) within normal range?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1214",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0033",
+          "sql": "SELECT DISTINCT \"T1\".\"id\", \"T1\".\"geschlecht\", \"T1\".\"geburtsdatum\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"tp\" < 6.0",
+          "summary": "List ID, sex and date of birth of patient whose total protein (TP) below the lower range of the normal index."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1217",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0034",
+          "sql": "SELECT CASE WHEN \"T2\".\"alb\" >= 3.5 AND \"T2\".\"alb\" <= 5.5 THEN 'normal' ELSE 'abnormal' END FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE TO_CHAR(CAST(\"T1\".\"geburtsdatum\" AS TIMESTAMP), 'YYYY') = '1982'",
+          "summary": "For all patient born in 1982, state if their albumin is within normal range."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1218",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0035",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"ua\" > 6.5 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id\"), 0) FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"geschlecht\" = 'F'",
+          "summary": "What is the percentage of the female patient whose uric acid (UA) beyond the normal range?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1220",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0036",
+          "sql": "SELECT DISTINCT \"T1\".\"id\", \"T1\".\"geschlecht\", \"T1\".\"geburtsdatum\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"un\" = 29",
+          "summary": "Provide all ID, sex and birthday of patients whose urea nitrogen (UN) just within the borderline of passing?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1221",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0037",
+          "sql": "SELECT DISTINCT \"T1\".\"id\", \"T1\".\"geschlecht\", \"T1\".\"geburtsdatum\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"un\" < 30 AND \"T1\".\"diagnose\" = 'RA'",
+          "summary": "Provide the ID, sex, birthday of all patients diagnosed with 'RA' that are within the UN normal index."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1223",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0038",
+          "sql": "SELECT CASE WHEN SUM(CASE WHEN \"T1\".\"geschlecht\" = 'M' THEN 1 ELSE 0 END) > SUM(CASE WHEN \"T1\".\"geschlecht\" = 'F' THEN 1 ELSE 0 END) THEN 'True' ELSE 'False' END FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"cre\" >= 1.5",
+          "summary": "Are there more male patients with creatinine not within the normal range than female? True or False?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1224",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0039",
+          "sql": "SELECT \"T2\".\"t_bil\", \"T1\".\"id\", \"T1\".\"geschlecht\", \"T1\".\"geburtsdatum\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" ORDER BY \"T2\".\"t_bil\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the highest total bilirubin level recorded? List out the patient details with ID, sex and birthday with that index."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1225",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0040",
+          "sql": "SELECT \"T1\".\"id\", \"T1\".\"geschlecht\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"t_bil\" >= 2.0 GROUP BY \"T1\".\"geschlecht\", \"T1\".\"id\"",
+          "summary": "List and group all patients by sex for total bilirubin (T-BIL) level not within the normal range."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1226",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0041",
+          "sql": "SELECT \"T1\".\"id\", \"T2\".\"t_cho\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" ORDER BY \"T2\".\"t_cho\" DESC NULLS LAST, \"T1\".\"geburtsdatum\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Who is the oldest patient with the highest total cholesterol (T-CHO). State the patient ID and T-CHO index."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1230",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0042",
+          "sql": "SELECT DISTINCT \"T1\".\"id\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"cpk\" < 250 AND \"T1\".\"aufnahmedatum\" = '-'",
+          "summary": "List all outpatient within normal range of creatinine phosphokinase. Give me the distinct ids."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1231",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0043",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE TO_CHAR(CAST(\"T1\".\"geburtsdatum\" AS TIMESTAMP), 'YYYY') BETWEEN '1936' AND '1956' AND \"T1\".\"geschlecht\" = 'M' AND \"T2\".\"cpk\" >= 250",
+          "summary": "For patient born between 1936-1956, how many male patients have creatinine phosphokinase beyond the normal range?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1233",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0044",
+          "sql": "SELECT DISTINCT \"T1\".\"id\", \"T2\".\"glu\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE TO_CHAR(CAST(\"T1\".\"erstes_aufnahmedatum\" AS TIMESTAMP), 'YYYY') = '1991' AND \"T2\".\"glu\" < 180",
+          "summary": "List each patient's ID and blood glucose (GLU) index that were within normal range for patient's whose data was first recorded in 1991."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1237",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0045",
+          "sql": "SELECT DISTINCT \"T1\".\"id\", \"T1\".\"geschlecht\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"hgb\" < 10 AND \"T1\".\"aufnahmedatum\" = '-'",
+          "summary": "Among all outpatients, list out those have low hemoglobin level. State the different IDs and their sex."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1238",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0046",
+          "sql": "SELECT \"T1\".\"id\", \"T1\".\"geschlecht\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"diagnose\" = 'SLE' AND \"T2\".\"hgb\" > 10 AND \"T2\".\"hgb\" < 17 ORDER BY \"T1\".\"geburtsdatum\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Among the patients who were diagnosed with SLE, who is the oldest with normal hemoglobin level. Provide the ID and sex."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1245",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0047",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"datum\" > '1997-01-01' AND \"T2\".\"aptt\" >= 45",
+          "summary": "For the examinations done after 1997/1/1, how many of them have the result of an inactivated partial prothrom bin time?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1251",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0048",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"igg\" >= 2000",
+          "summary": "How many patients with an Ig G higher than normal?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1255",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0049",
+          "sql": "SELECT \"T1\".\"diagnose\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE NOT \"T2\".\"igm\" BETWEEN 40 AND 400 GROUP BY \"T1\".\"diagnose\" ORDER BY COUNT(\"T1\".\"diagnose\") DESC NULLS LAST LIMIT 1",
+          "summary": "For the patients with an abnormal Ig M level, what is the most common disease they are diagnosed with?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1258",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0050",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"id\" WHERE (\"T2\".\"ra\" = '-' OR \"T2\".\"ra\" = '+-') AND \"T3\".\"kct\" = '+'",
+          "summary": "How many patients with a normal Rhuematoid Factor has a positive measure of degree of coagulation?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1262",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0051",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id\") FROM \"thrombosis_prediction\".\"untersuchung\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"c3\" > 35 AND \"T1\".\"ana_muster\" = 'P'",
+          "summary": "How many patients with a normal level of complement 3 have a P pattern observed in the sheet of ANA examination?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1264",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0052",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"c4\" > 10 AND \"T1\".\"diagnose\" = 'APS'",
+          "summary": "Among the patients have blood clots in veins, how many of them have a normal level of complement 4?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1265",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0053",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"rnp\" = 'negative' OR \"T2\".\"rnp\" = '0' AND \"T1\".\"aufnahmedatum\" = '+'",
+          "summary": "How many patients have a normal level of anti-ribonuclear protein and have been admitted to the hospital?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1267",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0054",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"thrombosis_prediction\".\"untersuchung\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"sm\" IN ('negative', '0') AND \"T1\".\"thrombose\" = 0",
+          "summary": "Among the patients with normal anti-SM, how many of them does not have thrombosis?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1268",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0055",
+          "sql": "SELECT \"T1\".\"id\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE NOT \"T2\".\"sm\" IN ('negative', '0') ORDER BY \"T1\".\"geburtsdatum\" DESC NULLS LAST LIMIT 3",
+          "summary": "For the patients with an abnormal anti-SM, please list the IDs of the three youngest ones."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1270",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0056",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"id\" WHERE (\"T2\".\"sc170\" = 'negative' OR \"T2\".\"sc170\" = '0') AND \"T1\".\"geschlecht\" = 'F' AND \"T3\".\"symptome\" IS NULL",
+          "summary": "Among the patients who has a normal anti-scl70, how many of them are female and does not have any symptom?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1271",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0057",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"ssa\" IN ('negative', '0') AND TO_CHAR(CAST(\"T2\".\"datum\" AS TIMESTAMP), 'YYYY') < '2000'",
+          "summary": "How many patients with a normal anti-SSA came to the hospital before 2000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1272",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0058",
+          "sql": "SELECT \"T1\".\"id\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE NOT \"T1\".\"erstes_aufnahmedatum\" IS NULL AND NOT \"T2\".\"ssa\" IN ('negative', '0') ORDER BY \"T1\".\"erstes_aufnahmedatum\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Which patient is the first patient with an abnormal anti-SSA to come to the hospital? Please give his or her ID."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1275",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0059",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"zentromeer\" IN ('negative', '0') AND \"T2\".\"ssb\" IN ('negative', '0') AND \"T1\".\"geschlecht\" = 'M'",
+          "summary": "Among the patients who has a normal level of anti-centromere and a normal level of anti-SSB, how many of them are male?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1280",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0060",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"got\" < 60 AND \"T1\".\"geschlecht\" = 'M'",
+          "summary": "How many male patients have their glutamic oxaloacetic transaminase in the normal range?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1281",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0061",
+          "sql": "SELECT \"T1\".\"geburtsdatum\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"got\" >= 60 ORDER BY \"T1\".\"geburtsdatum\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among the patients who have an abnormal level of glutamic oxaloacetic transaminase, when was the youngest of them born?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1285",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0062",
+          "sql": "SELECT \"T1\".\"erstes_aufnahmedatum\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"ldh\" >= 500 ORDER BY \"T1\".\"erstes_aufnahmedatum\" DESC NULLS LAST LIMIT 1",
+          "summary": "When is the latest patient's medical data recorded? This patient should have an abnormal level of lactate dehydrogenase."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1288",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0063",
+          "sql": "SELECT \"T1\".\"diagnose\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"tp\" < 6.0",
+          "summary": "Please list the diagnosis of the patients whose total protein is lower than normal."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1295",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0064",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T3\" ON \"T1\".\"id\" = \"T3\".\"id\" WHERE \"T2\".\"t_bil\" >= 2 AND \"T3\".\"ana_muster\" LIKE '%P%'",
+          "summary": "Among the patients whose total bilirubin is over the normal range, how many of them have a peripheral pattern observed in the sheet of ANA examination?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1297",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0065",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T3\" ON \"T1\".\"id\" = \"T3\".\"id\" WHERE \"T2\".\"t_cho\" >= 250 AND \"T3\".\"kct\" = '-'",
+          "summary": "For the patients whose total cholesterol is higher than normal, how many of them have a negative measure of degree of coagulation?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1300",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0066",
+          "sql": "SELECT \"T1\".\"diagnose\" FROM \"thrombosis_prediction\".\"untersuchung\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"tg\" < 200 ORDER BY \"T2\".\"tg\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the disease name of the patient who has the highest level of triglyceride within the normal range?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1301",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0067",
+          "sql": "SELECT DISTINCT \"T1\".\"id\" FROM \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"thrombose\" = 0 AND \"T1\".\"cpk\" < 250",
+          "summary": "Please list the IDs of the patients with no thrombosis and an abnormal level of creatinine phosphokinase."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1302",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0068",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T3\" ON \"T1\".\"id\" = \"T3\".\"id\" WHERE \"T2\".\"cpk\" < 250 AND (\"T3\".\"kct\" = '+' OR \"T3\".\"rvvt\" = '+' OR \"T3\".\"lac\" = '+')",
+          "summary": "For the patients with a normal range of creatinine phosphokinase, how many of them have a positive measure of degree of coagulation?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1303",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0069",
+          "sql": "SELECT \"T1\".\"geburtsdatum\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"glu\" > 180 ORDER BY \"T1\".\"geburtsdatum\" ASC NULLS FIRST LIMIT 1",
+          "summary": "When is the birthday of the oldest patient whose blood glucose is abnormal?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1306",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0070",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"diagnose\" = 'SLE' AND \"T2\".\"wbc\" BETWEEN 3.5 AND 9",
+          "summary": "How many patients diagnosed with SLE have a normal white blood cell level?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1308",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0071",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"plt\" > 100 AND \"T2\".\"plt\" < 400 AND NOT \"T1\".\"diagnose\" IS NULL",
+          "summary": "Among the patients who have a normal platelet level, how many of them have other symptoms observed?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 1309",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0072",
+          "sql": "SELECT \"T2\".\"plt\" FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"diagnose\" = 'MCTD' AND \"T2\".\"plt\" BETWEEN 100 AND 400",
+          "summary": "Please list a patient's platelet level if it is within the normal range and if he or she is diagnosed with MCTD."
+        },
+        {
+          "audit": {
+            "evidence": "train question 1311",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_thrombosis_prediction_0073",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"thrombosis_prediction\".\"patient\" AS \"T1\" INNER JOIN \"thrombosis_prediction\".\"laboruntersuchung\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"thrombosis_prediction\".\"untersuchung\" AS \"T3\" ON \"T1\".\"id\" = \"T3\".\"id\" WHERE \"T2\".\"pt\" < 14 AND \"T3\".\"thrombose\" < 3 AND \"T3\".\"thrombose\" > 0",
+          "summary": "How many patients with severe thrombosis have a normal prothrombin time?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between laboruntersuchung and untersuchung in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "laboruntersuchung.id equals untersuchung.id. Both sides can carry many rows per patient — one per test date and one per examination date respectively — so joining them directly fans out to every combination of a patient's lab panels and examinations. Aggregate one side first, or join both separately to patient, when a question needs one row per patient.\n",
+          "cardinality": "many_to_many",
+          "id": "join_thrombosis_prediction_laboruntersuchung_untersuchung_8bb6558a",
+          "left_table": "thrombosis_prediction.laboruntersuchung",
+          "on": "thrombosis_prediction.laboruntersuchung.id = thrombosis_prediction.untersuchung.id",
+          "right_table": "thrombosis_prediction.untersuchung",
+          "summary": "Joins laboruntersuchung to untersuchung, matching lab-test panels to antiphospholipid examinations recorded for the same patient by shared id."
+        }
+      ]
+    }

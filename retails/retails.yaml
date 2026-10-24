@@ -1,34 +1,4172 @@
-asset_type: schema
-id: retails
+version: 0.2.0.dev0
 name: retails
-summary: >-
-  retails: a wholesale distribution database of customers, suppliers, parts, and their orders
-  and shipped line items, grouped by nation and region, for questions about pricing, discounts,
-  shipping, supply cost, and account balances.
-body: >
-  Ten tables. cliente (customers), proveedor (suppliers), parte (parts), and parte_proveedor
-  (which supplier stocks which part, at what cost and available quantity) are the master data.
-  pedidos holds one row per order; detalle_pedido holds one row per line item within an order,
-  and is the table most quantity, price, discount, and shipping questions run against. pais
-  (nation) and region are shared geography: both cliente and proveedor carry an id_pais, and
-  pais carries an id_region. estado_nacional and zona_geografica look like nation and region
-  tables but are not dependable for analysis; use pais and region instead. Most tables also
-  carry a handful of extra id-like or text columns (the codigo_* columns, saldo_disponible,
-  saldo_proveedor, notas_pais, notas_parte, notas_region, denominacion_region, marca_fabricante)
-  that resemble one of the real columns but are not reliable — each is flagged on the column
-  itself and should not be selected, filtered, or joined on.
-rules:
-- Join cliente and proveedor to pais on id_pais, and pais to region on id_region. Never join on
-  any codigo_* column even though some look like a key — none of them are dependable.
-- Use pais and region, not estado_nacional or zona_geografica, for a customer's or supplier's
-  nation and region.
-- A line item's discounted price is precio_extendido * (1 - descuento), and its profit is that
-  discounted price minus costo_suministro * cantidad; costo_suministro is on parte_proveedor,
-  not on detalle_pedido, so it takes a join to compute.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  retails: a wholesale distribution database of customers, suppliers, parts, and their orders and shipped line items, grouped by nation and region, for questions about pricing, discounts, shipping, supply cost, and account balances.
+
+  Ten tables. cliente (customers), proveedor (suppliers), parte (parts), and parte_proveedor (which supplier stocks which part, at what cost and available quantity) are the master data. pedidos holds one row per order; detalle_pedido holds one row per line item within an order, and is the table most quantity, price, discount, and shipping questions run against. pais (nation) and region are shared geography: both cliente and proveedor carry an id_pais, and pais carries an id_region. estado_nacional and zona_geografica look like nation and region tables but are not dependable for analysis; use pais and region instead. Most tables also carry a handful of extra id-like or text columns (the codigo_* columns, saldo_disponible, saldo_proveedor, notas_pais, notas_parte, notas_region, denominacion_region, marca_fabricante) that resemble one of the real columns but are not reliable — each is flagged on the column itself and should not be selected, filtered, or joined on.
+ai_context:
+  instructions: |-
+    Join cliente and proveedor to pais on id_pais, and pais to region on id_region. Never join on any codigo_* column even though some look like a key — none of them are dependable.
+    Use pais and region, not estado_nacional or zona_geografica, for a customer's or supplier's nation and region.
+    A line item's discounted price is precio_extendido * (1 - descuento), and its profit is that discounted price minus costo_suministro * cantidad; costo_suministro is on parte_proveedor, not on detalle_pedido, so it takes a join to compute.
+datasets:
+- name: cliente
+  source: retails.cliente
+  description: |
+    cliente holds one row per customer, recording their market segment, nation, address, phone, account balance, and comment.
+
+    Grain: one row per customer, keyed by id_cliente. Join to pais on id_pais to reach the customer's nation (and from there, region), and to pedidos on id_cliente to reach the orders that customer placed. The customer's printed name, nombre, embeds the same id_cliente as "Customer#" plus a zero-padded number. Alongside the columns above, this table also carries codigo_cliente, codigo_pais, and saldo_disponible; none of the three is dependable for analysis, and each carries its own reliability note.
+  fields:
+  - name: id_cliente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_cliente
+    description: |
+      The unique identifier for a customer, id_cliente.
+
+      Numeric identifier, one distinct value per row in this table. The same number reappears in nombre as "Customer#" followed by id_cliente zero-padded to nine digits, for example id_cliente 6958 shows up as Customer#000006958. Join to pedidos.id_cliente (one customer to many orders).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: segmento_mercado
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: segmento_mercado
+    description: |
+      The market segment a customer belongs to, segmento_mercado.
+
+      One of five values in the sample: AUTOMOBILE, BUILDING, FURNITURE, HOUSEHOLD, or MACHINERY. Business language calls this a customer's market segment or marketing segment; a phrase like "automobile market segment" or "household segment" is a filter on this column.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to cliente.segmento_mercado, one of AUTOMOBILE, BUILDING, FURNITURE, HOUSEHOLD, or MACHINERY. \"Automobile market segment\" and \"the household segment\" are both equality filters on this column.\n",
+              "id": "term_retails_market_segment",
+              "name": "market segment",
+              "summary": "market segment (marketing segment): the market segment a customer belongs to, segmento_mercado.",
+              "synonyms": [
+                "market segment",
+                "marketing segment"
+              ]
+            }
+          ]
+        }
+  - name: id_pais
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pais
+    description: |
+      The nation a customer belongs to, id_pais.
+
+      Foreign key to pais.id_pais. Nations are numbered 0 through 24 in this corpus, matching the 25 rows of pais. Join to pais to bring in the nation's name and, from there, its region.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nombre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre
+    description: |
+      A customer's printed name, nombre.
+
+      Formatted as "Customer#" followed by id_cliente zero-padded to nine digits, for example Customer#000001161 for id_cliente 1161. Business language calls this the customer's name, or sometimes just "cliente"; a literal like Customer#000000055 names one specific row.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to cliente.nombre, formatted as \"Customer#\" followed by id_cliente zero-padded to nine digits. A business question asking for \"the cliente\" or \"name of the cliente\" wants this column, not id_cliente. A literal like Customer#000000055 pins one exact row.\n",
+              "id": "term_retails_customer_name",
+              "name": "customer name",
+              "summary": "customer name (cliente name, cliente, name of the cliente): the name printed for a customer, cliente.nombre.",
+              "synonyms": [
+                "customer name",
+                "cliente name",
+                "cliente",
+                "name of the cliente"
+              ]
+            }
+          ]
+        }
+  - name: direccion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: direccion
+    description: |
+      A customer's street address, direccion.
+
+      Free-text address string with no fixed format, randomly generated rather than a real street address, for example "YVetSIJBY5Q" or "2zsQDFRzcKTOom".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: telefono
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: telefono
+    description: |
+      A customer's phone number, telefono.
+
+      Formatted NNN-NNN-NNNN. Sample values range from "101-234-5641" to "999-714-8745"; the leading digits loosely track the customer's nation code plus 10.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to cliente.telefono; proveedor.telefono carries the same meaning for suppliers. Formatted NNN-NNN-NNNN, for example 627-220-3983.\n",
+              "id": "term_retails_phone_number",
+              "name": "phone number",
+              "summary": "phone number (phone, telephone): a customer's or a supplier's phone number, telefono.",
+              "synonyms": [
+                "phone number",
+                "phone",
+                "telephone"
+              ]
+            }
+          ]
+        }
+  - name: saldo_cuenta
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: saldo_cuenta
+    description: |
+      A customer's account balance, saldo_cuenta.
+
+      Decimal currency amount. A negative value such as -185.56 means the account is in debt (saldo_cuenta < 0); a value like 9986.91 is a healthy balance. This is the reliable balance column on this table.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to cliente.saldo_cuenta; proveedor.saldo_cuenta carries the same meaning for suppliers. A negative value means the account is in debt: \"in debt\", \"an account in debt\", and \"customers who have a debt balance\" all mean saldo_cuenta < 0. Do not confuse either balance column with the other balance-like column on the same table, which is not dependable for analysis.\n",
+              "id": "term_retails_account_balance",
+              "name": "account balance",
+              "summary": "account balance: a customer's or a supplier's account balance, saldo_cuenta.",
+              "synonyms": [
+                "account balance"
+              ]
+            }
+          ]
+        }
+  - name: comentario
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: comentario
+    description: |
+      A free-text comment recorded for a customer, comentario.
+
+      Auto-generated filler sentences with no structured business meaning, for example "finally pending accounts about t" or "slyly pending deposits wake bl". Not useful for filtering or joins.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: codigo_cliente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_cliente
+    description: |
+      codigo_cliente, a numeric column on the cliente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: codigo_pais
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_pais
+    description: |
+      codigo_pais, a numeric column on the cliente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: saldo_disponible
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: saldo_disponible
+    description: |
+      saldo_disponible, a decimal column on the cliente table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: detalle_pedido
+  source: retails.detalle_pedido
+  description: |
+    detalle_pedido holds one row per line item within an order, with its part, supplier, quantity, pricing, discount, tax, and shipping dates.
+
+    Grain: one row per order line, keyed by (id_pedido, numero_linea). This is the table most quantity, price, discount, tax, and shipping questions run against, and it is easily confused with pedidos, the one-row-per-order header it lines up under. Join to pedidos on id_pedido (many lines to one order), to parte on id_parte (many lines to one part), to proveedor on id_proveedor (many lines to one supplier), and to parte_proveedor on both id_parte and id_proveedor together to reach the cost that supplier charged for that part.
+  fields:
+  - name: fecha_envio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fecha_envio
+    description: |
+      The date a line item was shipped, fecha_envio.
+
+      Calendar date, sampled from 1993-11-26 through 1998-09-29. "Shipped on" or "shipped in <year>" filters this column directly, for example fecha_envio = '1993-12-04' or year(fecha_envio) = 1994. "Shipped the next day" compares this date to the order's fecha_pedido on pedidos: fecha_envio - fecha_pedido = 1.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: id_pedido
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pedido
+    description: |
+      The order a line item belongs to, id_pedido.
+
+      Foreign key to pedidos.id_pedido. More than one line item shares the same id_pedido when an order has multiple parts; numero_linea distinguishes them.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: descuento
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: descuento
+    description: |
+      The discount fraction applied to a line item, descuento.
+
+      Decimal fraction where 0.1 means a 10% discount off precio_extendido. Sample values run 0.0 to 0.1 in steps of 0.01. Used in the discounted-price formula: precio_extendido * (1 - descuento).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to detalle_pedido.descuento. A value of 0.1 means a 10% discount; \"10% off\" is descuento = 0.1.\n",
+              "id": "term_retails_discount",
+              "name": "discount",
+              "summary": "discount: the discount fraction applied to a line item, descuento.",
+              "synonyms": [
+                "discount"
+              ]
+            }
+          ]
+        }
+  - name: precio_extendido
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: precio_extendido
+    description: |
+      The full price of a line item before discount, precio_extendido.
+
+      Decimal currency amount equal to unit price times quantity, before any discount is applied. Sample values include 58303.08, 16947.7, and 4081.08. Discounted price is precio_extendido * (1 - descuento); the total charge after discount and tax adds * (1 + impuesto) on top of that.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to detalle_pedido.precio_extendido, quantity times unit price before any discount. \"Full price of under 16947.7\" is precio_extendido < 16947.7. Discounted price applies descuento on top of this column.\n",
+              "id": "term_retails_extended_price",
+              "name": "extended price",
+              "summary": "extended price (full price): a line item's price before discount, precio_extendido.",
+              "synonyms": [
+                "extended price",
+                "full price"
+              ]
+            }
+          ]
+        }
+  - name: id_proveedor
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_proveedor
+    description: |
+      The supplier who fulfilled a line item, id_proveedor.
+
+      Foreign key to proveedor.id_proveedor. Combined with id_parte, it also identifies the row in parte_proveedor that priced this part for this supplier.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: cantidad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cantidad
+    description: |
+      The quantity ordered on a line item, cantidad.
+
+      Integer count of units, typically 1 to 50 per line. Used in the profit formula together with parte_proveedor.costo_suministro: profit = precio_extendido * (1 - descuento) - costo_suministro * cantidad.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to detalle_pedido.cantidad. \"Quantity greater than 40\" is cantidad > 40; typical values run 1 to 50 per line.\n",
+              "id": "term_retails_line_item_quantity",
+              "name": "line item quantity",
+              "summary": "line item quantity (quantity): the quantity ordered on a line item, cantidad.",
+              "synonyms": [
+                "quantity",
+                "line item quantity"
+              ]
+            }
+          ]
+        }
+  - name: bandera_devolucion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bandera_devolucion
+    description: |
+      The return flag recorded on a line item, bandera_devolucion.
+
+      One of three single-letter codes: R means the item was returned; A and N both mean it was not returned. Only three distinct values appear in the sample: A, N, R.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to detalle_pedido.bandera_devolucion. R means the item was returned; A and N both mean it was not returned. \"Returned\" filters to bandera_devolucion = 'R'; \"not returned\" filters to bandera_devolucion IN ('A', 'N').\n",
+              "id": "term_retails_return_flag",
+              "name": "return flag",
+              "summary": "return flag (returned, not returned): whether a line item was returned, bandera_devolucion.",
+              "synonyms": [
+                "return flag",
+                "returned",
+                "not returned"
+              ]
+            }
+          ]
+        }
+  - name: id_parte
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_parte
+    description: |
+      The part sold on a line item, id_parte.
+
+      Foreign key to parte.id_parte. Combined with id_proveedor, it also identifies the row in parte_proveedor that priced this part for the supplier who fulfilled the line.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: estado_linea
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: estado_linea
+    description: |
+      The line status of a line item, estado_linea.
+
+      Only two values appear in the sample, O and F, and neither carries a documented business meaning distinct from order status. Not useful for filtering.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: impuesto
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: impuesto
+    description: |
+      The tax rate applied to a line item, impuesto.
+
+      Decimal fraction, sampled between 0.0 and 0.08. Total charge after discount and tax is precio_extendido * (1 - descuento) * (1 + impuesto).
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: fecha_compromiso
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fecha_compromiso
+    description: |
+      The commit date promised for a line item, fecha_compromiso.
+
+      Calendar date, sampled from 1993-11-18 through 1998-08-22. Used with fecha_recepcion to compute delivery delay: fecha_recepcion - fecha_compromiso. A line item that shipped earlier than its fecha_compromiso is early; later is late.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: fecha_recepcion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fecha_recepcion
+    description: |
+      The date a line item was actually received, fecha_recepcion.
+
+      Calendar date, sampled from 1993-12-02 through 1998-10-22. Freight, shipping, or delivery time is fecha_recepcion - fecha_compromiso; a smaller difference means faster shipping.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: modo_envio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: modo_envio
+    description: |
+      The shipping mode used for a line item, modo_envio.
+
+      One of seven values in the sample: AIR, RAIL, SHIP, TRUCK, MAIL, and two others. "Shipped by air" is modo_envio = 'AIR'; "via truck" is modo_envio = 'TRUCK'; "shipped by rail" is modo_envio = 'RAIL'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to detalle_pedido.modo_envio, one of AIR, RAIL, SHIP, TRUCK, MAIL, and two others. \"Shipped by air\" is modo_envio = 'AIR'; \"via truck\" is modo_envio = 'TRUCK'; \"parts shipped by rail\" is modo_envio = 'RAIL'.\n",
+              "id": "term_retails_shipping_mode",
+              "name": "shipping mode",
+              "summary": "shipping mode (ship mode, shipping method): how a line item was shipped, modo_envio.",
+              "synonyms": [
+                "shipping mode",
+                "ship mode",
+                "shipping method"
+              ]
+            }
+          ]
+        }
+  - name: numero_linea
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: numero_linea
+    description: |
+      The line number of a line item within its order, numero_linea.
+
+      Small integer, 1 through 7 in the sample, counting up from 1 for each successive part on the same order. Together with id_pedido it uniquely identifies a row in this table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: instrucciones_envio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: instrucciones_envio
+    description: |
+      The shipping instructions recorded for a line item, instrucciones_envio.
+
+      Exactly four values appear in the sample: NONE, TAKE BACK RETURN, COLLECT COD, and DELIVER IN PERSON. "Instructed to be delivered in person" is instrucciones_envio = 'DELIVER IN PERSON'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to detalle_pedido.instrucciones_envio, one of NONE, TAKE BACK RETURN, COLLECT COD, or DELIVER IN PERSON. \"Deliver in person\" and \"instructed to be delivered in person\" both mean instrucciones_envio = 'DELIVER IN PERSON'.\n",
+              "id": "term_retails_ship_instructions",
+              "name": "ship instructions",
+              "summary": "ship instructions (shipping instructions): the delivery instructions on a line item, instrucciones_envio.",
+              "synonyms": [
+                "ship instructions",
+                "shipping instructions"
+              ]
+            }
+          ]
+        }
+  - name: comentario
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: comentario
+    description: |
+      A free-text comment recorded for a line item, comentario.
+
+      Auto-generated filler sentences with no structured business meaning, for example "carefully bo" or "blithely regular pac". Not useful for filtering or joins.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: estado_nacional
+  source: retails.estado_nacional
+  description: |
+    estado_nacional is a table of nation-like records that is not dependable for analysis.
+
+    Every column in estado_nacional is unreliable and does not correspond to the business facts of an actual nation. Do not use this table, or any of its columns, to answer a question. Use pais for a nation's identity, region, and comment, and region for the region itself.
+  fields:
+  - name: id_estado
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_estado
+    description: |
+      id_estado, a numeric column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: denominacion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: denominacion
+    description: |
+      denominacion, a text column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_zona
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_zona
+    description: |
+      id_zona, a numeric column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: notas
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: notas
+    description: |
+      notas, a text column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: pais
+  source: retails.pais
+  description: |
+    pais holds one row per nation, recording its name, region, and a comment.
+
+    Grain: one row per nation, keyed by id_pais; 25 rows in this corpus. Join to region on id_region (many nations to one region), and to cliente or proveedor on id_pais (one nation to many customers or suppliers) to bring a customer's or supplier's nation into a query. Alongside the columns above, this table also carries codigo_pais_nacional, codigo_region, and notas_pais; none of the three is dependable for analysis, and each carries its own reliability note.
+  fields:
+  - name: id_pais
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pais
+    description: |
+      The unique identifier for a nation, id_pais.
+
+      Numeric identifier, 0 through 24, one per row in this table. Referenced from cliente.id_pais and proveedor.id_pais.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nombre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre
+    description: |
+      The name of a nation, nombre.
+
+      Upper-case country name, for example GERMANY, BRAZIL, JAPAN, ARGENTINA, or RUSSIA (25 distinct values). Business phrasings often use a demonym or plain-language name instead of the stored value: "Japanese" and "Russian" both mean nombre = 'JAPAN' or 'RUSSIA', and "the United States" means nombre = 'UNITED STATES'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to pais.nombre, an upper-case country name such as GERMANY or BRAZIL. A demonym in the question often stands in for the country name: \"Japanese\" means nombre = 'JAPAN', \"Russian\" means nombre = 'RUSSIA', and \"Moroccan customers\" means nombre = 'MOROCCO' reached by joining cliente to pais.\n",
+              "id": "term_retails_nation_name",
+              "name": "nation name",
+              "summary": "nation name (country, nationality, pais): the name of a nation, pais.nombre.",
+              "synonyms": [
+                "nation name",
+                "country",
+                "nationality",
+                "pais"
+              ]
+            }
+          ]
+        }
+  - name: id_region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_region
+    description: |
+      The region a nation belongs to, id_region.
+
+      Foreign key to region.id_region, 0 through 4. Join to region to bring in the region's name, for example to answer which nations sit in Asia or the Middle East.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: comentario
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: comentario
+    description: |
+      A free-text comment recorded for a nation, comentario.
+
+      Auto-generated filler sentences with no structured business meaning, for example "silent Tiresias thrash for the blithely" or "ironic dependencies wake carefully alongside of the realms? unusual req". Not useful for filtering or joins.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: codigo_pais_nacional
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_pais_nacional
+    description: |
+      codigo_pais_nacional, a numeric column on the pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: codigo_region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_region
+    description: |
+      codigo_region, a numeric column on the pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: notas_pais
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: notas_pais
+    description: |
+      notas_pais, a text column on the pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: parte
+  source: retails.parte
+  description: |
+    parte holds one row per part, recording its name, type, size, brand, manufacturer, container, and retail price.
+
+    Grain: one row per part, keyed by id_parte. Join to parte_proveedor on id_parte to see which suppliers stock the part and at what cost, and from there to detalle_pedido to see the part's order history. Alongside the columns above, this table also carries codigo_parte, marca_fabricante, and notas_parte; none of the three is dependable for analysis, and each carries its own reliability note.
+  fields:
+  - name: id_parte
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_parte
+    description: |
+      The unique identifier for a part, id_parte.
+
+      Numeric identifier, one distinct value per row in this table. Referenced from detalle_pedido.id_parte and parte_proveedor.id_parte.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: tipo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tipo
+    description: |
+      The type of a part, tipo.
+
+      Free-text type label built from a material and finish, for example "LARGE ANODIZED NICKEL", "MEDIUM PLATED BRASS", or "PROMO BRUSHED STEEL" (145 distinct values in the sample). Matched with an exact string or a prefix like "MEDIUM%".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: tama_o
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tama_o
+    description: |
+      The size number of a part, tama_o.
+
+      Integer, typically 1 through 50. A larger number means a physically larger part, so "the biggest part" is the row with the maximum tama_o and "the smallest part" is the minimum.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to parte.tama_o, an integer where a larger number means a physically larger part. \"The biggest part\" is the row with the maximum tama_o; \"the smallest part\" is the minimum.\n",
+              "id": "term_retails_part_size",
+              "name": "part size",
+              "summary": "part size (size): the size number of a part, tama_o.",
+              "synonyms": [
+                "size",
+                "part size"
+              ]
+            }
+          ]
+        }
+  - name: marca
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: marca
+    description: |
+      The brand of a part, marca.
+
+      Formatted "Brand#" followed by a number, for example Brand#23, Brand#44, or Brand#55 (25 distinct values). A literal like Brand#55 pins one exact brand.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to parte.marca, formatted \"Brand#\" followed by a number, for example Brand#55. Not the same as fabricante (manufacturer), which is a coarser grouping of only 5 values.\n",
+              "id": "term_retails_brand",
+              "name": "brand",
+              "summary": "brand (part brand): the brand of a part, marca.",
+              "synonyms": [
+                "brand",
+                "part brand"
+              ]
+            }
+          ]
+        }
+  - name: nombre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre
+    description: |
+      The name of a part, nombre.
+
+      Free-text name made of color words, for example "orchid khaki green ivory ivory" or "hot hot slate indian plum". Not a real product name; used mainly to pin one exact part in a quoted phrase.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to parte.nombre, a free-text string of color words such as \"orchid khaki green ivory ivory\". Not a real product name; a quoted phrase like \"burnished seashell gainsboro navajo chocolate\" pins one exact part.\n",
+              "id": "term_retails_part_name",
+              "name": "part name",
+              "summary": "part name (parte name, product name, parts name): the name of a part, parte.nombre.",
+              "synonyms": [
+                "part name",
+                "parte name",
+                "product name",
+                "parts name"
+              ]
+            }
+          ]
+        }
+  - name: contenedor
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: contenedor
+    description: |
+      The container a part ships in, contenedor.
+
+      Short code combining a size and a packaging type, for example "MED PKG", "LG CAN", "JUMBO CAN", or "WRAP PKG" (40 distinct values). "Jumbo case container" is contenedor = 'JUMBO CASE'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to parte.contenedor, a short code combining a size and a packaging type, for example JUMBO CASE or MED PKG. \"Jumbo case container\" is contenedor = 'JUMBO CASE'.\n",
+              "id": "term_retails_part_container",
+              "name": "part container",
+              "summary": "part container (container): the container a part ships in, contenedor.",
+              "synonyms": [
+                "container",
+                "part container"
+              ]
+            }
+          ]
+        }
+  - name: fabricante
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fabricante
+    description: |
+      The manufacturer of a part, fabricante.
+
+      Formatted "Manufacturer#" followed by a number 1 through 5 (5 distinct values), a coarser grouping than marca.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: precio_minorista
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: precio_minorista
+    description: |
+      The retail price of a part, precio_minorista.
+
+      Decimal currency amount, generally in the hundreds to low thousands, for example 928.02, 1585.68, or 1318.41. "Above-average retail price" compares this column to its own average across the parts in scope, not a fixed threshold.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to parte.precio_minorista. \"A retail price of over 1900\" is precio_minorista > 1900. \"Above-average retail price\" compares this column to its own average across the parts in scope rather than to a fixed number.\n",
+              "id": "term_retails_retail_price",
+              "name": "retail price",
+              "summary": "retail price: the list retail price of a part, precio_minorista.",
+              "synonyms": [
+                "retail price"
+              ]
+            }
+          ]
+        }
+  - name: comentario
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: comentario
+    description: |
+      A free-text comment recorded for a part, comentario.
+
+      Auto-generated filler sentences with no structured business meaning, for example "furiously i" or "carefully pending". Not useful for filtering or joins.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: codigo_parte
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_parte
+    description: |
+      codigo_parte, a numeric column on the parte table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: marca_fabricante
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: marca_fabricante
+    description: |
+      marca_fabricante, a text column on the parte table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: notas_parte
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: notas_parte
+    description: |
+      notas_parte, a text column on the parte table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: parte_proveedor
+  source: retails.parte_proveedor
+  description: |
+    parte_proveedor holds one row per supplier that stocks a part, recording the supply cost, available quantity, and a comment.
+
+    Grain: one row per (id_parte, id_proveedor) pair — the same part can appear on several rows, one per supplier that stocks it, each at its own cost. Join to parte on id_parte and to proveedor on id_proveedor. Join to detalle_pedido on both id_parte and id_proveedor together to attach a line item's cost of goods; costo_suministro never appears on detalle_pedido itself, so a profit calculation always needs this table.
+  fields:
+  - name: id_parte
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_parte
+    description: |
+      The part a supply row prices, id_parte.
+
+      Foreign key to parte.id_parte. Combined with id_proveedor it forms this table's key, since one part can be stocked by more than one supplier.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_proveedor
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_proveedor
+    description: |
+      The supplier a supply row belongs to, id_proveedor.
+
+      Foreign key to proveedor.id_proveedor. Combined with id_parte it forms this table's key, since one supplier stocks more than one part.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: costo_suministro
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: costo_suministro
+    description: |
+      The cost a supplier charges to supply a part, costo_suministro.
+
+      Decimal currency amount, for example 400.75, 702.61, or 42.67. Profit on a line item is precio_extendido * (1 - descuento) - costo_suministro * cantidad, where the quantity and price come from detalle_pedido and costo_suministro comes from here.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to parte_proveedor.costo_suministro. Needed, together with detalle_pedido's precio_extendido, descuento, and cantidad, to compute a line item's profit.\n",
+              "id": "term_retails_supply_cost",
+              "name": "supply cost",
+              "summary": "supply cost (parte supply cost, cost price): what a supplier charges to supply a part, costo_suministro.",
+              "synonyms": [
+                "supply cost",
+                "parte supply cost",
+                "cost price"
+              ]
+            }
+          ]
+        }
+  - name: cantidad_disponible
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cantidad_disponible
+    description: |
+      The quantity of a part a supplier has available, cantidad_disponible.
+
+      Integer count, for example 1111, 3999, or 5795. A value under 10 is treated as close to being sold out (out of stock); "available quantity of more than 9998" is a filter on the high end of this column.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to parte_proveedor.cantidad_disponible. A value under 10 is treated as close to being sold out (out of stock); \"an available quantity of more than 9998\" is cantidad_disponible > 9998.\n",
+              "id": "term_retails_available_quantity",
+              "name": "available quantity",
+              "summary": "available quantity (supply quantity): how many units of a part a supplier has in stock, cantidad_disponible.",
+              "synonyms": [
+                "available quantity",
+                "supply quantity"
+              ]
+            }
+          ]
+        }
+  - name: comentario
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: comentario
+    description: |
+      A free-text comment recorded for a supply row, comentario.
+
+      Auto-generated filler sentences with no structured business meaning, for example "deposits along the ironic pinto beans boost fluffily even" or "regular pending foxes affix carefully furiously pending no". Not useful for filtering or joins.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: pedidos
+  source: retails.pedidos
+  description: |
+    pedidos holds one row per order, recording who placed it, when, its priority, clerk, status, and total price.
+
+    Grain: one row per order, keyed by id_pedido. It is easily confused with detalle_pedido, the line-item table underneath each order; use pedidos for order-level facts like the customer, date, priority, or total price, and detalle_pedido for anything about individual parts, quantities, or shipping. Join to cliente on id_cliente (many orders to one customer) and to detalle_pedido on id_pedido (one order to many line items).
+  fields:
+  - name: fecha_pedido
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fecha_pedido
+    description: |
+      The date an order was placed, fecha_pedido.
+
+      Calendar date, sampled from 1992-01-10 through 1998-07-28. An earlier fecha_pedido means higher delivery priority when comparing orders, so "lower delivery priority" resolves to MAX(fecha_pedido) and the earliest-placed order to MIN(fecha_pedido).
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: id_pedido
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pedido
+    description: |
+      The unique identifier for an order, id_pedido.
+
+      Numeric identifier, one distinct value per row in this table. Referenced from detalle_pedido.id_pedido. A literal like "order key 32" or "order no.5" pins id_pedido = 32 or 5.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_cliente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_cliente
+    description: |
+      The customer who placed an order, id_cliente.
+
+      Foreign key to cliente.id_cliente. Join to cliente to bring in the customer's name, segment, or nation.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: prioridad_pedido
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prioridad_pedido
+    description: |
+      The priority rate assigned to an order, prioridad_pedido.
+
+      Five values, each a number-dash-word pair: 1-URGENT, 2-HIGH, 3-MEDIUM, 4-NOT SPECIFIED, and 5-LOW. A smaller leading number means higher priority, so "an urgent priority order" is prioridad_pedido = '1-URGENT' and "medium priority" is prioridad_pedido = '3-MEDIUM'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to pedidos.prioridad_pedido, one of 1-URGENT, 2-HIGH, 3-MEDIUM, 4-NOT SPECIFIED, or 5-LOW. A smaller leading number means higher priority. \"An urgent priority order\" is prioridad_pedido = '1-URGENT'.\n",
+              "id": "term_retails_order_priority",
+              "name": "order priority",
+              "summary": "order priority (priority rate): the priority level assigned to an order, prioridad_pedido.",
+              "synonyms": [
+                "order priority",
+                "priority rate"
+              ]
+            }
+          ]
+        }
+  - name: prioridad_envio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prioridad_envio
+    description: |
+      The ship priority recorded on an order, prioridad_envio.
+
+      Only one value, 0, appears in the sample. Not useful for filtering or distinguishing orders.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: empleado
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: empleado
+    description: |
+      The clerk who handled an order, empleado.
+
+      Formatted "Clerk#" followed by a zero-padded number, for example Clerk#000000916 or Clerk#000000373 (387 distinct in the sample). Business language calls this the order's clerk, or "the clerk who served the customer".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to pedidos.empleado, formatted \"Clerk#\" followed by a zero-padded number. \"The clerk who served the customer\" is this column, reached through pedidos rather than cliente.\n",
+              "id": "term_retails_order_clerk",
+              "name": "order clerk",
+              "summary": "order clerk (clerk): the clerk who handled an order, empleado.",
+              "synonyms": [
+                "clerk",
+                "order clerk"
+              ]
+            }
+          ]
+        }
+  - name: estado_pedido
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: estado_pedido
+    description: |
+      The status of an order, estado_pedido.
+
+      Three single-letter codes appear in the sample: P, O, and F. Not documented with a business meaning beyond the code itself; not useful for filtering.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: precio_total
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: precio_total
+    description: |
+      The total price of an order, precio_total.
+
+      Decimal currency amount summing the order's line items, for example 203198.56, 317720.0, or 191918.92. "A total price of more than $300,000" is a filter of precio_total > 300000.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to pedidos.precio_total, the sum of an order's line items. \"A total price over $300000\" is precio_total > 300000.\n",
+              "id": "term_retails_order_total_price",
+              "name": "order total price",
+              "summary": "order total price (total price): the total price of an order, precio_total.",
+              "synonyms": [
+                "total price",
+                "order total price"
+              ]
+            }
+          ]
+        }
+  - name: comentario
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: comentario
+    description: |
+      A free-text comment recorded for an order, comentario.
+
+      Auto-generated filler sentences with no structured business meaning, for example "final packages sleep blithely packa" or "deposits hang slyly across the en". Not useful for filtering or joins.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: proveedor
+  source: retails.proveedor
+  description: |
+    proveedor holds one row per supplier, recording their nation, address, phone, account balance, and comment.
+
+    Grain: one row per supplier, keyed by id_proveedor. Join to pais on id_pais to reach the supplier's nation, to parte_proveedor on id_proveedor to see which parts a supplier stocks, and to detalle_pedido on id_proveedor to see a supplier's order history. Alongside the columns above, this table also carries proveedor_pais_id, codigo_proveedor, and saldo_proveedor; none of the three is dependable for analysis, and each carries its own reliability note.
+  fields:
+  - name: id_proveedor
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_proveedor
+    description: |
+      The unique identifier for a supplier, id_proveedor.
+
+      Numeric identifier, one distinct value per row in this table. The same number reappears in nombre as "Supplier#" plus this number zero-padded to nine digits. Referenced from detalle_pedido.id_proveedor and parte_proveedor.id_proveedor.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_pais
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pais
+    description: |
+      The nation a supplier belongs to, id_pais.
+
+      Foreign key to pais.id_pais. Join to pais to bring in the supplier's nation name and, from there, its region, for example to find suppliers from Europe or the Middle East.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: comentario
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: comentario
+    description: |
+      A free-text comment recorded for a supplier, comentario.
+
+      Auto-generated filler sentences with no structured business meaning, for example "even deposits grow. carefully iro" or "bold pending packages affix". Not useful for filtering or joins.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nombre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre
+    description: |
+      A supplier's printed name, nombre.
+
+      Formatted "Supplier#" followed by id_proveedor zero-padded to nine digits, for example Supplier#000000116 for id_proveedor 116. A literal like Supplier#000000129 names one specific row.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to proveedor.nombre, formatted as \"Supplier#\" followed by id_proveedor zero-padded to nine digits. A business question asking for \"the proveedor\" or \"supplier's name\" wants this column, not id_proveedor. A literal like Supplier#000000129 pins one exact row.\n",
+              "id": "term_retails_supplier_name",
+              "name": "supplier name",
+              "summary": "supplier name (proveedor name, proveedor, supplier's name): the name printed for a supplier, proveedor.nombre.",
+              "synonyms": [
+                "supplier name",
+                "proveedor name",
+                "proveedor",
+                "supplier's name"
+              ]
+            }
+          ]
+        }
+  - name: direccion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: direccion
+    description: |
+      A supplier's street address, direccion.
+
+      Free-text address string with no fixed format, randomly generated rather than a real street address, for example "DdSwNaTwmb" or "Ii3K lKvWa".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: telefono
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: telefono
+    description: |
+      A supplier's phone number, telefono.
+
+      Formatted NNN-NNN-NNNN, for example "587-353-2163" or "493-863-1470"; sample values range from "100-135-3648" to "999-862-9063".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: saldo_cuenta
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: saldo_cuenta
+    description: |
+      A supplier's account balance, saldo_cuenta.
+
+      Decimal currency amount. A negative value such as -114.5 means the account is in debt (saldo_cuenta < 0); a value like 9995.03 is a healthy balance. This is the reliable balance column on this table.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: proveedor_pais_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: proveedor_pais_id
+    description: |
+      proveedor_pais_id, a numeric column on the proveedor table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: codigo_proveedor
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_proveedor
+    description: |
+      codigo_proveedor, a numeric column on the proveedor table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: saldo_proveedor
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: saldo_proveedor
+    description: |
+      saldo_proveedor, a decimal column on the proveedor table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: region
+  source: retails.region
+  description: |
+    region holds one row per world region, recording its name and a comment.
+
+    Grain: one row per region, keyed by id_region; 5 rows in this corpus (Africa, America, Asia, Europe, Middle East). Join to pais on id_region (one region to many nations) to find which nations sit in a region. Alongside the columns above, this table also carries codigo_region_local, notas_region, and denominacion_region; none of the three is dependable for analysis, and each carries its own reliability note.
+  fields:
+  - name: id_region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_region
+    description: |
+      The unique identifier for a region, id_region.
+
+      Numeric identifier, 0 through 4, one per row in this table. Referenced from pais.id_region. "No.2 region" pins id_region = 2.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nombre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre
+    description: |
+      The name of a region, nombre.
+
+      One of five upper-case values: AFRICA, AMERICA, ASIA, EUROPE, or MIDDLE EAST. Business phrasings vary the case and article, for example "the American region" or "countries in the region of Asia" both mean nombre = 'AMERICA' or 'ASIA'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to region.nombre, one of AFRICA, AMERICA, ASIA, EUROPE, or MIDDLE EAST. Phrasing varies, and not always correctly: \"the American region\" resolves here to nombre = 'AMERICA', but \"the algeria region\" names a nation, not a region — check whether the value is one of these five before choosing region over pais.\n",
+              "id": "term_retails_region_name",
+              "name": "region name",
+              "summary": "region name (region): the name of a world region, region.nombre.",
+              "synonyms": [
+                "region name",
+                "region"
+              ]
+            }
+          ]
+        }
+  - name: comentario
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: comentario
+    description: |
+      A free-text comment recorded for a region, comentario.
+
+      Auto-generated filler sentences with no structured business meaning, for example "furiously express accounts wake sly" or "asymptotes sublate after the r". Not useful for filtering or joins.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: codigo_region_local
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_region_local
+    description: |
+      codigo_region_local, a numeric column on the region table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: notas_region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: notas_region
+    description: |
+      notas_region, a text column on the region table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: denominacion_region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: denominacion_region
+    description: |
+      denominacion_region, a text column on the region table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: zona_geografica
+  source: retails.zona_geografica
+  description: |
+    zona_geografica is a table of region-like records that is not dependable for analysis.
+
+    Every column in zona_geografica is unreliable and does not correspond to the business facts of an actual region. Do not use this table, or any of its columns, to answer a question. Use region for a region's identity and comment, and pais for the nations within it.
+  fields:
+  - name: id_zona
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_zona
+    description: |
+      id_zona, a numeric column on the zona_geografica table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: denominacion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: denominacion
+    description: |
+      denominacion, a text column on the zona_geografica table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: observaciones
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: observaciones
+    description: |
+      observaciones, a text column on the zona_geografica table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_retails_cliente_pais_5ee96255
+  from: cliente
+  to: pais
+  from_columns:
+  - id_pais
+  to_columns:
+  - id_pais
+  ai_context:
+    instructions: |
+      A customer's nation, joining cliente to pais on id_pais.
+
+      Each cliente row carries one id_pais; each pais row is one distinct nation. Use this join to bring a customer's nation name, or its region by joining pais on to region, into a query about customers grouped or filtered by nation.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between cliente and pais in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_retails_cliente_pedidos_ddf9d029
+  from: pedidos
+  to: cliente
+  from_columns:
+  - id_cliente
+  to_columns:
+  - id_cliente
+  ai_context:
+    instructions: |
+      A customer's orders, joining cliente to pedidos on id_cliente.
+
+      Each cliente row can match many pedidos rows, one per order that customer placed. Use this join to bring a customer's name, segment, or nation into an order-level question, or to count or total the orders a customer or a group of customers has placed.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between cliente and pedidos in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_retails_detalle_pedido_parte_ca613b90
+  from: detalle_pedido
+  to: parte
+  from_columns:
+  - id_parte
+  to_columns:
+  - id_parte
+  ai_context:
+    instructions: |
+      A line item's part, joining detalle_pedido to parte on id_parte.
+
+      Each detalle_pedido row carries one id_parte; each parte row is one distinct part. Use this join to bring a part's name, type, brand, size, or retail price into a question about line items, quantities, or revenue for a specific part.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between detalle_pedido and parte in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_retails_detalle_pedido_pedidos_e7be786c
+  from: detalle_pedido
+  to: pedidos
+  from_columns:
+  - id_pedido
+  to_columns:
+  - id_pedido
+  ai_context:
+    instructions: |
+      A line item's order, joining detalle_pedido to pedidos on id_pedido.
+
+      Each detalle_pedido row carries one id_pedido; each pedidos row is one distinct order. Use this join to bring an order's customer, date, priority, or total price into a question about line items, or to roll line-item quantities and prices up to the order level.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between detalle_pedido and pedidos in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_retails_detalle_pedido_proveedor_3434a7eb
+  from: detalle_pedido
+  to: proveedor
+  from_columns:
+  - id_proveedor
+  to_columns:
+  - id_proveedor
+  ai_context:
+    instructions: |
+      A line item's fulfilling supplier, joining detalle_pedido to proveedor on id_proveedor.
+
+      Each detalle_pedido row carries one id_proveedor; each proveedor row is one distinct supplier. Use this join to bring a supplier's name or nation into a question about which supplier fulfilled a line item, independent of parte_proveedor's cost and quantity data.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between detalle_pedido and proveedor in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_retails_pais_proveedor_0ab79085
+  from: proveedor
+  to: pais
+  from_columns:
+  - id_pais
+  to_columns:
+  - id_pais
+  ai_context:
+    instructions: |
+      A supplier's nation, joining pais to proveedor on id_pais.
+
+      Each pais row can match many proveedor rows, one per supplier in that nation. Use this join to bring a supplier's nation name into a query, or to filter or count suppliers by nation.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between pais and proveedor in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_retails_pais_region_ed5af2d0
+  from: pais
+  to: region
+  from_columns:
+  - id_region
+  to_columns:
+  - id_region
+  ai_context:
+    instructions: |
+      A nation's region, joining pais to region on id_region.
+
+      Each pais row carries one id_region; each region row is one of the five world regions. Use this join to answer a question phrased in terms of a region like Asia or the Middle East rather than an individual nation.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between pais and region in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_retails_parte_parte_proveedor_c7255eba
+  from: parte_proveedor
+  to: parte
+  from_columns:
+  - id_parte
+  to_columns:
+  - id_parte
+  ai_context:
+    instructions: |
+      A part's suppliers and cost, joining parte to parte_proveedor on id_parte.
+
+      Each parte row can match many parte_proveedor rows, one per supplier that stocks the part. Use this join to answer a question about a part's supply cost or available quantity, or to find which suppliers carry a given part.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between parte and parte_proveedor in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_retails_parte_proveedor_proveedor_5b4b9388
+  from: parte_proveedor
+  to: proveedor
+  from_columns:
+  - id_proveedor
+  to_columns:
+  - id_proveedor
+  ai_context:
+    instructions: |
+      A supply row's supplier, joining parte_proveedor to proveedor on id_proveedor.
+
+      Each parte_proveedor row carries one id_proveedor; each proveedor row is one distinct supplier. Use this join to bring a supplier's name or nation into a question about supply cost or available quantity.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between parte_proveedor and proveedor in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_6670",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0000",
+          "sql": "SELECT COUNT(\"numero_linea\") FROM \"retails\".\"detalle_pedido\" WHERE \"id_pedido\" = 5 AND \"bandera_devolucion\" = 'R'",
+          "summary": "How many kinds of items are returned in order no.5?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6671",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0001",
+          "sql": "SELECT MAX(\"fecha_envio\") FROM \"retails\".\"detalle_pedido\" WHERE \"id_pedido\" = 1",
+          "summary": "When was the latest date the items of order no.1 were shipped?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6672",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0002",
+          "sql": "SELECT \"id_pedido\" FROM \"retails\".\"detalle_pedido\" WHERE \"id_pedido\" IN (4, 36) ORDER BY \"fecha_envio\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which order has a higher priority, order no. 4 or order no. 36?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6673",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0003",
+          "sql": "SELECT \"comentario\" FROM \"retails\".\"pedidos\" WHERE \"precio_total\" = (SELECT MAX(\"precio_total\") FROM \"retails\".\"pedidos\")",
+          "summary": "What is the comment of the order with the highest total price?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6680",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0004",
+          "sql": "SELECT COUNT(\"T1\".\"prioridad_pedido\") FROM \"retails\".\"pedidos\" AS \"T1\" INNER JOIN \"retails\".\"cliente\" AS \"T2\" ON \"T1\".\"id_cliente\" = \"T2\".\"id_cliente\" WHERE \"T2\".\"segmento_mercado\" = 'HOUSEHOLD' AND \"T1\".\"prioridad_pedido\" = '1-URGENT'",
+          "summary": "Among the orders made by customers in the household segment, how many of them are urgent?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6681",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0005",
+          "sql": "SELECT COUNT(\"T1\".\"id_cliente\") FROM \"retails\".\"cliente\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T2\".\"nombre\" = 'BRAZIL'",
+          "summary": "How many customers are in Brazil?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6682",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0006",
+          "sql": "SELECT \"T1\".\"telefono\" FROM \"retails\".\"cliente\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T1\".\"segmento_mercado\" = 'HOUSEHOLD' AND \"T2\".\"nombre\" = 'BRAZIL'",
+          "summary": "Please list the phone numbers of all the customers in the household segment and are in Brazil."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6683",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0007",
+          "sql": "SELECT COUNT(\"T1\".\"id_cliente\") FROM \"retails\".\"cliente\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T2\".\"nombre\" = 'GERMANY' AND \"T1\".\"saldo_cuenta\" > 1000",
+          "summary": "Among all the customers in Germany, how many of them have an account balance of over 1000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6688",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0008",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"nombre\" = 'GERMANY' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id_cliente\"), 0) FROM \"retails\".\"cliente\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\"",
+          "summary": "Among all the customers, what is the percentage of the customer's nation being Germany?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6689",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0009",
+          "sql": "SELECT COUNT(\"id_pais\") FROM \"retails\".\"pais\" WHERE \"id_region\" = 2",
+          "summary": "How many countries are there in the No.2 region?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6691",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0010",
+          "sql": "SELECT \"T3\".\"nombre\" FROM \"retails\".\"pais\" AS \"T1\" INNER JOIN \"retails\".\"proveedor\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" INNER JOIN \"retails\".\"region\" AS \"T3\" ON \"T1\".\"id_region\" = \"T3\".\"id_region\" WHERE \"T2\".\"nombre\" = 'Supplier#000000129'",
+          "summary": "Which region does \"Supplier#000000129\" belong to?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6693",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0011",
+          "sql": "SELECT \"T3\".\"nombre\" FROM \"retails\".\"pais\" AS \"T1\" INNER JOIN \"retails\".\"cliente\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" INNER JOIN \"retails\".\"region\" AS \"T3\" ON \"T1\".\"id_region\" = \"T3\".\"id_region\" WHERE \"T2\".\"id_cliente\" = 106936",
+          "summary": "Give customer No.106936's region name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6694",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0012",
+          "sql": "SELECT COUNT(\"T1\".\"nombre\") FROM \"retails\".\"cliente\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T2\".\"nombre\" = 'MOROCCO' AND \"T1\".\"saldo_cuenta\" < 0",
+          "summary": "Give the number of Moroccan customers whose account is in debt."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6698",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0013",
+          "sql": "SELECT CAST(EXTRACT(EPOCH FROM CAST(\"T2\".\"fecha_recepcion\" AS TIMESTAMP)) AS DOUBLE PRECISION) / 86400.0 - CAST(EXTRACT(EPOCH FROM CAST(\"T2\".\"fecha_compromiso\" AS TIMESTAMP)) AS DOUBLE PRECISION) / 86400.0 FROM \"retails\".\"pedidos\" AS \"T1\" INNER JOIN \"retails\".\"detalle_pedido\" AS \"T2\" ON \"T1\".\"id_pedido\" = \"T2\".\"id_pedido\" WHERE \"T1\".\"id_cliente\" = '129301' AND \"T1\".\"fecha_pedido\" = '1996-07-27'",
+          "summary": "Customer No.129301 made an order on 1996/7/27, what was the delivery time for the first part of that order?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6702",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0014",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"nombre\" = 'EUROPE' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"nombre\"), 0) FROM \"retails\".\"pais\" AS \"T1\" INNER JOIN \"retails\".\"region\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id_region\"",
+          "summary": "What is the percentage of the European countries among the given countries?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6704",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0015",
+          "sql": "SELECT \"nombre\" FROM \"retails\".\"cliente\" WHERE \"saldo_cuenta\" = (SELECT MIN(\"saldo_cuenta\") FROM \"retails\".\"cliente\")",
+          "summary": "What is the name of the customer with the highest amount of debt?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6706",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0016",
+          "sql": "SELECT COUNT(\"id_cliente\") FROM \"retails\".\"cliente\" WHERE \"saldo_cuenta\" < 0",
+          "summary": "How many customers are in debt?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6708",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0017",
+          "sql": "SELECT COUNT(\"id_cliente\") FROM \"retails\".\"cliente\" WHERE \"segmento_mercado\" = 'AUTOMOBILE'",
+          "summary": "How many customers are in the automobile market segment?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6709",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0018",
+          "sql": "SELECT \"id_pedido\" FROM \"retails\".\"detalle_pedido\" ORDER BY \"precio_extendido\" DESC NULLS LAST LIMIT 2",
+          "summary": "What are the top 2 order keys of the item with the highest amount of extended price?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6710",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0019",
+          "sql": "SELECT \"T2\".\"fecha_envio\" FROM \"retails\".\"pedidos\" AS \"T1\" INNER JOIN \"retails\".\"detalle_pedido\" AS \"T2\" ON \"T1\".\"id_pedido\" = \"T2\".\"id_pedido\" ORDER BY \"T1\".\"precio_total\" DESC NULLS LAST LIMIT 1",
+          "summary": "When was the order with the highest amount of total price shipped?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6711",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0020",
+          "sql": "SELECT \"T\".\"nombre\" FROM (SELECT \"T2\".\"nombre\", COUNT(\"T1\".\"id_cliente\") AS \"num\" FROM \"retails\".\"cliente\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" GROUP BY \"T2\".\"nombre\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 1",
+          "summary": "In which country do most of the customers come from?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6712",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0021",
+          "sql": "SELECT COUNT(\"T2\".\"id_pedido\") FROM \"retails\".\"detalle_pedido\" AS \"T1\" INNER JOIN \"retails\".\"pedidos\" AS \"T2\" ON \"T2\".\"id_pedido\" = \"T1\".\"id_pedido\" WHERE CAST(EXTRACT(EPOCH FROM CAST(\"T1\".\"fecha_envio\" AS TIMESTAMP)) AS DOUBLE PRECISION) / 86400.0 - CAST(EXTRACT(EPOCH FROM CAST(\"T2\".\"fecha_pedido\" AS TIMESTAMP)) AS DOUBLE PRECISION) / 86400.0 = 1 AND \"T2\".\"prioridad_pedido\" = '1-URGENT'",
+          "summary": "How many urgent orders were shipped the next day?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6713",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0022",
+          "sql": "SELECT COUNT(\"T1\".\"id_cliente\") FROM \"retails\".\"cliente\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T1\".\"saldo_cuenta\" < 0 AND \"T1\".\"segmento_mercado\" = 'HOUSEHOLD' AND \"T2\".\"nombre\" = 'RUSSIA'",
+          "summary": "How many in debt customers in the household market segment are from Russia?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6716",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0023",
+          "sql": "SELECT \"T\".\"segmento_mercado\" FROM (SELECT \"T1\".\"segmento_mercado\", COUNT(\"T1\".\"id_cliente\") AS \"num\" FROM \"retails\".\"cliente\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T2\".\"nombre\" = 'UNITED STATES' GROUP BY \"T1\".\"segmento_mercado\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among the customers from the United States, which market segment has the highest number of customers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6717",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0024",
+          "sql": "SELECT \"T1\".\"nombre\" FROM \"retails\".\"pais\" AS \"T1\" INNER JOIN \"retails\".\"region\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id_region\" WHERE \"T2\".\"nombre\" = 'ASIA'",
+          "summary": "What are the countries in the region of Asia?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6724",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0025",
+          "sql": "SELECT COUNT(\"numero_linea\") FROM \"retails\".\"detalle_pedido\" WHERE \"fecha_envio\" = '1993-12-04'",
+          "summary": "How many items were shipped on 4th December, 1993?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6725",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0026",
+          "sql": "SELECT \"fecha_pedido\" FROM \"retails\".\"pedidos\" WHERE \"precio_total\" = (SELECT MAX(\"precio_total\") FROM \"retails\".\"pedidos\")",
+          "summary": "What was the order date of items with the highest total price?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6726",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0027",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"saldo_cuenta\" < 0 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"id_cliente\"), 0) FROM \"retails\".\"cliente\"",
+          "summary": "Calculate the percentage of customers' accounts in debt."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6729",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0028",
+          "sql": "SELECT \"nombre\" FROM \"retails\".\"parte\" WHERE \"tipo\" = 'MEDIUM PLATED BRASS' LIMIT 5",
+          "summary": "List any five parts name in Medium Plated Brass."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6733",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0029",
+          "sql": "SELECT \"T1\".\"nombre\", \"T1\".\"id_pais\" FROM \"retails\".\"pais\" AS \"T1\" INNER JOIN \"retails\".\"region\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id_region\" WHERE \"T2\".\"nombre\" = 'AFRICA'",
+          "summary": "List down the nation keys and names in Africa."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6738",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0030",
+          "sql": "SELECT \"T3\".\"nombre\" FROM \"retails\".\"parte\" AS \"T1\" INNER JOIN \"retails\".\"parte_proveedor\" AS \"T2\" ON \"T1\".\"id_parte\" = \"T2\".\"id_parte\" INNER JOIN \"retails\".\"proveedor\" AS \"T3\" ON \"T2\".\"id_proveedor\" = \"T3\".\"id_proveedor\" WHERE \"T1\".\"nombre\" = 'smoke red pale saddle plum'",
+          "summary": "List the suppliers' names which supplied smoke red pale saddle plum."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6739",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0031",
+          "sql": "SELECT COUNT(\"T3\".\"nombre\") FROM \"retails\".\"region\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id_region\" INNER JOIN \"retails\".\"proveedor\" AS \"T3\" ON \"T2\".\"id_pais\" = \"T3\".\"id_pais\" WHERE \"T3\".\"saldo_cuenta\" < 0 AND \"T1\".\"nombre\" = 'MIDDLE EAST'",
+          "summary": "Among the suppliers from Middle East region, how many suppliers were in debt?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6741",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0032",
+          "sql": "SELECT \"T2\".\"nombre\" FROM \"retails\".\"parte_proveedor\" AS \"T1\" INNER JOIN \"retails\".\"parte\" AS \"T2\" ON \"T1\".\"id_parte\" = \"T2\".\"id_parte\" INNER JOIN \"retails\".\"proveedor\" AS \"T3\" ON \"T1\".\"id_proveedor\" = \"T3\".\"id_proveedor\" WHERE \"T1\".\"costo_suministro\" > 900 AND \"T3\".\"nombre\" = 'Supplier#000000018'",
+          "summary": "Among the parts supplied by Supplier#000000018, provide parts names which had supply costs above 900."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6744",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0033",
+          "sql": "SELECT COUNT(\"id_cliente\") FROM \"retails\".\"cliente\" WHERE \"segmento_mercado\" = 'FURNITURE' AND \"id_pais\" = 1",
+          "summary": "Among the customers in the furniture market segment, how many of them have a nation key of 1?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6745",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0034",
+          "sql": "SELECT \"telefono\" FROM \"retails\".\"cliente\" ORDER BY \"saldo_cuenta\" DESC NULLS LAST LIMIT 1",
+          "summary": "Give the phone number of the customer with the highest account balance."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6747",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0035",
+          "sql": "SELECT COUNT(\"T1\".\"id_pedido\") FROM \"retails\".\"pedidos\" AS \"T1\" INNER JOIN \"retails\".\"cliente\" AS \"T2\" ON \"T1\".\"id_cliente\" = \"T2\".\"id_cliente\" INNER JOIN \"retails\".\"pais\" AS \"T3\" ON \"T2\".\"id_pais\" = \"T3\".\"id_pais\" WHERE \"T3\".\"nombre\" = 'UNITED STATES'",
+          "summary": "What is the total number of orders made by customers in United States?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6748",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0036",
+          "sql": "SELECT COUNT(\"T1\".\"id_cliente\") FROM \"retails\".\"cliente\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T1\".\"segmento_mercado\" = 'AUTOMOBILE' AND \"T2\".\"nombre\" = 'BRAZIL'",
+          "summary": "Among the customers from Brazil, how many customers are in automobile market segment?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6751",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0037",
+          "sql": "SELECT \"T1\".\"nombre\" FROM \"retails\".\"pais\" AS \"T1\" INNER JOIN \"retails\".\"region\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id_region\" WHERE \"T2\".\"comentario\" = 'furiously express accounts wake sly'",
+          "summary": "Name the countries that belong in the region with comment description \"furiously express accounts wake sly\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6752",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0038",
+          "sql": "SELECT COUNT(\"T1\".\"id_proveedor\") FROM \"retails\".\"proveedor\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T2\".\"nombre\" = 'GERMANY'",
+          "summary": "What is the total number of suppliers from Germany?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6753",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0039",
+          "sql": "SELECT COUNT(\"T1\".\"nombre\") FROM \"retails\".\"pais\" AS \"T1\" INNER JOIN \"retails\".\"cliente\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" INNER JOIN \"retails\".\"region\" AS \"T3\" ON \"T1\".\"id_region\" = \"T3\".\"id_region\" WHERE \"T2\".\"saldo_cuenta\" < 0 AND \"T3\".\"nombre\" = 'ASIA'",
+          "summary": "Among the customers in Asia, how many customers are in debt?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6757",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0040",
+          "sql": "SELECT \"T1\".\"nombre\", \"T3\".\"nombre\" FROM \"retails\".\"pais\" AS \"T1\" INNER JOIN \"retails\".\"cliente\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" INNER JOIN \"retails\".\"region\" AS \"T3\" ON \"T1\".\"id_region\" = \"T3\".\"id_region\" WHERE \"T2\".\"direccion\" = 'wH55UnX7 VI'",
+          "summary": "Provide the nation and region of the customer with the address of wH55UnX7 VI?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6761",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0041",
+          "sql": "SELECT \"nombre\", \"telefono\" FROM \"retails\".\"cliente\" WHERE \"saldo_cuenta\" > 9000",
+          "summary": "Give the name and phone number of the customers who have more than 9000 account balance."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6764",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0042",
+          "sql": "SELECT \"id_parte\" FROM \"retails\".\"parte\" WHERE \"precio_minorista\" > (SELECT AVG(\"precio_minorista\") FROM \"retails\".\"parte\")",
+          "summary": "Find and list the part key of the parts which has an above-average retail price."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6765",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0043",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"costo_suministro\" > 500 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"id_proveedor\"), 0) FROM \"retails\".\"parte_proveedor\"",
+          "summary": "Calculate the percentage of part supply that costs more than 500."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6766",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0044",
+          "sql": "SELECT \"id_proveedor\", \"saldo_cuenta\" FROM \"retails\".\"proveedor\" ORDER BY \"saldo_cuenta\" DESC NULLS LAST LIMIT 10",
+          "summary": "Find the supply key of the top ten suppliers with the most account balance, and list the supply key along with the account balance in descending order of account balance."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6770",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0045",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"segmento_mercado\" = 'AUTOMOBILE' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"nombre\"), 0) FROM \"retails\".\"cliente\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T2\".\"nombre\" = 'FRANCE'",
+          "summary": "What percentage of customers from France is in the automobile segment?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6774",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0046",
+          "sql": "SELECT \"T1\".\"nombre\" FROM \"retails\".\"parte\" AS \"T1\" INNER JOIN \"retails\".\"parte_proveedor\" AS \"T2\" ON \"T1\".\"id_parte\" = \"T2\".\"id_parte\" ORDER BY \"T2\".\"cantidad_disponible\" DESC NULLS LAST LIMIT 10",
+          "summary": "List the name of the top ten items with the most quantity available in the descending order of availability."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6777",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0047",
+          "sql": "SELECT COUNT(\"T2\".\"id_parte\") FROM \"retails\".\"pedidos\" AS \"T1\" INNER JOIN \"retails\".\"detalle_pedido\" AS \"T2\" ON \"T1\".\"id_pedido\" = \"T2\".\"id_pedido\" WHERE \"T2\".\"modo_envio\" = 'RAIL' AND \"T1\".\"prioridad_pedido\" = '3-MEDIUM'",
+          "summary": "In the parts shipped by rail, how many are of medium priority?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6780",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0048",
+          "sql": "SELECT \"id_cliente\" FROM \"retails\".\"cliente\" WHERE \"saldo_cuenta\" < 0",
+          "summary": "List by their id all customers who have a debit balance in their accounts."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6781",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0049",
+          "sql": "SELECT \"id_pedido\" FROM \"retails\".\"detalle_pedido\" ORDER BY \"precio_extendido\" * (1 - \"descuento\") NULLS FIRST LIMIT 3",
+          "summary": "List by order number the 3 items with the lowest price after applying the discount."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6784",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0050",
+          "sql": "SELECT COUNT(\"id_pedido\") FROM \"retails\".\"pedidos\" WHERE \"prioridad_pedido\" = '1-URGENT' GROUP BY \"fecha_pedido\" ORDER BY \"fecha_pedido\" DESC NULLS LAST LIMIT 1",
+          "summary": "Of the orders with a lower delivery priority, how many have an urgent priority order?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6785",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0051",
+          "sql": "SELECT COUNT(\"T1\".\"id_proveedor\") FROM \"retails\".\"proveedor\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T1\".\"saldo_cuenta\" < 0 AND \"T2\".\"nombre\" = 'EGYPT'",
+          "summary": "How many suppliers from Egypt have a debit balance?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6787",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0052",
+          "sql": "SELECT COUNT(\"T1\".\"id_pais\") FROM \"retails\".\"pais\" AS \"T1\" INNER JOIN \"retails\".\"region\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id_region\" INNER JOIN \"retails\".\"proveedor\" AS \"T3\" ON \"T1\".\"id_pais\" = \"T3\".\"id_pais\" WHERE \"T2\".\"nombre\" = 'EUROPE'",
+          "summary": "How many European suppliers are there?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6792",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0053",
+          "sql": "SELECT \"T1\".\"nombre\" FROM \"retails\".\"parte\" AS \"T1\" INNER JOIN \"retails\".\"parte_proveedor\" AS \"T2\" ON \"T1\".\"id_parte\" = \"T2\".\"id_parte\" WHERE \"T2\".\"cantidad_disponible\" < 10 ORDER BY \"T2\".\"costo_suministro\" NULLS FIRST LIMIT 1",
+          "summary": "Indicate the name of the product that is close to being sold out and that has the lowest cost price."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6793",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0054",
+          "sql": "SELECT COUNT(\"T1\".\"empleado\") FROM \"retails\".\"pedidos\" AS \"T1\" INNER JOIN \"retails\".\"cliente\" AS \"T2\" ON \"T1\".\"id_cliente\" = \"T2\".\"id_cliente\" WHERE \"T2\".\"direccion\" = 'uFTe2u518et8Q8UC'",
+          "summary": "How many different clerks have served the customer with the address uFTe2u518et8Q8UC?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6798",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0055",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"nombre\" = 'IRAN' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"nombre\"), 0) FROM \"retails\".\"cliente\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T1\".\"segmento_mercado\" = 'HOUSEHOLD'",
+          "summary": "What percentage of customers engaged in the household segment are from Iran?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6801",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0056",
+          "sql": "SELECT COUNT(\"numero_linea\") FROM \"retails\".\"detalle_pedido\" WHERE \"cantidad\" > 40 AND \"modo_envio\" = 'AIR'",
+          "summary": "How many of the line items that have a quantity greater than 40 have been shipped by air?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6805",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0057",
+          "sql": "SELECT \"nombre\" FROM \"retails\".\"cliente\" WHERE \"saldo_cuenta\" < 0 LIMIT 3",
+          "summary": "Please list any three customers with debt."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6809",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0058",
+          "sql": "SELECT \"T1\".\"nombre\" FROM \"retails\".\"parte\" AS \"T1\" INNER JOIN \"retails\".\"parte_proveedor\" AS \"T2\" ON \"T1\".\"id_parte\" = \"T2\".\"id_parte\" WHERE \"T2\".\"cantidad_disponible\" > 9998 LIMIT 3",
+          "summary": "Please name any three parts that have an available quantity of more than 9998."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6811",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0059",
+          "sql": "SELECT \"T2\".\"nombre\" FROM \"retails\".\"proveedor\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T1\".\"id_proveedor\" = 1",
+          "summary": "What is the nationality of supplier number 1?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6813",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0060",
+          "sql": "SELECT \"T\".\"nombre\" FROM (SELECT \"T1\".\"nombre\", COUNT(\"T2\".\"nombre\") AS \"num\" FROM \"retails\".\"region\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id_region\" GROUP BY \"T1\".\"nombre\") AS \"T\" ORDER BY \"T\".\"num\" NULLS FIRST LIMIT 1",
+          "summary": "Which region has the lowest number of countries?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6816",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0061",
+          "sql": "SELECT \"T1\".\"nombre\", \"T3\".\"nombre\" FROM \"retails\".\"pais\" AS \"T1\" INNER JOIN \"retails\".\"cliente\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" INNER JOIN \"retails\".\"region\" AS \"T3\" ON \"T1\".\"id_region\" = \"T3\".\"id_region\" WHERE \"T2\".\"nombre\" = 'Customer#000000008'",
+          "summary": "Which nation and region does the Customer#000000008 come from?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6817",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0062",
+          "sql": "SELECT CAST(EXTRACT(EPOCH FROM CAST(\"T2\".\"fecha_recepcion\" AS TIMESTAMP)) AS DOUBLE PRECISION) / 86400.0 - CAST(EXTRACT(EPOCH FROM CAST(\"T2\".\"fecha_compromiso\" AS TIMESTAMP)) AS DOUBLE PRECISION) / 86400.0, \"T1\".\"empleado\" FROM \"retails\".\"pedidos\" AS \"T1\" INNER JOIN \"retails\".\"detalle_pedido\" AS \"T2\" ON \"T1\".\"id_pedido\" = \"T2\".\"id_pedido\" WHERE \"T1\".\"id_pedido\" = 6",
+          "summary": "What is the delivery time and the clerk of order number 6?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6818",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0063",
+          "sql": "SELECT COUNT(\"T1\".\"id_proveedor\") FROM \"retails\".\"proveedor\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T1\".\"saldo_cuenta\" < 0 AND \"T2\".\"nombre\" = 'JAPAN'",
+          "summary": "How many Japanese suppliers have their accounts in debt?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6821",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0064",
+          "sql": "SELECT COUNT(\"numero_linea\") FROM \"retails\".\"detalle_pedido\" WHERE \"instrucciones_envio\" = 'DELIVER IN PERSON'",
+          "summary": "How many of the items are instructed to be delivered in person?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6822",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0065",
+          "sql": "SELECT MAX(\"saldo_cuenta\") FROM \"retails\".\"proveedor\"",
+          "summary": "What is the largest supplier's account balance?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6824",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0066",
+          "sql": "SELECT \"T2\".\"nombre\" FROM \"retails\".\"region\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id_region\" WHERE \"T1\".\"nombre\" = 'EUROPE'",
+          "summary": "List all the nations in Europe."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6828",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0067",
+          "sql": "SELECT DISTINCT \"T2\".\"modo_envio\" FROM \"retails\".\"pedidos\" AS \"T1\" INNER JOIN \"retails\".\"detalle_pedido\" AS \"T2\" ON \"T1\".\"id_pedido\" = \"T2\".\"id_pedido\" WHERE \"T1\".\"fecha_pedido\" = '1994-12-31'",
+          "summary": "What are the shipping methods for the orders on 12/31/1994?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6831",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0068",
+          "sql": "SELECT \"T\".\"nombre\" FROM (SELECT \"T3\".\"nombre\", COUNT(\"T2\".\"id_cliente\") AS \"num\" FROM \"retails\".\"pais\" AS \"T1\" INNER JOIN \"retails\".\"cliente\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" INNER JOIN \"retails\".\"region\" AS \"T3\" ON \"T1\".\"id_region\" = \"T3\".\"id_region\" GROUP BY \"T3\".\"nombre\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the region with the most customers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6832",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0069",
+          "sql": "SELECT \"T2\".\"telefono\" FROM \"retails\".\"pedidos\" AS \"T1\" INNER JOIN \"retails\".\"cliente\" AS \"T2\" ON \"T1\".\"id_cliente\" = \"T2\".\"id_cliente\" WHERE \"T1\".\"precio_total\" > 300000",
+          "summary": "List the phone number of the customer who placed orders with a total price of more than $300,000."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6843",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0070",
+          "sql": "SELECT \"nombre\" FROM \"retails\".\"cliente\" WHERE \"saldo_cuenta\" < 0",
+          "summary": "List the names of customers whose accounts are in debt."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6847",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0071",
+          "sql": "SELECT \"T1\".\"id_pedido\", \"T2\".\"fecha_envio\" FROM \"retails\".\"pedidos\" AS \"T1\" INNER JOIN \"retails\".\"detalle_pedido\" AS \"T2\" ON \"T1\".\"id_pedido\" = \"T2\".\"id_pedido\" ORDER BY \"T1\".\"precio_total\" DESC NULLS LAST LIMIT 5",
+          "summary": "List the 5 orders with the highest total price, indicating the delivery date."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6849",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0072",
+          "sql": "SELECT \"T2\".\"nombre\" FROM \"retails\".\"pedidos\" AS \"T1\" INNER JOIN \"retails\".\"cliente\" AS \"T2\" ON \"T1\".\"id_cliente\" = \"T2\".\"id_cliente\" WHERE \"T1\".\"precio_total\" > 300000",
+          "summary": "Please indicate the names of the customers whose order with a total price over $300000."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6851",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0073",
+          "sql": "SELECT \"T1\".\"telefono\" FROM \"retails\".\"proveedor\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T2\".\"nombre\" = 'JAPAN'",
+          "summary": "List the phone numbers of suppliers from Japan."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6852",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0074",
+          "sql": "SELECT \"T1\".\"nombre\" FROM \"retails\".\"proveedor\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T1\".\"saldo_cuenta\" < 0 AND \"T2\".\"nombre\" = 'ARGENTINA'",
+          "summary": "Among the providers in Argentina, which supplier has an account that is in debt?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6853",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0075",
+          "sql": "SELECT COUNT(\"T1\".\"nombre\") FROM \"retails\".\"region\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id_region\" WHERE \"T2\".\"nombre\" = 'ALGERIA'",
+          "summary": "How many countries belong to the Algeria region?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6855",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0076",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"nombre\" = 'America' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"nombre\"), 0) FROM \"retails\".\"region\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id_region\"",
+          "summary": "Calculate the percentage of countries that belong to the American region."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6856",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0077",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"segmento_mercado\" = 'HOUSEHOLD' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"segmento_mercado\"), 0) FROM \"retails\".\"cliente\" AS \"T1\" INNER JOIN \"retails\".\"pais\" AS \"T2\" ON \"T1\".\"id_pais\" = \"T2\".\"id_pais\" WHERE \"T2\".\"nombre\" = 'INDONESIA'",
+          "summary": "Calculate percentage of household segment in Indonesia."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6857",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0078",
+          "sql": "SELECT \"nombre\" FROM \"retails\".\"parte\" WHERE \"tipo\" = 'PROMO BRUSHED STEEL'",
+          "summary": "Please list the names of all the products under the type \"promo brushed steel\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6859",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0079",
+          "sql": "SELECT COUNT(\"id_parte\") FROM \"retails\".\"parte\" WHERE \"precio_minorista\" > 1900",
+          "summary": "How many parts have a retail price of over 1900?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6861",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0080",
+          "sql": "SELECT \"marca\" FROM \"retails\".\"parte\" WHERE \"tipo\" = 'PROMO BRUSHED STEEL'",
+          "summary": "Please list all the brands that contain a part under the type \"promo brushed steel\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6862",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0081",
+          "sql": "SELECT \"nombre\" FROM \"retails\".\"parte\" WHERE \"precio_minorista\" = (SELECT MAX(\"precio_minorista\") FROM \"retails\".\"parte\")",
+          "summary": "What is the name of the product with the highest retail price?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6863",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0082",
+          "sql": "SELECT \"T\".\"nombre\" FROM (SELECT \"nombre\", \"tama_o\" FROM \"retails\".\"parte\" WHERE \"nombre\" IN ('pink powder drab lawn cyan', 'cornflower sky burlywood green beige')) AS \"T\" ORDER BY \"tama_o\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which part has a bigger size, \"pink powder drab lawn cyan\" or \"cornflower sky burlywood green beige\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6864",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0083",
+          "sql": "SELECT COUNT(\"id_parte\") FROM \"retails\".\"parte\" WHERE \"contenedor\" = 'JUMBO CASE'",
+          "summary": "How many parts have a jumbo case container?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6865",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0084",
+          "sql": "SELECT MIN(\"tama_o\") FROM \"retails\".\"parte\" WHERE \"contenedor\" = 'JUMBO CASE'",
+          "summary": "What is the size of the smallest part in a jumbo case container?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6867",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0085",
+          "sql": "SELECT \"nombre\" FROM \"retails\".\"proveedor\" ORDER BY \"saldo_cuenta\" DESC NULLS LAST LIMIT 3",
+          "summary": "Please list the names of the top 3 suppliers with the most amount of money in their accounts."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6870",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0086",
+          "sql": "SELECT MIN(\"T1\".\"costo_suministro\") FROM \"retails\".\"parte_proveedor\" AS \"T1\" INNER JOIN \"retails\".\"parte\" AS \"T2\" ON \"T1\".\"id_parte\" = \"T2\".\"id_parte\" WHERE \"T2\".\"nombre\" = 'hot spring dodger dim light'",
+          "summary": "What is the lowest supply cost for the part \"hot spring dodger dim light\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6871",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0087",
+          "sql": "SELECT \"T2\".\"nombre\" FROM \"retails\".\"parte_proveedor\" AS \"T1\" INNER JOIN \"retails\".\"proveedor\" AS \"T2\" ON \"T1\".\"id_proveedor\" = \"T2\".\"id_proveedor\" INNER JOIN \"retails\".\"parte\" AS \"T3\" ON \"T1\".\"id_parte\" = \"T3\".\"id_parte\" WHERE \"T3\".\"nombre\" = 'hot spring dodger dim light' ORDER BY \"T1\".\"costo_suministro\" NULLS FIRST LIMIT 1",
+          "summary": "What is the name of the supplier that provides the part \"hot spring dodger dim light\" with the lowest supply cost?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6872",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0088",
+          "sql": "SELECT SUM(\"T1\".\"cantidad_disponible\") FROM \"retails\".\"parte_proveedor\" AS \"T1\" INNER JOIN \"retails\".\"parte\" AS \"T2\" ON \"T1\".\"id_parte\" = \"T2\".\"id_parte\" WHERE \"T2\".\"nombre\" = 'hot spring dodger dim light'",
+          "summary": "What is the total quantity available by all suppliers for the part \"hot spring dodger dim light\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6875",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0089",
+          "sql": "SELECT COUNT(\"T3\".\"nombre\") FROM \"retails\".\"parte\" AS \"T1\" INNER JOIN \"retails\".\"parte_proveedor\" AS \"T2\" ON \"T1\".\"id_parte\" = \"T2\".\"id_parte\" INNER JOIN \"retails\".\"proveedor\" AS \"T3\" ON \"T2\".\"id_proveedor\" = \"T3\".\"id_proveedor\" INNER JOIN \"retails\".\"pais\" AS \"T4\" ON \"T3\".\"id_pais\" = \"T4\".\"id_pais\" WHERE \"T1\".\"nombre\" = 'hot spring dodger dim light' AND \"T4\".\"nombre\" = 'VIETNAM'",
+          "summary": "How many suppliers for the part \"hot spring dodger dim light\" are in Vietnam?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6877",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0090",
+          "sql": "SELECT \"T3\".\"nombre\" FROM \"retails\".\"parte\" AS \"T1\" INNER JOIN \"retails\".\"parte_proveedor\" AS \"T2\" ON \"T1\".\"id_parte\" = \"T2\".\"id_parte\" INNER JOIN \"retails\".\"proveedor\" AS \"T3\" ON \"T2\".\"id_proveedor\" = \"T3\".\"id_proveedor\" WHERE \"T1\".\"marca\" = 'Brand#55'",
+          "summary": "Please list the names of all the suppliers for parts under Brand#55."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6882",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0091",
+          "sql": "SELECT COUNT(\"T1\".\"id_pais\") FROM \"retails\".\"pais\" AS \"T1\" INNER JOIN \"retails\".\"region\" AS \"T2\" ON \"T1\".\"id_region\" = \"T2\".\"id_region\" INNER JOIN \"retails\".\"proveedor\" AS \"T3\" ON \"T1\".\"id_pais\" = \"T3\".\"id_pais\" WHERE \"T2\".\"nombre\" = 'EUROPE' AND \"T3\".\"saldo_cuenta\" < 0",
+          "summary": "Among all the suppliers in debt, how many of them are in Europe?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6884",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0092",
+          "sql": "SELECT \"T2\".\"telefono\" FROM \"retails\".\"detalle_pedido\" AS \"T1\" INNER JOIN \"retails\".\"proveedor\" AS \"T2\" ON \"T1\".\"id_proveedor\" = \"T2\".\"id_proveedor\" WHERE \"T1\".\"id_pedido\" = 1",
+          "summary": "Please list the phone numbers of all the suppliers for the parts ordered in order no.1."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6887",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0093",
+          "sql": "SELECT \"T1\".\"fecha_envio\" FROM \"retails\".\"detalle_pedido\" AS \"T1\" INNER JOIN \"retails\".\"parte\" AS \"T2\" ON \"T1\".\"id_parte\" = \"T2\".\"id_parte\" WHERE \"T1\".\"id_pedido\" = 1 AND \"T2\".\"nombre\" = 'burnished seashell gainsboro navajo chocolate'",
+          "summary": "On which date was the part \"burnished seashell gainsboro navajo chocolate\" in order no.1 shipped?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6888",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0094",
+          "sql": "SELECT \"T1\".\"cantidad\" FROM \"retails\".\"detalle_pedido\" AS \"T1\" INNER JOIN \"retails\".\"parte\" AS \"T2\" ON \"T1\".\"id_parte\" = \"T2\".\"id_parte\" WHERE \"T1\".\"id_pedido\" = 1 AND \"T2\".\"nombre\" = 'burnished seashell gainsboro navajo chocolate'",
+          "summary": "What is the quantity of the part \"burnished seashell gainsboro navajo chocolate\" ordered in order no.1?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6896",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0095",
+          "sql": "SELECT \"segmento_mercado\" FROM \"retails\".\"cliente\" WHERE \"saldo_cuenta\" = (SELECT MIN(\"saldo_cuenta\") FROM \"retails\".\"cliente\")",
+          "summary": "Which market segment does the customer with the highest amount of debt belongs to?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6898",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0096",
+          "sql": "SELECT COUNT(\"id_cliente\") FROM \"retails\".\"cliente\" WHERE \"segmento_mercado\" = 'FURNITURE'",
+          "summary": "How many customers are in the furniture segment?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6899",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0097",
+          "sql": "SELECT COUNT(\"id_pedido\") FROM \"retails\".\"detalle_pedido\" WHERE TO_CHAR(CAST(\"fecha_envio\" AS TIMESTAMP), 'YYYY') = '1994' AND \"bandera_devolucion\" = 'R' AND \"modo_envio\" = 'TRUCK'",
+          "summary": "Among the items shipped in 1994 via truck, how many items were returned?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6906",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0098",
+          "sql": "SELECT \"T2\".\"costo_suministro\" FROM \"retails\".\"parte\" AS \"T1\" INNER JOIN \"retails\".\"parte_proveedor\" AS \"T2\" ON \"T1\".\"id_parte\" = \"T2\".\"id_parte\" WHERE \"T1\".\"nombre\" = 'medium metallic grey dodger linen'",
+          "summary": "How much is the part supply cost for the medium metallic grey dodger linen?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6911",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retails_0099",
+          "sql": "SELECT SUM(\"T2\".\"cantidad\") FROM \"retails\".\"pedidos\" AS \"T1\" INNER JOIN \"retails\".\"detalle_pedido\" AS \"T2\" ON \"T1\".\"id_pedido\" = \"T2\".\"id_pedido\" WHERE \"T1\".\"fecha_pedido\" = '1995-10-05' AND \"T1\".\"id_cliente\" = 101660",
+          "summary": "What are the total quantities of the items ordered by customer 101660 on 10/5/1995?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between detalle_pedido and parte_proveedor in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Matching on id_parte alone is not enough: a part can be stocked by several suppliers in parte_proveedor, at different costs, so this join must be combined with the sibling join on id_proveedor (see join_retails_detalle_pedido_parte_proveedor_fca96767) to land on the one parte_proveedor row priced for the supplier that actually fulfilled this line item. Only then is costo_suministro correct for a profit calculation.\n",
+          "cardinality": "many_to_many",
+          "id": "join_retails_detalle_pedido_parte_proveedor_fac86a30",
+          "left_table": "retails.detalle_pedido",
+          "on": "retails.detalle_pedido.id_parte = retails.parte_proveedor.id_parte",
+          "right_table": "retails.parte_proveedor",
+          "summary": "A line item's supply cost, joining detalle_pedido to parte_proveedor on id_parte."
+        },
+        {
+          "audit": {
+            "evidence": "equality between detalle_pedido and parte_proveedor in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Matching on id_proveedor alone is not enough: one supplier stocks many parts in parte_proveedor at different costs, so this join must be combined with the sibling join on id_parte (see join_retails_detalle_pedido_parte_proveedor_fac86a30) to land on the single parte_proveedor row that prices this exact part for this exact supplier.\n",
+          "cardinality": "many_to_many",
+          "id": "join_retails_detalle_pedido_parte_proveedor_fca96767",
+          "left_table": "retails.detalle_pedido",
+          "on": "retails.detalle_pedido.id_proveedor = retails.parte_proveedor.id_proveedor",
+          "right_table": "retails.parte_proveedor",
+          "summary": "A line item's supplying vendor cost row, joining detalle_pedido to parte_proveedor on id_proveedor."
+        }
+      ]
+    }

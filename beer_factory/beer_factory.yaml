@@ -1,30 +1,3929 @@
-asset_type: schema
-id: beer_factory
+version: 0.2.0.dev0
 name: beer_factory
-summary: >-
-  The beer_factory database tracks root beer brands, breweries, store locations, customer
-  purchases, and customer reviews, for questions about price, rating, container type,
-  ingredients, or sales by brand, location, or credit card.
-body: >
-  Six tables carry the real data: kunden (customers), standort (store locations), geoposition
-  (a location's coordinates), transaktion (purchases), wurzelbier (root beer units sold or
-  stocked), and wurzelbiermarke (brands, breweries, and ingredients). A customer's purchases
-  join to transaktion on kunde_id, and a purchase's brand is reached through
-  transaktion.wurzelbier_id into wurzelbier and then wurzelbiermarke. betriebsstandorte and
-  wurzelbier_feedback look like standort and wurzelbier_bewertung respectively but are not
-  dependable for analysis; neither is any column whose name doubles a real identifier, such as
-  kunde_nummer next to kunde_id or marke_ref_id next to marke_id.
-rules:
-- Join customers, locations, brands, and root beer units using kunde_id, standort_id, marke_id,
-  and wurzelbier_id. Every alternate identifier column with a similar name is unreliable and
-  must not be used as a join key.
-- Answer questions about a customer review from wurzelbier_bewertung and a location's address
-  from standort. Never select, filter, or join on a column from betriebsstandorte or
-  wurzelbier_feedback; every column in those two tables is unreliable for analysis.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  The beer_factory database tracks root beer brands, breweries, store locations, customer purchases, and customer reviews, for questions about price, rating, container type, ingredients, or sales by brand, location, or credit card.
+
+  Six tables carry the real data: kunden (customers), standort (store locations), geoposition (a location's coordinates), transaktion (purchases), wurzelbier (root beer units sold or stocked), and wurzelbiermarke (brands, breweries, and ingredients). A customer's purchases join to transaktion on kunde_id, and a purchase's brand is reached through transaktion.wurzelbier_id into wurzelbier and then wurzelbiermarke. betriebsstandorte and wurzelbier_feedback look like standort and wurzelbier_bewertung respectively but are not dependable for analysis; neither is any column whose name doubles a real identifier, such as kunde_nummer next to kunde_id or marke_ref_id next to marke_id.
+ai_context:
+  instructions: |-
+    Join customers, locations, brands, and root beer units using kunde_id, standort_id, marke_id, and wurzelbier_id. Every alternate identifier column with a similar name is unreliable and must not be used as a join key.
+    Answer questions about a customer review from wurzelbier_bewertung and a location's address from standort. Never select, filter, or join on a column from betriebsstandorte or wurzelbier_feedback; every column in those two tables is unreliable for analysis.
+datasets:
+- name: betriebsstandorte
+  source: beer_factory.betriebsstandorte
+  description: |
+    betriebsstandorte lists locations that look like the rows in standort, but its data is not dependable for analysis.
+
+    Grain: one apparent row per store location, mirroring standort, but every column here is unreliable; do not use this table to answer a question about a location. Use standort instead for a location's name, street address, city, state, or ZIP code.
+  fields:
+  - name: betrieb_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: betrieb_id
+    description: |
+      betrieb_id, a numeric column on the betriebsstandorte table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bezeichnung
+    description: |
+      bezeichnung, a text column on the betriebsstandorte table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: strassenadresse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: strassenadresse
+    description: |
+      strassenadresse, a text column on the betriebsstandorte table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ort
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ort
+    description: |
+      ort, a text column on the betriebsstandorte table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bundesland_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bundesland_name
+    description: |
+      bundesland_name, a text column on the betriebsstandorte table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: plz
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: plz
+    description: |
+      plz, a numeric column on the betriebsstandorte table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: geoposition
+  source: beer_factory.geoposition
+  description: |
+    geoposition holds one row per store location's latitude and longitude coordinates.
+
+    Grain: one row per location, keyed by standort_id, matching standort and wurzelbier. Ignore geo_standort_id, breitenkoordinate, and laengengrad on this table; they look like standort_id, breitengrad, and l_ngengrad but are not dependable for analysis.
+  fields:
+  - name: standort_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: standort_id
+    description: |
+      The store location this coordinate pair belongs to, standort_id.
+
+      Matches standort.standort_id and wurzelbier.standort_id, one row per location (3 locations, numbered 0 to 2).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: breitengrad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: breitengrad
+    description: |
+      The latitude of a store location's coordinates, breitengrad.
+
+      Decimal degrees, for example 38.559616; one location is recorded at 0.0, a placeholder rather than a real coordinate. Combine with l_ngengrad for the location's point coordinate.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: l_ngengrad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: l_ngengrad
+    description: |
+      The longitude of a store location's coordinates, l_ngengrad.
+
+      Decimal degrees, for example -121.42243; the same placeholder location is recorded at 0.0. Combine with breitengrad for the location's point coordinate.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: geo_standort_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geo_standort_id
+    description: |
+      geo_standort_id, a numeric column on the geoposition table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: breitenkoordinate
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: breitenkoordinate
+    description: |
+      breitenkoordinate, a numeric column on the geoposition table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: laengengrad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: laengengrad
+    description: |
+      laengengrad, a numeric column on the geoposition table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: kunden
+  source: beer_factory.kunden
+  description: |
+    kunden holds one row per customer, their name, contact details, address, gender, and first purchase date.
+
+    Grain: one row per customer, keyed by kunde_id. Referenced by transaktion.kunde_id for purchases and wurzelbier_bewertung.kunde_id for reviews. Ignore kunde_nummer, ort, and email_adresse on this table; they look like kunde_id, stadt, and email but are not dependable for analysis.
+  fields:
+  - name: kunde_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kunde_id
+    description: |
+      The unique identifier for a customer, kunde_id.
+
+      Primary key of kunden, one value per row. Referenced by transaktion.kunde_id and wurzelbier_bewertung.kunde_id to attribute purchases and reviews to a customer. Sample values range from 101811 to 999915.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: vorname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: vorname
+    description: |
+      A customer's first name, vorname.
+
+      Free text given name, for example Janet, Leila, or Ann. Combine with nachname for the customer's full name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nachname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nachname
+    description: |
+      A customer's last name, nachname.
+
+      Free text family name, for example Saville, Olson, or Spencer. Combine with vorname for the customer's full name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: stra_enadresse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stra_enadresse
+    description: |
+      The street address on file for a customer, stra_enadresse.
+
+      Free text street address, for example "4779 Mountain View Ave" or "6584 Roseville Rd". Paired with stadt, bundesland, and postleitzahl for the customer's full mailing address.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: stadt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stadt
+    description: |
+      The city where a customer lives, stadt.
+
+      Free text city name within the Sacramento, California area, for example Sacramento, Ryde, Carmichael, or Fair Oaks (22 distinct cities in the sample).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bundesland
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bundesland
+    description: |-
+      The two-letter state code for a customer's address, bundesland.
+
+      Every sampled value is "CA" (California); the customer base is drawn from a single state.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: postleitzahl
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: postleitzahl
+    description: |
+      The ZIP code of a customer's address, postleitzahl.
+
+      Five-digit US postal code, for example 94235 or 95865, ranging from 94203 to 95899 in the sample.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: email
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: email
+    description: |
+      A customer's email address, email.
+
+      Free text email address, for example janet_s@icloud.com. One value per customer; do not confuse with email_adresse, an unreliable column on the same table.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: telefonnummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: telefonnummer
+    description: |
+      A customer's phone number, telefonnummer.
+
+      Free text phone number formatted like "(916) 618-3768"; all sampled values share the 916 Sacramento area code.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: erstes_kaufdatum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: erstes_kaufdatum
+    description: |
+      The date of a customer's first root beer purchase, erstes_kaufdatum.
+
+      Date in yyyy-mm-dd format, for example 2012-10-24, ranging from 2012-07-01 to 2013-09-18 in the sample. Marks when a customer first appears as a buyer.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: newsletter_abonniert
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: newsletter_abonniert
+    description: |
+      Whether a customer has opted into the email newsletter, newsletter_abonniert.
+
+      Text flag holding "TRUE" or "FALSE". "TRUE" means the customer permits the company to send them regular marketing emails; treat it as a boolean when filtering.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to kunden.newsletter_abonniert. \"TRUE\" means the customer is a subscriber, permitting the company to send them regular emails; \"FALSE\" means they are not.\n",
+              "id": "term_beer_factory_newsletter_subscription",
+              "name": "newsletter subscription",
+              "summary": "newsletter subscription (subscriber, subscribed to the email list): whether a customer permits marketing emails, recorded as newsletter_abonniert on kunden.",
+              "synonyms": [
+                "newsletter subscription",
+                "subscriber",
+                "subscribed to the email list"
+              ]
+            }
+          ]
+        }
+  - name: geschlecht
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geschlecht
+    description: |-
+      A customer's recorded gender, geschlecht.
+
+      Text flag holding "F" for female or "M" for male.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to kunden.geschlecht. \"Female\" means geschlecht = 'F'; \"male\" means geschlecht = 'M'.\n",
+              "id": "term_beer_factory_customer_gender",
+              "name": "customer gender",
+              "summary": "customer gender (female, male): a customer's recorded sex, female or male, recorded as geschlecht on kunden.",
+              "synonyms": [
+                "female",
+                "male"
+              ]
+            }
+          ]
+        }
+  - name: kunde_nummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kunde_nummer
+    description: |
+      kunde_nummer, a numeric column on the kunden table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ort
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ort
+    description: |
+      ort, a text column on the kunden table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: email_adresse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: email_adresse
+    description: |
+      email_adresse, a text column on the kunden table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_beer_factory_newsletter_subscription_rate
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(COUNT(kunde_id) FILTER (WHERE newsletter_abonniert = 'TRUE'), COUNT(kunde_id))
+    description: |
+      newsletter subscription rate: the share of customers with newsletter_abonniert set to TRUE in kunden.
+
+      Bound to kunden.newsletter_abonniert. Divide the count of customers with newsletter_abonniert = 'TRUE' by the total customer count; multiply by 100 for a percentage. This is the rate at which customers permit the company to send them regular emails.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "newsletter subscription rate"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: standort
+  source: beer_factory.standort
+  description: |
+    standort holds one row per store location, its name, and its address, for the locations that sell root beer.
+
+    Grain: one row per store location, keyed by standort_id (3 locations in this database). Joins to transaktion.standort_id and wurzelbier.standort_id for sales activity at a location, and to geoposition.standort_id for its coordinates. Ignore standort_nummer, ortschaft, and standort_bezeichnung on this table; they look like standort_id, stadt, and standortname but are not dependable for analysis. Do not confuse with betriebsstandorte, a similar-looking table that is not dependable at all.
+  fields:
+  - name: standort_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: standort_id
+    description: |
+      The unique identifier for a store location, standort_id.
+
+      Primary key of standort, one value per row (3 locations, numbered 0 to 2). Referenced by transaktion.standort_id, wurzelbier.standort_id, and geoposition.standort_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: standortname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: standortname
+    description: |
+      The name of a store location, standortname.
+
+      Free text venue name, for example "Sac State Union", "Sac State American River Courtyard", or "LOST".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: stra_enadresse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stra_enadresse
+    description: |-
+      The street address of a store location, stra_enadresse.
+
+      Free text street address, for example "6000 J St"; one row ("LOST") has no value.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: stadt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stadt
+    description: |-
+      The city where a store location is, stadt.
+
+      Free text city name; every sampled value is Sacramento.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bundesland
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bundesland
+    description: |-
+      The two-letter state code for a store location, bundesland.
+
+      Every sampled value is "CA" (California).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: postleitzahl
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: postleitzahl
+    description: |-
+      The ZIP code of a store location, postleitzahl.
+
+      Five-digit US postal code; every sampled value is 95819.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: standort_nummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: standort_nummer
+    description: |
+      standort_nummer, a numeric column on the standort table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ortschaft
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ortschaft
+    description: |
+      ortschaft, a text column on the standort table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: standort_bezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: standort_bezeichnung
+    description: |
+      standort_bezeichnung, a text column on the standort table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: transaktion
+  source: beer_factory.transaktion
+  description: |
+    transaktion holds one row per purchase, its date, price, and payment card, and the customer, location, and root beer involved.
+
+    Grain: one row per purchase transaction, keyed by transaktions_id. Join to kunden on kunde_id, to standort on standort_id, and to wurzelbier on wurzelbier_id. Ignore transaktions_kunde_id, transaktions_standort_id, and transaktions_wurzelbier_id on this table; they look like kunde_id, standort_id, and wurzelbier_id but are not dependable for analysis.
+  fields:
+  - name: transaktions_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: transaktions_id
+    description: |-
+      The unique identifier for a purchase transaction, transaktions_id.
+
+      Primary key of transaktion, one row per purchase, ranging from 100001 to 106300 in the sample.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: kreditkartennummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kreditkartennummer
+    description: |
+      The credit card number used to pay for a transaction, kreditkartennummer.
+
+      Numeric card number, for example 342759627792243; length varies by card type. Not a customer identifier — use kunde_id for that.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: kunde_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kunde_id
+    description: |
+      The customer who made a purchase, kunde_id.
+
+      Matches kunden.kunde_id; join on this column to attribute a transaction to a customer's name, address, or contact details.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: transaktionsdatum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: transaktionsdatum
+    description: |
+      The date a purchase transaction occurred, transaktionsdatum.
+
+      Date in yyyy-mm-dd format, for example 2015-09-13, ranging from 2014-07-07 to 2016-09-13 in the sample.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: kreditkartentyp
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kreditkartentyp
+    description: |-
+      The brand of credit card used to pay for a transaction, kreditkartentyp.
+
+      Text value, one of "American Express", "MasterCard", "Visa", or "Discover".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to transaktion.kreditkartentyp. Values are \"American Express\" (also \"American Express cards\" or an \"American Express credit card\"), \"MasterCard\" (also \"Master Card\"), \"Visa\" (also a \"Visa card\" or \"Visa credit card\"), and \"Discover\" (also a \"Discover Credit Card\").\n",
+              "id": "term_beer_factory_credit_card_type",
+              "name": "credit card type",
+              "summary": "credit card type (type of card, card type): the brand of credit card used to pay for a purchase, recorded as kreditkartentyp on transaktion.",
+              "synonyms": [
+                "credit card type",
+                "type of card",
+                "card type"
+              ]
+            }
+          ]
+        }
+  - name: standort_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: standort_id
+    description: |
+      The store location where a transaction happened, standort_id.
+
+      Matches standort.standort_id and geoposition.standort_id; only 2 of the 3 locations appear in the sampled transactions.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: wurzelbier_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wurzelbier_id
+    description: |
+      The root beer unit purchased in a transaction, wurzelbier_id.
+
+      Matches wurzelbier.wurzelbier_id one-to-one in the sample; join on this column to add the brand and container type sold.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: kaufpreis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kaufpreis
+    description: |
+      The unit price paid for a root beer in a transaction, kaufpreis.
+
+      US dollar amount, either 1.0 or 3.0 in the sample; the two values line up with can and bottle pricing.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: transaktions_kunde_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: transaktions_kunde_id
+    description: |
+      transaktions_kunde_id, a numeric column on the transaktion table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: transaktions_standort_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: transaktions_standort_id
+    description: |
+      transaktions_standort_id, a numeric column on the transaktion table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: transaktions_wurzelbier_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: transaktions_wurzelbier_id
+    description: |
+      transaktions_wurzelbier_id, a numeric column on the transaktion table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_beer_factory_average_daily_unit_sales
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(COUNT(transaktions_id), COUNT(DISTINCT transaktionsdatum))
+    description: |
+      average daily unit sales: the mean count of root beer units sold per calendar day in transaktion.
+
+      Bound to transaktion.transaktionsdatum. Divide the count of transactions in a period by the number of days in that period, for example 31 for a full month; scope with a WHERE clause on transaktionsdatum and, if needed, on wurzelbier_id joined to wurzelbiermarke.markenname for one brand.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average daily unit sales"
+        }
+  - name: metric_beer_factory_most_used_card_type
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(transaktions_id) GROUP BY kreditkartentyp ORDER BY COUNT(transaktions_id) DESC LIMIT 1
+    description: |
+      most-used credit card type: the kreditkartentyp value with the highest transaction count in transaktion.
+
+      Bound to transaktion.kreditkartentyp: group transactions by kreditkartentyp, count them, and take the value with the largest count. "The credit card that is the most used" is this metric.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most-used credit card type"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: wurzelbier
+  source: beer_factory.wurzelbier
+  description: |
+    wurzelbier holds one row per root beer unit, its container type, purchase date, brand, and selling location.
+
+    Grain: one row per root beer unit, keyed by wurzelbier_id, matching transaktion.wurzelbier_id one-to-one. Join to wurzelbiermarke on marke_id for brand details and to standort on standort_id for the selling location. Ignore marken_nummer, zugehoeriger_standort_id, and wurzelbier_nummer on this table; they look like marke_id, standort_id, and wurzelbier_id but are not dependable for analysis.
+  fields:
+  - name: wurzelbier_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wurzelbier_id
+    description: |
+      The unique identifier for one root beer unit, wurzelbier_id.
+
+      Primary key of wurzelbier, one row per unit sold or stocked, ranging from 100003 to 106425 in the sample. Matches transaktion.wurzelbier_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: marke_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: marke_id
+    description: |
+      The brand of a root beer unit, marke_id.
+
+      Matches wurzelbiermarke.marke_id; join on this column to add the brand name, brewery, and ingredients.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: beh_ltertyp
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: beh_ltertyp
+    description: |-
+      The container a root beer unit was sold or stocked in, beh_ltertyp.
+
+      Text value, either "Bottle" or "Can".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to wurzelbier.beh_ltertyp. \"Bottles\" or \"in bottles\" means beh_ltertyp = 'Bottle'; \"cans\" or \"in cans\" means beh_ltertyp = 'Can'. There is no keg value in this column, even though wurzelbiermarke separately records whether a brand is available in kegs.\n",
+              "id": "term_beer_factory_container_type",
+              "name": "container type",
+              "summary": "container type (bottles, cans, in bottles, in cans): whether a root beer unit was sold in a bottle or a can, recorded as beh_ltertyp on wurzelbier.",
+              "synonyms": [
+                "container type",
+                "bottles",
+                "cans",
+                "in bottles",
+                "in cans"
+              ]
+            }
+          ]
+        }
+  - name: standort_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: standort_id
+    description: |-
+      The store location a root beer unit belongs to, standort_id.
+
+      Matches standort.standort_id and geoposition.standort_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: kaufdatum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kaufdatum
+    description: |
+      The date a root beer unit was purchased or stocked, kaufdatum.
+
+      Date in yyyy-mm-dd format, for example 2015-05-26, ranging from 2014-05-15 to 2016-09-20 in the sample. Distinct from transaktion.transaktionsdatum, the date of the sale transaction itself.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: marken_nummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: marken_nummer
+    description: |
+      marken_nummer, a numeric column on the wurzelbier table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: zugehoeriger_standort_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zugehoeriger_standort_id
+    description: |
+      zugehoeriger_standort_id, a numeric column on the wurzelbier table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: wurzelbier_nummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wurzelbier_nummer
+    description: |
+      wurzelbier_nummer, a numeric column on the wurzelbier table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_beer_factory_best_selling_brand
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(wurzelbier_id) GROUP BY marke_id ORDER BY COUNT(wurzelbier_id) DESC LIMIT 1
+    description: |
+      best-selling brand: the root beer brand with the highest count of units sold in wurzelbier.
+
+      Bound to wurzelbier.marke_id: group units by marke_id, count them, and take the brand with the largest count (join to wurzelbiermarke for its name). "Best seller root beer" and "sold the most root beer" are this metric; "lowest purchase" takes the smallest count instead of the largest.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "best-selling brand"
+        }
+  - name: metric_beer_factory_location_bottle_sales
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(wurzelbier_id) FILTER (WHERE beh_ltertyp = 'Bottle') GROUP BY standort_id
+    description: |
+      bottle sales by location: how many bottled root beer units were sold at each store location in wurzelbier.
+
+      Bound to wurzelbier.standort_id, filtered to beh_ltertyp = 'Bottle' and grouped by standort_id. "The standort that sold more bottles of beer" takes the location with the largest value of this count.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "bottle sales by location"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: wurzelbier_bewertung
+  source: beer_factory.wurzelbier_bewertung
+  description: |
+    wurzelbier_bewertung holds one row per customer review of a root beer brand, its star rating, date, and comment.
+
+    Grain: one row per review, matching one customer to one brand (a customer may review the same brand more than once). Join to kunden on kunde_id and to wurzelbiermarke on marke_id. Ignore bewertete_marke_id, bewertender_kunde_id, and rezension_text on this table; they look like marke_id, kunde_id, and bewertung but are not dependable for analysis. Do not confuse with wurzelbier_feedback, a similar-looking table that is not dependable at all.
+  fields:
+  - name: kunde_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kunde_id
+    description: |-
+      The customer who wrote a root beer review, kunde_id.
+
+      Matches kunden.kunde_id; join on this column to add the reviewer's name and contact details.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: marke_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: marke_id
+    description: |-
+      The brand a review is about, marke_id.
+
+      Matches wurzelbiermarke.marke_id; join on this column to add the brand name and brewery.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: sternbewertung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sternbewertung
+    description: |
+      The star rating a customer gave a root beer brand, sternbewertung.
+
+      Integer from 1 to 5; a higher value means higher market evaluation and acceptance. "5-star" or "highly rated" refers to sternbewertung = 5, and "lowest rating" refers to sternbewertung = 1.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to wurzelbier_bewertung.sternbewertung, an integer from 1 to 5. \"5-star\", \"highly rated\", or \"highest rating\" means sternbewertung = 5; \"lowest rating\" means sternbewertung = 1; a \"3-star rating\" means sternbewertung = 3. Higher values indicate higher market evaluation and acceptance.\n",
+              "id": "term_beer_factory_star_rating",
+              "name": "star rating",
+              "summary": "star rating (stars, rating): the 1-to-5 score, also called stars or a rating, that a customer gives a root beer brand, recorded as sternbewertung on wurzelbier_bewertung.",
+              "synonyms": [
+                "star rating",
+                "stars",
+                "rating"
+              ]
+            }
+          ]
+        }
+  - name: bewertungsdatum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bewertungsdatum
+    description: |
+      The date a review was written, bewertungsdatum.
+
+      Date in yyyy-mm-dd format, for example 2013-07-17, ranging from 2012-09-11 to 2014-09-15 in the sample.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: bewertung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bewertung
+    description: |
+      The written text of a root beer review, bewertung.
+
+      Free text comment, for example "Awww, doggies!" or "The quintessential dessert root beer. No ice cream required."; null for most sampled rows, so most reviews carry a rating with no comment.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bewertete_marke_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bewertete_marke_id
+    description: |
+      bewertete_marke_id, a numeric column on the wurzelbier_bewertung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bewertender_kunde_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bewertender_kunde_id
+    description: |
+      bewertender_kunde_id, a numeric column on the wurzelbier_bewertung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: rezension_text
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rezension_text
+    description: |
+      rezension_text, a text column on the wurzelbier_bewertung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_beer_factory_average_star_rating
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(sternbewertung)
+    description: |
+      average star rating: the mean sternbewertung score across a set of root beer reviews.
+
+      Bound to wurzelbier_bewertung.sternbewertung. "Average review" and "average star rating" both refer to AVG(sternbewertung), optionally scoped to one brand or one customer first.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average star rating"
+        }
+  - name: metric_beer_factory_most_reviews_customer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(kunde_id) GROUP BY kunde_id ORDER BY COUNT(kunde_id) DESC LIMIT 1
+    description: |
+      customer with the most reviews: the kunde_id with the highest review count in wurzelbier_bewertung.
+
+      Bound to wurzelbier_bewertung.kunde_id: group reviews by kunde_id, count them, and take the customer with the largest count (join to kunden for their name). "The customer that has the most reviews" is this metric.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "customer with the most reviews"
+        }
+  - name: metric_beer_factory_rating_extreme_counts
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(sternbewertung) GROUP BY marke_id, sternbewertung
+    description: |
+      rating extreme counts: how many 5-star or 1-star reviews a root beer brand received in wurzelbier_bewertung.
+
+      Bound to wurzelbier_bewertung.sternbewertung, filtered to 5 or 1 and grouped by marke_id. "Highest market evaluation and acceptance" and "highly rated" take the brand with MAX(COUNT(sternbewertung = 5)); "worst rated most times" takes the brand with MAX(COUNT(sternbewertung = 1)).
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "rating extreme counts"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: wurzelbier_feedback
+  source: beer_factory.wurzelbier_feedback
+  description: |
+    wurzelbier_feedback lists entries that look like wurzelbier_bewertung, but its data is not dependable for analysis.
+
+    Grain: one apparent row per review, mirroring wurzelbier_bewertung, but every column here is unreliable; do not use this table to answer a question about a rating or a review. Use wurzelbier_bewertung instead for a customer's rating, review date, and comment on a brand.
+  fields:
+  - name: kunde_nr
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kunde_nr
+    description: |
+      kunde_nr, a numeric column on the wurzelbier_feedback table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: marke_nr
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: marke_nr
+    description: |
+      marke_nr, a numeric column on the wurzelbier_feedback table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: sterne
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sterne
+    description: |
+      sterne, a numeric column on the wurzelbier_feedback table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bewertungs_datum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bewertungs_datum
+    description: |
+      bewertungs_datum, a date column on the wurzelbier_feedback table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: kommentar
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kommentar
+    description: |
+      kommentar, a text column on the wurzelbier_feedback table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: wurzelbiermarke
+  source: beer_factory.wurzelbiermarke
+  description: |
+    wurzelbiermarke holds one row per root beer brand, its brewery, ingredients, packaging, and pricing.
+
+    Grain: one row per brand, keyed by marke_id (24 brands). Join to wurzelbier on marke_id for units sold and to wurzelbier_bewertung on marke_id for reviews. Ignore marke_ref_id, einzelhandel_preis_aktuell, and grosshandelspreis on this table; they look like marke_id, aktueller_einzelhandelspreis, and gro_handelspreis but are not dependable for analysis.
+  fields:
+  - name: marke_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: marke_id
+    description: |
+      The unique identifier for a root beer brand, marke_id.
+
+      Primary key of wurzelbiermarke, one row per brand (24 brands total). Matches wurzelbier.marke_id and wurzelbier_bewertung.marke_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: markenname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: markenname
+    description: |
+      The name of a root beer brand, markenname.
+
+      Free text brand name, for example "A&W", "Barq's", "Dad's", or "Virgil's" (24 distinct brands).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to wurzelbiermarke.markenname. Business questions may say brand, root beer brand, or brand of root beer; all refer to this column. Distinct from brauerei_name, the brewery or company that makes the brand.\n",
+              "id": "term_beer_factory_root_beer_brand",
+              "name": "root beer brand",
+              "summary": "root beer brand (brand, brand of root beer): the label a root beer is sold under, recorded as markenname on wurzelbiermarke.",
+              "synonyms": [
+                "brand",
+                "root beer brand",
+                "brand of root beer"
+              ]
+            }
+          ]
+        }
+  - name: erstes_braujaht
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: erstes_braujaht
+    description: |
+      The year a root beer brand was first brewed, erstes_braujaht.
+
+      Four-digit year, ranging from 1898 to 2009 in the sample. An earlier year means a much longer brewed history; "longest history" refers to the brand with the minimum value here.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: brauerei_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: brauerei_name
+    description: |
+      The brewery that makes a root beer brand, brauerei_name.
+
+      Free text company name, for example "AJ Stephans Beverages", "Abita Brewery", or "Coca-Cola"; distinct from markenname, the name of the beverage itself.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: stadt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stadt
+    description: |
+      The city where a brand's brewery is, stadt.
+
+      Free text city name, for example "Lodi", "Fall River", or "New Orleans"; one brand's value is null.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bundesland
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bundesland
+    description: |
+      The two-letter state code for a brand's brewery, bundesland.
+
+      For example "CA", "MA", or "WA"; one brand's value is null when its brewery is outside the US.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: land
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: land
+    description: |
+      The country where a brand's brewery is, land.
+
+      Text value, either "United States" or "Australia"; "North America" as a continent refers to the "United States" rows here.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: beschreibung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: beschreibung
+    description: |-
+      A marketing description of a root beer brand, beschreibung.
+
+      Free text paragraph, often several sentences, describing the brand's history or ingredients.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: rohrzucker
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rohrzucker
+    description: |-
+      Whether a root beer brand uses cane sugar, rohrzucker.
+
+      Text flag holding "TRUE" or "FALSE".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: maissirup
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: maissirup
+    description: |-
+      Whether a root beer brand uses corn syrup, maissirup.
+
+      Text flag holding "TRUE" or "FALSE".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: honig
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: honig
+    description: |
+      Whether a root beer brand contains honey, honig.
+
+      Text flag holding "TRUE" or "FALSE"; a brand with honey is typically described as sweeter or having more sweetness.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: k_nstlicher_s_stoff
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: k_nstlicher_s_stoff
+    description: |
+      Whether a root beer brand contains artificial sweetener, k_nstlicher_s_stoff.
+
+      Text flag holding "TRUE" or "FALSE"; a brand with artificial sweetener is typically described as sweeter. A brand with neither this nor honig set to "TRUE" is considered unsweetened.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: koffeinhaltig
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: koffeinhaltig
+    description: |-
+      Whether a root beer brand is caffeinated, koffeinhaltig.
+
+      Text flag holding "TRUE" or "FALSE".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: alkoholhaltig
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: alkoholhaltig
+    description: |-
+      Whether a root beer brand is alcoholic, alkoholhaltig.
+
+      Text flag holding "TRUE" or "FALSE"; every sampled brand is "FALSE" (non-alcoholic).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to wurzelbiermarke.alkoholhaltig. \"Non-alcoholic\" means alkoholhaltig = 'FALSE'; \"alcoholic\" would mean alkoholhaltig = 'TRUE', though every brand in the sample is 'FALSE'.\n",
+              "id": "term_beer_factory_non_alcoholic",
+              "name": "non-alcoholic",
+              "summary": "non-alcoholic (alcoholic): whether a root beer brand contains alcohol, recorded as alkoholhaltig on wurzelbiermarke.",
+              "synonyms": [
+                "non-alcoholic",
+                "alcoholic"
+              ]
+            }
+          ]
+        }
+  - name: in_dosen_erh_ltlich
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: in_dosen_erh_ltlich
+    description: |-
+      Whether a root beer brand is sold in cans, in_dosen_erh_ltlich.
+
+      Text flag holding "TRUE" or "FALSE".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: in_flaschen_erh_ltlich
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: in_flaschen_erh_ltlich
+    description: |-
+      Whether a root beer brand is sold in bottles, in_flaschen_erh_ltlich.
+
+      Text flag holding "TRUE" or "FALSE".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: in_f_ssern_erh_ltlich
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: in_f_ssern_erh_ltlich
+    description: |-
+      Whether a root beer brand is sold in kegs, in_f_ssern_erh_ltlich.
+
+      Text flag holding "TRUE" or "FALSE".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: website
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: website
+    description: |
+      A root beer brand's website address, website.
+
+      Free text URL, for example "http://www.barqs.com/"; 2 of 24 brands have no recorded website.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: facebook_seite
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: facebook_seite
+    description: |
+      A root beer brand's Facebook page address, facebook_seite.
+
+      Free text URL, null for most brands. A non-null value means the brand advertises on Facebook.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to wurzelbiermarke.facebook_seite. A non-null value means the brand is advertised on Facebook; a null value means it is not.\n",
+              "id": "term_beer_factory_facebook_presence",
+              "name": "facebook presence",
+              "summary": "facebook presence (advertised on facebook): whether a root beer brand has a Facebook page on file, recorded as facebook_seite on wurzelbiermarke.",
+              "synonyms": [
+                "advertised on facebook",
+                "facebook presence"
+              ]
+            }
+          ]
+        }
+  - name: twitter
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: twitter
+    description: |
+      A root beer brand's Twitter address, twitter.
+
+      Free text URL, null for most brands, so most brands have no recorded Twitter presence.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: gro_handelspreis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: gro_handelspreis
+    description: |
+      The wholesale cost of a root beer brand, gro_handelspreis.
+
+      US dollar amount, ranging from 0.4 to 22.0 in the sample. Subtract from aktueller_einzelhandelspreis for the unit profit available to wholesalers.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: aktueller_einzelhandelspreis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: aktueller_einzelhandelspreis
+    description: |
+      The current retail price of a root beer brand, aktueller_einzelhandelspreis.
+
+      US dollar amount, ranging from 1.0 to 44.0 in the sample. Minus gro_handelspreis gives the unit profit available to wholesalers.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: marke_ref_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: marke_ref_id
+    description: |
+      marke_ref_id, a numeric column on the wurzelbiermarke table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: einzelhandel_preis_aktuell
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: einzelhandel_preis_aktuell
+    description: |
+      einzelhandel_preis_aktuell, a numeric column on the wurzelbiermarke table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: grosshandelspreis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: grosshandelspreis
+    description: |
+      grosshandelspreis, a numeric column on the wurzelbiermarke table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_beer_factory_brewing_history_length
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: erstes_braujaht
+    description: |
+      brewing history length: how long a root beer brand has existed, based on its first brewed year.
+
+      Bound to wurzelbiermarke.erstes_braujaht. A brand with an earlier first brewed year has a much longer brewing history; "longest history" takes MIN(erstes_braujaht) across brands.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "brewing history length"
+        }
+  - name: metric_beer_factory_unit_profit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUBTRACT(aktueller_einzelhandelspreis, gro_handelspreis)
+    description: |
+      unit profit: the margin available to wholesalers, current retail price minus wholesale cost, for one root beer brand.
+
+      Bound to wurzelbiermarke.aktueller_einzelhandelspreis minus wurzelbiermarke.gro_handelspreis. "Unit profit available to wholesalers" is this difference for one brand; "average unit profit" takes AVG of it across brands, and "most" or "least amount of profit per unit" takes MAX or MIN of it.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "unit profit"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_beer_factory_geoposition_standort_6904217c
+  from: geoposition
+  to: standort
+  from_columns:
+  - standort_id
+  to_columns:
+  - standort_id
+  ai_context:
+    instructions: |
+      Match a store location's row in standort to its latitude and longitude in geoposition by standort_id.
+
+      Joins geoposition.standort_id to standort.standort_id. Each of the 3 locations has exactly one coordinate row, so this is one-to-one; use it to add a location's coordinates to a question that is otherwise about its name or address.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between geoposition and standort in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_beer_factory_geoposition_wurzelbier_63e8bc27
+  from: wurzelbier
+  to: geoposition
+  from_columns:
+  - standort_id
+  to_columns:
+  - standort_id
+  ai_context:
+    instructions: |
+      Match a root beer unit in wurzelbier to the coordinates of the location it was sold at in geoposition, by standort_id.
+
+      Joins geoposition.standort_id to wurzelbier.standort_id. geoposition holds one row per location and wurzelbier holds many rows per location, so this is one-to-many from geoposition into wurzelbier; use it to add a location's latitude and longitude to a question about a root beer unit.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between geoposition and wurzelbier in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_beer_factory_kunden_transaktion_875b2fbd
+  from: transaktion
+  to: kunden
+  from_columns:
+  - kunde_id
+  to_columns:
+  - kunde_id
+  ai_context:
+    instructions: |
+      Match a customer in kunden to the purchases they made in transaktion, by kunde_id.
+
+      Joins kunden.kunde_id to transaktion.kunde_id. One customer can appear in many transactions, so this is one-to-many from kunden into transaktion; use it to add a customer's name, address, or contact details to a question about a purchase.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between kunden and transaktion in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_beer_factory_kunden_wurzelbier_bewertung_16706bb4
+  from: wurzelbier_bewertung
+  to: kunden
+  from_columns:
+  - kunde_id
+  to_columns:
+  - kunde_id
+  ai_context:
+    instructions: |
+      Match a customer in kunden to the root beer reviews they wrote in wurzelbier_bewertung, by kunde_id.
+
+      Joins kunden.kunde_id to wurzelbier_bewertung.kunde_id. One customer can write several reviews, so this is one-to-many from kunden into wurzelbier_bewertung; use it to add a reviewer's name or contact details to a question about a review.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between kunden and wurzelbier_bewertung in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_beer_factory_standort_transaktion_c3d6e1df
+  from: transaktion
+  to: standort
+  from_columns:
+  - standort_id
+  to_columns:
+  - standort_id
+  ai_context:
+    instructions: |
+      Match a store location in standort to the purchases made there in transaktion, by standort_id.
+
+      Joins standort.standort_id to transaktion.standort_id. One location can appear in many transactions, so this is one-to-many from standort into transaktion; use it to add a location's name or address to a question about a purchase.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between standort and transaktion in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_beer_factory_standort_wurzelbier_d54f9e46
+  from: wurzelbier
+  to: standort
+  from_columns:
+  - standort_id
+  to_columns:
+  - standort_id
+  ai_context:
+    instructions: |
+      Match a store location in standort to the root beer units sold or stocked there in wurzelbier, by standort_id.
+
+      Joins standort.standort_id to wurzelbier.standort_id. One location can hold many root beer units, so this is one-to-many from standort into wurzelbier; use it to add a location's name or address to a question about a root beer unit.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between standort and wurzelbier in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_beer_factory_transaktion_wurzelbier_c5318e1b
+  from: transaktion
+  to: wurzelbier
+  from_columns:
+  - wurzelbier_id
+  to_columns:
+  - wurzelbier_id
+  ai_context:
+    instructions: |
+      Match a purchase in transaktion to the root beer unit it sold in wurzelbier, by wurzelbier_id.
+
+      Joins transaktion.wurzelbier_id to wurzelbier.wurzelbier_id. Each root beer unit is sold in exactly one transaction in the sample, so this is one-to-one; use it to add a unit's brand and container type to a question about a purchase.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between transaktion and wurzelbier in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_beer_factory_wurzelbier_bewertung_wurzelbiermarke_8e3c9ed8
+  from: wurzelbier_bewertung
+  to: wurzelbiermarke
+  from_columns:
+  - marke_id
+  to_columns:
+  - marke_id
+  ai_context:
+    instructions: |
+      Match a review in wurzelbier_bewertung to the brand it is about in wurzelbiermarke, by marke_id.
+
+      Joins wurzelbier_bewertung.marke_id to wurzelbiermarke.marke_id. One brand can receive many reviews, so this is many-to-one from wurzelbier_bewertung into wurzelbiermarke; use it to add a brand's name and brewery to a question about a review.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between wurzelbier_bewertung and wurzelbiermarke in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_beer_factory_wurzelbier_wurzelbiermarke_d80976fb
+  from: wurzelbier
+  to: wurzelbiermarke
+  from_columns:
+  - marke_id
+  to_columns:
+  - marke_id
+  ai_context:
+    instructions: |
+      Match a root beer unit in wurzelbier to the brand it belongs to in wurzelbiermarke, by marke_id.
+
+      Joins wurzelbier.marke_id to wurzelbiermarke.marke_id. One brand can have many root beer units, so this is many-to-one from wurzelbier into wurzelbiermarke; use it to add a brand's name, brewery, and ingredients to a question about a purchased root beer.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between wurzelbier and wurzelbiermarke in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_5232",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0000",
+          "sql": "SELECT \"markenname\" FROM \"beer_factory\".\"wurzelbiermarke\" WHERE \"erstes_braujaht\" = (SELECT MIN(\"erstes_braujaht\") FROM \"beer_factory\".\"wurzelbiermarke\")",
+          "summary": "What is the name of the root beer brand that has the longest history?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5233",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0001",
+          "sql": "SELECT COUNT(\"marke_id\") FROM \"beer_factory\".\"wurzelbiermarke\" WHERE \"land\" = 'United States'",
+          "summary": "How many breweries are located in North America?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5234",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0002",
+          "sql": "SELECT \"markenname\" FROM \"beer_factory\".\"wurzelbiermarke\" WHERE NOT \"facebook_seite\" IS NULL",
+          "summary": "Please list the names of all the root beer brands that are advertised on facebook."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5235",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0003",
+          "sql": "SELECT \"markenname\" FROM \"beer_factory\".\"wurzelbiermarke\" ORDER BY \"aktueller_einzelhandelspreis\" - \"gro_handelspreis\" NULLS FIRST LIMIT 1",
+          "summary": "What is the name of the root beer brand with the lowest unit profit available to wholesalers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5237",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0004",
+          "sql": "SELECT \"stadt\" FROM \"beer_factory\".\"wurzelbiermarke\" WHERE \"brauerei_name\" = 'AJ Stephans Beverages'",
+          "summary": "In which city is the brewery AJ Stephans Beverages located?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5238",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0005",
+          "sql": "SELECT COUNT(\"T1\".\"kunde_id\") FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T1\".\"vorname\" = 'Frank-Paul' AND \"T1\".\"nachname\" = 'Santangelo' AND TO_CHAR(CAST(\"T2\".\"transaktionsdatum\" AS TIMESTAMP), 'YYYY-MM') = '2014-07'",
+          "summary": "How many transactions had Frank-Paul Santangelo made in July, 2014?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5239",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0006",
+          "sql": "SELECT COUNT(\"T1\".\"kunde_id\") FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T1\".\"geschlecht\" = 'M' AND TO_CHAR(CAST(\"T2\".\"transaktionsdatum\" AS TIMESTAMP), 'YYYY-MM') = '2014-07'",
+          "summary": "Among the transactions made in July, 2014, how many of them were made by a male customer?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5240",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0007",
+          "sql": "SELECT COUNT(\"T1\".\"kunde_id\") FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T1\".\"newsletter_abonniert\" = 'TRUE' AND \"T2\".\"kreditkartentyp\" = 'Visa' AND TO_CHAR(CAST(\"T2\".\"transaktionsdatum\" AS TIMESTAMP), 'YYYY-MM') = '2014-07'",
+          "summary": "Among the users that permit the company to send regular emails to them, how many of them had made a transaction with a Visa card in July, 2014?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5241",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0008",
+          "sql": "SELECT \"T1\".\"vorname\", \"T1\".\"nachname\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE TO_CHAR(CAST(\"T2\".\"transaktionsdatum\" AS TIMESTAMP), 'YYYY-MM') = '2014-08' GROUP BY \"T1\".\"kunde_id\", \"T1\".\"vorname\", \"T1\".\"nachname\" ORDER BY COUNT(\"T2\".\"kunde_id\") DESC LIMIT 1",
+          "summary": "What is the full name of the customer that had made the most transactions in August, 2014?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5242",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0009",
+          "sql": "SELECT DISTINCT \"T4\".\"markenname\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" INNER JOIN \"beer_factory\".\"wurzelbier\" AS \"T3\" ON \"T2\".\"wurzelbier_id\" = \"T3\".\"wurzelbier_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T4\" ON \"T3\".\"marke_id\" = \"T4\".\"marke_id\" WHERE \"T1\".\"vorname\" = 'Frank-Paul' AND \"T1\".\"nachname\" = 'Santangelo' AND \"T2\".\"transaktionsdatum\" = '2014-07-07'",
+          "summary": "Please list the brands of all the root beer that Frank-Paul Santangelo had purchased on 2014/7/7."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5243",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0010",
+          "sql": "SELECT COUNT(\"T1\".\"kunde_id\") FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" INNER JOIN \"beer_factory\".\"wurzelbier\" AS \"T3\" ON \"T2\".\"wurzelbier_id\" = \"T3\".\"wurzelbier_id\" WHERE \"T1\".\"vorname\" = 'Frank-Paul' AND \"T1\".\"nachname\" = 'Santangelo' AND \"T2\".\"transaktionsdatum\" = '2014-07-07' AND \"T3\".\"beh_ltertyp\" = 'Can'",
+          "summary": "Of the 4 root beers that Frank-Paul Santangelo purchased on 2014/7/7, how many of them were in cans?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5244",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0011",
+          "sql": "SELECT COUNT(\"T1\".\"marke_id\") FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"wurzelbier_id\" = \"T2\".\"wurzelbier_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T3\" ON \"T1\".\"marke_id\" = \"T3\".\"marke_id\" WHERE CAST(\"T2\".\"transaktionsdatum\" AS TEXT) LIKE '2014-08%' AND \"T3\".\"markenname\" = 'Bulldog'",
+          "summary": "How many root beers of the Bulldog were purchased in August, 2014?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5245",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0012",
+          "sql": "SELECT \"T1\".\"vorname\", \"T1\".\"nachname\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" INNER JOIN \"beer_factory\".\"wurzelbier\" AS \"T3\" ON \"T2\".\"wurzelbier_id\" = \"T3\".\"wurzelbier_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T4\" ON \"T3\".\"marke_id\" = \"T4\".\"marke_id\" WHERE \"T4\".\"brauerei_name\" = 'AJ Stephans Beverages'",
+          "summary": "Please list the full names of the customers who have purchased at least one root beer produced by AJ Stephans Beverages."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5248",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0013",
+          "sql": "SELECT COUNT(\"T1\".\"kunde_id\") FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" INNER JOIN \"beer_factory\".\"wurzelbier\" AS \"T3\" ON \"T2\".\"wurzelbier_id\" = \"T3\".\"wurzelbier_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T4\" ON \"T3\".\"marke_id\" = \"T4\".\"marke_id\" WHERE \"T1\".\"vorname\" = 'Frank-Paul' AND \"T1\".\"nachname\" = 'Santangelo' AND \"T4\".\"k_nstlicher_s_stoff\" = 'FALSE' AND \"T4\".\"honig\" = 'FALSE'",
+          "summary": "Among all the root beers purchased by Frank-Paul Santangelo, how many of them were non-sweetened?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5249",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0014",
+          "sql": "SELECT \"T2\".\"transaktionsdatum\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T1\".\"geschlecht\" = 'M' GROUP BY \"T2\".\"transaktionsdatum\" HAVING COUNT(\"T2\".\"kunde_id\") > 3",
+          "summary": "Please list the dates on which a male customer has purchased more than 3 root beers."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5251",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0015",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T3\".\"brauerei_name\" = 'AJ Stephans Beverages' THEN 1 ELSE NULL END) AS REAL) * 100 / COUNT(\"T1\".\"marke_id\") FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"wurzelbier_id\" = \"T2\".\"wurzelbier_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T3\" ON \"T1\".\"marke_id\" = \"T3\".\"marke_id\" WHERE CAST(\"T2\".\"transaktionsdatum\" AS TEXT) LIKE '2014%'",
+          "summary": "Among all the root beers sold in 2014, what is the percentage of the root beers produced by the brewery AJ Stephans Beverages?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5254",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0016",
+          "sql": "SELECT CAST(ROUND(CAST(\"T2\".\"breitengrad\" + 0.000001 AS DECIMAL), 6) AS DOUBLE PRECISION), CAST(ROUND(CAST(\"T2\".\"l_ngengrad\" - 0.000002 AS DECIMAL), 6) AS DOUBLE PRECISION) FROM \"beer_factory\".\"standort\" AS \"T1\" INNER JOIN \"beer_factory\".\"geoposition\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T1\".\"standortname\" = 'Sac State American River Courtyard'",
+          "summary": "State the coordinate of Sac State American River Courtyard."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5255",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0017",
+          "sql": "SELECT \"T2\".\"standortname\" FROM \"beer_factory\".\"transaktion\" AS \"T1\" INNER JOIN \"beer_factory\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T1\".\"transaktions_id\" = 100885",
+          "summary": "Provide the name of the location where transaction no.100885 happened."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5256",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0018",
+          "sql": "SELECT \"T1\".\"stadt\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T2\".\"transaktions_id\" = 103545",
+          "summary": "Which city does the customer who finished transaction no.103545 live in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5258",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0019",
+          "sql": "SELECT \"T1\".\"vorname\", \"T1\".\"nachname\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" GROUP BY \"T1\".\"kunde_id\", \"T1\".\"vorname\", \"T1\".\"nachname\" ORDER BY COUNT(\"T2\".\"kunde_id\") DESC LIMIT 1",
+          "summary": "Which customer has the most reviews? State the full name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5259",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0020",
+          "sql": "SELECT \"T1\".\"erstes_kaufdatum\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T2\".\"bewertung\" = 'Tastes like Australia.'",
+          "summary": "For the customer who leaves the review content of \"Tastes like Australia.\", when was his/her first purchase date?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5260",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0021",
+          "sql": "SELECT \"T2\".\"transaktionsdatum\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T1\".\"vorname\" = 'Natalie' AND \"T1\".\"nachname\" = 'Dorris' ORDER BY \"T2\".\"transaktionsdatum\" NULLS FIRST LIMIT 1",
+          "summary": "When did Natalie Dorris buy her first root beer?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5263",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0022",
+          "sql": "SELECT \"T1\".\"aktueller_einzelhandelspreis\" - \"T1\".\"gro_handelspreis\" AS \"price\" FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" WHERE \"T2\".\"bewertung\" = 'The quintessential dessert root beer. No ice cream required.'",
+          "summary": "For the root beer brand which got the review with the content of \"The quintessential dessert root beer. No ice cream required.\", what is the current retail price of the root beer?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5264",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0023",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T2\".\"sternbewertung\" = 5 THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"sternbewertung\"), 0) FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" WHERE \"T1\".\"markenname\" = 'River City'",
+          "summary": "What is the percentage of 5 star ratings River City brand root beer get?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5265",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0024",
+          "sql": "SELECT CAST(COUNT(*) AS REAL) / NULLIF(COUNT(DISTINCT \"T1\".\"marke_id\"), 0) AS \"avgreview\" FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" WHERE \"T1\".\"bundesland\" = 'CA'",
+          "summary": "What is the average number of reviews of all the root beer brands from \"CA\" State?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5266",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0025",
+          "sql": "SELECT COUNT(\"kunde_id\") FROM \"beer_factory\".\"kunden\" WHERE \"geschlecht\" = 'F' AND \"newsletter_abonniert\" = 'TRUE'",
+          "summary": "How many female customers permit the company to send regular emails to them?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5268",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0026",
+          "sql": "SELECT \"vorname\", \"nachname\" FROM \"beer_factory\".\"kunden\" ORDER BY \"erstes_kaufdatum\" NULLS FIRST LIMIT 10",
+          "summary": "What are the full names of the first top 10 customers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5269",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0027",
+          "sql": "SELECT COUNT(\"brauerei_name\") FROM \"beer_factory\".\"wurzelbiermarke\" WHERE \"land\" = 'Australia'",
+          "summary": "How many breweries are there in Australia?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5270",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0028",
+          "sql": "SELECT COUNT(\"kunde_id\") FROM \"beer_factory\".\"kunden\" WHERE \"vorname\" = 'Charles' AND \"stadt\" = 'Sacramento'",
+          "summary": "How many customers are named Charles in Sacramento?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5271",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0029",
+          "sql": "SELECT COUNT(\"transaktions_id\") FROM \"beer_factory\".\"transaktion\" WHERE \"kreditkartentyp\" = 'MasterCard' AND CAST(\"transaktionsdatum\" AS TEXT) LIKE '2014%'",
+          "summary": "How many transactions were paid through MasterCard in 2014?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5272",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0030",
+          "sql": "SELECT \"T3\".\"markenname\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T3\" ON \"T2\".\"marke_id\" = \"T3\".\"marke_id\" WHERE \"T1\".\"vorname\" = 'Jayne' AND \"T1\".\"nachname\" = 'Collins' AND \"T2\".\"sternbewertung\" = 1",
+          "summary": "Which brand of root beer did Jayne Collins give the lowest rating?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5275",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0031",
+          "sql": "SELECT \"T1\".\"vorname\", \"T1\".\"nachname\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T3\" ON \"T2\".\"marke_id\" = \"T3\".\"marke_id\" WHERE \"T3\".\"markenname\" = 'River City' AND \"T2\".\"sternbewertung\" = 5",
+          "summary": "What are the full names of the customer who gave River City a 5-star?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5276",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0032",
+          "sql": "SELECT COUNT(\"T2\".\"wurzelbier_id\") FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T1\".\"vorname\" = 'Tom' AND \"T1\".\"nachname\" = 'Hanks' AND \"T2\".\"transaktionsdatum\" BETWEEN '2015-01-01' AND '2016-12-31'",
+          "summary": "How many root beers did Tom Hanks purchase between 2015 to 2016?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5277",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0033",
+          "sql": "SELECT \"T1\".\"markenname\" FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" WHERE \"T2\".\"sternbewertung\" = 5",
+          "summary": "Which brand of root beer was highly rated by customers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5278",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0034",
+          "sql": "SELECT COUNT(\"T1\".\"kunde_id\") FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" INNER JOIN \"beer_factory\".\"wurzelbier\" AS \"T3\" ON \"T2\".\"wurzelbier_id\" = \"T3\".\"wurzelbier_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T4\" ON \"T3\".\"marke_id\" = \"T4\".\"marke_id\" WHERE \"T1\".\"vorname\" = 'Nicholas' AND \"T1\".\"nachname\" = 'Sparks' AND \"T4\".\"markenname\" LIKE 'Henry Weinhard%s'",
+          "summary": "How many Henry Weinhard's were bought by Nicholas Sparks?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5280",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0035",
+          "sql": "SELECT \"T3\".\"standortname\" FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" INNER JOIN \"beer_factory\".\"standort\" AS \"T3\" ON \"T1\".\"standort_id\" = \"T3\".\"standort_id\" WHERE \"T2\".\"markenname\" = 'Dog n Suds' AND \"T3\".\"standortname\" IN ('Sac State American River Courtyard', 'Sac State Union') GROUP BY \"T1\".\"standort_id\", \"T3\".\"standortname\" ORDER BY COUNT(\"T1\".\"marke_id\") DESC LIMIT 1",
+          "summary": "Between Sac State Union and Sac State American River Courtyard, which location sold the most Dog n Suds root beer?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5281",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0036",
+          "sql": "SELECT COUNT(\"T1\".\"marke_id\") FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" WHERE \"T1\".\"beh_ltertyp\" = 'Can' AND \"T2\".\"markenname\" = 'A&W' AND CAST(\"T1\".\"kaufdatum\" AS TEXT) LIKE '2016%'",
+          "summary": "How many canned A&W were purchased in 2016?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5282",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0037",
+          "sql": "SELECT CAST(ROUND(CAST(\"T2\".\"breitengrad\" - 0.000001 AS DECIMAL), 6) AS DOUBLE PRECISION), \"T2\".\"l_ngengrad\" FROM \"beer_factory\".\"standort\" AS \"T1\" INNER JOIN \"beer_factory\".\"geoposition\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T1\".\"standortname\" = 'Sac State Union'",
+          "summary": "What is the precise location of Sac State Union?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5283",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0038",
+          "sql": "SELECT \"T1\".\"markenname\" FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" WHERE \"T2\".\"sternbewertung\" = 5 GROUP BY \"T2\".\"marke_id\", \"T1\".\"markenname\" HAVING COUNT(\"T2\".\"sternbewertung\") >= 5",
+          "summary": "What are the brands of the root beers that received 5-star ratings from no less than 5 customers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5286",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0039",
+          "sql": "SELECT \"vorname\", \"nachname\", \"telefonnummer\" FROM \"beer_factory\".\"kunden\" WHERE \"geschlecht\" = 'M' AND \"stadt\" = 'Fair Oaks' AND \"newsletter_abonniert\" = 'TRUE'",
+          "summary": "List the full name and phone number of male customers from Fair Oaks who are subscribed to the email list."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5290",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0040",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"kreditkartentyp\" = 'Visa' THEN \"transaktions_id\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"transaktions_id\"), 0) FROM \"beer_factory\".\"transaktion\"",
+          "summary": "Among the transactions, what percentage is done by using a visa card?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5291",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0041",
+          "sql": "SELECT COUNT(\"marke_id\") FROM \"beer_factory\".\"wurzelbiermarke\" WHERE \"maissirup\" = 'TRUE' AND \"k_nstlicher_s_stoff\" = 'TRUE' AND \"in_dosen_erh_ltlich\" = 'TRUE'",
+          "summary": "How many brands of root beers are available in cans and contain corn syrup and artificial sweeteners?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5292",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0042",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T2\".\"standortname\" = 'Sac State American River Courtyard' THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"transaktions_id\"), 0) FROM \"beer_factory\".\"transaktion\" AS \"T1\" INNER JOIN \"beer_factory\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\"",
+          "summary": "Calculate the percentage of sales done at Sac State American River Courtyard."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5294",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0043",
+          "sql": "SELECT * FROM (SELECT \"T1\".\"markenname\", \"T2\".\"beh_ltertyp\" FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" ORDER BY \"T1\".\"aktueller_einzelhandelspreis\" - \"T1\".\"gro_handelspreis\" DESC NULLS LAST LIMIT 1) UNION ALL SELECT * FROM (SELECT \"T3\".\"markenname\", \"T4\".\"beh_ltertyp\" FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T3\" INNER JOIN \"beer_factory\".\"wurzelbier\" AS \"T4\" ON \"T3\".\"marke_id\" = \"T4\".\"marke_id\" ORDER BY \"T3\".\"aktueller_einzelhandelspreis\" - \"T3\".\"gro_handelspreis\" ASC NULLS FIRST LIMIT 1)",
+          "summary": "Find the root beer with the most and least amount of profit per unit and list the container types in which these root beers are sold."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5295",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0044",
+          "sql": "SELECT AVG(\"T2\".\"kaufpreis\") FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"wurzelbier_id\" = \"T2\".\"wurzelbier_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T3\" ON \"T1\".\"marke_id\" = \"T3\".\"marke_id\" WHERE \"T1\".\"beh_ltertyp\" = 'Bottle' AND \"T2\".\"kaufpreis\" > 2",
+          "summary": "What is the average cost of root beers purchased for more than 2 dollars and sold in bottles?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5300",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0045",
+          "sql": "SELECT COUNT(CASE WHEN \"T3\".\"rohrzucker\" = 'TRUE' THEN \"T1\".\"marke_id\" ELSE NULL END) - COUNT(CASE WHEN \"T3\".\"maissirup\" = 'TRUE' THEN \"T1\".\"marke_id\" ELSE NULL END) AS \"DIFFERENCE\" FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"wurzelbier_id\" = \"T2\".\"wurzelbier_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T3\" ON \"T1\".\"marke_id\" = \"T3\".\"marke_id\"",
+          "summary": "Calculate the difference between the number of root beers sold that use cane sugar and corn syrup."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5304",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0046",
+          "sql": "SELECT DISTINCT \"T1\".\"vorname\", \"T1\".\"nachname\", \"T1\".\"email\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" INNER JOIN \"beer_factory\".\"standort\" AS \"T3\" ON \"T2\".\"standort_id\" = \"T3\".\"standort_id\" WHERE \"T3\".\"standortname\" = 'Sac State Union' AND \"T2\".\"kreditkartentyp\" = 'American Express'",
+          "summary": "Find and list the full name and email of the customers who used American Express cards in Sac State Union."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5305",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0047",
+          "sql": "SELECT DISTINCT \"T1\".\"markenname\" FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" WHERE \"T2\".\"sternbewertung\" = 5 AND \"T2\".\"bewertungsdatum\" BETWEEN '2014-09-01' AND '2014-09-30'",
+          "summary": "In the reviews of September 2014. Which brand of beers obtained the highest star ratings?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5307",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0048",
+          "sql": "SELECT COUNT(\"T1\".\"kunde_id\") FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T1\".\"stadt\" = 'Folsom' AND \"T2\".\"kreditkartentyp\" = 'Visa'",
+          "summary": "How many Folsom customers prefer to pay with Visa?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5308",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0049",
+          "sql": "SELECT DISTINCT \"T1\".\"stadt\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T2\".\"sternbewertung\" = 5 AND \"T2\".\"bewertungsdatum\" BETWEEN '2012-11-01' AND '2012-11-30'",
+          "summary": "From which cities are the customers who gave 5 stars in their reviews in November 2012?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5309",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0050",
+          "sql": "SELECT \"T3\".\"markenname\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T3\" ON \"T2\".\"marke_id\" = \"T3\".\"marke_id\" WHERE \"T1\".\"vorname\" = 'Peg' AND \"T1\".\"nachname\" = 'Winchester'",
+          "summary": "What brands of beer has Peg Winchester consumed?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5310",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0051",
+          "sql": "SELECT \"T1\".\"markenname\" FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T2\".\"marke_id\" = \"T1\".\"marke_id\" WHERE \"T2\".\"sternbewertung\" = 1 GROUP BY \"T1\".\"markenname\" ORDER BY COUNT(\"T1\".\"markenname\") DESC NULLS LAST LIMIT 1",
+          "summary": "What brand of beer has been the worst rated most times?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5311",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0052",
+          "sql": "SELECT \"T2\".\"kreditkartentyp\" FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"wurzelbier_id\" = \"T2\".\"wurzelbier_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T3\" ON \"T1\".\"marke_id\" = \"T3\".\"marke_id\" WHERE \"T3\".\"alkoholhaltig\" = 'FALSE' GROUP BY \"T2\".\"kreditkartentyp\" ORDER BY COUNT(\"T2\".\"kreditkartentyp\") DESC NULLS LAST LIMIT 1",
+          "summary": "What credit card is the most used in the purchase of non-alcoholic beer?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5312",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0053",
+          "sql": "SELECT \"T1\".\"vorname\", \"T1\".\"nachname\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T2\".\"sternbewertung\" = 5",
+          "summary": "What is the name of all the customers who have ever given a 5-star review?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5313",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0054",
+          "sql": "SELECT CAST(ROUND(CAST(\"T3\".\"breitengrad\" - 0.000001 AS DECIMAL), 6) AS DOUBLE PRECISION) FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" INNER JOIN \"beer_factory\".\"geoposition\" AS \"T3\" ON \"T1\".\"standort_id\" = \"T3\".\"standort_id\" WHERE \"T2\".\"markenname\" = 'Thomas Kemper' GROUP BY \"T3\".\"breitengrad\" ORDER BY COUNT(\"T1\".\"marke_id\") DESC LIMIT 1",
+          "summary": "At what latitude is the Thomas Kemper brand beer consumed the most?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5317",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0055",
+          "sql": "SELECT CAST(1180.68 AS DOUBLE PRECISION) / COUNT(*) FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" WHERE \"T1\".\"beh_ltertyp\" = 'Can'",
+          "summary": "What is the average unit profit for wholesalers of canned beers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5318",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0056",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T1\".\"sternbewertung\" = 3 THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"kunde_id\"), 0) FROM \"beer_factory\".\"wurzelbier_bewertung\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T2\".\"kreditkartentyp\" = 'Discover'",
+          "summary": "What percentage of customers who paid with a Discover Credit Card gave a 3-star rating?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5322",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0057",
+          "sql": "SELECT DISTINCT \"T1\".\"email\", \"T1\".\"telefonnummer\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T2\".\"sternbewertung\" > 3 AND \"T1\".\"stadt\" = 'Sacramento' AND \"T2\".\"bewertungsdatum\" BETWEEN '2014-01-01' AND '2014-12-31'",
+          "summary": "Tally the email addresses and phone numbers of customers from Sacramento who gave a star rating of more than 3 in 2014."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5324",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0058",
+          "sql": "SELECT DISTINCT \"T2\".\"brauerei_name\", \"T2\".\"markenname\" FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" WHERE \"T1\".\"kaufdatum\" < '2015-06-06' AND \"T1\".\"beh_ltertyp\" = 'Can'",
+          "summary": "Give me the brewery and brand names of canned root beer that were purchased before 6/6/2015."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5329",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0059",
+          "sql": "SELECT SUM(\"T1\".\"kaufpreis\") FROM \"beer_factory\".\"transaktion\" AS \"T1\" INNER JOIN \"beer_factory\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T2\".\"standortname\" = 'Sac State American River Courtyard' AND \"T1\".\"kreditkartentyp\" = 'Visa' AND \"T1\".\"transaktionsdatum\" BETWEEN '2014-06-03' AND '2015-11-27'",
+          "summary": "Calculate the total purchases made by customers using their Visa credit cards in the Sac State American River Courtyard between 6/3/2014 and 11/27/2015."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5330",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0060",
+          "sql": "SELECT COUNT(\"T1\".\"transaktions_id\") FROM \"beer_factory\".\"transaktion\" AS \"T1\" INNER JOIN \"beer_factory\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T2\".\"standortname\" = 'Sac State Union' AND \"T1\".\"kreditkartentyp\" = 'American Express' AND \"T1\".\"transaktionsdatum\" BETWEEN '2014-01-01' AND '2014-12-31'",
+          "summary": "How many transactions were made in Sac State Union using the American Express credit card in 2014?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5332",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0061",
+          "sql": "SELECT \"T2\".\"bewertung\" FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" WHERE \"T1\".\"markenname\" = 'Bulldog' AND \"T2\".\"bewertungsdatum\" = '2013-07-26'",
+          "summary": "What did the customer say in his or her review of Bulldog root beer on 7/26/2013?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5335",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0062",
+          "sql": "SELECT DISTINCT \"T2\".\"kreditkartentyp\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T1\".\"vorname\" = 'Kenneth' AND \"T1\".\"nachname\" = 'Walton'",
+          "summary": "What is the credit card type used by Kenneth Walton?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5338",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0063",
+          "sql": "SELECT \"T1\".\"wurzelbier_id\" FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T2\" ON \"T2\".\"marke_id\" = \"T1\".\"marke_id\" WHERE \"T2\".\"markenname\" IN ('Bulldog', 'Bundaberg', 'Dad''s', 'Dog n Suds', 'Virgil''s')",
+          "summary": "List out the root beer ID for the brand Bulldog, Bundaberg, Dad's, Dog n Suds and Virgil's."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5339",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0064",
+          "sql": "SELECT COUNT(\"T3\".\"beh_ltertyp\") FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T2\".\"kunde_id\" = \"T1\".\"kunde_id\" INNER JOIN \"beer_factory\".\"wurzelbier\" AS \"T3\" ON \"T3\".\"wurzelbier_id\" = \"T2\".\"wurzelbier_id\" WHERE \"T3\".\"beh_ltertyp\" = 'Bottle' AND \"T1\".\"vorname\" = 'Jim' AND \"T1\".\"nachname\" = 'Breech'",
+          "summary": "How many bottles of beer have been bought by Jim Breech?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5341",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0065",
+          "sql": "SELECT AVG(\"T2\".\"sternbewertung\") FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T1\".\"newsletter_abonniert\" = 'TRUE'",
+          "summary": "What is the average review given by a subscriber?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5343",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0066",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T2\".\"standortname\" = 'Sac State American River Courtyard' THEN \"T1\".\"transaktions_id\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(CASE WHEN \"T2\".\"standortname\" = 'Sac State Union' THEN \"T1\".\"transaktions_id\" ELSE NULL END), 0) FROM \"beer_factory\".\"transaktion\" AS \"T1\" INNER JOIN \"beer_factory\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\"",
+          "summary": "What is the transaction ratio being made at Sac State American River Courtyard and Sac State Union?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5346",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0067",
+          "sql": "SELECT \"T2\".\"markenname\" FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" GROUP BY \"T2\".\"marke_id\", \"T2\".\"markenname\" ORDER BY COUNT(\"T1\".\"marke_id\") LIMIT 1",
+          "summary": "Which of the root beer brand have the lowest purchase?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5347",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0068",
+          "sql": "SELECT \"T1\".\"marke_id\", AVG(\"T1\".\"sternbewertung\") FROM \"beer_factory\".\"wurzelbier_bewertung\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T3\" ON \"T1\".\"marke_id\" = \"T3\".\"marke_id\" GROUP BY \"T3\".\"marke_id\", \"T1\".\"marke_id\" ORDER BY COUNT(\"T1\".\"marke_id\") DESC LIMIT 1",
+          "summary": "What is the best seller root beer brand and what is the average star rating for this root beer?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5348",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0069",
+          "sql": "SELECT CAST((SUM(CASE WHEN \"T3\".\"markenname\" = 'River City' THEN \"T2\".\"kaufpreis\" ELSE 0 END) - SUM(CASE WHEN \"T3\".\"markenname\" = 'Frostie' THEN \"T2\".\"kaufpreis\" ELSE 0 END)) AS REAL) * 100 / NULLIF(SUM(CASE WHEN \"T3\".\"markenname\" = 'Frostie' THEN \"T2\".\"kaufpreis\" ELSE 0 END), 0) FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"wurzelbier_id\" = \"T2\".\"wurzelbier_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T3\" ON \"T1\".\"marke_id\" = \"T3\".\"marke_id\"",
+          "summary": "What is the percentage difference of River City sale compare to Frostie?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5349",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0070",
+          "sql": "SELECT DISTINCT \"stadt\" FROM \"beer_factory\".\"kunden\" WHERE \"bundesland\" = 'CA'",
+          "summary": "Please name all of the cities in California."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5350",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0071",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"geschlecht\" = 'F' THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"newsletter_abonniert\"), 0) FROM \"beer_factory\".\"kunden\" WHERE \"newsletter_abonniert\" = 'TRUE'",
+          "summary": "What is the percentage of female customers who subscribed to the email list?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5351",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0072",
+          "sql": "SELECT DISTINCT \"T2\".\"kreditkartentyp\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"transaktion\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" WHERE \"T1\".\"vorname\" = 'Dick' AND \"T1\".\"nachname\" = 'Ruthven'",
+          "summary": "Which type of card did Dick Ruthven use to pay for all of his transactions?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5353",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0073",
+          "sql": "SELECT \"T2\".\"sternbewertung\" FROM \"beer_factory\".\"kunden\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"kunde_id\" = \"T2\".\"kunde_id\" INNER JOIN \"beer_factory\".\"wurzelbiermarke\" AS \"T3\" ON \"T2\".\"marke_id\" = \"T3\".\"marke_id\" WHERE \"T1\".\"vorname\" = 'Urijah' AND \"T1\".\"nachname\" = 'Faber' AND \"T3\".\"markenname\" = 'Frostie'",
+          "summary": "How many stars did Urijah Faber rate for Frostie?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5354",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0074",
+          "sql": "SELECT \"T1\".\"markenname\" FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T2\".\"marke_id\" = \"T1\".\"marke_id\" WHERE \"T2\".\"sternbewertung\" = 1 AND \"T2\".\"bewertung\" = 'Too Spicy!'",
+          "summary": "Which brand has the lowest star rating with a \"Too spicy!\" review?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5355",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0075",
+          "sql": "SELECT COUNT(\"T1\".\"transaktions_id\") FROM \"beer_factory\".\"transaktion\" AS \"T1\" INNER JOIN \"beer_factory\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T2\".\"standortname\" = 'Sac State American River Courtyard' AND \"T1\".\"kreditkartentyp\" = 'MasterCard'",
+          "summary": "How many purchases were made at Sac State American River Courtyard using Master Card?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5356",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0076",
+          "sql": "SELECT DISTINCT \"T1\".\"markenname\" FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" WHERE \"T1\".\"rohrzucker\" = 'TRUE' AND \"T1\".\"honig\" = 'TRUE' AND \"T2\".\"sternbewertung\" = 1 AND CAST(\"T2\".\"bewertungsdatum\" AS TEXT) LIKE '2012%'",
+          "summary": "Which brand in 2012 has the lowest star rating and contains cane sugar as well as honey?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5360",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0077",
+          "sql": "SELECT \"T2\".\"standortname\" FROM \"beer_factory\".\"wurzelbier\" AS \"T1\" INNER JOIN \"beer_factory\".\"standort\" AS \"T2\" ON \"T1\".\"standort_id\" = \"T2\".\"standort_id\" WHERE \"T1\".\"beh_ltertyp\" = 'Bottle' GROUP BY \"T2\".\"standort_id\", \"T2\".\"standortname\" ORDER BY COUNT(\"T1\".\"standort_id\") DESC LIMIT 1",
+          "summary": "Which location sold more bottles of beer?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5361",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_beer_factory_0078",
+          "sql": "SELECT \"T1\".\"markenname\" FROM \"beer_factory\".\"wurzelbiermarke\" AS \"T1\" INNER JOIN \"beer_factory\".\"wurzelbier_bewertung\" AS \"T2\" ON \"T1\".\"marke_id\" = \"T2\".\"marke_id\" WHERE \"T2\".\"sternbewertung\" = 5 GROUP BY \"T1\".\"marke_id\", \"T1\".\"markenname\" ORDER BY MIN(\"T2\".\"kunde_id\"), MIN(\"T2\".\"marke_id\") LIMIT 3",
+          "summary": "Please name any three root beer brands that have the highest market evaluation and acceptance."
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between transaktion and wurzelbier_bewertung in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Joins transaktion.kunde_id to wurzelbier_bewertung.kunde_id. A customer can have many transactions and many reviews, so this is many-to-many; it does not mean a transaction and a review are about the same root beer, only that the same customer made both. Use it for questions that combine what a customer bought with what they reviewed.\n",
+          "cardinality": "many_to_many",
+          "id": "join_beer_factory_transaktion_wurzelbier_bewertung_b30e56f3",
+          "left_table": "beer_factory.transaktion",
+          "on": "beer_factory.transaktion.kunde_id = beer_factory.wurzelbier_bewertung.kunde_id",
+          "right_table": "beer_factory.wurzelbier_bewertung",
+          "summary": "Match a purchase in transaktion to a review in wurzelbier_bewertung through the shared customer, kunde_id."
+        }
+      ]
+    }

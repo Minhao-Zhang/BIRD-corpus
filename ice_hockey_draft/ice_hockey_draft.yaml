@@ -1,37 +1,3127 @@
-asset_type: schema
-id: ice_hockey_draft
+version: 0.2.0.dev0
 name: ice_hockey_draft
-summary: >-
-  The ice_hockey_draft database tracks NHL draft prospects: birthdate, nation, height, weight,
-  position, and shooting hand; draft year, round, overall pick, team, and CSS rank; and season
-  goals, assists, points, and penalty minutes.
-body: >
-  PlayerInfo holds one row per drafted player, with birthdate, nation, position, shooting hand,
-  draft year, round, overall pick, drafting team, Central Scouting Service rank, and career-total
-  games and time on ice in the player's first 7 NHL seasons. SeasonStatus holds one row per player
-  per season, team, league, and game type (regular season or playoffs), with games played, goals,
-  assists, points, penalty minutes, and goal differential; join it to PlayerInfo on ELITEID.
-  height_info and weight_info are small lookup tables converting a raw inch or pound count into
-  centimeters/feet-inches or kilograms/pounds; PlayerInfo.height and PlayerInfo.weight are
-  themselves the raw inch and pound values and join to height_info.height_id and
-  weight_info.weight_id respectively, not to a surrogate key.
+description: |
+  The ice_hockey_draft database tracks NHL draft prospects: birthdate, nation, height, weight, position, and shooting hand; draft year, round, overall pick, team, and CSS rank; and season goals, assists, points, and penalty minutes.
 
-  player_biographical_profile and player_weight_measurements resemble PlayerInfo and weight_info
-  but are not dependable for analysis; none of their columns should be used to answer a question.
-  Within PlayerInfo, SeasonStatus, height_info, and weight_info themselves, several columns
-  duplicate the real identifiers and measurements unreliably -- elite_registry_id, stature_value,
-  mass_value, season_elite_ref, assists_total, goals_total, stature_id, stature_cm,
-  stature_in_inches, mass_id, mass_kg, and mass_lbs -- and must not be used.
-rules:
-- Join PlayerInfo to SeasonStatus on ELITEID; join PlayerInfo to height_info on height = height_id
-  and to weight_info on weight = weight_id -- never on elite_registry_id, season_elite_ref,
-  stature_id, stature_value, mass_id, or mass_value, all of which are unreliable.
-- Never select from or join through player_biographical_profile or player_weight_measurements;
-  use PlayerInfo, height_info, and weight_info instead.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+  PlayerInfo holds one row per drafted player, with birthdate, nation, position, shooting hand, draft year, round, overall pick, drafting team, Central Scouting Service rank, and career-total games and time on ice in the player's first 7 NHL seasons. SeasonStatus holds one row per player per season, team, league, and game type (regular season or playoffs), with games played, goals, assists, points, penalty minutes, and goal differential; join it to PlayerInfo on ELITEID. height_info and weight_info are small lookup tables converting a raw inch or pound count into centimeters/feet-inches or kilograms/pounds; PlayerInfo.height and PlayerInfo.weight are themselves the raw inch and pound values and join to height_info.height_id and weight_info.weight_id respectively, not to a surrogate key.
+  player_biographical_profile and player_weight_measurements resemble PlayerInfo and weight_info but are not dependable for analysis; none of their columns should be used to answer a question. Within PlayerInfo, SeasonStatus, height_info, and weight_info themselves, several columns duplicate the real identifiers and measurements unreliably -- elite_registry_id, stature_value, mass_value, season_elite_ref, assists_total, goals_total, stature_id, stature_cm, stature_in_inches, mass_id, mass_kg, and mass_lbs -- and must not be used.
+ai_context:
+  instructions: |-
+    Join PlayerInfo to SeasonStatus on ELITEID; join PlayerInfo to height_info on height = height_id and to weight_info on weight = weight_id -- never on elite_registry_id, season_elite_ref, stature_id, stature_value, mass_id, or mass_value, all of which are unreliable.
+    Never select from or join through player_biographical_profile or player_weight_measurements; use PlayerInfo, height_info, and weight_info instead.
+datasets:
+- name: PlayerInfo
+  source: ice_hockey_draft.PlayerInfo
+  description: |
+    PlayerInfo is the roster of every player who attended an NHL draft, with birth, physical, and draft details.
+
+    One row per drafted player. Carries birth details (date, year, month, day, place, nation), physical measurements (height, weight), playing details (position, shooting hand), draft outcome (year, round, overall pick, drafting team, Central Scouting Service rank), and career-total NHL games and time on ice in the player's first 7 seasons. Easily confused with player_biographical_profile, which looks similar but is not dependable. Joins to SeasonStatus on ELITEID for season-by-season stats, and to height_info and weight_info for the centimeter, kilogram, and formatted representations of height and weight.
+  fields:
+  - name: ELITEID
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ELITEID
+    description: |
+      The unique numeric identifier for a player in the ELITEID column, used to join PlayerInfo to that player's season-by-season rows.
+
+      A whole number unique to one player, for example 12854 or 8421. It is the join key to SeasonStatus.ELITEID and is not reused across players.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: PlayerName
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: PlayerName
+    description: |
+      PlayerName holds the full name of the drafted player.
+
+      Free-text full name, for example "Beat Forster" or "Alexei Tereschenko". Not necessarily unique across the whole table, though duplicates are rare.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to PlayerInfo.PlayerName, the free-text full name of a drafted player. Business language asking \"who\" did something, or referring to \"the player\" or \"players\" meeting some condition, means this column -- it is the subject of nearly every question about an individual in this schema.\n",
+              "id": "term_ice_hockey_draft_player_name",
+              "name": "player name",
+              "summary": "player name (players, name, who): the drafted person a question about a player, players, a name, or who is asking about, held in PlayerInfo.PlayerName.",
+              "synonyms": [
+                "player",
+                "players",
+                "name",
+                "who"
+              ]
+            }
+          ]
+        }
+  - name: birthdate
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: birthdate
+    description: |
+      birthdate is the player's full date of birth.
+
+      Stored as text in YYYY-MM-DD form, for example "1983-02-02". The earliest value marks the oldest player and the latest marks the youngest. birthyear, birthmonth, and birthday repeat the year, month, and day of this same date as separate columns.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: birthyear
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: birthyear
+    description: |
+      birthyear is the four-digit calendar year the player was born, taken from birthdate.
+
+      A four-digit year such as 1983 or 1980, observed from 1972 through 1990. Redundant with the year portion of birthdate.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: birthmonth
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: birthmonth
+    description: |
+      birthmonth is the calendar month of the player's birth, taken from birthdate.
+
+      An integer from 1 (January) through 12 (December). Redundant with the month portion of birthdate.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: birthday
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: birthday
+    description: |
+      birthday is the day of the month the player was born, taken from birthdate.
+
+      An integer from 1 through 31, the day-of-month component of birthdate -- not the player's full date of birth, which is birthdate.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: birthplace
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: birthplace
+    description: |
+      birthplace records the city, region, and country where the player was born.
+
+      Free-text, formatted "City, Region/Country abbreviation" -- for example "Zlin, CZE" or "Milton, MA, USA". Distinct from nation, which names only the country the player represents.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nation
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nation
+    description: |
+      nation names the country the player represents.
+
+      Free-text country name or common abbreviation, for example "Russia", "USA", "Czech Rep.", or a truncated form like "Switzerlan". About 20 distinct values appear. Business language often names a demonym instead of the country ("Swedish" for nation = 'Sweden', "Italian" for nation = 'Italy') or groups several nations by continent (for example an Eastern Europe grouping covering Belarus, Bulgaria, Czech Republic, Hungary, Moldova, Poland, Romania, Slovakia, and Ukraine).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to PlayerInfo.nation. Business language often names a demonym instead of the country -- \"Swedish\" means nation = 'Sweden', \"Italian\" means nation = 'Italy' -- and sometimes groups several nations by continent instead of naming one, for example an Eastern Europe grouping covering Belarus, Bulgaria, Czech Republic, Hungary, Moldova, Poland, Romania, Slovakia, and Ukraine. \"Country\" and \"nation\" refer to the same column.\n",
+              "id": "term_ice_hockey_draft_nation",
+              "name": "nation",
+              "summary": "nation (country, nationality): the country a drafted player represents, held in PlayerInfo.nation.",
+              "synonyms": [
+                "nation",
+                "country",
+                "nationality"
+              ]
+            }
+          ]
+        }
+  - name: height
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: height
+    description: |
+      height is the player's height in inches.
+
+      A whole number of inches, observed from 67 through 80. This value doubles as the join key into height_info.height_id, which supplies the same height in centimeters and in feet-and-inches format.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: weight
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: weight
+    description: |
+      weight is the player's weight in pounds.
+
+      A whole number of pounds, observed from 168 through 265. This value doubles as the join key into weight_info.weight_id, which supplies the same weight in kilograms.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: position_info
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: position_info
+    description: |
+      position_info is the player's playing position code.
+
+      One of six position codes -- C (center), LW (left wing), RW (right wing), D or LD (left defenseman), RD (right defenseman), or G (goalie) -- or a slash-separated pair such as "D/F" or "C/RW" for a player who plays more than one. Center, left wing, and right wing are forwards; left and right defensemen are the defense.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to PlayerInfo.position_info. Six roles exist: center (C), left wing (LW), and right wing (RW) are forwards; left defenseman (LD or D) and right defenseman (RD) are the defense; goalie (G) stands apart from both groups. A player who plays more than one role has a slash-separated code such as \"D/F\" or \"C/RW\". A question grouping \"forwards\" means center, left wing, and right wing together; a question about \"the defense\" means left and right defensemen together.\n",
+              "id": "term_ice_hockey_draft_position",
+              "name": "position",
+              "summary": "position: the playing role recorded in PlayerInfo.position_info, grouping forwards and defensemen.",
+              "synonyms": [
+                "position"
+              ]
+            }
+          ]
+        }
+  - name: shoots
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shoots
+    description: |
+      shoots records which hand the player shoots with.
+
+      "L" for a left-shot player, "R" for a right-shot player, or "-" when no preference is recorded.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: draftyear
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: draftyear
+    description: |-
+      draftyear is the calendar year in which the player was drafted.
+
+      A four-digit year, observed from 1998 through 2008.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: draftround
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: draftround
+    description: |-
+      draftround is the round of the draft in which the player was picked.
+
+      An integer from 1 through 9; round 1 is the earliest and most sought-after round.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: overall
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: overall
+    description: |
+      overall is the player's overall pick order across the entire draft, regardless of round.
+
+      A whole number giving the player's rank among every pick made that year, independent of draftround. A lower number was picked earlier.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: overallby
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: overallby
+    description: |
+      overallby names the team that made the pick.
+
+      Free-text NHL team name, for example "Arizona Coyotes" or "Toronto Maple Leafs". About 30 distinct teams appear.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: CSS_rank
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: CSS_rank
+    description: |
+      CSS_rank is the player's Central Scouting Service ranking ahead of the draft.
+
+      A whole number, observed from 1 to 250 in a 500-row sample. In this data set a higher CSS_rank value marks a higher (more sought-after) prospect, the opposite of how the real Central Scouting Service publishes its list, where rank 1 is the top prospect -- read comparisons against this column as "higher number, higher prospect."
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: sum_7yr_GP
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sum_7yr_GP
+    description: |
+      sum_7yr_GP totals the NHL games the player played across his first 7 NHL seasons.
+
+      A career-total whole number, 0 when the player never played an NHL game. Distinct from SeasonStatus.GP, which counts games for one season, team, and game type at a time; this column is the 7-season career sum. A higher value means the player was in the NHL lineup more over that span.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to PlayerInfo.sum_7yr_GP, a career-total whole number covering the player's first 7 NHL seasons, not a single season. Boundary phrasings like \"played over 300 games in their first 7 years\" or \"no less than 500\" mean sum_7yr_GP > 300 or sum_7yr_GP >= 500. Distinct from SeasonStatus.GP, which counts games for one season, team, league, and game type at a time, and from the unreliable total_gp_7yr column.\n",
+              "id": "term_ice_hockey_draft_career_games_played",
+              "name": "career games played",
+              "summary": "attendance (career games played, first 7 years of NHL career): the total NHL games a player played across his first 7 NHL seasons, column sum_7yr_GP.",
+              "synonyms": [
+                "attendance",
+                "career games played",
+                "first 7 years of nhl career"
+              ]
+            }
+          ]
+        }
+  - name: sum_7yr_TOI
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sum_7yr_TOI
+    description: |
+      sum_7yr_TOI totals the player's NHL time on ice across his first 7 NHL seasons.
+
+      A career-total whole number of minutes, 0 when the player never played an NHL game. A higher value means more playing time over that span.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: GP_greater_than_0
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: GP_greater_than_0
+    description: |-
+      GP_greater_than_0 flags whether the player played any NHL game in his first 7 seasons.
+
+      "yes" when sum_7yr_GP is greater than 0, "no" otherwise.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: elite_registry_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: elite_registry_id
+    description: |
+      elite_registry_id, a numeric column on the PlayerInfo table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: stature_value
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stature_value
+    description: |
+      stature_value, a numeric column on the PlayerInfo table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: mass_value
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mass_value
+    description: |
+      mass_value, a numeric column on the PlayerInfo table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_ice_hockey_draft_highest_css_rank
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(CSS_rank)
+    description: |
+      highest CSS rank: the largest CSS_rank value in PlayerInfo, marking the player considered the highest prospect for the draft in this data.
+
+      Bound to PlayerInfo.CSS_rank. "Highest prospects for the draft" means MAX(CSS_rank). In this data set a higher CSS_rank number marks a higher prospect, the opposite of how the real Central Scouting Service publishes rankings, where rank 1 is the top prospect -- do not reach for MIN(CSS_rank) by analogy with a normal ranking column.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest CSS rank"
+        }
+  - name: metric_ice_hockey_draft_longest_career_toi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(sum_7yr_TOI)
+    description: |
+      longest career time on ice: the largest sum_7yr_TOI value in PlayerInfo, the most NHL playing time logged in any player's first 7 seasons.
+
+      Bound to PlayerInfo.sum_7yr_TOI. "Longest time on ice in the player's first 7 years of NHL career" means MAX(sum_7yr_TOI). This is a career-total minute count, not a single-season value, and 0 marks a player who never played an NHL game.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "longest career time on ice"
+        }
+  - name: metric_ice_hockey_draft_most_career_games
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(sum_7yr_GP)
+    description: |
+      most career games played: the largest sum_7yr_GP value in PlayerInfo, the most NHL attendance logged in any player's first 7 seasons.
+
+      Bound to PlayerInfo.sum_7yr_GP. "Most attendance in the player's first 7 years of NHL career" means MAX(sum_7yr_GP), a career-total count. Do not confuse with MAX(GP) on SeasonStatus, which is a single season/team/league/game-type count instead.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most career games played"
+        }
+  - name: metric_ice_hockey_draft_oldest_player
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(birthdate)
+    description: |
+      oldest player: the earliest birthdate in PlayerInfo, identifying the player born furthest in the past.
+
+      Bound to PlayerInfo.birthdate. "Oldest player" means MIN(birthdate), since an earlier date means an older person -- the opposite direction from most other MAX-means-highest metrics in this schema. The youngest player is the MAX(birthdate) row instead.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "oldest player"
+        }
+  - name: metric_ice_hockey_draft_youngest_player
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(birthdate)
+    description: |
+      youngest player: the latest birthdate in PlayerInfo, identifying the player born most recently.
+
+      Bound to PlayerInfo.birthdate. "Youngest player" means MAX(birthdate), since a later date means a younger person. The oldest player is the MIN(birthdate) row instead.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "youngest player"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: SeasonStatus
+  source: ice_hockey_draft.SeasonStatus
+  description: |
+    SeasonStatus is a season-by-season scoring log, one row per player per season, team, league, and game type.
+
+    One row per player per season, team, league, and game type (regular season versus playoffs), so a single player and season can span several rows across different leagues, teams, or game types. Carries games played, goals, assists, points, penalty minutes, and goal differential. Joins to PlayerInfo on ELITEID; a player's career totals in PlayerInfo (sum_7yr_GP, sum_7yr_TOI) are separate columns computed over the player's first 7 NHL seasons, not a sum of this table's GP.
+  fields:
+  - name: ELITEID
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ELITEID
+    description: |-
+      ELITEID identifies which player this season row belongs to, joining to PlayerInfo.ELITEID.
+
+      A whole number matching a PlayerInfo.ELITEID value. Not unique in this table -- a player has one row per season, team, league, and game type.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: SEASON
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SEASON
+    description: |
+      SEASON labels the two-year season this row's stats were recorded in.
+
+      Free text in "YYYY-YYYY" form, for example "1998-1999" or "2004-2005". Ten distinct seasons appear, spanning 1997-1998 through 2007-2008.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: TEAM
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: TEAM
+    description: |
+      TEAM names the club the player played for during this season row.
+
+      Free-text team name, for example "Karpat" or "Acadie-Bathurst Titan". This is the junior, college, or international team the player skated for that season, not necessarily an NHL club; over 280 distinct teams appear.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: LEAGUE
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: LEAGUE
+    description: |
+      LEAGUE names the league the TEAM competed in for this row.
+
+      Free-text league name or abbreviation. Common values include OHL (Ontario Hockey League), QMJHL (Quebec Major Junior Hockey League), WHL (Western Hockey League), NCAA, and International (national-team competitions); over 50 distinct leagues appear in total, including professional leagues such as the AHL.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to SeasonStatus.LEAGUE. Frequently referenced leagues include OHL (Ontario Hockey League), QMJHL (Quebec Major Junior Hockey League), and WHL (Western Hockey League), the three Canadian major-junior leagues; NCAA for United States college hockey; and International for national-team competitions. Over 50 distinct league values appear in total, including professional leagues such as the AHL and European club leagues.\n",
+              "id": "term_ice_hockey_draft_league",
+              "name": "league",
+              "summary": "league: the competition a SeasonStatus row's team played in, spanning major-junior, college, professional, and international hockey.",
+              "synonyms": [
+                "league"
+              ]
+            }
+          ]
+        }
+  - name: GAMETYPE
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: GAMETYPE
+    description: |-
+      GAMETYPE marks whether this row's stats are from the regular season or the playoffs.
+
+      "Regular Season" or "Playoffs" -- exactly two values, each player-season typically appearing once per game type it was played in.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: GP
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: GP
+    description: |
+      GP counts games played in this specific season, team, league, and game type.
+
+      A whole number, typically small (0 through the low dozens) because it counts one season/team/league/game-type slice, not a career. Compare with PlayerInfo.sum_7yr_GP, which is the player's multi-season NHL career total.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: G
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: G
+    description: |
+      G counts goals the player scored in this season row.
+
+      A whole number of goals for this season, team, league, and game type. 0 means the player was scoreless in that slice. Business language calling this "goals scored" or "number of goals scored" means this column, not the career sum_7yr_GP or sum_7yr_TOI columns on PlayerInfo.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to SeasonStatus.G, a per-row count for one season, team, league, and game type. \"No goals in draft year\" means G = 0. Distinct from PlayerInfo.sum_7yr_GP and sum_7yr_TOI, which are career games-played and time-on-ice totals rather than goal counts, and from the unreliable goals_total column on SeasonStatus.\n",
+              "id": "term_ice_hockey_draft_goals",
+              "name": "goals",
+              "summary": "goals (goals scored, number of goals scored): how many goals a player scored in one SeasonStatus row, column G.",
+              "synonyms": [
+                "goals",
+                "goals scored",
+                "number of goals scored"
+              ]
+            }
+          ]
+        }
+  - name: A
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: A
+    description: |-
+      A counts assists the player recorded in this season row.
+
+      A whole number of assists for this season, team, league, and game type.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: P
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: P
+    description: |
+      P is the player's point total (goals plus assists) for this season row.
+
+      A whole number equal to G plus A for the same row. A higher value marks a more productive scorer for that season, team, league, and game type.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: PIM
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: PIM
+    description: |
+      PIM totals the penalty minutes the player served in this season row.
+
+      A whole number of minutes. A higher value means the player committed more rule violations in that season, team, league, and game type.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: PLUSMINUS
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: PLUSMINUS
+    description: |
+      PLUSMINUS is the player's goal differential while on the ice for this season row.
+
+      A signed whole number: positive when the player's team scored more goals than it conceded while he was on the ice, negative when the reverse was true.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: season_elite_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: season_elite_ref
+    description: |
+      season_elite_ref, a numeric column on the SeasonStatus table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: assists_total
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: assists_total
+    description: |
+      assists_total, a numeric column on the SeasonStatus table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: goals_total
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: goals_total
+    description: |
+      goals_total, a numeric column on the SeasonStatus table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_ice_hockey_draft_highest_plusminus
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(PLUSMINUS)
+    description: |
+      highest goal differential: the largest single-row PLUSMINUS value in SeasonStatus, the best on-ice goal differential of all time recorded in this data.
+
+      Bound to SeasonStatus.PLUSMINUS. "Highest number of goal differential of all time" means MAX(PLUSMINUS) across every season, team, league, and game type row. A negative PLUSMINUS means the player's team conceded more than it scored while he was on the ice.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest goal differential"
+        }
+  - name: metric_ice_hockey_draft_highest_points
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(P)
+    description: |
+      highest points: the largest single-row point total (goals plus assists) in SeasonStatus, answering which player had the most NHL points in the draft year or was the most valuable.
+
+      Bound to SeasonStatus.P. "Highest point in the draft year," "most NHL points in draft year," and "most valuable player" all mean MAX(P) for the row or rows matching the draft-year filter the question also states. P equals G plus A for the same row.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest points"
+        }
+  - name: metric_ice_hockey_draft_most_assists
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(A)
+    description: |
+      most assists: the largest single-row assist total in SeasonStatus, answering which season/team/league/game-type row recorded the most assists.
+
+      Bound to SeasonStatus.A. "Most assists" means MAX(A) over the rows the question's other filters select, for example one draft year or one season.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most assists"
+        }
+  - name: metric_ice_hockey_draft_most_goals
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(G)
+    description: |
+      most goals: the largest single-row goal total in SeasonStatus, answering which row recorded the most goals scored.
+
+      Bound to SeasonStatus.G. "Scored the most goals" means MAX(G) over the rows the question's other filters select. G is a per-row total for one season, team, league, and game type, not a single-game count, even when a question phrases it as "in a single game."
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most goals"
+        }
+  - name: metric_ice_hockey_draft_most_penalty_minutes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(PIM)
+    description: |
+      most penalty minutes: the largest single-row penalty-minute total in SeasonStatus, marking the player who committed the most rule violations in that season, team, league, and game type.
+
+      Bound to SeasonStatus.PIM. "Committed the highest" or "committed the most rule violations" means MAX(PIM). PIM is recorded per season, team, league, and game type row, so comparing across players who have multiple rows each requires deciding whether to compare single rows or sum PIM per player first.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most penalty minutes"
+        }
+  - name: metric_ice_hockey_draft_most_season_games
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(GP)
+    description: |
+      most games played in a season row: the largest single-row GP value in SeasonStatus, answering who played the most game plays in one season, team, league, and game type.
+
+      Bound to SeasonStatus.GP. "Played the most game plays" means MAX(GP) over the rows the question's other filters select. Do not confuse with MAX(sum_7yr_GP) on PlayerInfo, which is the player's 7-season career total instead of one row's count.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most games played in a season row"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: height_info
+  source: ice_hockey_draft.height_info
+  description: |
+    height_info is a lookup table converting a height in inches into centimeters and feet-and-inches format.
+
+    One row per distinct height value that appears in PlayerInfo.height. height_id is the height in whole inches and is the join key PlayerInfo.height points to; height_in_cm and height_in_inch give the same height in centimeters and in a formatted feet'inches" string. Because this table has one row per distinct height rather than one row per player, averaging or aggregating its columns directly (instead of after joining to PlayerInfo) answers a question about the handful of distinct heights, not about the players.
+  fields:
+  - name: height_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: height_id
+    description: |
+      height_id is the height in whole inches that this row describes, and the join key from PlayerInfo.height.
+
+      A whole number of inches, observed from 65 through 81. Equal to the value stored in PlayerInfo.height for every player at that height.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: height_in_cm
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: height_in_cm
+    description: |
+      height_in_cm gives this row's height converted to centimeters.
+
+      A whole number of centimeters, observed from 165 through 205, for example 180 for a player who is 180 cm tall. This is the column business language means by plain "height" when no unit is stated.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to height_info.height_in_cm, reached by joining PlayerInfo.height to height_info.height_id. Business language stating a plain height with no unit, or \"tall,\" means this centimeter value; \"above 182cm\" or \"over 182 centimeters\" means height_in_cm > 182. The sibling column height_in_inch gives the same height as a feet-and-inches string instead.\n",
+              "id": "term_ice_hockey_draft_height_cm",
+              "name": "height in centimeters",
+              "summary": "height (tall, centimeters): a player's stature converted into centimeters, held in height_info.height_in_cm.",
+              "synonyms": [
+                "height",
+                "tall",
+                "centimeters"
+              ]
+            }
+          ]
+        }
+  - name: height_in_inch
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: height_in_inch
+    description: |
+      height_in_inch gives this row's height formatted as feet and inches.
+
+      Text in feet'inches" form, for example 5'7" or 6'9". Comparisons in business language such as "over 6'2 inches" or "over 5'9" are string comparisons against this exact format, not a numeric inch count.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to height_info.height_in_inch, reached by joining PlayerInfo.height to height_info.height_id. Values are text in feet'inches\" form, for example 5'7\" or 6'9\". Boundary phrasings like \"over 6'2 inches\" or \"height over 5'9\" compare against this exact string format, not a numeric inch count -- use height_in_cm instead when the comparison needs to be numeric.\n",
+              "id": "term_ice_hockey_draft_height_inches",
+              "name": "height in feet and inches",
+              "summary": "height in inches (feet and inches): a player's stature written as a feet-inches string, held in height_info.height_in_inch.",
+              "synonyms": [
+                "height in inches",
+                "feet and inches"
+              ]
+            }
+          ]
+        }
+  - name: stature_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stature_id
+    description: |
+      stature_id, a numeric column on the height_info table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: stature_cm
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stature_cm
+    description: |
+      stature_cm, a numeric column on the height_info table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: stature_in_inches
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stature_in_inches
+    description: |
+      stature_in_inches, a text column on the height_info table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_ice_hockey_draft_shortest_height
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(height_in_cm)
+    description: |
+      shortest height: the smallest height_in_cm value reached through height_info, identifying the shortest player on record.
+
+      Bound to height_info.height_in_cm, reached by joining PlayerInfo.height to height_info.height_id. "Shortest height" means MIN(height_in_cm) after that join, over players in scope -- taking MIN(height_in_cm) over height_info alone finds the shortest of the roughly 16 distinct heights, not necessarily among players matching a question's other filters.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "shortest height"
+        }
+  - name: metric_ice_hockey_draft_tallest_player
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(height_in_cm)
+    description: |
+      tallest player: the largest height_in_cm value reached through height_info, identifying the tallest player on record.
+
+      Bound to height_info.height_in_cm, reached by joining PlayerInfo.height to height_info.height_id. "Tallest" or "tallest player" means MAX(height_in_cm) after that join, over players in scope -- taking MAX(height_in_cm) over height_info alone finds the tallest of the roughly 16 distinct heights, not necessarily among players matching a question's other filters.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "tallest player"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: player_biographical_profile
+  source: ice_hockey_draft.player_biographical_profile
+  description: |
+    player_biographical_profile is a player-record lookup table that is not dependable for analysis.
+
+    This table resembles a full record of a drafted player, with a name, birth details, physical measurements, playing position, and draft outcome, but its rows and values are not dependable and should not be used to answer questions. Use PlayerInfo instead for player name, birth details, height, weight, position, shooting hand, and draft outcome. Every column in this table is unreliable for analysis.
+  fields:
+  - name: elite_player_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: elite_player_id
+    description: |
+      elite_player_id, a numeric column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: full_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: full_name
+    description: |
+      full_name, a text column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: date_of_birth
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_of_birth
+    description: |
+      date_of_birth, a text column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: birth_year
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: birth_year
+    description: |
+      birth_year, a text column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: birth_month
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: birth_month
+    description: |
+      birth_month, a numeric column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: birth_day
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: birth_day
+    description: |
+      birth_day, a numeric column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: place_of_birth
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: place_of_birth
+    description: |
+      place_of_birth, a text column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nationality
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nationality
+    description: |
+      nationality, a text column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: height_cm
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: height_cm
+    description: |
+      height_cm, a numeric column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: weight_kg
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: weight_kg
+    description: |
+      weight_kg, a numeric column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: primary_position
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: primary_position
+    description: |
+      primary_position, a text column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: shooting_side
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shooting_side
+    description: |
+      shooting_side, a text column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: draft_year
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: draft_year
+    description: |
+      draft_year, a numeric column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: draft_round
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: draft_round
+    description: |
+      draft_round, a numeric column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: draft_overall
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: draft_overall
+    description: |
+      draft_overall, a numeric column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: drafted_by_team
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: drafted_by_team
+    description: |
+      drafted_by_team, a text column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: css_ranking
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: css_ranking
+    description: |
+      css_ranking, a numeric column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: total_gp_7yr
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: total_gp_7yr
+    description: |
+      total_gp_7yr, a numeric column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: total_toi_7yr
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: total_toi_7yr
+    description: |
+      total_toi_7yr, a numeric column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: has_gp_record
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: has_gp_record
+    description: |
+      has_gp_record, a text column on the player_biographical_profile table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: player_weight_measurements
+  source: ice_hockey_draft.player_weight_measurements
+  description: |
+    player_weight_measurements is a weight lookup table that is not dependable for analysis.
+
+    This table resembles a lookup converting a weight between pounds and kilograms, but its rows and values are not dependable and should not be used to answer questions. Use weight_info instead for weight conversions. Every column in this table is unreliable for analysis.
+  fields:
+  - name: measurement_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: measurement_id
+    description: |
+      measurement_id, a numeric column on the player_weight_measurements table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: kg_value
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kg_value
+    description: |
+      kg_value, a numeric column on the player_weight_measurements table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: lbs_value
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: lbs_value
+    description: |
+      lbs_value, a numeric column on the player_weight_measurements table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: weight_info
+  source: ice_hockey_draft.weight_info
+  description: |
+    weight_info is a lookup table converting a weight in pounds into kilograms.
+
+    One row per distinct weight value that appears in PlayerInfo.weight. weight_id is the weight in whole pounds and is the join key PlayerInfo.weight points to; weight_in_lbs repeats that same pound value and weight_in_kg gives it converted to kilograms. Because this table has one row per distinct weight rather than one row per player, averaging or aggregating its columns directly (instead of after joining to PlayerInfo) answers a question about the handful of distinct weights, not about the players. Easily confused with player_weight_measurements, which looks similar but is not dependable.
+  fields:
+  - name: weight_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: weight_id
+    description: |
+      weight_id is the weight in whole pounds that this row describes, and the join key from PlayerInfo.weight.
+
+      A whole number of pounds, observed from 154 through 265. Equal to the value stored in PlayerInfo.weight for every player at that weight.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: weight_in_kg
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: weight_in_kg
+    description: |-
+      weight_in_kg gives this row's weight converted to kilograms.
+
+      A whole number of kilograms; the column business language means by plain "weight in kilograms" or "weight" measured in metric units.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to weight_info.weight_in_kg, reached by joining PlayerInfo.weight to weight_info.weight_id. Boundary phrasings like \"weigh more than 90 kg\" or \"weigh 120 kg\" mean weight_in_kg > 90 or weight_in_kg = 120. The sibling column weight_in_lbs gives the same weight in pounds instead.\n",
+              "id": "term_ice_hockey_draft_weight_kg",
+              "name": "weight in kilograms",
+              "summary": "weight (kilograms, kg): a player's mass converted into kilograms, held in weight_info.weight_in_kg.",
+              "synonyms": [
+                "weight",
+                "kilograms",
+                "kg"
+              ]
+            }
+          ]
+        }
+  - name: weight_in_lbs
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: weight_in_lbs
+    description: |-
+      weight_in_lbs repeats this row's weight in pounds.
+
+      A whole number of pounds equal to weight_id; the column business language means by "weight in pounds."
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to weight_info.weight_in_lbs, equal to weight_info.weight_id and to the joining PlayerInfo.weight value. Boundary phrasings like \"weight above 154 lbs\" or \"weigh 185 in pounds\" mean weight_in_lbs > 154 or weight_in_lbs = 185.\n",
+              "id": "term_ice_hockey_draft_weight_lbs",
+              "name": "weight in pounds",
+              "summary": "weight in pounds (pounds, lbs): a player's mass in pounds, held in weight_info.weight_in_lbs.",
+              "synonyms": [
+                "weight in pounds",
+                "pounds",
+                "lbs"
+              ]
+            }
+          ]
+        }
+  - name: mass_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mass_id
+    description: |
+      mass_id, a numeric column on the weight_info table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: mass_kg
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mass_kg
+    description: |
+      mass_kg, a numeric column on the weight_info table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: mass_lbs
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mass_lbs
+    description: |
+      mass_lbs, a numeric column on the weight_info table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_ice_hockey_draft_heaviest_player
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(weight_in_lbs)
+    description: |
+      heaviest player: the largest weight_in_lbs value reached through weight_info, identifying the heaviest player on record.
+
+      Bound to weight_info.weight_in_lbs, reached by joining PlayerInfo.weight to weight_info.weight_id. "Heaviest player" means MAX(weight_in_lbs) after that join, over players in scope -- taking MAX(weight_in_lbs) over weight_info alone finds the heaviest of the roughly 46 distinct weights, not necessarily among players matching a question's other filters.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "heaviest player"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_ice_hockey_draft_PlayerInfo_SeasonStatus_19b627c5
+  from: SeasonStatus
+  to: PlayerInfo
+  from_columns:
+  - ELITEID
+  to_columns:
+  - ELITEID
+  ai_context:
+    instructions: |
+      Connects a player in PlayerInfo to that player's season-by-season stat rows in SeasonStatus, matched on ELITEID.
+
+      One PlayerInfo row can match many SeasonStatus rows, one per season, team, league, and game type the player appears in, so aggregate SeasonStatus columns (GP, G, A, P, PIM, PLUSMINUS) per player before comparing across players, or a player with more season rows will otherwise look more productive purely because of row count. Do not join on elite_registry_id or season_elite_ref; both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between PlayerInfo and SeasonStatus in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_ice_hockey_draft_PlayerInfo_height_info_6a170d95
+  from: PlayerInfo
+  to: height_info
+  from_columns:
+  - height
+  to_columns:
+  - height_id
+  ai_context:
+    instructions: |
+      Connects a player in PlayerInfo to that height's centimeter and feet-and-inches representation in height_info, matched on the inch count.
+
+      Many PlayerInfo rows can share one height_info row, since several players are the same height in inches. Use this join whenever a question asks for a player's height in centimeters or in feet-and-inches format, since PlayerInfo.height only stores the raw inch count. Do not join on stature_id or stature_value; both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between PlayerInfo and height_info in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_ice_hockey_draft_PlayerInfo_weight_info_eb561cff
+  from: PlayerInfo
+  to: weight_info
+  from_columns:
+  - weight
+  to_columns:
+  - weight_id
+  ai_context:
+    instructions: |
+      Connects a player in PlayerInfo to that weight's kilogram representation in weight_info, matched on the pound count.
+
+      Many PlayerInfo rows can share one weight_info row, since several players weigh the same number of pounds. Use this join whenever a question asks for a player's weight in kilograms, since PlayerInfo.weight only stores the raw pound count. Do not join on mass_id or mass_value; both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between PlayerInfo and weight_info in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+metrics:
+- name: metric_ice_hockey_draft_average_height
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: AVG(height_in_cm)
+  description: |
+    average height: the mean height in centimeters across a group of players, joining PlayerInfo to height_info for the conversion.
+
+    Computed as AVG(height_in_cm) after joining PlayerInfo.height to height_info.height_id, so every player in scope contributes one height value weighted once. Averaging height_info's own height_in_cm column without that join instead averages the roughly 16 distinct height values unweighted by how many players share each one, which is a different, usually wrong, number.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "ice_hockey_draft.PlayerInfo",
+        "name": "average height"
+      }
+- name: metric_ice_hockey_draft_average_weight
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: AVG(weight_in_lbs)
+  description: |
+    average weight: the mean weight in pounds across a group of players, joining PlayerInfo to weight_info for the conversion.
+
+    Computed as AVG(weight_in_lbs) after joining PlayerInfo.weight to weight_info.weight_id, so every player in scope contributes one weight value weighted once. Averaging weight_info's own weight_in_lbs column without that join instead averages the roughly 46 distinct weight values unweighted by how many players share each one, which is a different, usually wrong, number.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "ice_hockey_draft.PlayerInfo",
+        "name": "average weight"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_6915",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0000",
+          "sql": "SELECT \"T2\".\"height_in_inch\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"height_info\" AS \"T2\" ON \"T1\".\"height\" = \"T2\".\"height_id\" WHERE \"T1\".\"PlayerName\" = 'David Bornhammar'",
+          "summary": "What is the height of David Bornhammar in inches?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6916",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0001",
+          "sql": "SELECT DISTINCT \"T1\".\"PlayerName\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"height_info\" AS \"T2\" ON \"T1\".\"height\" = \"T2\".\"height_id\" WHERE \"T2\".\"height_in_inch\" > '6''2\"'",
+          "summary": "Please list the names of all the players with a height of over 6'2\" inches."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6917",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0002",
+          "sql": "SELECT COUNT(\"T1\".\"ELITEID\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"height_info\" AS \"T2\" ON \"T1\".\"height\" = \"T2\".\"height_id\" WHERE \"T2\".\"height_in_inch\" > '6''2\"' AND \"T1\".\"nation\" = 'Sweden'",
+          "summary": "Among the players with a height of over 6'2\" inches, how many of them were born in Sweden?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6918",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0003",
+          "sql": "SELECT \"T1\".\"PlayerName\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"height_info\" AS \"T2\" ON \"T1\".\"height\" = \"T2\".\"height_id\" ORDER BY \"T2\".\"height_in_cm\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the tallest player?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6919",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0004",
+          "sql": "SELECT \"T2\".\"weight_in_kg\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"weight_info\" AS \"T2\" ON \"T1\".\"weight\" = \"T2\".\"weight_id\" WHERE \"T1\".\"PlayerName\" = 'David Bornhammar'",
+          "summary": "How much does David Bornhammar weigh in kilograms?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6920",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0005",
+          "sql": "SELECT COUNT(\"T1\".\"ELITEID\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"weight_info\" AS \"T2\" ON \"T1\".\"weight\" = \"T2\".\"weight_id\" WHERE \"T2\".\"weight_in_kg\" > 90",
+          "summary": "How many players weigh more than 90 kg?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6921",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0006",
+          "sql": "SELECT COUNT(\"T1\".\"ELITEID\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"weight_info\" AS \"T2\" ON \"T1\".\"weight\" = \"T2\".\"weight_id\" WHERE \"T2\".\"weight_in_kg\" > 90 AND \"T1\".\"position_info\" = 'D'",
+          "summary": "Among the players that weigh more than 90 kg, how many of them have a position of defense?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6922",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0007",
+          "sql": "SELECT \"T1\".\"PlayerName\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"weight_info\" AS \"T2\" ON \"T1\".\"weight\" = \"T2\".\"weight_id\" WHERE \"T2\".\"weight_in_kg\" > 90 AND \"T1\".\"sum_7yr_GP\" = (SELECT MAX(\"T1\".\"sum_7yr_GP\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"weight_info\" AS \"T2\" ON \"T1\".\"weight\" = \"T2\".\"weight_id\" WHERE \"T2\".\"weight_in_kg\" > 90)",
+          "summary": "Among the players that weigh more than 90 kg, what is the name of the player that has the most attendance in the player's first 7 years of NHL career?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6923",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0008",
+          "sql": "SELECT \"T2\".\"weight_in_kg\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"weight_info\" AS \"T2\" ON \"T1\".\"weight\" = \"T2\".\"weight_id\" WHERE \"T1\".\"sum_7yr_TOI\" = (SELECT MAX(\"t\".\"sum_7yr_TOI\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"t\")",
+          "summary": "What is the weight of the player with the longest time on ice in the player’s first 7 years of NHL career in kilograms?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6925",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0009",
+          "sql": "SELECT COUNT(\"T1\".\"ELITEID\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"weight_info\" AS \"T2\" ON \"T1\".\"weight\" = \"T2\".\"weight_id\" WHERE \"T2\".\"weight_in_kg\" > 90 AND \"T1\".\"shoots\" = 'R'",
+          "summary": "Among all the players that are right-shooted, how many of them weigh over 90 kg?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6929",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0010",
+          "sql": "SELECT MAX(\"T2\".\"weight_in_lbs\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"weight_info\" AS \"T2\" ON \"T1\".\"weight\" = \"T2\".\"weight_id\"",
+          "summary": "What is the weight in pounds of the heaviest player?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6930",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0011",
+          "sql": "SELECT COUNT(\"T1\".\"ELITEID\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"height_info\" AS \"T2\" ON \"T1\".\"height\" = \"T2\".\"height_id\" WHERE \"T2\".\"height_in_inch\" = '5''7\"' AND \"T1\".\"shoots\" = 'R'",
+          "summary": "How many right-shooted players have a height of 5'7''?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6931",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0012",
+          "sql": "SELECT \"T1\".\"PlayerName\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"SeasonStatus\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"sum_7yr_GP\" > 500 ORDER BY \"T2\".\"PIM\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among the players whose total NHL games played in their first 7 years of NHL career is no less than 500, what is the name of the player who committed the most rule violations?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6933",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0013",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"ELITEID\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"SeasonStatus\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"overallby\" = 'Anaheim Ducks' AND \"T1\".\"draftyear\" = 2008 AND \"T2\".\"TEAM\" = 'U.S. National U18 Team'",
+          "summary": "How many players, who were drafted by Anaheim Ducks in 2008, have played for U.S. National U18 Team?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6934",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0014",
+          "sql": "SELECT \"T3\".\"weight_in_kg\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" INNER JOIN \"ice_hockey_draft\".\"weight_info\" AS \"T3\" ON \"T2\".\"weight\" = \"T3\".\"weight_id\" ORDER BY \"T1\".\"PLUSMINUS\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the weight in kilograms of the player with the highest number of goal differential of all time?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6935",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0015",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"SEASON\" BETWEEN '2004' AND '2005' AND \"T1\".\"LEAGUE\" = 'QMJHL' ORDER BY \"T1\".\"P\" DESC NULLS LAST LIMIT 1",
+          "summary": "Who is the most valuable player in QMJHL league during the 2004-2005 season?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6936",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0016",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"SEASON\" = '1998-1999' AND \"T1\".\"GAMETYPE\" = 'Regular Season' AND \"T1\".\"TEAM\" = 'Acadie-Bathurst Titan'",
+          "summary": "What are the names of the players who played for Acadie-Bathurst Titan during the regular season in 1998-1999?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6937",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0017",
+          "sql": "SELECT \"T1\".\"GP\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T2\".\"ELITEID\" = (SELECT \"t\".\"ELITEID\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"t\" ORDER BY \"t\".\"height\" DESC NULLS LAST LIMIT 1)",
+          "summary": "How many games did the tallest player have ever played?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6938",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0018",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"SEASON\" = '1997-1998' AND \"T1\".\"LEAGUE\" = 'OHL' ORDER BY \"T2\".\"birthdate\" DESC NULLS LAST LIMIT 1",
+          "summary": "Who is the youngest player to have played during the 1997-1998 season for OHL League?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6940",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0019",
+          "sql": "SELECT \"T3\".\"Rs_G\" - \"T4\".\"Pf_G\" AS \"diff\" FROM (SELECT \"T2\".\"PlayerName\", \"T1\".\"G\" AS \"Rs_G\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T2\".\"PlayerName\" = 'Pavel Brendl' AND \"T1\".\"SEASON\" = '1998-1999' AND \"T1\".\"GAMETYPE\" = 'Regular Season') AS \"T3\" INNER JOIN (SELECT \"T2\".\"PlayerName\", \"T1\".\"G\" AS \"Pf_G\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T2\".\"PlayerName\" = 'Pavel Brendl' AND \"T1\".\"SEASON\" = '1998-1999' AND \"T1\".\"GAMETYPE\" = 'Playoffs') AS \"T4\" ON \"T3\".\"PlayerName\" = \"T4\".\"PlayerName\"",
+          "summary": "What is the difference in the number of goals scored by Pavel Brendl during the regular season versus the playoffs in the 1998-1999 season?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6941",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0020",
+          "sql": "SELECT CAST(SUM(\"T2\".\"weight_in_lbs\") AS REAL) / NULLIF(COUNT(\"T1\".\"ELITEID\"), 0) FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"weight_info\" AS \"T2\" ON \"T1\".\"weight\" = \"T2\".\"weight_id\" WHERE \"T1\".\"CSS_rank\" = (SELECT MAX(\"CSS_rank\") FROM \"ice_hockey_draft\".\"PlayerInfo\")",
+          "summary": "What is the average weight in pounds of all the players with the highest prospects for the draft?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6943",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0021",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"SEASON\" = '2007-2008' AND \"T1\".\"LEAGUE\" = 'WHL' ORDER BY \"T1\".\"G\" DESC NULLS LAST LIMIT 1",
+          "summary": "Name the player who scored the most goals in a single game in the 2007-2008 season of WHL?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6944",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0022",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"TEAM\" = 'Chilliwack Chiefs' AND \"T1\".\"P\" >= 100",
+          "summary": "Name the Chilliwack Chiefs players who have scored 100 points or more in the NHL."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6945",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0023",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"weight_info\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"weight_id\" = \"T2\".\"weight\" WHERE \"T1\".\"weight_in_kg\" = 120",
+          "summary": "Identify the players who weigh 120 kg."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6946",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0024",
+          "sql": "SELECT \"T2\".\"PlayerName\", \"T1\".\"height_in_cm\" FROM \"ice_hockey_draft\".\"height_info\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"height_id\" = \"T2\".\"height\" WHERE \"T2\".\"height\" = (SELECT \"height\" FROM \"ice_hockey_draft\".\"PlayerInfo\" WHERE \"PlayerName\" = 'Brian Gionta')",
+          "summary": "Identify the players with the same height as Brian Gionta. How tall are they?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6948",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0025",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"P\" = (SELECT MAX(\"P\") FROM \"ice_hockey_draft\".\"SeasonStatus\")",
+          "summary": "Name the player who has the most NHL points in draft year."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6949",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0026",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"nation\" IN ('Belarus', 'Czech Rep.', 'Slovakia', 'Ukraine') THEN \"ELITEID\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"ELITEID\"), 0) FROM \"ice_hockey_draft\".\"PlayerInfo\" WHERE \"overallby\" = 'Toronto Maple Leafs'",
+          "summary": "Among all players drafted by the Toronto Maple Leafs, identify the percentage who are from Eastern Europe."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6950",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0027",
+          "sql": "SELECT \"PlayerName\" FROM \"ice_hockey_draft\".\"PlayerInfo\" WHERE \"overallby\" = 'Toronto Maple Leafs' AND \"draftyear\" = '2008' ORDER BY \"CSS_rank\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among all players drafted by the Toronto Maple Leafs in 2008, identify the player with the highest prospects for the draft."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6952",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0028",
+          "sql": "SELECT COUNT(\"ELITEID\") FROM \"ice_hockey_draft\".\"PlayerInfo\" WHERE \"overallby\" = 'Toronto Maple Leafs' AND \"sum_7yr_GP\" > 300",
+          "summary": "How many players who were drafted by the Toronto Maple Leafs have played over 300 games in their first 7 years of the NHL career?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6954",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0029",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"PlayerName\" = 'Ian Schultz' THEN \"T1\".\"G\" ELSE 0 END) AS REAL) * 100 / NULLIF(SUM(\"T1\".\"G\"), 0) FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"SEASON\" = '2007-2008' AND \"T1\".\"TEAM\" = 'Calgary Hitmen'",
+          "summary": "Among all goals scored by Calgary Hitmen in the 2007-2008 season, identify the percentage scored by Ian Schultz."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6956",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0030",
+          "sql": "SELECT \"birthplace\" FROM \"ice_hockey_draft\".\"PlayerInfo\" WHERE \"PlayerName\" = 'Aaron Gagnon'",
+          "summary": "What is the birthplace of Aaron Gagnon?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6957",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0031",
+          "sql": "SELECT \"T2\".\"weight_in_kg\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"weight_info\" AS \"T2\" ON \"T1\".\"weight\" = \"T2\".\"weight_id\" WHERE \"T1\".\"PlayerName\" = 'Tony Martensson'",
+          "summary": "What is the weight in kg of Tony Martensson?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6960",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0032",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T1\".\"nation\" = 'Denmark' AND \"T2\".\"weight_in_lbs\" > 154 THEN \"T1\".\"ELITEID\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"ELITEID\"), 0) FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"weight_info\" AS \"T2\" ON \"T1\".\"weight\" = \"T2\".\"weight_id\"",
+          "summary": "What is the percentage of players who were born in Denmark and weight above 154 lbs?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6961",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0033",
+          "sql": "SELECT DISTINCT \"T1\".\"TEAM\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T2\".\"PlayerName\" = 'Andreas Jamtin'",
+          "summary": "Which team does Andreas Jamtin belong to?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6963",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0034",
+          "sql": "SELECT DISTINCT \"T1\".\"GAMETYPE\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T2\".\"PlayerName\" = 'Matthias Trattnig'",
+          "summary": "Mention the type of game that Matthias Trattnig played."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6965",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0035",
+          "sql": "SELECT \"T1\".\"P\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T2\".\"PlayerName\" = 'Per Mars' ORDER BY \"T1\".\"P\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the highest point highest point of Per Mars in the draft year?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6966",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0036",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"height_info\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"height_id\" = \"T2\".\"height\" WHERE \"T2\".\"nation\" = 'Italy' ORDER BY \"T1\".\"height_in_cm\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Among the Italian players, who has the shortest height?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6968",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0037",
+          "sql": "SELECT COUNT(\"T2\".\"ELITEID\") FROM \"ice_hockey_draft\".\"height_info\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"height_id\" = \"T2\".\"height\" WHERE \"T1\".\"height_in_cm\" > 182 AND TO_CHAR(CAST(\"T2\".\"birthdate\" AS TIMESTAMP), 'YYYY') = '1982'",
+          "summary": "How many players were born in 1982 and have a height above 182cm?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6972",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0038",
+          "sql": "SELECT DISTINCT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"SEASON\" = '2000-2001' AND \"T1\".\"TEAM\" = 'Avangard Omsk'",
+          "summary": "List the names of all players in team Avangard Omsk in season 2000-2001."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6973",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0039",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T2\".\"overallby\" = 'Arizona Coyotes' AND \"T2\".\"draftyear\" = 2000 ORDER BY \"T1\".\"PIM\" DESC NULLS LAST LIMIT 1",
+          "summary": "Who among the players drafted by Arizona Coyotes in 2000 has committed the highest rule violations?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6976",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0040",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"SEASON\" = '2000-2001' AND \"T1\".\"LEAGUE\" = 'International' ORDER BY \"T1\".\"P\" DESC NULLS LAST LIMIT 1",
+          "summary": "Who is the most valuable player who played in the 2000-2001 season of the International league?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6977",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0041",
+          "sql": "SELECT COUNT(\"T2\".\"ELITEID\") FROM \"ice_hockey_draft\".\"weight_info\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"weight_id\" = \"T2\".\"weight\" WHERE \"T1\".\"weight_in_lbs\" = 185 AND TO_CHAR(CAST(\"T2\".\"birthdate\" AS TIMESTAMP), 'YYYY') = '1980'",
+          "summary": "How many players who were born in 1980 weigh 185 in pounds?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6978",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0042",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"SEASON\" = '2000-2001' AND \"T1\".\"LEAGUE\" = 'International' ORDER BY \"T1\".\"GP\" DESC NULLS LAST LIMIT 1",
+          "summary": "Who has played the most game plays in the 2000-2001 season of the International league?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6979",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0043",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"SEASON\" = '2000-2001' AND \"T1\".\"LEAGUE\" = 'International' AND \"T1\".\"TEAM\" = 'Czech Republic (all)' AND \"T1\".\"G\" = 0",
+          "summary": "List the names of all players from Avangard Omsk who played in the 2000-2001 season of the International league that have no goals in draft year."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6980",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0044",
+          "sql": "SELECT \"T2\".\"PlayerName\" FROM \"ice_hockey_draft\".\"SeasonStatus\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"SEASON\" = '2000-2001' AND \"T1\".\"GAMETYPE\" = 'Regular Season' AND \"T1\".\"TEAM\" = 'Avangard Omsk' ORDER BY \"T2\".\"birthdate\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Who is the oldest player who played for Avangard Omsk during the regular season in 2000-2001?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6983",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0045",
+          "sql": "SELECT CAST(SUM(\"T1\".\"weight_in_lbs\") AS REAL) / NULLIF(COUNT(\"T2\".\"ELITEID\"), 0) FROM \"ice_hockey_draft\".\"weight_info\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"weight_id\" = \"T2\".\"weight\" WHERE \"T2\".\"overallby\" = 'Arizona Coyotes'",
+          "summary": "Calculate the average weight in pounds of all players drafted by Arizona Coyotes."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6984",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0046",
+          "sql": "SELECT CAST(SUM(\"T1\".\"height_in_cm\") AS REAL) / NULLIF(COUNT(\"T2\".\"ELITEID\"), 0) FROM \"ice_hockey_draft\".\"height_info\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"PlayerInfo\" AS \"T2\" ON \"T1\".\"height_id\" = \"T2\".\"height\" INNER JOIN \"ice_hockey_draft\".\"SeasonStatus\" AS \"T3\" ON \"T2\".\"ELITEID\" = \"T3\".\"ELITEID\" WHERE \"T3\".\"TEAM\" = 'Acadie-Bathurst Titan' AND \"T3\".\"GAMETYPE\" = 'Regular Season'",
+          "summary": "Calculate the average height in centimeter of all players who played in Acadie-Bathurst Titan during regular season."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6987",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0047",
+          "sql": "SELECT \"T1\".\"PlayerName\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"height_info\" AS \"T2\" ON \"T1\".\"height\" = \"T2\".\"height_id\" WHERE \"T2\".\"height_in_inch\" > '5''9\"'",
+          "summary": "List the name of players who have a height over 5'9."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6988",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0048",
+          "sql": "SELECT \"T2\".\"TEAM\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"SeasonStatus\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T2\".\"SEASON\" = '1997-1998' AND \"T1\".\"PlayerName\" = 'Niko Kapanen'",
+          "summary": "What team did Niklas Eckerblom play in the 1997-1998 season?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6989",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0049",
+          "sql": "SELECT \"T\".\"TEAM\" FROM (SELECT \"T2\".\"TEAM\", COUNT(DISTINCT \"T1\".\"ELITEID\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"SeasonStatus\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"nation\" = 'Sweden' GROUP BY \"T2\".\"TEAM\" ORDER BY COUNT(DISTINCT \"T1\".\"ELITEID\") DESC NULLS LAST LIMIT 1) AS \"T\"",
+          "summary": "Which team has the most Swedish?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6990",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0050",
+          "sql": "SELECT SUM(\"T2\".\"GP\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"SeasonStatus\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T1\".\"PlayerName\" = 'Per Mars' AND \"T2\".\"GAMETYPE\" = 'Playoffs'",
+          "summary": "How many playoffs did Per Mars participate in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6992",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0051",
+          "sql": "SELECT \"T\".\"nation\" FROM (SELECT \"T1\".\"nation\", COUNT(\"T1\".\"ELITEID\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"SeasonStatus\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T2\".\"TEAM\" = 'Plymouth Whalers' GROUP BY \"T1\".\"nation\" ORDER BY COUNT(\"T1\".\"ELITEID\") DESC NULLS LAST LIMIT 1) AS \"T\"",
+          "summary": "Which country do most players of team Plymouth Whalers come from?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6993",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0052",
+          "sql": "SELECT \"T1\".\"PlayerName\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"SeasonStatus\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T2\".\"TEAM\" = 'Plymouth Whalers' AND \"T2\".\"SEASON\" = '1999-2000' ORDER BY \"T2\".\"A\" DESC NULLS LAST LIMIT 1",
+          "summary": "Who had the most assists of team Plymouth Whalers in the 1999-2000 season?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6995",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0053",
+          "sql": "SELECT \"T1\".\"PlayerName\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"SeasonStatus\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" WHERE \"T2\".\"LEAGUE\" = 'OHL' AND \"T2\".\"SEASON\" = '1999-2000' ORDER BY \"T1\".\"birthdate\" NULLS FIRST LIMIT 1",
+          "summary": "Who is the oldest player that participated in OHL league in the 1997 - 2000 season?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_6996",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_ice_hockey_draft_0054",
+          "sql": "SELECT \"T\".\"PlayerName\" FROM (SELECT \"T1\".\"PlayerName\", \"T3\".\"height_in_cm\" FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"SeasonStatus\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" INNER JOIN \"ice_hockey_draft\".\"height_info\" AS \"T3\" ON \"T1\".\"height\" = \"T3\".\"height_id\" WHERE \"T2\".\"TEAM\" = 'USA U20' ORDER BY \"T3\".\"height_in_cm\" DESC NULLS LAST) AS \"T\" WHERE \"T\".\"height_in_cm\" = (SELECT MAX(\"T3\".\"height_in_cm\") FROM \"ice_hockey_draft\".\"PlayerInfo\" AS \"T1\" INNER JOIN \"ice_hockey_draft\".\"SeasonStatus\" AS \"T2\" ON \"T1\".\"ELITEID\" = \"T2\".\"ELITEID\" INNER JOIN \"ice_hockey_draft\".\"height_info\" AS \"T3\" ON \"T1\".\"height\" = \"T3\".\"height_id\" WHERE \"T2\".\"TEAM\" = 'USA U20')",
+          "summary": "Who is the tallest player in team USA U20?"
+        }
+      ]
+    }

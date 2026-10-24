@@ -1,36 +1,2170 @@
-asset_type: schema
-id: world
+version: 0.2.0.dev0
 name: world
-summary: >-
-  The world database tracks countries and their cities and languages — population, area, GNP,
-  life expectancy, government form, and head of state — for demographic and economic
-  comparisons across nations, regions, and continents.
-body: >
-  Three tables carry the real data: pais (one row per country: its ISO code, name, continent,
-  region, area, population, GNP, life expectancy, government form, head of state, and capital
-  city), ciudad (one row per city: its name, country, district, and population), and
-  idioma_pais (one row per language spoken in a country: the language name, whether it is
-  official, and the percentage of speakers). The three join on the same country code: pais's
-  own primary key and the codigo_pais column carried by both ciudad and idioma_pais. pais.capital
-  holds the id of that country's capital city in ciudad, not a name. estado_nacional and
-  lengua_por_pais look like a country table and a country-language table but are not
-  dependable for analysis; none of their columns should be used to answer a question. Within
-  pais itself, only codigo, nombre, continente, region, area_superficie, anio_independencia,
-  poblacion, esperanza_vida, pnb, pnb_anterior, nombre_local, forma_gobierno, jefe_estado,
-  capital, and codigo_2 are dependable — its other columns duplicate those unreliably. The
-  same holds for a handful of columns on ciudad and idioma_pais.
-rules:
-- Join a country's cities and languages to its country row through pais.codigo = ciudad.codigo_pais
-  and pais.codigo = idioma_pais.codigo_pais; never join through codigo_iso, codigo_nacional, or
-  codigo_pais_fk — all three are unreliable.
-- pais.capital names a row in ciudad by id, not by a city name; a null capital means the country
-  has no city recorded as its seat of government, not a missing join.
-- Never select from estado_nacional or lengua_por_pais, and never use their columns in a filter
-  or join — use pais, ciudad, and idioma_pais instead.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  The world database tracks countries and their cities and languages — population, area, GNP, life expectancy, government form, and head of state — for demographic and economic comparisons across nations, regions, and continents.
+
+  Three tables carry the real data: pais (one row per country: its ISO code, name, continent, region, area, population, GNP, life expectancy, government form, head of state, and capital city), ciudad (one row per city: its name, country, district, and population), and idioma_pais (one row per language spoken in a country: the language name, whether it is official, and the percentage of speakers). The three join on the same country code: pais's own primary key and the codigo_pais column carried by both ciudad and idioma_pais. pais.capital holds the id of that country's capital city in ciudad, not a name. estado_nacional and lengua_por_pais look like a country table and a country-language table but are not dependable for analysis; none of their columns should be used to answer a question. Within pais itself, only codigo, nombre, continente, region, area_superficie, anio_independencia, poblacion, esperanza_vida, pnb, pnb_anterior, nombre_local, forma_gobierno, jefe_estado, capital, and codigo_2 are dependable — its other columns duplicate those unreliably. The same holds for a handful of columns on ciudad and idioma_pais.
+ai_context:
+  instructions: |-
+    Join a country's cities and languages to its country row through pais.codigo = ciudad.codigo_pais and pais.codigo = idioma_pais.codigo_pais; never join through codigo_iso, codigo_nacional, or codigo_pais_fk — all three are unreliable.
+    pais.capital names a row in ciudad by id, not by a city name; a null capital means the country has no city recorded as its seat of government, not a missing join.
+    Never select from estado_nacional or lengua_por_pais, and never use their columns in a filter or join — use pais, ciudad, and idioma_pais instead.
+datasets:
+- name: ciudad
+  source: world.ciudad
+  description: |
+    ciudad holds one row per city, carrying its name, country, district, and population.
+
+    Grain: one row per city, keyed by id. codigo_pais matches pais.codigo, attaching each city to its country; the same codigo_pais value also matches rows in idioma_pais for the languages spoken in that country. pais.capital points back to a row here by id to name a country's capital city. Within ciudad itself, only id, nombre, codigo_pais, distrito, and poblacion are dependable — codigo_nacional, provincia, and identificador_ciudad duplicate codigo_pais, distrito, and id unreliably and must not be used.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the row key that identifies one city in ciudad.
+
+      Positive integer, unique per row (sample values 3629, 1382, 825, 1753, 4005). Referenced by pais.capital to name a country's capital city. Do not use identificador_ciudad for this purpose, it is unreliable.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": false,
+          "physical_type": "bigint"
+        }
+  - name: nombre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre
+    description: |
+      nombre is the name of a city.
+
+      Free text (sample values Sotši, Esfahan, Talisay, Kasuga, Clarksville). Not unique on its own — the same city name can appear for cities in different countries, so filter by codigo_pais as well when a name alone is ambiguous.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: codigo_pais
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_pais
+    description: |
+      codigo_pais is the country code a city belongs to.
+
+      Three-letter country code (sample values RUS, IRN, PHL, JPN, USA), matching pais.codigo and the codigo_pais column on idioma_pais. Do not use codigo_nacional for this join, it is unreliable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: distrito
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: distrito
+    description: |
+      distrito is the district, state, or administrative area a city is located in.
+
+      Free text, over three hundred distinct values (sample values Krasnodar, Esfahan, Central Visayas, Fukuoka, Tennessee); can be blank when no district is recorded. Finer-grained than a country and unrelated to pais.region, which describes the country as a whole rather than a subdivision within it.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: poblacion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: poblacion
+    description: |
+      poblacion is the population of a city.
+
+      Whole-number count of people (sample values 358600, 1266072, 148110, up to 99891, down to 100079 in this sample). This is the city-level count; pais.poblacion holds the total population of the whole country instead, and the two should not be confused or summed together. A higher value means a more crowded city.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: codigo_nacional
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_nacional
+    description: |
+      codigo_nacional, a text column on the ciudad table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: provincia
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: provincia
+    description: |
+      provincia, a text column on the ciudad table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: identificador_ciudad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identificador_ciudad
+    description: |
+      identificador_ciudad, an integer column on the ciudad table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: estado_nacional
+  source: world.estado_nacional
+  description: |
+    estado_nacional is a table of country-like records that is not dependable for analysis.
+
+    Every column in estado_nacional is unreliable and does not correspond to the business facts of an actual country record. Do not use this table, or any of its columns, to answer a question. Use pais for a country's code, name, continent, region, area, population, GNP, life expectancy, government form, head of state, and capital city instead.
+  fields:
+  - name: codigo_iso
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_iso
+    description: |
+      codigo_iso, a text column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nombre_oficial
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_oficial
+    description: |
+      nombre_oficial, a text column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: continente_nombre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: continente_nombre
+    description: |
+      continente_nombre, a text column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: subregion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: subregion
+    description: |
+      subregion, a text column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: area_km2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: area_km2
+    description: |
+      area_km2, a decimal column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: anio_de_independencia
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: anio_de_independencia
+    description: |
+      anio_de_independencia, an integer column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: habitantes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: habitantes
+    description: |
+      habitantes, an integer column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: expectativa_vida
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: expectativa_vida
+    description: |
+      expectativa_vida, a decimal column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: pnb_actual
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pnb_actual
+    description: |
+      pnb_actual, a decimal column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: pnb_pasado
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pnb_pasado
+    description: |
+      pnb_pasado, a decimal column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nombre_en_local
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_en_local
+    description: |
+      nombre_en_local, a text column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: tipo_gobierno
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tipo_gobierno
+    description: |
+      tipo_gobierno, a text column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: jefe_de_estado
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jefe_de_estado
+    description: |
+      jefe_de_estado, a text column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: capital_principal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: capital_principal
+    description: |
+      capital_principal, an integer column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: codigo_iso2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_iso2
+    description: |
+      codigo_iso2, a text column on the estado_nacional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: idioma_pais
+  source: world.idioma_pais
+  description: |
+    idioma_pais holds one row per language spoken in a country, with whether it is official and the share of speakers.
+
+    Grain: one row per country-language pair, keyed by codigo_pais and idioma together — a country with several languages has several rows. codigo_pais matches pais.codigo and the codigo_pais column on ciudad, attaching a country's languages to its country row and its cities. Easily confused with lengua_por_pais, a language-like table that is not dependable for analysis — use idioma_pais instead. Within idioma_pais itself, only codigo_pais, idioma, es_oficial, and porcentaje are dependable — codigo_pais_fk, idioma_oficial, and nombre_idioma duplicate codigo_pais, es_oficial, and idioma unreliably and must not be used.
+  fields:
+  - name: codigo_pais
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_pais
+    description: |
+      codigo_pais is the country code a language row belongs to.
+
+      Three-letter country code (sample values MOZ, PRI, COD, AND, AZE), matching pais.codigo and the codigo_pais column on ciudad. Do not use codigo_pais_fk for this join, it is unreliable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: idioma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: idioma
+    description: |
+      idioma is the name of a language spoken in a country.
+
+      Free text language name (sample values Nyanja, English, Ngala and Bangi, Portuguese, Lezgian), sometimes listing more than one dialect together. Combine with es_oficial to find whether this particular language is officially recognized in the country. Do not use nombre_idioma for this purpose, it is unreliable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: es_oficial
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: es_oficial
+    description: |
+      es_oficial marks whether a language is officially recognized in a country.
+
+      Single-character flag, 'T' for official or 'F' for unofficial. Applies to one country-language pair at a time — a country can have several official languages, each on its own row. Do not use idioma_oficial for this purpose, it is unreliable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: porcentaje
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: porcentaje
+    description: |
+      porcentaje is the share of a country's population that speaks a given language.
+
+      Decimal percentage from 0.0 to 99.9 (sample values 3.3, 47.4, 5.8, 10.8, 2.3). Percentages for a country's languages are not required to add to 100, since speakers of more than one language are counted on more than one row.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: codigo_pais_fk
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_pais_fk
+    description: |
+      codigo_pais_fk, a text column on the idioma_pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: idioma_oficial
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: idioma_oficial
+    description: |
+      idioma_oficial, a text column on the idioma_pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nombre_idioma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_idioma
+    description: |
+      nombre_idioma, a text column on the idioma_pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: lengua_por_pais
+  source: world.lengua_por_pais
+  description: |
+    lengua_por_pais is a table of language-like records that is not dependable for analysis.
+
+    Every column in lengua_por_pais is unreliable and does not correspond to the business facts of an actual country-language record. Do not use this table, or any of its columns, to answer a question. Use idioma_pais for a language spoken in a country, whether it is official, and its share of speakers instead.
+  fields:
+  - name: codigo_pais_iso
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_pais_iso
+    description: |
+      codigo_pais_iso, a text column on the lengua_por_pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nombre_lengua
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_lengua
+    description: |
+      nombre_lengua, a text column on the lengua_por_pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: oficialidad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: oficialidad
+    description: |
+      oficialidad, a text column on the lengua_por_pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: porcentaje_hablantes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: porcentaje_hablantes
+    description: |
+      porcentaje_hablantes, a decimal column on the lengua_por_pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: pais
+  source: world.pais
+  description: |
+    pais holds one row per country, carrying its ISO code, name, continent, region, area, population, GNP, life expectancy, government form, head of state, and capital city.
+
+    Grain: one row per country, keyed by codigo, the ISO-alpha-3 country code. ciudad and idioma_pais both carry a codigo_pais column that matches this key, attaching a country's cities and languages. capital holds a ciudad.id value naming the capital city, not a name or code. Easily confused with estado_nacional, a country-like table that is not dependable for analysis — use pais instead. Within pais itself, codigo_iso, producto_nacional_bruto, and producto_nacional_bruto_anterior duplicate codigo, pnb, and pnb_anterior unreliably and must not be used.
+  fields:
+  - name: codigo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo
+    description: |
+      codigo is the ISO-alpha-3 code that uniquely identifies a country in pais.
+
+      Three-letter country code such as BEN, HND, GIN, ISL, or GBR (min ABW, max ZWE). Primary key of pais; ciudad.codigo_pais and idioma_pais.codigo_pais both join to this column. The codigo_2 column on this same table carries the shorter two-letter form of the same code. Do not use codigo_iso for this join, it is unreliable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nombre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre
+    description: |
+      nombre is the country's official English-language name.
+
+      Free text, one value per country (sample values Benin, Honduras, Guinea, Iceland, United Kingdom). Compare to nombre_local, the country's name in its own language, which often differs from this one.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: continente
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: continente
+    description: |
+      continente is the continent a country is located on.
+
+      One of a small fixed set of continent names (sample values Africa, North America, Europe, Asia, Oceania). Coarser than region, which further breaks a continent into named areas such as Western Africa or Nordic Countries.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: region
+    description: |
+      region is the named area within a continent that a country belongs to.
+
+      Free text drawn from about two dozen values (sample values Western Africa, Central America, Nordic Countries, British Islands, Middle East). Finer-grained than continente; every region belongs to exactly one continent.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: area_superficie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: area_superficie
+    description: |
+      area_superficie is the total surface area of a country.
+
+      Land area in square kilometers, decimal (sample values 112622.0, 245857.0, 103000.0, up to 9970610.0 and down to 0.4). A larger value means a physically bigger country, not a denser or more populous one.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: anio_independencia
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: anio_independencia
+    description: |
+      anio_independencia is the year a country declared independence.
+
+      Four-digit calendar year (sample values 1960, 1838, 1958, 1944, 1066); can be negative for ancient dates and is null for roughly a fifth of rows, meaning no independence year is recorded rather than zero.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to pais.anio_independencia, a four-digit year that can be negative for ancient dates and is null for roughly a fifth of countries, meaning no independence year is recorded rather than zero. \"Declared independence after 1990\" means anio_independencia > 1990; \"declared independence in 1830\" means anio_independencia = 1830. Do not confuse with estado_nacional.anio_de_independencia, which looks similar but is unreliable.\n",
+              "id": "term_world_year_of_independence",
+              "name": "year of independence",
+              "summary": "Year of independence (independence year): the calendar year a country declared independence, held on pais.anio_independencia.",
+              "synonyms": [
+                "year of independence",
+                "independence year"
+              ]
+            }
+          ]
+        }
+  - name: poblacion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: poblacion
+    description: |
+      poblacion is the total population of a country.
+
+      Whole-number count of people (sample values 6097000, 6485000, 7430000, up to 9997600 and down to 0). This is the country-level total; ciudad.poblacion holds the population of one city instead, and the two should not be confused or summed together.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: esperanza_vida
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: esperanza_vida
+    description: |
+      esperanza_vida is a country's life expectancy at birth.
+
+      Decimal number of years a newborn is expected to live at current death rates (sample values 50.2, 69.9, 45.6, 79.4, 77.7; ranges from 37.2 to 83.5). Null for about a fifth of rows where no estimate is recorded.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: pnb
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pnb
+    description: |
+      pnb is a country's gross national product for the most recent year recorded.
+
+      GNP in millions of US dollars, decimal (sample values 2357.0, 5333.0, 8255.0, up to 1378330.0, down to 0.0). Measures the total monetary value of output produced by the country's residents. pnb_anterior carries the prior year's figure for the same country; the producto_nacional_bruto column on this same table duplicates pnb unreliably and must not be used.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: pnb_anterior
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pnb_anterior
+    description: |
+      pnb_anterior is a country's gross national product for the year before the one pnb reports.
+
+      GNP in millions of US dollars, decimal (sample values 2141.0, 4697.0, 7474.0, up to 1296830.0, down to 10169.0), null for about a quarter of rows where no prior-year figure is recorded. Compare against pnb to see year-over-year change. The producto_nacional_bruto_anterior column on this same table duplicates pnb_anterior unreliably and must not be used.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: nombre_local
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_local
+    description: |
+      nombre_local is a country's name written in its own local language.
+
+      Free text (sample values Bénin, Guinée, Ísland, United Kingdom), often carrying accented characters absent from nombre, the English-language name of the same country.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: forma_gobierno
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: forma_gobierno
+    description: |
+      forma_gobierno is a country's form of government.
+
+      Free text drawn from about three dozen values (sample values Republic, Constitutional Monarchy, Monarchy, Socialistic Republic, Nonmetropolitan Territory of France). A value containing the word "Republic" identifies a republic; match the phrase, not a fixed code.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to pais.forma_gobierno, free text drawn from about three dozen values such as Republic, Constitutional Monarchy, Monarchy, and Socialistic Republic. \"Republic\" as a business term means any forma_gobierno value that contains the word Republic, not an exact match — several distinct values (Republic, Federal Republic, Socialistic Republic, and so on) all qualify. \"Constitutional monarchy\" means forma_gobierno = 'Constitutional Monarchy' exactly. Do not confuse with estado_nacional.tipo_gobierno, which looks similar but is unreliable.\n",
+              "id": "term_world_form_of_government",
+              "name": "form of government",
+              "summary": "Form of government (government form, type of government): a country's system of rule — Republic, Constitutional Monarchy, Monarchy, and similar — held on pais.forma_gobierno.",
+              "synonyms": [
+                "form of government",
+                "government form",
+                "type of government"
+              ]
+            }
+          ]
+        }
+  - name: jefe_estado
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jefe_estado
+    description: |
+      jefe_estado is the full name of a country's head of state.
+
+      Free text personal name (sample values Mathieu Kérékou, Carlos Roberto Flores Facussé, Lansana Conté, Elisabeth II), null for one row where no head of state is recorded.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to pais.jefe_estado, a free-text personal name (a president, monarch, or similar figure). \"Headed by X\" or \"ruled by X\" both mean jefe_estado = 'X'. Null for a small number of countries where no head of state is recorded. Do not confuse with estado_nacional.jefe_de_estado, which looks similar but is unreliable.\n",
+              "id": "term_world_head_of_state",
+              "name": "head of state",
+              "summary": "Head of state (head of the state, head of the country): the person named on pais.jefe_estado who leads a country.",
+              "synonyms": [
+                "head of state",
+                "head of the state",
+                "head of the country"
+              ]
+            }
+          ]
+        }
+  - name: capital
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: capital
+    description: |
+      capital identifies a country's capital city.
+
+      Integer matching a ciudad.id value, not a name or code. Null for about seven rows, meaning the country has no city recorded as its seat of government. Join to ciudad.id to read the capital's name, district, or population.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "pais.capital holds a ciudad.id value, not a city name, so \"the capital of X\" requires joining pais.capital to ciudad.id to read the city's nombre. A null capital means the country has no city recorded as its seat of government, not a missing join. Do not confuse with estado_nacional.capital_principal, which looks similar but is unreliable.\n",
+              "id": "term_world_capital_city",
+              "name": "capital city",
+              "summary": "Capital city: the city recorded as a country's seat of government, held on pais.capital.",
+              "synonyms": [
+                "capital city"
+              ]
+            }
+          ]
+        }
+  - name: codigo_2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_2
+    description: |
+      codigo_2 is the two-letter ISO country code for a country.
+
+      Two-letter country code (sample values BJ, HN, GN, IS, GB), the shorter counterpart of the three-letter codigo on this same table. Not used as a join key elsewhere in this schema.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: codigo_iso
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: codigo_iso
+    description: |
+      codigo_iso, a text column on the pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: producto_nacional_bruto
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: producto_nacional_bruto
+    description: |
+      producto_nacional_bruto, a decimal column on the pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: producto_nacional_bruto_anterior
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: producto_nacional_bruto_anterior
+    description: |
+      producto_nacional_bruto_anterior, a decimal column on the pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_world_ciudad_pais_bdd7c0d1
+  from: ciudad
+  to: pais
+  from_columns:
+  - codigo_pais
+  to_columns:
+  - codigo
+  ai_context:
+    instructions: |
+      ciudad.codigo_pais matches pais.codigo, attaching a city's country and all of that country's attributes to it.
+
+      Every ciudad row's country code matches exactly one pais.codigo; use this join to show a city alongside its country's name, continent, region, population, GNP, or any other country-level attribute. One country covers many cities, so aggregate carefully when grouping by country. To find which city is a country's capital, join pais.capital to ciudad.id instead of this column. Do not join through codigo_nacional or codigo_iso, both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ciudad and pais in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_world_idioma_pais_pais_730acb15
+  from: idioma_pais
+  to: pais
+  from_columns:
+  - codigo_pais
+  to_columns:
+  - codigo
+  ai_context:
+    instructions: |
+      idioma_pais.codigo_pais matches pais.codigo, attaching a language row's country and all of that country's attributes to it.
+
+      Every idioma_pais row's country code matches exactly one pais.codigo; use this join to show a language alongside the country's name, continent, region, population, or GNP, or to find every language spoken in countries meeting some country-level condition. One country covers many languages, so aggregate carefully when grouping by country. Do not join through codigo_pais_fk or codigo_iso, both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between idioma_pais and pais in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_7819",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0000",
+          "sql": "SELECT \"nombre\" FROM \"world\".\"pais\" ORDER BY \"esperanza_vida\" NULLS FIRST LIMIT 1",
+          "summary": "Which country has the shortest life expectancy?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7820",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0001",
+          "sql": "SELECT \"T1\".\"nombre\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T2\".\"idioma\" = 'English' AND \"T2\".\"es_oficial\" = 'T' LIMIT 5",
+          "summary": "List any five countries which use English as an official language."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7822",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0002",
+          "sql": "SELECT \"idioma\" FROM \"world\".\"idioma_pais\" WHERE \"codigo_pais\" = 'USA'",
+          "summary": "List the languages used in the USA."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7823",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0003",
+          "sql": "SELECT SUM(CASE WHEN \"idioma\" = 'Portuguese' THEN 1 ELSE 0 END) FROM \"world\".\"idioma_pais\"",
+          "summary": "How many countries use Portuguese?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7824",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0004",
+          "sql": "SELECT COUNT(\"id\") FROM \"world\".\"ciudad\" WHERE \"distrito\" = 'England'",
+          "summary": "How many cities are there in England?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7828",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0005",
+          "sql": "SELECT \"T1\".\"nombre\", \"T1\".\"capital\", \"T2\".\"idioma\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" INNER JOIN \"world\".\"ciudad\" AS \"T3\" ON \"T1\".\"codigo\" = \"T3\".\"codigo_pais\" WHERE \"T2\".\"es_oficial\" = 'T' ORDER BY \"T1\".\"esperanza_vida\" DESC NULLS LAST LIMIT 1",
+          "summary": "Provide the name, capital city and its official language of the country with the highest life expectancy."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7831",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0006",
+          "sql": "SELECT \"T2\".\"idioma\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"region\" = 'Baltic Countries' AND \"T2\".\"porcentaje\" > 80",
+          "summary": "Among the languages used in Baltic Countries, provide the languages which are used by over 80%."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7833",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0007",
+          "sql": "SELECT \"T2\".\"nombre\", \"T1\".\"codigo\", \"T1\".\"esperanza_vida\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"ciudad\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" ORDER BY \"T2\".\"poblacion\" DESC NULLS LAST LIMIT 1",
+          "summary": "Provide the name, located country, and life expectancy of the most populated city"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7838",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0008",
+          "sql": "SELECT \"continente\" FROM \"world\".\"pais\" ORDER BY \"area_superficie\" NULLS FIRST LIMIT 1",
+          "summary": "In which continent does the country with the smallest surface area belongs?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7839",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0009",
+          "sql": "SELECT \"T1\".\"jefe_estado\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"ciudad\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" ORDER BY \"T2\".\"poblacion\" DESC NULLS LAST LIMIT 1",
+          "summary": "Who is the head of the state where the most crowded city belongs?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7842",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0010",
+          "sql": "SELECT \"T1\".\"jefe_estado\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T2\".\"idioma\" = 'English' ORDER BY \"T2\".\"porcentaje\" NULLS FIRST LIMIT 1",
+          "summary": "Give the head of the state of the country with the lowest percentage use of English as their language."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7844",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0011",
+          "sql": "SELECT \"T2\".\"idioma\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"poblacion\" < 8000",
+          "summary": "List down the languages of the countries that have population below 8000."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7845",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0012",
+          "sql": "SELECT \"T2\".\"idioma\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"nombre\" = 'Belgium' AND \"T2\".\"es_oficial\" = 'T'",
+          "summary": "What are the official languages used in Belgium?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7846",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0013",
+          "sql": "SELECT \"T2\".\"nombre\", \"T2\".\"distrito\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"ciudad\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"nombre_local\" = 'Hajastan'",
+          "summary": "Give the cities and district names that belong to the country with Hajastan as its local name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7849",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0014",
+          "sql": "SELECT \"T2\".\"distrito\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"ciudad\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"jefe_estado\" = 'Adolf Ogi'",
+          "summary": "List down the districts belong to the country headed by Adolf Ogi."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7850",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0015",
+          "sql": "SELECT \"T1\".\"jefe_estado\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"ciudad\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T2\".\"distrito\" = 'Santa Catarina'",
+          "summary": "Who is the head of the country where Santa Catarina district belongs?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7853",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0016",
+          "sql": "SELECT \"nombre\" FROM \"world\".\"pais\" WHERE \"anio_independencia\" = 1994",
+          "summary": "What country declared its independence in 1994?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7854",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0017",
+          "sql": "SELECT \"nombre\" FROM \"world\".\"pais\" WHERE \"continente\" = 'Asia'",
+          "summary": "List all the countries in Asia."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7855",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0018",
+          "sql": "SELECT \"nombre\" FROM \"world\".\"pais\" WHERE \"continente\" = 'Asia' ORDER BY \"pnb\" DESC NULLS LAST LIMIT 1",
+          "summary": "What country in Asia has the largest gross national product(GNP)?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7857",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0019",
+          "sql": "SELECT \"nombre_local\" FROM \"world\".\"pais\" WHERE \"nombre\" = 'Ukraine'",
+          "summary": "What is the local name of Ukraine that they are also known for?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7858",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0020",
+          "sql": "SELECT COUNT(\"codigo\") FROM \"world\".\"pais\" WHERE \"forma_gobierno\" = 'Socialistic Republic'",
+          "summary": "How many countries have Socialistic Republic form of government?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7859",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0021",
+          "sql": "SELECT \"T2\".\"idioma\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"nombre\" = 'China' AND \"T2\".\"es_oficial\" = 'T'",
+          "summary": "What is the official language of China?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7861",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0022",
+          "sql": "SELECT \"T1\".\"forma_gobierno\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"ciudad\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T2\".\"nombre\" = 'Manila'",
+          "summary": "What is the form of government that the city of Manila has?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7863",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0023",
+          "sql": "SELECT \"T2\".\"idioma\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"continente\" = 'Europe'",
+          "summary": "List all the languages used in Europe."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7864",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0024",
+          "sql": "SELECT \"T1\".\"jefe_estado\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"ciudad\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T2\".\"nombre\" = 'Pyongyang'",
+          "summary": "Who is the head of state of the country where the city of Pyongyang is under?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7865",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0025",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"es_oficial\" = 'F' THEN 1 ELSE 0 END) FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"nombre\" = 'Italy'",
+          "summary": "How many unofficial languages are used in Italy?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7866",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0026",
+          "sql": "SELECT \"T2\".\"nombre\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"ciudad\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"nombre\" = 'Russian Federation' ORDER BY \"T2\".\"poblacion\" ASC NULLS FIRST LIMIT 1",
+          "summary": "What city in Russia has the least population?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7867",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0027",
+          "sql": "SELECT \"T2\".\"nombre\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"ciudad\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" ORDER BY \"T1\".\"esperanza_vida\" DESC NULLS LAST LIMIT 1",
+          "summary": "List all the cities in the country where there is high life expectancy at birth."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7868",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0028",
+          "sql": "SELECT \"T2\".\"idioma\", \"T2\".\"es_oficial\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"anio_independencia\" = 1830 GROUP BY \"T2\".\"idioma\", \"T2\".\"es_oficial\"",
+          "summary": "List all the official and unofficial languages used by the country that declared its independence in 1830."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7873",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0029",
+          "sql": "SELECT \"nombre\" FROM \"world\".\"pais\" ORDER BY \"area_superficie\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Which country has the smallest surface area?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7875",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0030",
+          "sql": "SELECT \"T2\".\"idioma\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" ORDER BY \"T1\".\"poblacion\" ASC NULLS FIRST LIMIT 1",
+          "summary": "What is the language of the smallest population country?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7877",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0031",
+          "sql": "SELECT \"T1\".\"nombre\", \"T2\".\"idioma\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"anio_independencia\" > 1990 AND \"T2\".\"es_oficial\" = 'T'",
+          "summary": "List down the official language of the countries which declared independence after 1990,"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7879",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0032",
+          "sql": "SELECT \"T2\".\"idioma\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"nombre\" = 'Malaysia'",
+          "summary": "List down languages used in Malaysia."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7880",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0033",
+          "sql": "SELECT \"T1\".\"nombre\" FROM \"world\".\"pais\" AS \"T1\" INNER JOIN \"world\".\"ciudad\" AS \"T2\" ON \"T1\".\"codigo\" = \"T2\".\"codigo_pais\" ORDER BY \"T2\".\"poblacion\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which country has the most crowded city in the world?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7881",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0034",
+          "sql": "SELECT \"T2\".\"esperanza_vida\" FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" ORDER BY \"T1\".\"poblacion\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the life expectancy of residents in the most crowded city?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7884",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0035",
+          "sql": "SELECT \"T2\".\"nombre\" FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" ORDER BY \"T1\".\"poblacion\" DESC NULLS LAST, \"T2\".\"area_superficie\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which country has the smallest surface area and the most crowded city?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7889",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0036",
+          "sql": "SELECT \"distrito\" FROM \"world\".\"ciudad\" WHERE \"nombre\" = 'Zaanstad'",
+          "summary": "What is the district of Zaanstad?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7890",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0037",
+          "sql": "SELECT \"nombre\" FROM \"world\".\"ciudad\" ORDER BY \"poblacion\" DESC NULLS LAST LIMIT 1",
+          "summary": "What city has the highest population?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7894",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0038",
+          "sql": "SELECT \"anio_independencia\" FROM \"world\".\"pais\" WHERE \"nombre\" = 'Brunei'",
+          "summary": "What is the year of independence of Brunei?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7896",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0039",
+          "sql": "SELECT AVG(\"area_superficie\") FROM \"world\".\"pais\"",
+          "summary": "What is the average surface area of all countries?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7897",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0040",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"idioma\") FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"idioma_pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo_pais\" WHERE \"T1\".\"distrito\" = 'Tocantins'",
+          "summary": "How many languages are there in the country where Tocantins district belongs?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7898",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0041",
+          "sql": "SELECT \"T1\".\"distrito\" FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T2\".\"nombre\" = (SELECT \"nombre\" FROM \"world\".\"pais\" ORDER BY \"area_superficie\" DESC NULLS LAST LIMIT 1)",
+          "summary": "What are the districts that belong to the country with the largest surface area?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7899",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0042",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"nombre\") FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T2\".\"jefe_estado\" = 'Kostis Stefanopoulos'",
+          "summary": "How many cities are there in the country ruled by Kostis Stefanopoulos?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7901",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0043",
+          "sql": "SELECT \"T2\".\"poblacion\" FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T1\".\"nombre\" = 'Queimados'",
+          "summary": "Give the population of the country where Queimados city belongs."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7903",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0044",
+          "sql": "SELECT \"T2\".\"area_superficie\", \"T2\".\"pnb\" FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T1\".\"distrito\" = 'Namibe'",
+          "summary": "What is the surface area and GNP of the country where Namibe district belongs?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7906",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0045",
+          "sql": "SELECT \"T2\".\"nombre\" FROM \"world\".\"idioma_pais\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T2\".\"pnb\" < 1000 AND \"T1\".\"es_oficial\" = 'T' AND \"T1\".\"idioma\" = 'Dutch'",
+          "summary": "List down the country names of countries that have a GNP lower than 1000 and have Dutch as their language."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7907",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0046",
+          "sql": "SELECT \"T2\".\"pnb\" FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T1\".\"distrito\" = 'Entre Rios' LIMIT 1",
+          "summary": "What is the GNP of the country where district \"Entre Rios\" belongs?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7908",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0047",
+          "sql": "SELECT \"T2\".\"nombre_local\" FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T1\".\"nombre\" = 'The Valley'",
+          "summary": "What is the local name of the country where \"The Valley\" city belongs?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7909",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0048",
+          "sql": "SELECT \"T2\".\"nombre\", \"T1\".\"nombre\" FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T2\".\"area_superficie\" > 7000000",
+          "summary": "List down the cities belongs to the country that has surface area greater than 7000000."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7910",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0049",
+          "sql": "SELECT AVG(\"T2\".\"esperanza_vida\") FROM \"world\".\"idioma_pais\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T1\".\"idioma\" = 'Japanese'",
+          "summary": "What is the life expectancy of the countries that uses Japanese as their language?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7911",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0050",
+          "sql": "SELECT \"T2\".\"nombre\", COUNT(\"T1\".\"nombre\") FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T2\".\"area_superficie\" = 652090 GROUP BY \"T2\".\"nombre\"",
+          "summary": "How many cities are there in the country with the surface area of 652090?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7913",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0051",
+          "sql": "SELECT \"T2\".\"esperanza_vida\" FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T1\".\"nombre\" = 'Calama'",
+          "summary": "What is the life expectancy of the people living in Calama city?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7914",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0052",
+          "sql": "SELECT \"T1\".\"idioma\" FROM \"world\".\"idioma_pais\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T2\".\"jefe_estado\" = 'Pierre Buyoya'",
+          "summary": "Provide the language used in the country ruled by Pierre Buyoya."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7915",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_0053",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"distrito\" = 'England' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"world\".\"ciudad\" AS \"T1\" INNER JOIN \"world\".\"pais\" AS \"T2\" ON \"T1\".\"codigo_pais\" = \"T2\".\"codigo\" WHERE \"T2\".\"forma_gobierno\" = 'Constitutional Monarchy'",
+          "summary": "In countries with constitutional monarchy, what is the percentage of cities located in the district of England?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between ciudad and idioma_pais in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Both sides carry the same three-letter country code; use this join to list the languages spoken in the country a city belongs to, or to filter cities by a language such as an official one. A country has many cities and many languages, so this join can multiply rows on both sides — aggregate or deduplicate carefully rather than joining straight into a count of cities or languages. Do not join through codigo_nacional or codigo_pais_fk, both are unreliable. Go through pais.codigo instead if you also need the country's own attributes.\n",
+          "cardinality": "many_to_many",
+          "id": "join_world_ciudad_idioma_pais_c12ebc41",
+          "left_table": "world.ciudad",
+          "on": "world.ciudad.codigo_pais = world.idioma_pais.codigo_pais",
+          "right_table": "world.idioma_pais",
+          "summary": "ciudad.codigo_pais matches idioma_pais.codigo_pais, attaching the languages spoken in a city's country to that city."
+        }
+      ]
+    }

@@ -1,32 +1,3679 @@
-asset_type: schema
-id: world_development_indicators
+version: 0.2.0.dev0
 name: world_development_indicators
-summary: >-
-  world_development_indicators profiles each country's region, income group, lending category, and
-  currency, and tracks annual development indicator values, including GDP, population, trade, and
-  health statistics, reported per country and year.
-body: >
-  Country profiles live in guo_jia, one row per country or regional aggregate (Arab World, OECD
-  members, and similar rows share the table with real countries); region and income group values
-  are enumerated on guo_jia.qu_yu and guo_jia.shou_ru_zu. Indicator definitions, one row per
-  series, live in zhi_biao, carrying a topic, a unit of measure, and a source citation. Observed
-  values live in zhi_biao_shu_ju, one row per country, indicator, and year, and it denormalizes
-  the country name and indicator name alongside their codes so a query rarely needs to join back
-  to guo_jia or zhi_biao just to print a label. guo_jia_bei_zhu, jiao_zhu, and zhi_biao_bei_zhu
-  carry free-text footnotes keyed to a country, an indicator, and sometimes a year, caveating how
-  a figure was estimated, interpolated, or revised. zhi_biao_ping_bie looks like zhi_biao_bei_zhu
-  and zhi_biao_xiang_mu looks like zhi_biao, but neither is dependable for analysis.
-rules:
-- Join guo_jia to guo_jia_bei_zhu, jiao_zhu, and zhi_biao_shu_ju on guo_jia_dai_ma, and join
-  zhi_biao to zhi_biao_bei_zhu and jiao_zhu on zhi_biao_dai_ma. Never use guo_jia_bian_ma,
-  alpha2_bian_ma, beizhu_guo_jia_bian_ma, zhi_biao_bian_ma, zhi_biao_bianhao, or
-  bei_zhu_zhi_biao_bianhao as a join key even though their names resemble the real code columns.
-- zhi_biao_ping_bie and zhi_biao_xiang_mu are not dependable for analysis; get series notes from
-  zhi_biao_bei_zhu and indicator definitions from zhi_biao instead.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  world_development_indicators profiles each country's region, income group, lending category, and currency, and tracks annual development indicator values, including GDP, population, trade, and health statistics, reported per country and year.
+
+  Country profiles live in guo_jia, one row per country or regional aggregate (Arab World, OECD members, and similar rows share the table with real countries); region and income group values are enumerated on guo_jia.qu_yu and guo_jia.shou_ru_zu. Indicator definitions, one row per series, live in zhi_biao, carrying a topic, a unit of measure, and a source citation. Observed values live in zhi_biao_shu_ju, one row per country, indicator, and year, and it denormalizes the country name and indicator name alongside their codes so a query rarely needs to join back to guo_jia or zhi_biao just to print a label. guo_jia_bei_zhu, jiao_zhu, and zhi_biao_bei_zhu carry free-text footnotes keyed to a country, an indicator, and sometimes a year, caveating how a figure was estimated, interpolated, or revised. zhi_biao_ping_bie looks like zhi_biao_bei_zhu and zhi_biao_xiang_mu looks like zhi_biao, but neither is dependable for analysis.
+ai_context:
+  instructions: |-
+    Join guo_jia to guo_jia_bei_zhu, jiao_zhu, and zhi_biao_shu_ju on guo_jia_dai_ma, and join zhi_biao to zhi_biao_bei_zhu and jiao_zhu on zhi_biao_dai_ma. Never use guo_jia_bian_ma, alpha2_bian_ma, beizhu_guo_jia_bian_ma, zhi_biao_bian_ma, zhi_biao_bianhao, or bei_zhu_zhi_biao_bianhao as a join key even though their names resemble the real code columns.
+    zhi_biao_ping_bie and zhi_biao_xiang_mu are not dependable for analysis; get series notes from zhi_biao_bei_zhu and indicator definitions from zhi_biao instead.
+datasets:
+- name: guo_jia
+  source: world_development_indicators.guo_jia
+  description: |
+    guo_jia is the reference table of countries and regional aggregates, holding each one's name, region, income group, lending category, and currency.
+
+    Grain: one row per country or per regional/income aggregate (Arab World, OECD members, Euro area, and similar rows sit in the same table as real countries). guo_jia_dai_ma is the primary three-letter code every other table joins on. Do not confuse this table with zhi_biao_shu_ju, which repeats a country's name on every one of its indicator-year rows but does not carry the country's profile fields (region, income group, currency); those live only here.
+  fields:
+  - name: guo_jia_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia_dai_ma
+    description: |
+      The three-letter code that uniquely identifies a country or aggregate, guo_jia_dai_ma.
+
+      Primary join key for this table. Text, three letters, for example ABW (Aruba) through ZWE (Zimbabwe); aggregates use codes such as ARB (Arab World), OED (OECD members), and NAC (North America). Referenced as guo_jia_dai_ma from guo_jia_bei_zhu, jiao_zhu, and zhi_biao_shu_ju.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.guo_jia_dai_ma. Three-letter codes such as ABW or ZWE; also the join key used from guo_jia_bei_zhu, jiao_zhu, and zhi_biao_shu_ju back to this table. When a question says \"country\" without naming a display field, prefer filtering or grouping by this code rather than by a name column, since it is the stable identifier while jian_cheng_ming, chang_ming, and guo_jia_ming are display text that can repeat or vary in phrasing.\n",
+              "id": "term_world_development_indicators_country_code",
+              "name": "country code",
+              "summary": "country code (countries, country): the three-letter code that identifies a country or aggregate in guo_jia, guo_jia_dai_ma.",
+              "synonyms": [
+                "country code",
+                "countries",
+                "country"
+              ]
+            }
+          ]
+        }
+  - name: jian_cheng_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jian_cheng_ming
+    description: |
+      The country's short name, jian_cheng_ming, used as its common display name.
+
+      Text, for example Afghanistan or Zimbabwe. Distinct from chang_ming, which spells out the country's full official name, and from biao_ge_ming, which is a World Bank report-table label that is usually identical to this column but not guaranteed to be.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.jian_cheng_ming. This is the name most \"what country\" or \"which country\" questions expect in a result column, for example Afghanistan or Zimbabwe. Distinct from guo_jia.chang_ming, the country's full official name, and from zhi_biao_shu_ju.guo_jia_ming, the same short name denormalized onto each indicator value row.\n",
+              "id": "term_world_development_indicators_country_short_name",
+              "name": "country short name",
+              "summary": "country short name (short name, country name, what country, which country): the common display name of a country in guo_jia, jian_cheng_ming.",
+              "synonyms": [
+                "short name",
+                "country name",
+                "what country",
+                "which country"
+              ]
+            }
+          ]
+        }
+  - name: biao_ge_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: biao_ge_ming
+    description: |
+      The label used for this country on World Bank report tables, biao_ge_ming.
+
+      Text, matches jian_cheng_ming for almost every row (Afghanistan, Zimbabwe, and so on); kept as a separate column because the World Bank's own table headings are curated independently of the short name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: chang_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chang_ming
+    description: |
+      The country's full official name, chang_ming.
+
+      Text, for example Republic of Iraq or American Samoa, longer and more formal than jian_cheng_ming. Aggregates repeat their short name here (Arab World, North America) because they have no separate official name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.chang_ming. Longer and more formal than jian_cheng_ming, for example Republic of Iraq rather than Iraq. Aggregate rows repeat their short name here because they have no separate official name.\n",
+              "id": "term_world_development_indicators_country_long_name",
+              "name": "country long name",
+              "summary": "country long name (long name, full name, entire names): the country's full official name in guo_jia, chang_ming.",
+              "synonyms": [
+                "long name",
+                "full name",
+                "entire names"
+              ]
+            }
+          ]
+        }
+  - name: alpha2_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: alpha2_dai_ma
+    description: |
+      The two-letter ISO country code, alpha2_dai_ma.
+
+      Text, two letters, for example IQ or OE; blank for a handful of aggregate rows that have no ISO alpha-2 assignment. A secondary identifier alongside the three-letter guo_jia_dai_ma.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: huo_bi_dan_wei
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: huo_bi_dan_wei
+    description: |
+      The currency unit used in the country, huo_bi_dan_wei.
+
+      Text, for example Euro, Iraqi dinar, or Lebanese pound; blank for aggregate rows, which have no single currency.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.huo_bi_dan_wei. Text such as Euro, Iraqi dinar, or Lebanese pound; blank for regional or income aggregates, which have no single currency.\n",
+              "id": "term_world_development_indicators_currency_unit",
+              "name": "currency unit",
+              "summary": "currency unit (currency): the monetary unit used in a country, recorded in guo_jia as huo_bi_dan_wei.",
+              "synonyms": [
+                "currency",
+                "currency unit"
+              ]
+            }
+          ]
+        }
+  - name: te_shu_bei_zhu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: te_shu_bei_zhu
+    description: |
+      A free-text special note about the country's data, te_shu_bei_zhu.
+
+      Text, often a sentence or two explaining an aggregate's composition (for example, that Arab World is composed of members of the League of Arab States) or a country's statistical base year; blank for most ordinary countries.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: qu_yu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: qu_yu
+    description: |
+      The geographic region the country belongs to, qu_yu.
+
+      Text, one of eight values: East Asia & Pacific, Europe & Central Asia, Latin America & Caribbean, Middle East & North Africa, North America, South Asia, and Sub-Saharan Africa; blank for rows that are themselves regional or income aggregates rather than individual countries.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.qu_yu. Values are East Asia & Pacific, Europe & Central Asia, Latin America & Caribbean, Middle East & North Africa, North America, South Asia, and Sub-Saharan Africa; blank for rows that are themselves regional or income aggregates. A regional aggregate row, such as Arab World or Latin America & Caribbean appearing as its own row in guo_jia, is a different concept from this column: the aggregate is one country-like row identified by guo_jia_dai_ma, while qu_yu is the region an individual country belongs to.\n",
+              "id": "term_world_development_indicators_region",
+              "name": "region",
+              "summary": "region (world region): the geographic region a country belongs to, recorded in guo_jia as qu_yu.",
+              "synonyms": [
+                "region",
+                "world region"
+              ]
+            }
+          ]
+        }
+  - name: shou_ru_zu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shou_ru_zu
+    description: |
+      The World Bank income classification of the country, shou_ru_zu.
+
+      Text, one of Low income, Lower middle income, Upper middle income, High income: OECD, or High income: nonOECD; blank for rows that are regional aggregates rather than individual countries.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.shou_ru_zu. Values are Low income, Lower middle income, Upper middle income, High income: OECD, and High income: nonOECD. \"Poor countries\" and \"lower earning countries\" both mean Low income; \"in the high income\" group covers both High income: OECD and High income: nonOECD together. Blank for rows that are regional aggregates rather than individual countries.\n",
+              "id": "term_world_development_indicators_income_group",
+              "name": "income group",
+              "summary": "income group (low income, upper middle income): the World Bank income classification of a country, recorded in guo_jia as shou_ru_zu.",
+              "synonyms": [
+                "income group",
+                "low income",
+                "upper middle income"
+              ]
+            }
+          ]
+        }
+  - name: shi_jie_yin_hang_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shi_jie_yin_hang_dai_ma
+    description: |
+      The World Bank's own two-letter code for the country, shi_jie_yin_hang_dai_ma.
+
+      Text, two letters, for example IQ or OE; in the sample this matches alpha2_dai_ma value for value, but the two columns are tracked separately because they come from different World Bank reference lists.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.shi_jie_yin_hang_dai_ma. Two letters, for example IQ or OE; tracked separately from the similarly valued alpha2_dai_ma because the two come from different World Bank reference lists.\n",
+              "id": "term_world_development_indicators_world_bank_code",
+              "name": "World Bank code",
+              "summary": "World Bank code: the World Bank's own two-letter identifier for a country in guo_jia, shi_jie_yin_hang_dai_ma.",
+              "synonyms": [
+                "World Bank code"
+              ]
+            }
+          ]
+        }
+  - name: guo_min_jing_ji_ji_shu_nian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_min_jing_ji_ji_shu_nian
+    description: |
+      The base year used for constant-price national accounts figures, guo_min_jing_ji_ji_shu_nian.
+
+      Text, usually a single year such as 2007 or 1995, occasionally a longer note like "Original chained constant price data are rescaled."; blank when not applicable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: guo_min_jing_ji_can_kao_nian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_min_jing_ji_can_kao_nian
+    description: |
+      The reference year for the country's national accounts, guo_min_jing_ji_can_kao_nian.
+
+      Text, usually a single year such as 2000 or 2010, sometimes a fiscal-year span like "2013/14"; blank when not applicable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: sna_jia_ge_ping_gu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sna_jia_ge_ping_gu
+    description: |
+      The price valuation basis used in the country's System of National Accounts, sna_jia_ge_ping_gu.
+
+      Text, one of Value added at producer prices (VAP) or Value added at basic prices (VAB); blank when not reported.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: dai_kuai_fen_lei
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dai_kuai_fen_lei
+    description: |
+      The World Bank lending category assigned to the country, dai_kuai_fen_lei.
+
+      Text, one of IBRD, IDA, or Blend; blank for high-income countries that receive neither kind of World Bank lending. IDA is International Development Association lending to the poorest countries, IBRD is International Bank for Reconstruction and Development lending, and Blend countries are eligible for both.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.dai_kuai_fen_lei. Values are IDA (International Development Association, lending to the poorest countries), IBRD (International Bank for Reconstruction and Development), and Blend (eligible for both); blank for high-income countries that receive neither.\n",
+              "id": "term_world_development_indicators_lending_category",
+              "name": "lending category",
+              "summary": "lending category (International Development Associations): the World Bank lending category of a country, recorded in guo_jia as dai_kuai_fen_lei.",
+              "synonyms": [
+                "lending category",
+                "International Development Associations"
+              ]
+            }
+          ]
+        }
+  - name: qi_ta_zu_bie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: qi_ta_zu_bie
+    description: |
+      Any other group membership recorded for the country, qi_ta_zu_bie.
+
+      Text, one of HIPC (Heavily Indebted Poor Countries) or Euro area; blank for a country that belongs to neither group. A country can belong to at most one of these two values here.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.qi_ta_zu_bie. Values are HIPC (Heavily Indebted Poor Countries) or Euro area; a country belongs to at most one of the two in this column, and blank means neither.\n",
+              "id": "term_world_development_indicators_other_groups",
+              "name": "other groups",
+              "summary": "other groups (Heavily Indebted Poor Countries, HIPC): a secondary group membership recorded for a country in guo_jia, qi_ta_zu_bie.",
+              "synonyms": [
+                "other groups",
+                "Heavily Indebted Poor Countries",
+                "HIPC"
+              ]
+            }
+          ]
+        }
+  - name: guo_min_jing_ji_ti_xi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_min_jing_ji_ti_xi
+    description: |
+      Which edition of the System of National Accounts methodology the country follows, guo_min_jing_ji_ti_xi.
+
+      Text, a sentence naming the edition in use, for example "Country uses the 2008 System of National Accounts methodology."; blank when not reported.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ling_yi_zhuan_huan_yin_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ling_yi_zhuan_huan_yin_shu
+    description: |
+      The years the alternative conversion factor was used instead of the official exchange rate, ling_yi_zhuan_huan_yin_shu.
+
+      Text, a year or a comma-separated list of year ranges, for example "1997, 2004" or "199295"; blank when the official exchange rate was used throughout. Do not confuse this with the similarly named ling_yi_zhuan_huan_xi_shu column, which is unreliable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: gou_mai_li_quan_parity_diao_cha_nian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: gou_mai_li_quan_parity_diao_cha_nian
+    description: |
+      The year of the purchasing power parity survey used for the country, gou_mai_li_quan_parity_diao_cha_nian.
+
+      Text, usually a year such as 2011, sometimes the word Rolling or a note about the survey's scope; blank when not applicable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: shi_yong_de_guo_ji_shou_zhi_pingheng_zhi_nan
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shi_yong_de_guo_ji_shou_zhi_pingheng_zhi_nan
+    description: |
+      Which IMF balance of payments manual edition the country uses, shi_yong_de_guo_ji_shou_zhi_pingheng_zhi_nan.
+
+      Text, either blank or the single value "IMF Balance of Payments Manual, 6th edition."
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: wai_zhai_bao_gao_zhuang_tai
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wai_zhai_bao_gao_zhuang_tai
+    description: |
+      The status of the country's external debt reporting, recorded as wai_zhai_bao_gao_zhuang_tai.
+
+      Text, one of Actual, Estimate, or Preliminary, or blank. Actual means the reporting is finished and based on real figures; Estimate means it is finished but derived by estimation; Preliminary means it is not yet finished.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.wai_zhai_bao_gao_zhuang_tai. Actual means the reporting is finished and based on real figures; Estimate means it is finished but derived by estimation; Preliminary means it is not yet finished. \"Completed the actual external debt reporting\" and \"finished reporting on their real external debt\" both mean Actual; \"still have unfinished external debt reporting\" means Preliminary.\n",
+              "id": "term_world_development_indicators_external_debt_status",
+              "name": "external debt reporting status",
+              "summary": "external debt reporting status (actual external debt reporting, external debt reporting finished by estimation): how complete a country's reporting is, recorded in guo_jia as wai_zhai_bao_gao_zhuang_tai.",
+              "synonyms": [
+                "external debt reporting status",
+                "actual external debt reporting",
+                "external debt reporting finished by estimation"
+              ]
+            }
+          ]
+        }
+  - name: mao_yi_ti_xi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mao_yi_ti_xi
+    description: |
+      The trade recording system the country uses, mao_yi_ti_xi.
+
+      Text, one of General trade system or Special trade system, or blank when not reported.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.mao_yi_ti_xi. Values are General trade system or Special trade system; blank when not reported.\n",
+              "id": "term_world_development_indicators_system_of_trade",
+              "name": "system of trade",
+              "summary": "system of trade (special trade system): the trade recording system a country uses, recorded in guo_jia as mao_yi_ti_xi.",
+              "synonyms": [
+                "system of trade",
+                "special trade system"
+              ]
+            }
+          ]
+        }
+  - name: zheng_fu_hui_ji_gai_nian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zheng_fu_hui_ji_gai_nian
+    description: |
+      The government accounting concept the country's fiscal data follows, zheng_fu_hui_ji_gai_nian.
+
+      Text, one of Budgetary central government or Consolidated central government, or blank when not reported.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: imf_shu_ju_chuan_bo_biao_zhun
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: imf_shu_ju_chuan_bo_biao_zhun
+    description: |
+      Which IMF data dissemination standard the country subscribes to, imf_shu_ju_chuan_bo_biao_zhun.
+
+      Text, one of General Data Dissemination System (GDDS) or Special Data Dissemination Standard (SDDS), or blank when the country subscribes to neither.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zui_xin_ren_kou_pu_cha
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zui_xin_ren_kou_pu_cha
+    description: |
+      The year of the country's most recent population census, zui_xin_ren_kou_pu_cha.
+
+      Text, usually a single year such as 2010, occasionally a note naming two territories with different census years; blank when not reported.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zui_xin_hu_zhu_diao_cha
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zui_xin_hu_zhu_diao_cha
+    description: |
+      The most recent household survey conducted in the country, recorded as zui_xin_hu_zhu_diao_cha.
+
+      Text, names the survey and its year, for example "Multiple Indicator Cluster Survey (MICS), 2011"; blank when no survey is on record.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zui_xin_shou_ru_zhichu_shu_ju_lai_yuan
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zui_xin_shou_ru_zhichu_shu_ju_lai_yuan
+    description: |
+      The source of the country's most recent income and expenditure data, zui_xin_shou_ru_zhichu_shu_ju_lai_yuan.
+
+      Text, names the survey and its year, for example "Integrated household survey (IHS), 2012"; blank when no such survey is on record.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: hu_kou_deng_ji_wang_quan_du
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: hu_kou_deng_ji_wang_quan_du
+    description: |
+      Whether the country has complete vital registration, hu_kou_deng_ji_wang_quan_du.
+
+      Text, either blank, "Yes", or a longer confirmation such as "Yes. Vital registration for Guernsey and Jersey."; treat any value starting with "Yes" as complete registration.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.hu_kou_deng_ji_wang_quan_du. \"Completed vital registration\" means the value starts with Yes; some rows spell out a longer confirmation such as \"Yes. Vital registration for Guernsey and Jersey.\" rather than the bare word Yes, so match with a prefix check rather than an exact equality.\n",
+              "id": "term_world_development_indicators_vital_registration",
+              "name": "vital registration",
+              "summary": "vital registration (completed vital registration): whether a country has complete vital registration, recorded in guo_jia as hu_kou_deng_ji_wang_quan_du.",
+              "synonyms": [
+                "vital registration",
+                "completed vital registration"
+              ]
+            }
+          ]
+        }
+  - name: zui_xin_nong_ye_pu_cha
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zui_xin_nong_ye_pu_cha
+    description: |
+      The year or period of the country's most recent agricultural census, zui_xin_nong_ye_pu_cha.
+
+      Text, a year or a split-year period such as "2011/2012" or "2013/15"; blank when no census is on record.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zui_xin_gong_ye_shu_ju
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zui_xin_gong_ye_shu_ju
+    description: |
+      The year of the country's latest industrial data, zui_xin_gong_ye_shu_ju.
+
+      Integer year between 2001 and 2011 in the sample; null for a large share of rows (134 of 247 scanned) where no industrial data year is recorded.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: zui_xin_mao_yi_shu_ju
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zui_xin_mao_yi_shu_ju
+    description: |
+      The year of the country's latest trade data, zui_xin_mao_yi_shu_ju.
+
+      Integer year between 1995 and 2013 in the sample; null for a share of rows (61 of 247 scanned) where no trade data year is recorded.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: zui_xin_qu_shui_shu_ju
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zui_xin_qu_shui_shu_ju
+    description: |
+      The year of the country's latest water withdrawal data, zui_xin_qu_shui_shu_ju.
+
+      Integer year between 1975 and 2013 in the sample; null for a share of rows (67 of 247 scanned) where no water withdrawal data year is recorded.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: guo_jia_bian_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia_bian_ma
+    description: |
+      guo_jia_bian_ma, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: alpha2_bian_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: alpha2_bian_ma
+    description: |
+      alpha2_bian_ma, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ling_yi_zhuan_huan_xi_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ling_yi_zhuan_huan_xi_shu
+    description: |
+      ling_yi_zhuan_huan_xi_shu, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_world_development_indicators_country_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(guo_jia_dai_ma)
+    description: |
+      country count: the number of countries or aggregates counted in guo_jia, optionally after a filter or grouping.
+
+      Bound to guo_jia.guo_jia_dai_ma: count distinct codes when the question asks how many distinct countries, or count rows after a WHERE filter (region, income group, lending category, and so on) when it asks how many countries meet a condition. A HAVING clause on this count, such as more than three countries in a group, follows the same COUNT.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "country count"
+        }
+  - name: metric_world_development_indicators_percentage_of_countries
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: 100.0 * COUNT(guo_jia_dai_ma) FILTER (WHERE :condition) / COUNT(guo_jia_dai_ma)
+    description: |
+      percentage of countries: the share of all countries in guo_jia that meet some condition, expressed out of one hundred.
+
+      Bound to guo_jia.guo_jia_dai_ma: divide the count of countries meeting a condition by the total count of countries, then multiply by 100. The condition varies by question: a region (qu_yu), a trade system (mao_yi_ti_xi), an external debt reporting status (wai_zhai_bao_gao_zhuang_tai), or a threshold on an indicator value that requires first joining to zhi_biao_shu_ju on guo_jia_dai_ma and filtering zhi_biao_ming to the indicator in question. The denominator is always the total number of countries in guo_jia unless the question itself narrows the denominator with its own filter (for example, out of countries in one region).
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "percentage of countries"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: guo_jia_bei_zhu
+  source: world_development_indicators.guo_jia_bei_zhu
+  description: |
+    guo_jia_bei_zhu holds free-text footnotes about a country's data for a specific indicator series.
+
+    Grain: one row per country and indicator-series combination that has a footnote worth recording, joined to guo_jia on guo_jia_dai_ma and to zhi_biao on zhi_biao_dai_ma. Its description text often explains how a country's figure for that series was derived, for example that it is reported in a former national currency or estimated from a related dataset. Do not confuse this table with jiao_zhu, which carries a similar description but is keyed to a specific year as well as a country and an indicator, or with zhi_biao_bei_zhu, whose footnotes are keyed to an indicator and a year without a country.
+  fields:
+  - name: guo_jia_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia_dai_ma
+    description: |
+      The three-letter country code the footnote applies to, guo_jia_dai_ma.
+
+      Foreign key to guo_jia.guo_jia_dai_ma. Text, three letters, for example AUT or BFA.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zhi_biao_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhi_biao_dai_ma
+    description: |
+      The indicator series code the footnote applies to, zhi_biao_dai_ma.
+
+      Foreign key to zhi_biao.zhi_biao_dai_ma. Text, a dotted World Bank series code such as SP.DYN.TFRT.IN or SM.POP.NETM.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: miao_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: miao_shu
+    description: |
+      The free-text footnote describing the country's data for that indicator, miao_shu.
+
+      Text, a sentence or two, for example "Data are reported in Austrian schillings." or "Data sources: United Nations World Population Prospects". This is the same kind of description text that jiao_zhu and zhi_biao_bei_zhu carry, scoped here to a country and an indicator rather than to a year.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: beizhu_guo_jia_bian_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: beizhu_guo_jia_bian_ma
+    description: |
+      beizhu_guo_jia_bian_ma, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: zhi_biao_bian_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhi_biao_bian_ma
+    description: |
+      zhi_biao_bian_ma, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: shuoming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shuoming
+    description: |
+      shuoming, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: jiao_zhu
+  source: world_development_indicators.jiao_zhu
+  description: |
+    jiao_zhu records footnotes about a country's data for a specific indicator in a specific year.
+
+    Grain: one row per country, indicator, and year combination that has a footnote, joined to guo_jia on guo_jia_dai_ma and to zhi_biao on zhi_biao_dai_ma. Every column here is reliable. Unlike guo_jia_bei_zhu, which drops the year, and zhi_biao_bei_zhu, which drops the country, this table's footnotes are the most specific of the three: they explain a single country's reported value for a single indicator in a single year, for example that it was estimated by an international agency or that data collection changed that year.
+  fields:
+  - name: guo_jia_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia_dai_ma
+    description: |
+      The three-letter country code the footnote applies to, guo_jia_dai_ma.
+
+      Foreign key to guo_jia.guo_jia_dai_ma. Text, three letters, for example ABW, AGO, or AFG.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zhi_biao_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhi_biao_dai_ma
+    description: |
+      The indicator series code the footnote applies to, zhi_biao_dai_ma.
+
+      Foreign key to zhi_biao.zhi_biao_dai_ma. Text, a dotted World Bank series code such as AG.LND.FRST.K2 or DC.DAC.AUSL.CD.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nian_fen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nian_fen
+    description: |
+      The year the footnote's observation refers to, nian_fen.
+
+      Text, formatted like YR1987 or YR2014 rather than a bare number.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: miao_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: miao_shu
+    description: |
+      The free-text footnote describing the country's value for that indicator and year, miao_shu.
+
+      Text, a sentence or two, for example "Data are classified as official aid.", "ILO estimates", or "Source: Estimate". The same kind of description text as guo_jia_bei_zhu and zhi_biao_bei_zhu, scoped here to a country, an indicator, and a year all at once.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to jiao_zhu.miao_shu. The same kind of free-text annotation also appears as miao_shu on guo_jia_bei_zhu, scoped to a country and an indicator, and on zhi_biao_bei_zhu, scoped to an indicator and a year; each is a separate column bound to its own table. Text such as \"Data are classified as official aid.\" or \"Estimates are based on regression.\"; often starts with the words \"Source\" or \"Data sources\" even though the authoritative citation for a whole series is zhi_biao.lai_yuan, not this column.\n",
+              "id": "term_world_development_indicators_footnote_description",
+              "name": "footnote description",
+              "summary": "footnote description (description, note, notes, footnote, data source): the free-text annotation on a footnote row, recorded as miao_shu on jiao_zhu.",
+              "synonyms": [
+                "description",
+                "note",
+                "notes",
+                "footnote",
+                "data source"
+              ]
+            }
+          ]
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: zhi_biao
+  source: world_development_indicators.zhi_biao
+  description: |
+    zhi_biao is the reference table of indicator series, zhi_biao, defining each series' name, topic, unit, and methodology.
+
+    Grain: one row per indicator series, identified by zhi_biao_dai_ma. Values themselves live in zhi_biao_shu_ju, one row per country and year for a series defined here; footnotes about a specific year of a series live in zhi_biao_bei_zhu. Do not confuse this table with zhi_biao_xiang_mu, which looks like it but is not dependable for analysis.
+  fields:
+  - name: zhi_biao_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhi_biao_dai_ma
+    description: |
+      The unique code identifying the indicator series, zhi_biao_dai_ma.
+
+      Primary join key for this table. Text, a dotted World Bank series code such as PA.NUS.FCRF or NE.TRD.GNFS.ZS.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to zhi_biao.zhi_biao_dai_ma. A dotted World Bank series code, for example SP.ADO.TFRT or SM.POP.TOTL; also carried on zhi_biao_shu_ju, zhi_biao_bei_zhu, guo_jia_bei_zhu, and jiao_zhu to identify which indicator a value or footnote belongs to.\n",
+              "id": "term_world_development_indicators_indicator_code",
+              "name": "indicator code",
+              "summary": "indicator code (series code): the unique code identifying an indicator series in zhi_biao, zhi_biao_dai_ma.",
+              "synonyms": [
+                "indicator code",
+                "series code"
+              ]
+            }
+          ]
+        }
+  - name: zhu_ti
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhu_ti
+    description: |
+      The subject area the indicator belongs to, zhu_ti.
+
+      Text, a colon-separated topic path, for example "Economic Policy & Debt: National accounts: Shares of GDP & other" or "Health: Risk factors". Distinct from zhi_biao_ming, which names the specific indicator rather than its broader subject area.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to zhi_biao.zhu_ti. A colon-separated path, for example \"Health: Risk factors\" or \"Economic Policy & Debt: National accounts: Shares of GDP & other\"; broader than zhi_biao_ming, which names the specific indicator rather than its subject area.\n",
+              "id": "term_world_development_indicators_indicator_topic",
+              "name": "indicator topic",
+              "summary": "indicator topic (topic, subject, subjects): the subject area an indicator belongs to in zhi_biao, zhu_ti.",
+              "synonyms": [
+                "topic",
+                "subject",
+                "subjects"
+              ]
+            }
+          ]
+        }
+  - name: zhi_biao_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhi_biao_ming
+    description: |
+      The indicator's name, zhi_biao_ming.
+
+      Text, for example "Trade (% of GDP)" or "Adjusted savings: gross savings (% of GNI)". This is the column most business questions match against to select a specific development statistic.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: jian_yao_ding_yi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jian_yao_ding_yi
+    description: |
+      The short definition of the indicator, jian_yao_ding_yi.
+
+      Text, one or two sentences, for example "Binding coverage is the percentage of product lines with an agreed bound rate."; blank for some indicators.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xiang_xi_ding_yi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiang_xi_ding_yi
+    description: |
+      The long, detailed definition of the indicator, xiang_xi_ding_yi.
+
+      Text, a paragraph, for example explaining exactly what counts as "trade" or "youth unemployment" for that series; more thorough than jian_yao_ding_yi.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ce_liang_dan_wei
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ce_liang_dan_wei
+    description: |
+      The unit the indicator is measured in, ce_liang_dan_wei.
+
+      Text, one of "2011 PPP $", "%", or blank when the unit is already stated inside zhi_biao_ming itself (a percentage or dollar indicator name usually leaves this column blank).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bao_gao_zhou_qi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bao_gao_zhou_qi
+    description: |
+      How often the indicator is reported, bao_gao_zhou_qi.
+
+      Text; every row observed carries the single value Annual.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ji_shu_ji_ben_qi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_shu_ji_ben_qi
+    description: |
+      The base period used for indexing or comparing the indicator, ji_shu_ji_ben_qi.
+
+      Text, usually a year such as 2011 or 2005, sometimes the phrase "varies by country"; blank when not applicable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: qi_ta_bei_zhu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: qi_ta_bei_zhu
+    description: |
+      Any other notes recorded for the indicator, qi_ta_bei_zhu.
+
+      Integer column; every row observed so far is null, so it carries no data to filter or select on in practice.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: hui_zong_fang_fa
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: hui_zong_fang_fa
+    description: |
+      How country-level values are aggregated into regional or income-group totals for the indicator, hui_zong_fang_fa.
+
+      Text, one of Weighted average, Gap-filled total, Median, Sum, or similar; blank for indicators that are not aggregated. Do not confuse this with the similarly named hui_zong_fang_shi column, which is unreliable.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xian_zhi_yu_li_wai
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xian_zhi_yu_li_wai
+    description: |
+      The comparability caveats and exceptions noted for the indicator, xian_zhi_yu_li_wai.
+
+      Text, a paragraph describing comparability caveats, for example that household surveys are infrequent and not aligned across countries; blank for some indicators.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: yuan_shi_lai_yuan_bei_zhu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yuan_shi_lai_yuan_bei_zhu
+    description: |
+      Notes carried over from the indicator's original data source, yuan_shi_lai_yuan_bei_zhu.
+
+      Text, a paragraph, for example explaining how a refugee population category changed definition over time; blank for most indicators.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zong_ti_ping_lun
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zong_ti_ping_lun
+    description: |
+      General comments recorded about the indicator, zong_ti_ping_lun.
+
+      Text, a paragraph, for example a citation requirement or a note about which accounting standard the series follows; blank for most indicators.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: lai_yuan
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: lai_yuan
+    description: |
+      The citation for the indicator's original data source, lai_yuan.
+
+      Text, for example "World Bank national accounts data files." or "International Monetary Fund, Balance of Payments Statistics Yearbook and data files."; the authoritative citation for the series, distinct from the free-text footnotes in zhi_biao_bei_zhu or jiao_zhu, which often begin with the word "Source" or "Data sources" but describe a single observation rather than the series as a whole.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: tong_ji_gai_nian_yu_fang_fa
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tong_ji_gai_nian_yu_fang_fa
+    description: |
+      The statistical concept and methodology behind the indicator, tong_ji_gai_nian_yu_fang_fa.
+
+      Text, a paragraph explaining how the figure is computed, for example how gross savings is calculated as a residual from national accounts; blank for some indicators.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: fa_zhan_xiang_guan_xing
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fa_zhan_xiang_guan_xing
+    description: |
+      Why the indicator matters for development policy, fa_zhan_xiang_guan_xing.
+
+      Text, a paragraph of policy context, for example why youth unemployment is a relevant development issue; blank for some indicators.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xiang_guan_lai_yuan_lian_jie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiang_guan_lai_yuan_lian_jie
+    description: |
+      A web link to a related data source for the indicator, xiang_guan_lai_yuan_lian_jie.
+
+      Text, a single URL such as the World Bank's PovcalNet tool, or blank; only two distinct values appear in the sample.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: qi_ta_wang_zhan_lian_jie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: qi_ta_wang_zhan_lian_jie
+    description: |
+      Other web links recorded for the indicator, qi_ta_wang_zhan_lian_jie.
+
+      Integer column; every row observed so far is null, so it carries no data to filter or select on in practice.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: xiang_guan_zhi_biao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiang_guan_zhi_biao
+    description: |
+      Other indicators related to this one, xiang_guan_zhi_biao.
+
+      Integer column; every row observed so far is null, so it carries no data to filter or select on in practice.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: xu_ke_zheng_lei_xing
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xu_ke_zheng_lei_xing
+    description: |
+      The license under which the indicator's data is published, xu_ke_zheng_lei_xing.
+
+      Text, one of Open or Restricted.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to zhi_biao.xu_ke_zheng_lei_xing. Values are Open or Restricted; \"a restricted type of license\" means Restricted.\n",
+              "id": "term_world_development_indicators_license_type",
+              "name": "license type",
+              "summary": "license type (restricted license): the license an indicator's data is published under in zhi_biao, xu_ke_zheng_lei_xing.",
+              "synonyms": [
+                "license type",
+                "restricted license"
+              ]
+            }
+          ]
+        }
+  - name: zhi_biao_ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhi_biao_ming_cheng
+    description: |
+      zhi_biao_ming_cheng, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: zhi_biao_bianhao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhi_biao_bianhao
+    description: |
+      zhi_biao_bianhao, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: hui_zong_fang_shi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: hui_zong_fang_shi
+    description: |
+      hui_zong_fang_shi, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: zhi_biao_bei_zhu
+  source: world_development_indicators.zhi_biao_bei_zhu
+  description: |
+    zhi_biao_bei_zhu carries free-text footnotes about an indicator series for a specific year.
+
+    Grain: one row per indicator series and year that has a footnote, joined to zhi_biao on zhi_biao_dai_ma. Unlike jiao_zhu, these footnotes are not scoped to a single country; they explain something about the series itself in that year, for example that a figure was interpolated between two other years. Do not confuse this table with zhi_biao_ping_bie, which looks like it but is not dependable for analysis.
+  fields:
+  - name: zhi_biao_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhi_biao_dai_ma
+    description: |
+      The indicator series code the footnote applies to, zhi_biao_dai_ma.
+
+      Foreign key to zhi_biao.zhi_biao_dai_ma. Text, a dotted World Bank series code such as SP.DYN.TO65.MA.ZS or SP.ADO.TFRT.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nian_fen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nian_fen
+    description: |
+      The year the footnote's observation refers to, nian_fen.
+
+      Text, formatted like YR2002 or YR1965 rather than a bare number.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: miao_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: miao_shu
+    description: |
+      The free-text footnote describing the series for that year, miao_shu.
+
+      Text, a sentence, for example "Interpolated using data for 1992 and 1997." or "2014 data are provisional and subject to change". The same kind of description text as guo_jia_bei_zhu and jiao_zhu, scoped here to an indicator and a year without a country.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bei_zhu_zhi_biao_bianhao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bei_zhu_zhi_biao_bianhao
+    description: |
+      bei_zhu_zhi_biao_bianhao, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bei_zhu_shuoming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bei_zhu_shuoming
+    description: |
+      bei_zhu_shuoming, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nian_du
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nian_du
+    description: |
+      nian_du, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: zhi_biao_ping_bie
+  source: world_development_indicators.zhi_biao_ping_bie
+  description: |
+    zhi_biao_ping_bie holds rows that look like zhi_biao_bei_zhu's series footnotes, but its data is not dependable for analysis.
+
+    Grain: one apparent row per indicator series and year, mirroring zhi_biao_bei_zhu, but every column here is unreliable; do not use this table to answer a question about a series footnote. Use zhi_biao_bei_zhu instead for a footnote's series code, year, or description.
+  fields:
+  - name: biao_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: biao_dai_ma
+    description: |
+      biao_dai_ma, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nian_du
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nian_du
+    description: |
+      nian_du, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bei_zhu_shuo_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bei_zhu_shuo_ming
+    description: |
+      bei_zhu_shuo_ming, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: zhi_biao_shu_ju
+  source: world_development_indicators.zhi_biao_shu_ju
+  description: |
+    zhi_biao_shu_ju is the fact table of observed indicator values, zhi_biao_shu_ju, one row per country, indicator, and year.
+
+    Grain: one row per country, indicator, and year. Almost every question that asks for a development statistic (GDP, population, trade, health, and the like) is answered by filtering this table's zhi_biao_ming or zhi_biao_dai_ma to the exact indicator, optionally filtering guo_jia_dai_ma or nian_fen, and reading shu_zhi. guo_jia_ming and zhi_biao_ming are convenience copies of the country and indicator names carried on guo_jia and zhi_biao; join to those tables on guo_jia_dai_ma and zhi_biao_dai_ma only when a field other than the name itself is needed.
+  fields:
+  - name: guo_jia_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia_ming
+    description: |
+      The country's name as denormalized onto each value row, guo_jia_ming.
+
+      Text, for example Jamaica or Sweden, matching guo_jia.jian_cheng_ming for the corresponding guo_jia_dai_ma; also includes aggregate rows such as Arab World or Central Europe and the Baltics.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: guo_jia_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia_dai_ma
+    description: |
+      The three-letter country code for the value, guo_jia_dai_ma.
+
+      Foreign key to guo_jia.guo_jia_dai_ma. Text, three letters, for example JAM or SWE.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zhi_biao_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhi_biao_ming
+    description: |
+      The indicator's name as denormalized onto each value row, zhi_biao_ming.
+
+      Text, for example "Urban population (% of total)" or "Adolescent fertility rate (births per 1,000 women ages 15-19)", matching zhi_biao.zhi_biao_ming for the corresponding zhi_biao_dai_ma. This is the column most questions filter to select one indicator.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zhi_biao_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhi_biao_dai_ma
+    description: |
+      The indicator's series code for the value, zhi_biao_dai_ma.
+
+      Foreign key to zhi_biao.zhi_biao_dai_ma. Text, a dotted World Bank series code such as SP.ADO.TFRT or MS.MIL.XPRT.KD.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nian_fen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nian_fen
+    description: |
+      The calendar year the value was reported for, nian_fen.
+
+      Integer, for example 1960, 1961, or 1962; the full range across the table spans from 1960 through the most recent reporting year.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: shu_zhi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shu_zhi
+    description: |
+      The numeric value reported for the country, indicator, and year, shu_zhi.
+
+      Integer, and its unit and scale depend entirely on which indicator zhi_biao_ming or zhi_biao_dai_ma selects (a percentage, a currency amount, a headcount, and so on); check zhi_biao.ce_liang_dan_wei for the unit of measure before comparing values across indicators. Ranges from negative figures (net flows such as migration can be negative) up into the hundreds of billions for economy-wide totals.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  metrics:
+  - name: metric_world_development_indicators_average_indicator_value
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(SUM(shu_zhi), COUNT(shu_zhi))
+    description: |
+      average indicator value: the mean value reported in zhi_biao_shu_ju for an indicator, once the indicator and any country or year filter are applied.
+
+      Bound to zhi_biao_shu_ju.shu_zhi: filter zhi_biao_ming or zhi_biao_dai_ma to the indicator in question, and guo_jia_dai_ma or nian_fen if the question also scopes by country or year, then divide the sum of shu_zhi by the count of rows. "The average value of" an indicator is this metric.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average indicator value"
+        }
+  - name: metric_world_development_indicators_maximum_indicator_value
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(shu_zhi)
+    description: |
+      maximum indicator value: the highest value reported in zhi_biao_shu_ju for an indicator, once the indicator and any country or year filter are applied.
+
+      Bound to zhi_biao_shu_ju.shu_zhi: filter zhi_biao_ming or zhi_biao_dai_ma to the indicator in question, and guo_jia_dai_ma or nian_fen if the question also scopes by country or year, before taking the maximum. "The highest value" and "the largest" are this metric; "the highest number of" a count-shaped indicator uses the same MAX.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "maximum indicator value"
+        }
+  - name: metric_world_development_indicators_minimum_indicator_value
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(shu_zhi)
+    description: |
+      minimum indicator value: the lowest value reported in zhi_biao_shu_ju for an indicator, once the indicator and any country or year filter are applied.
+
+      Bound to zhi_biao_shu_ju.shu_zhi: filter zhi_biao_ming or zhi_biao_dai_ma to the indicator in question, and guo_jia_dai_ma or nian_fen if the question also scopes by country or year, before taking the minimum. "Lowest" and "the lowest value" are this metric.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "minimum indicator value"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: zhi_biao_xiang_mu
+  source: world_development_indicators.zhi_biao_xiang_mu
+  description: |
+    zhi_biao_xiang_mu holds rows that look like zhi_biao's indicator definitions, but its data is not dependable for analysis.
+
+    Grain: one apparent row per indicator series, mirroring zhi_biao, but every column here is unreliable; do not use this table to answer a question about an indicator's name, topic, definition, unit, or methodology. Use zhi_biao instead.
+  fields:
+  - name: biao_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: biao_dai_ma
+    description: |
+      biao_dai_ma, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: zhi_biao_zhuti
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhi_biao_zhuti
+    description: |
+      zhi_biao_zhuti, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng
+    description: |
+      ming_cheng, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: jian_yao_shuoming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jian_yao_shuoming
+    description: |
+      jian_yao_shuoming, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: xiang_xi_shuoming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiang_xi_shuoming
+    description: |
+      xiang_xi_shuoming, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ce_liang_yi_biao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ce_liang_yi_biao
+    description: |
+      ce_liang_yi_biao, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: baogao_qi_du
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: baogao_qi_du
+    description: |
+      baogao_qi_du, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: jishu_qi_dian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jishu_qi_dian
+    description: |
+      jishu_qi_dian, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: fu_zheng_shuoming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fu_zheng_shuoming
+    description: |
+      fu_zheng_shuoming, a numeric column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: hui_zong_shuomings
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: hui_zong_shuomings
+    description: |
+      hui_zong_shuomings, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: xian_zhi_shuoming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xian_zhi_shuoming
+    description: |
+      xian_zhi_shuoming, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: yuan_shi_yuan_lai
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yuan_shi_yuan_lai
+    description: |
+      yuan_shi_yuan_lai, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: pinglun_zong_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pinglun_zong_shu
+    description: |
+      pinglun_zong_shu, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: zi_yuan_lai_yuan
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zi_yuan_lai_yuan
+    description: |
+      zi_yuan_lai_yuan, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: tongji_gaiyao_yu_fangfa
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tongji_gaiyao_yu_fangfa
+    description: |
+      tongji_gaiyao_yu_fangfa, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: fazhan_xiangmu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fazhan_xiangmu
+    description: |
+      fazhan_xiangmu, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: laiyuan_lianjie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: laiyuan_lianjie
+    description: |
+      laiyuan_lianjie, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: waibian_lianjie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: waibian_lianjie
+    description: |
+      waibian_lianjie, a numeric column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: xiangguan_zhibiao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiangguan_zhibiao
+    description: |
+      xiangguan_zhibiao, a numeric column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: xuke_zhengshu_leixing
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuke_zhengshu_leixing
+    description: |
+      xuke_zhengshu_leixing, a text column on this table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_world_development_indicators_guo_jia_bei_zhu_zhi_biao_0dcb4e7c
+  from: guo_jia_bei_zhu
+  to: zhi_biao
+  from_columns:
+  - zhi_biao_dai_ma
+  to_columns:
+  - zhi_biao_dai_ma
+  ai_context:
+    instructions: |
+      Match a country footnote in guo_jia_bei_zhu to the indicator it describes in zhi_biao, by zhi_biao_dai_ma.
+
+      Joins guo_jia_bei_zhu.zhi_biao_dai_ma to zhi_biao.zhi_biao_dai_ma. Many country footnotes can reference the same indicator series, so this is many-to-one from guo_jia_bei_zhu into zhi_biao; use it to add an indicator's name, topic, or unit to a question about a country's footnote.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between guo_jia_bei_zhu and zhi_biao in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_world_development_indicators_guo_jia_guo_jia_bei_zhu_1542c527
+  from: guo_jia_bei_zhu
+  to: guo_jia
+  from_columns:
+  - guo_jia_dai_ma
+  to_columns:
+  - guo_jia_dai_ma
+  ai_context:
+    instructions: |
+      Match a country in guo_jia to its footnotes in guo_jia_bei_zhu, by guo_jia_dai_ma.
+
+      Joins guo_jia.guo_jia_dai_ma to guo_jia_bei_zhu.guo_jia_dai_ma. One country can have many footnotes, so this is one-to-many from guo_jia into guo_jia_bei_zhu; use it to add a country's name, region, or income group to a question about one of its footnotes.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between guo_jia and guo_jia_bei_zhu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_world_development_indicators_guo_jia_jiao_zhu_7a6652e3
+  from: jiao_zhu
+  to: guo_jia
+  from_columns:
+  - guo_jia_dai_ma
+  to_columns:
+  - guo_jia_dai_ma
+  ai_context:
+    instructions: |
+      Match a country in guo_jia to its footnotes in jiao_zhu, by guo_jia_dai_ma.
+
+      Joins guo_jia.guo_jia_dai_ma to jiao_zhu.guo_jia_dai_ma. One country can have many footnotes across many indicators and years, so this is one-to-many from guo_jia into jiao_zhu; use it to add a country's name, region, or income group to a question about one of its footnotes.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between guo_jia and jiao_zhu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_world_development_indicators_guo_jia_zhi_biao_shu_ju_bd81c709
+  from: zhi_biao_shu_ju
+  to: guo_jia
+  from_columns:
+  - guo_jia_dai_ma
+  to_columns:
+  - guo_jia_dai_ma
+  ai_context:
+    instructions: |
+      Match a country in guo_jia to its reported indicator values in zhi_biao_shu_ju, by guo_jia_dai_ma.
+
+      Joins guo_jia.guo_jia_dai_ma to zhi_biao_shu_ju.guo_jia_dai_ma. One country has many indicator-year value rows, so this is one-to-many from guo_jia into zhi_biao_shu_ju; use it to add a country's region, income group, lending category, or currency to a question about one of its indicator values.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between guo_jia and zhi_biao_shu_ju in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_world_development_indicators_jiao_zhu_zhi_biao_c278c9bf
+  from: jiao_zhu
+  to: zhi_biao
+  from_columns:
+  - zhi_biao_dai_ma
+  to_columns:
+  - zhi_biao_dai_ma
+  ai_context:
+    instructions: |
+      Match a country-and-year footnote in jiao_zhu to the indicator it describes in zhi_biao, by zhi_biao_dai_ma.
+
+      Joins jiao_zhu.zhi_biao_dai_ma to zhi_biao.zhi_biao_dai_ma. Many footnotes can reference the same indicator series, so this is many-to-one from jiao_zhu into zhi_biao; use it to add an indicator's name, topic, or unit to a question about a footnote.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between jiao_zhu and zhi_biao in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_world_development_indicators_zhi_biao_zhi_biao_bei_zhu_eb5bb826
+  from: zhi_biao_bei_zhu
+  to: zhi_biao
+  from_columns:
+  - zhi_biao_dai_ma
+  to_columns:
+  - zhi_biao_dai_ma
+  ai_context:
+    instructions: |
+      Match an indicator in zhi_biao to its yearly footnotes in zhi_biao_bei_zhu, by zhi_biao_dai_ma.
+
+      Joins zhi_biao.zhi_biao_dai_ma to zhi_biao_bei_zhu.zhi_biao_dai_ma. One indicator can have a footnote for many different years, so this is one-to-many from zhi_biao into zhi_biao_bei_zhu; use it to add an indicator's name, topic, or unit to a question about one of its footnotes.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between zhi_biao and zhi_biao_bei_zhu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_world_development_indicators_zhi_biao_zhi_biao_shu_ju_480a659a
+  from: zhi_biao_shu_ju
+  to: zhi_biao
+  from_columns:
+  - zhi_biao_ming
+  to_columns:
+  - zhi_biao_ming
+  ai_context:
+    instructions: |
+      Match an indicator in zhi_biao to its reported values in zhi_biao_shu_ju, by zhi_biao_ming.
+
+      Joins zhi_biao.zhi_biao_ming to zhi_biao_shu_ju.zhi_biao_ming, matching on the indicator's name rather than its zhi_biao_dai_ma code; the two tables denormalize the same name so the join still finds every value, and zhi_biao_dai_ma also matches between the tables if a query already filters by code. One indicator has many country-year value rows, so this is one-to-many from zhi_biao into zhi_biao_shu_ju; use it to add an indicator's topic, unit, or definition to a question about one of its values.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between zhi_biao and zhi_biao_shu_ju in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_2090",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0000",
+          "sql": "SELECT COUNT(\"guo_jia_dai_ma\") FROM \"world_development_indicators\".\"guo_jia\" WHERE \"dai_kuai_fen_lei\" = 'IDA' AND \"qi_ta_zu_bie\" = 'HIPC'",
+          "summary": "Among the countries in the group of Heavily Indebted Poor Countries, how many of them are under the lending category of the International Development Associations?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2091",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0001",
+          "sql": "SELECT \"jian_cheng_ming\", \"wai_zhai_bao_gao_zhuang_tai\" FROM \"world_development_indicators\".\"guo_jia\" WHERE \"dai_kuai_fen_lei\" = 'IDA'",
+          "summary": "Please list the countries under the lending category of the International Development Associations and have a external debt reporting finished by estimation."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2092",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0002",
+          "sql": "SELECT \"T2\".\"miao_shu\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"guo_jia_bei_zhu\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T1\".\"jian_cheng_ming\" = 'Aruba' AND \"T2\".\"zhi_biao_dai_ma\" = 'SM.POP.TOTL'",
+          "summary": "What's the description of the series code SM.POP.TOTL for Aruba?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2095",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0003",
+          "sql": "SELECT \"T2\".\"miao_shu\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"guo_jia_bei_zhu\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T1\".\"dai_kuai_fen_lei\" = 'IDA' AND \"T2\".\"zhi_biao_dai_ma\" = 'SM.POP.TOTL'",
+          "summary": "Please list the descriptions of the series code SM.POP.TOTL for all the countries that are under the lending category of the International Development Associations."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2106",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0004",
+          "sql": "SELECT \"guo_jia_dai_ma\", \"alpha2_dai_ma\" FROM \"world_development_indicators\".\"guo_jia\" WHERE \"qu_yu\" = 'East Asia & Pacific' AND \"shou_ru_zu\" = 'High income: nonOECD'",
+          "summary": "List the East Asia & Pacific countries which are under the High income: nonOECD group. Please include their alpha code."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2108",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0005",
+          "sql": "SELECT CAST(SUM(\"shu_zhi\") AS REAL) / NULLIF(COUNT(\"guo_jia_dai_ma\"), 0) FROM \"world_development_indicators\".\"zhi_biao_shu_ju\" WHERE \"guo_jia_ming\" = 'Algeria' AND \"nian_fen\" > 1974 AND \"nian_fen\" < 1981 AND \"zhi_biao_ming\" = 'Adjusted net enrolment rate, primary, both sexes (%)'",
+          "summary": "What is the average value of Adjusted net enrolment rate, primary, both sexes (%) indicator in Algeria from 1975 to 1980?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2110",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0006",
+          "sql": "SELECT \"zhi_biao_dai_ma\" FROM \"world_development_indicators\".\"zhi_biao\" WHERE \"zhu_ti\" = 'Environment: Emissions' AND \"xu_ke_zheng_lei_xing\" = 'Restricted'",
+          "summary": "List down the series codes in which the topic is about Environment: Emissions and the license type is restricted. Please include their alpha code."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2111",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0007",
+          "sql": "SELECT COUNT(\"T2\".\"guo_jia_dai_ma\") FROM \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"guo_jia\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"qu_yu\" = 'Middle East & North Africa' AND \"T1\".\"zhi_biao_ming\" = 'CO2 emissions FROM gaseous fuel consumption (kt)' AND \"T1\".\"nian_fen\" = 1970 AND \"T1\".\"shu_zhi\" > 600",
+          "summary": "In 1970, how many Middle Eastern & North African countries whose value for CO2 emissions from gaseous fuel consumption (kt) indicator is more than 600?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2113",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0008",
+          "sql": "SELECT \"T2\".\"miao_shu\" FROM \"world_development_indicators\".\"zhi_biao\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_bei_zhu\" AS \"T2\" ON \"T1\".\"zhi_biao_dai_ma\" = \"T2\".\"zhi_biao_dai_ma\" WHERE \"T1\".\"zhi_biao_dai_ma\" = 'SP.DYN.TO65.MA.ZS' AND \"T1\".\"zhu_ti\" = 'Health: Mortality' AND \"T2\".\"nian_fen\" = 'YR1967'",
+          "summary": "What is the series note description of the series \"SP.DYN.TO65.MA.ZS\" which covers the topic \"Health: Mortality\" in 1967?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2114",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0009",
+          "sql": "SELECT DISTINCT \"T1\".\"miao_shu\" FROM \"world_development_indicators\".\"jiao_zhu\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"guo_jia\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T1\".\"nian_fen\" = 'YR1981' AND \"T2\".\"jian_cheng_ming\" = 'Albania'",
+          "summary": "Please write down the footnote descriptions of Albania in 1981."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2117",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0010",
+          "sql": "SELECT DISTINCT \"T1\".\"shi_jie_yin_hang_dai_ma\", \"T1\".\"dai_kuai_fen_lei\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"guo_jia_bei_zhu\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"miao_shu\" = 'Data source : Human Mortality Database by University of California, Berkeley, and Max Planck Institute for Demographic Research.' AND \"T1\".\"dai_kuai_fen_lei\" <> ''",
+          "summary": "List down the World Bank code of the countries whose country note has described \"Data source : Human Mortality Database by University of California, Berkeley, and Max Planck Institute for Demographic Research.\"? Please include their lending category."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2118",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0011",
+          "sql": "SELECT \"T2\".\"zhu_ti\", \"T2\".\"zhi_biao_dai_ma\", \"T2\".\"xu_ke_zheng_lei_xing\" FROM \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao\" AS \"T2\" ON \"T1\".\"zhi_biao_ming\" = \"T2\".\"zhi_biao_ming\" WHERE \"T1\".\"nian_fen\" = 1961 AND \"T1\".\"guo_jia_ming\" = 'Haiti' AND \"T1\".\"zhi_biao_ming\" = 'Total reserves minus gold (current US$)' AND \"T1\".\"shu_zhi\" = 3000000",
+          "summary": "What is the topic of the series when the Total reserves minus gold (current US$) indicator of Haiti hit the value of 3,000,000 in 1961? Please include its series code and license type."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2123",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0012",
+          "sql": "SELECT \"T2\".\"lai_yuan\" FROM \"world_development_indicators\".\"guo_jia_bei_zhu\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao\" AS \"T2\" ON \"T1\".\"zhi_biao_dai_ma\" = \"T2\".\"zhi_biao_dai_ma\" INNER JOIN \"world_development_indicators\".\"guo_jia\" AS \"T3\" ON \"T1\".\"guo_jia_dai_ma\" = \"T3\".\"guo_jia_dai_ma\" INNER JOIN \"world_development_indicators\".\"zhi_biao_bei_zhu\" AS \"T4\" ON \"T2\".\"zhi_biao_dai_ma\" = \"T4\".\"zhi_biao_dai_ma\" WHERE \"T4\".\"nian_fen\" LIKE '%2002%' AND \"T2\".\"zhi_biao_ming\" = 'Net migration'",
+          "summary": "List the sources for the Net Migration in South American countries in 2002."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2129",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0013",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"qu_yu\" = 'Sub-Saharan Africa' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"guo_jia_dai_ma\"), 0) FROM \"world_development_indicators\".\"guo_jia\" WHERE \"mao_yi_ti_xi\" = 'Special trade system'",
+          "summary": "Please calculate the percentage of Sub-Saharan African countries which are in the Special trade system."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2131",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0014",
+          "sql": "SELECT \"T1\".\"guo_jia_dai_ma\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T1\".\"shou_ru_zu\" = 'Upper middle income' AND \"T2\".\"zhi_biao_ming\" = 'CO2 emissions (kt)' ORDER BY \"T2\".\"shu_zhi\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Which upper middle income country has the lowest value of CO2 emissions (kt)?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2132",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0015",
+          "sql": "SELECT MIN(\"T2\".\"shu_zhi\") FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T1\".\"qi_ta_zu_bie\" = 'HIPC' AND \"T2\".\"zhi_biao_ming\" = 'International migrant stock, total'",
+          "summary": "What is the minimum of International migrant stock, total of heavily indebted poor countries?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2133",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0016",
+          "sql": "SELECT DISTINCT \"T2\".\"zhi_biao_ming\" FROM \"world_development_indicators\".\"jiao_zhu\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao\" AS \"T2\" ON \"T1\".\"zhi_biao_dai_ma\" = \"T2\".\"zhi_biao_dai_ma\" WHERE \"T1\".\"nian_fen\" = 'YR2000' AND \"T2\".\"zhu_ti\" = 'Education: Inputs'",
+          "summary": "Please list the indicator names belonging to Education: Inputs topic in 2000."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2138",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0017",
+          "sql": "SELECT \"zhi_biao_ming\" FROM \"world_development_indicators\".\"zhi_biao_shu_ju\" WHERE \"guo_jia_ming\" = 'Arab World' AND \"nian_fen\" = 1960 AND \"shu_zhi\" > 50",
+          "summary": "Please list the indicator names of Arab World whose values are higher than 50 in 1960."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2139",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0018",
+          "sql": "SELECT \"guo_jia_ming\" FROM \"world_development_indicators\".\"zhi_biao_shu_ju\" WHERE \"zhi_biao_ming\" = 'Merchandise imports by the reporting economy (current US$)' ORDER BY \"shu_zhi\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which country has the highest value of Merchandise imports by the reporting economy (current US$)?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2140",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0019",
+          "sql": "SELECT DISTINCT \"T2\".\"zhi_biao_ming\" FROM \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao\" AS \"T2\" ON \"T1\".\"zhi_biao_ming\" = \"T2\".\"zhi_biao_ming\" WHERE \"T1\".\"nian_fen\" = 1965 AND \"T1\".\"shu_zhi\" > 100 AND \"T2\".\"bao_gao_zhou_qi\" = 'Annual'",
+          "summary": "Please list annual indicator names which have values of more than 100 in 1965."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2153",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0020",
+          "sql": "SELECT DISTINCT \"T2\".\"guo_jia_ming\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T1\".\"shou_ru_zu\" = 'Low income'",
+          "summary": "List out the country name of lower earning countries"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2157",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0021",
+          "sql": "SELECT DISTINCT \"T1\".\"guo_jia_dai_ma\", \"T2\".\"guo_jia_ming\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T1\".\"huo_bi_dan_wei\" = 'Euro' AND (\"T1\".\"shou_ru_zu\" = 'High income: OECD' OR \"T1\".\"shou_ru_zu\" = 'High income: nonOECD')",
+          "summary": "List out the country code and country name of the rich countries using Euro as their currency unit"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2161",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0022",
+          "sql": "SELECT \"guo_jia_dai_ma\", \"jian_cheng_ming\" FROM \"world_development_indicators\".\"guo_jia\" LIMIT 10",
+          "summary": "List down 10 country codes and it's short names."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2162",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0023",
+          "sql": "SELECT CAST(COUNT(\"jian_cheng_ming\") AS TEXT) FROM \"world_development_indicators\".\"guo_jia\" WHERE \"jian_cheng_ming\" LIKE 'A%' UNION SELECT \"alpha2_dai_ma\" FROM \"world_development_indicators\".\"guo_jia\" WHERE \"jian_cheng_ming\" LIKE 'A%'",
+          "summary": "How many of the countries name start with alphabet A? List down the Alpha2Code of them."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2163",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0024",
+          "sql": "SELECT \"biao_ge_ming\" FROM \"world_development_indicators\".\"guo_jia\" WHERE \"huo_bi_dan_wei\" = 'Euro'",
+          "summary": "Which countries use Euro as their currency? List down the table name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2165",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0025",
+          "sql": "SELECT \"guo_jia_dai_ma\", \"qu_yu\" FROM \"world_development_indicators\".\"guo_jia\" WHERE (\"shou_ru_zu\" = 'High income: OECD' OR \"shou_ru_zu\" = 'High income: nonOECD') AND \"qu_yu\" LIKE '%Asia%'",
+          "summary": "Which high income group countries are from Asia?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2168",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0026",
+          "sql": "SELECT DISTINCT \"T1\".\"biao_ge_ming\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"guo_jia_bei_zhu\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"miao_shu\" = 'Covers mainland Tanzania only.'",
+          "summary": "State the table name of country with description of \"Covers mainland Tanzania only\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2170",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0027",
+          "sql": "SELECT DISTINCT \"T2\".\"miao_shu\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"jiao_zhu\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T1\".\"biao_ge_ming\" = 'Finland' AND \"T2\".\"nian_fen\" = 'YR2000'",
+          "summary": "What are the footnote description of Finland in year 2000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2172",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0028",
+          "sql": "SELECT DISTINCT \"T1\".\"chang_ming\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"nian_fen\" = 1980 AND NOT \"T2\".\"zhi_biao_ming\" IS NULL",
+          "summary": "List the long name of countries with indicator name in 1980."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2176",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0029",
+          "sql": "SELECT CAST(COUNT(\"T2\".\"miao_shu\") AS TEXT) FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"jiao_zhu\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"nian_fen\" = 'YR1980' UNION ALL SELECT DISTINCT \"T1\".\"biao_ge_ming\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"jiao_zhu\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"nian_fen\" = 'YR1980'",
+          "summary": "How many footnotes have been made in year 1980 and what are the table names of these countries that made the footnotes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2178",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0030",
+          "sql": "SELECT \"T2\".\"guo_jia_ming\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T1\".\"shou_ru_zu\" = 'Low income' AND \"T2\".\"zhi_biao_ming\" = 'Adolescent fertility rate (births per 1,000 women ages 15-19)' ORDER BY \"T2\".\"shu_zhi\" NULLS FIRST LIMIT 1",
+          "summary": "Among the low income countries, which country has the lowest fertility rate?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2179",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0031",
+          "sql": "SELECT SUM(\"T2\".\"shu_zhi\") FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T1\".\"shou_ru_zu\" LIKE '%middle income' AND \"T2\".\"nian_fen\" = 1960 AND \"T2\".\"zhi_biao_ming\" = 'Urban population'",
+          "summary": "How much is the total urban population of middle income countries in 1960?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2181",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0032",
+          "sql": "SELECT COUNT(\"guo_jia_dai_ma\") FROM \"world_development_indicators\".\"guo_jia\" WHERE \"guo_min_jing_ji_ti_xi\" = 'Country uses the 1993 System of National Accounts methodology.'",
+          "summary": "How many countries using the 1993 System of National Accounts methodology?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2182",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0033",
+          "sql": "SELECT \"jian_cheng_ming\" FROM \"world_development_indicators\".\"guo_jia\" WHERE \"hu_kou_deng_ji_wang_quan_du\" = 'Yes'",
+          "summary": "Which country have completed vital registration? List all the countries."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2187",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0034",
+          "sql": "SELECT DISTINCT \"T1\".\"guo_jia_dai_ma\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"jiao_zhu\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"miao_shu\" = 'Data are classified as official aid.'",
+          "summary": "Which country have data classified as official aid?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2188",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0035",
+          "sql": "SELECT DISTINCT \"T1\".\"jian_cheng_ming\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"guo_jia_bei_zhu\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"miao_shu\" = 'Estimates are based on regression.'",
+          "summary": "What country have its data estimated based on regression?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2190",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0036",
+          "sql": "SELECT MAX(\"T2\".\"shu_zhi\") FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T1\".\"shou_ru_zu\" = 'Upper middle income' AND \"T2\".\"nian_fen\" = 1960 AND \"T2\".\"zhi_biao_ming\" = 'Population, total'",
+          "summary": "In 1960, what is largest population for country with upper middle income?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2191",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0037",
+          "sql": "SELECT COUNT(\"guo_jia_dai_ma\") FROM \"world_development_indicators\".\"guo_jia\" WHERE \"guo_min_jing_ji_ti_xi\" = 'Country uses the 1968 System of National Accounts methodology.'",
+          "summary": "How many countries uses the 1968 System of National Accounts methodology?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2197",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0038",
+          "sql": "SELECT \"chang_ming\" FROM \"world_development_indicators\".\"guo_jia\" WHERE \"shou_ru_zu\" = 'Low income' AND \"qu_yu\" = 'South Asia'",
+          "summary": "What South Asian nations have low incomes? Please include the entire names of the nations in your answer."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2198",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0039",
+          "sql": "SELECT \"chang_ming\" FROM \"world_development_indicators\".\"guo_jia\" WHERE \"mao_yi_ti_xi\" = 'Special trade system' LIMIT 2",
+          "summary": "Please provide full name of any two countries using special trade system."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2200",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0040",
+          "sql": "SELECT \"guo_jia_ming\" FROM \"world_development_indicators\".\"zhi_biao_shu_ju\" WHERE \"zhi_biao_ming\" LIKE 'Arable land (% of land area)' ORDER BY \"shu_zhi\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which country has the lowest percentage of arable land?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2201",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0041",
+          "sql": "SELECT DISTINCT \"zhu_ti\" FROM \"world_development_indicators\".\"zhi_biao\" WHERE \"xu_ke_zheng_lei_xing\" = 'Restricted'",
+          "summary": "What are the subjects of series that have a restricted type of license?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2202",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0042",
+          "sql": "SELECT \"guo_jia_dai_ma\" FROM \"world_development_indicators\".\"guo_jia\" WHERE \"shou_ru_zu\" = 'Upper middle income' AND \"wai_zhai_bao_gao_zhuang_tai\" = 'Preliminary'",
+          "summary": "Which countries in the upper middle income category still have unfinished external debt reporting? Please provide the country codes in your answer."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2209",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0043",
+          "sql": "SELECT \"T1\".\"shu_zhi\" FROM \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"guo_jia\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"chang_ming\" = 'Commonwealth of Australia' AND \"T1\".\"zhi_biao_ming\" = 'Deposit interest rate (%)' AND \"T1\".\"nian_fen\" = 1979",
+          "summary": "What was the deposit interest rate in the Commonwealth of Australia in 1979 in percentage?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2211",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0044",
+          "sql": "SELECT DISTINCT \"T3\".\"zhu_ti\" FROM \"world_development_indicators\".\"guo_jia_bei_zhu\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"guo_jia\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" INNER JOIN \"world_development_indicators\".\"zhi_biao\" AS \"T3\" ON \"T1\".\"zhi_biao_dai_ma\" = \"T3\".\"zhi_biao_dai_ma\" WHERE \"T2\".\"jian_cheng_ming\" = 'Austria'",
+          "summary": "Please provide the subject of series of Austria."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2217",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0045",
+          "sql": "SELECT DISTINCT \"zhi_biao_dai_ma\" FROM \"world_development_indicators\".\"zhi_biao_shu_ju\" WHERE \"guo_jia_ming\" = 'Brazil' AND \"zhi_biao_ming\" = 'Mobile cellular subscriptions'",
+          "summary": "What is the indicator code for Mobile Cellular Subscriptions of Brazil?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2223",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0046",
+          "sql": "SELECT DISTINCT \"T3\".\"zhi_biao_dai_ma\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" INNER JOIN \"world_development_indicators\".\"guo_jia_bei_zhu\" AS \"T3\" ON \"T2\".\"guo_jia_dai_ma\" = \"T3\".\"guo_jia_dai_ma\" WHERE \"T2\".\"zhi_biao_ming\" = 'Number of infant deaths' AND \"T1\".\"chang_ming\" = 'Islamic State of Afghanistan' AND \"T2\".\"nian_fen\" = 1965",
+          "summary": "What is the series code for number of infant deaths in year 1965 for the country whose full name is Islamic State of Afghanistan?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2226",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0047",
+          "sql": "SELECT \"T1\".\"dai_kuai_fen_lei\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"zhi_biao_ming\" = 'Cereal production (metric tons)' AND \"T2\".\"shu_zhi\" = 6140000 AND \"T2\".\"nian_fen\" = 1966",
+          "summary": "What is the lending category of the country with a cereal production of 6140000 metric tons for the year 1966?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2233",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0048",
+          "sql": "SELECT \"T2\".\"nian_fen\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T1\".\"alpha2_dai_ma\" = '1A' AND \"T2\".\"zhi_biao_ming\" = 'Adolescent fertility rate (births per 1,000 women ages 15-19)'",
+          "summary": "In which years does the country whose Alpha2Code is 1A have a result of the indicator Adolescent fertility rate?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2234",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0049",
+          "sql": "SELECT \"T1\".\"chang_ming\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"zhi_biao_ming\" = 'Arms exports (SIPRI trend indicator values)' AND \"T2\".\"nian_fen\" = 1960 AND \"T2\".\"shu_zhi\" = 3000000",
+          "summary": "What's the long name of the country that got 3000000 on the indicator Arms exports in 1960?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2235",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0050",
+          "sql": "SELECT \"T1\".\"alpha2_dai_ma\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"zhi_biao_ming\" = 'Rural population' AND \"T2\".\"nian_fen\" = 1960",
+          "summary": "Please list the Alpha2Codes of all the countries that have an indicator on Rural population in 1960."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2238",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0051",
+          "sql": "SELECT \"T2\".\"miao_shu\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"guo_jia_bei_zhu\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" WHERE \"T2\".\"zhi_biao_dai_ma\" = 'SP.ADO.TFRT' AND \"T1\".\"jian_cheng_ming\" = 'Australia'",
+          "summary": "What is the note for Australia on the indicator SP.ADO.TFRT?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2239",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0052",
+          "sql": "SELECT \"T2\".\"miao_shu\" FROM \"world_development_indicators\".\"guo_jia\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"guo_jia_bei_zhu\" AS \"T2\" ON \"T1\".\"guo_jia_dai_ma\" = \"T2\".\"guo_jia_dai_ma\" INNER JOIN \"world_development_indicators\".\"zhi_biao\" AS \"T3\" ON \"T2\".\"zhi_biao_dai_ma\" = \"T3\".\"zhi_biao_dai_ma\" WHERE \"T1\".\"jian_cheng_ming\" = 'Aruba' AND \"T3\".\"zhu_ti\" = 'Environment: Energy production & use'",
+          "summary": "Please list the notes for Aruba on the indicators under the topic of Environment: Energy production & use."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2242",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0053",
+          "sql": "SELECT COUNT(\"T1\".\"guo_jia_dai_ma\") FROM \"world_development_indicators\".\"guo_jia_bei_zhu\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao\" AS \"T2\" ON \"T1\".\"zhi_biao_dai_ma\" = \"T2\".\"zhi_biao_dai_ma\" WHERE \"T2\".\"zhi_biao_ming\" = 'Stocks traded, turnover ratio of domestic shares (%)'",
+          "summary": "How many countries have notes on the indicator Stocks traded, turnover ratio of domestic shares?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2244",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_world_development_indicators_0054",
+          "sql": "SELECT \"T1\".\"shu_zhi\" FROM \"world_development_indicators\".\"zhi_biao_shu_ju\" AS \"T1\" INNER JOIN \"world_development_indicators\".\"zhi_biao\" AS \"T2\" ON \"T1\".\"zhi_biao_ming\" = \"T2\".\"zhi_biao_ming\" INNER JOIN \"world_development_indicators\".\"guo_jia\" AS \"T3\" ON \"T1\".\"guo_jia_dai_ma\" = \"T3\".\"guo_jia_dai_ma\" WHERE \"T2\".\"xiang_xi_ding_yi\" = 'Adolescent fertility rate is the number of births per 1,000 women ages 15-19.' AND \"T3\".\"jian_cheng_ming\" = 'Arab World' AND \"T1\".\"nian_fen\" = 1960",
+          "summary": "What's the value of the indicator whose long definition is \"Adolescent fertility rate is the number of births per 1,000 women ages 15-19.\" for the Arab World in 1960?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between guo_jia_bei_zhu and zhi_biao_shu_ju in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Joins guo_jia_bei_zhu.guo_jia_dai_ma to zhi_biao_shu_ju.guo_jia_dai_ma. Both sides can have many rows for one country, so this is many-to-many from guo_jia_bei_zhu into zhi_biao_shu_ju; narrow it further by also matching zhi_biao_dai_ma between the two tables to pair a footnote with the exact indicator value it describes.\n",
+          "cardinality": "many_to_many",
+          "id": "join_world_development_indicators_guo_jia_bei_zhu_zhi_biao_shu_ju_1fed4391",
+          "left_table": "world_development_indicators.guo_jia_bei_zhu",
+          "on": "world_development_indicators.guo_jia_bei_zhu.guo_jia_dai_ma = world_development_indicators.zhi_biao_shu_ju.guo_jia_dai_ma",
+          "right_table": "world_development_indicators.zhi_biao_shu_ju",
+          "summary": "Match a country footnote in guo_jia_bei_zhu to that country's indicator values in zhi_biao_shu_ju, by guo_jia_dai_ma."
+        }
+      ]
+    }

@@ -1,15 +1,2451 @@
-asset_type: schema
-id: toxicology
+version: 0.2.0.dev0
 name: toxicology
-summary: "The toxicology database records molecules tested for carcinogenicity, along with each molecule's atoms, the covalent bonds between them, and which atoms each bond connects, for questions about molecular structure and carcinogenic labels."
-body: "This is a predictive-toxicology (Ames test) database: each molecule (molekuel) was tested in a laboratory assay and labelled carcinogenic or not. atom lists every atom of every molecule; bindung (bond) lists every covalent bond within a molecule; verbunden (connected) records which two atoms each bond joins. Table and column names carry their original German terms: bindung means bond, molekuel means molecule, verbunden means connected, bezeichnung means label, bindungstyp means bond type. Identifiers are structured rather than arbitrary: a molecule id looks like TR001; an atom id appends the atom's position within its molecule, such as TR001_10; a bond id appends the positions of both atoms it joins, such as TR001_10_11. chemische_substanz and wechselwirkungen also exist in this schema but are not dependable sources of molecule or bond data."
-rules:
-- "Join atom, bindung, molekuel, and verbunden only on atom_id, bindung_id, and molekuel_id; no other column reliably identifies an atom, bond, or molecule for a join."
-- "Do not use chemische_substanz or wechselwirkungen to answer questions about molecules, atoms, or bonds; use molekuel, atom, bindung, and verbunden instead."
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |-
+  The toxicology database records molecules tested for carcinogenicity, along with each molecule's atoms, the covalent bonds between them, and which atoms each bond connects, for questions about molecular structure and carcinogenic labels.
+
+  This is a predictive-toxicology (Ames test) database: each molecule (molekuel) was tested in a laboratory assay and labelled carcinogenic or not. atom lists every atom of every molecule; bindung (bond) lists every covalent bond within a molecule; verbunden (connected) records which two atoms each bond joins. Table and column names carry their original German terms: bindung means bond, molekuel means molecule, verbunden means connected, bezeichnung means label, bindungstyp means bond type. Identifiers are structured rather than arbitrary: a molecule id looks like TR001; an atom id appends the atom's position within its molecule, such as TR001_10; a bond id appends the positions of both atoms it joins, such as TR001_10_11. chemische_substanz and wechselwirkungen also exist in this schema but are not dependable sources of molecule or bond data.
+ai_context:
+  instructions: |-
+    Join atom, bindung, molekuel, and verbunden only on atom_id, bindung_id, and molekuel_id; no other column reliably identifies an atom, bond, or molecule for a join.
+    Do not use chemische_substanz or wechselwirkungen to answer questions about molecules, atoms, or bonds; use molekuel, atom, bindung, and verbunden instead.
+datasets:
+- name: atom
+  source: toxicology.atom
+  description: |-
+    The atom table lists every atom in each molecule of the toxicology database, one row per atom.
+
+    Grain: one row per atom belonging to a molecule. molekuel_id links each atom to its molecule in molekuel; verbunden references this table's atom_id (as atom_id or atom_id2) to say which atoms a bond connects. bindung and verbunden describe bonds, not atoms, and should not be confused with this table. Some columns on this table are not dependable for analysis; see each column's own note before using it in a query.
+  fields:
+  - name: atom_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: atom_id
+    description: |-
+      The identifier of an atom within a molecule (atom_id).
+
+      Format TRxxx_n: TRxxx is the atom's molecule id and n is the atom's position within that molecule, such as TR001_10 or TR302_47. Join to molekuel via molekuel_id, and to verbunden via atom_id or atom_id2 to find the bonds this atom participates in. Count distinct atom_id values when tallying how many atoms a molecule has.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Business phrasing often names an atom by its position rather than its full atom_id: atom 1 refers to substr(atom_id, 7, 2) taken from the relevant atom_id or bindung_id, and atom 2 is the second such position. involved atom 12 means atom_id = the id ending in _12 OR atom_id2 = that same id in verbunden. A range such as atoms from 21 to 25 filters on the numeric suffix of atom_id being between 21 and 25.",
+              "id": "term_toxicology_atom_identifier",
+              "name": "atom identifier",
+              "summary": "Atom id and atom identifier both mean atom_id on the atom table, whose trailing digits number an atom within its molecule.",
+              "synonyms": [
+                "atom id",
+                "atom identifier"
+              ]
+            }
+          ]
+        }
+  - name: molekuel_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: molekuel_id
+    description: |-
+      The molecule an atom belongs to, a reference to molekuel (molekuel_id).
+
+      Foreign key to molekuel.molekuel_id, format TRxxx such as TR001 or TR502. Every atom row belongs to exactly one molecule; join on this column to bring in the molecule's carcinogenicity label or to count how many atoms a molecule has.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: element
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: element
+    description: |-
+      The chemical element of an atom (element), given as a short lowercase code.
+
+      One- or two-letter lowercase code: c means carbon, h means hydrogen, o means oxygen, n means nitrogen, cl means chlorine, s means sulfur, p means phosphorus, na means sodium, br means bromine, f means fluorine, i means iodine, sn means tin, pb means lead, te means tellurium, ca means calcium. Sample values seen: h, o, c, cl, n.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "atom.element holds a one- or two-letter lowercase code for the atom's chemical element: c is carbon, h is hydrogen, o is oxygen, n is nitrogen, cl is chlorine, s is sulfur, p is phosphorus, na is sodium, br is bromine, f is fluorine, i is iodine, sn is tin, pb is lead, te is tellurium, and ca is calcium. A question naming an element by its common name, such as molecules containing bromine or atoms with a nitrogen element, filters this column on the matching code rather than the English name.",
+              "id": "term_toxicology_element_code",
+              "name": "chemical element code",
+              "summary": "Element (atomic symbol) gives the chemical element of an atom as a code, covering carbon, hydrogen, oxygen, nitrogen, chlorine, sulfur, phosphorus, sodium, bromine, fluorine, iodine, tin, lead, tellurium, and calcium.",
+              "synonyms": [
+                "carbon",
+                "hydrogen",
+                "oxygen",
+                "nitrogen",
+                "chlorine",
+                "sulfur",
+                "phosphorus",
+                "sodium",
+                "bromine",
+                "fluorine",
+                "iodine",
+                "tin",
+                "lead",
+                "tellurium",
+                "calcium"
+              ]
+            }
+          ]
+        }
+  - name: atom_kennung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: atom_kennung
+    description: |-
+      atom_kennung, a text column on the atom table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: molekuel_kennung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: molekuel_kennung
+    description: |-
+      molekuel_kennung, a text column on the atom table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: chemisches_element
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chemisches_element
+    description: |-
+      chemisches_element, a text column on the atom table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_toxicology_atom_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(DISTINCT atom_id)
+    description: |-
+      Atom count per molecule: the number of distinct atoms recorded for a molecule in the atom table.
+
+      Computed as COUNT(DISTINCT atom_id) from atom filtered to one molekuel_id, or grouped by molekuel_id to get the count for every molecule. Use DISTINCT because a query that also joins verbunden can otherwise count one atom once for every bond it participates in. molecules consisted more than 5 atoms means this count exceeding five for a molecule, and the least numerous molecule (by atom count) means the minimum of this count across molecules.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "atom count per molecule"
+        }
+  - name: metric_toxicology_element_share
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(CASE WHEN element = 'h' THEN 1 END) * 100.0 / COUNT(atom_id)
+    description: |-
+      Element atom share: the percentage of atoms in a molecule, from the atom table, that are a given chemical element.
+
+      Computed as COUNT(CASE WHEN element = 'h' THEN 1 END) * 100.0 / COUNT(atom_id) over the atom rows for one molekuel_id, substituting any element code for h. Combine with the carcinogenic molecule share, filtered to molecules containing a given element, to answer questions like the percentage of carcinogenic molecules that contain hydrogen.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "element atom share"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: bindung
+  source: toxicology.bindung
+  description: |-
+    The bindung table records every covalent bond between two atoms within a molecule, one row per bond (bindung).
+
+    Grain: one row per bond. molekuel_id links a bond to its molecule in molekuel; bindung_id also appears in verbunden, which lists the specific pair of atoms the bond connects, so use verbunden rather than this table to find those atoms. wechselwirkungen looks similar in shape to this table but is not a dependable source of bond data; use bindung for bond information.
+  fields:
+  - name: bindung_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bindung_id
+    description: |-
+      The identifier of a bond between two atoms (bindung_id).
+
+      Format TRxxx_a1_a2: TRxxx is the bond's molecule id, and a1 and a2 are the positions of the two bonded atoms within that molecule, such as TR001_1_12 or TR501_12_24. Join to verbunden on bindung_id to look up the two atom_id values the bond connects.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "bindung_id values look like TR001_1_12, where TR001 is the molecule and 1 and 12 are the positions of the two bonded atoms. The molecule id for a bond can be recovered from its bindung_id with substr(bindung_id, 1, 5); the two atom positions come from substr(bindung_id, 7, 2) and substr(bindung_id, 10, 2).",
+              "id": "term_toxicology_bond_identifier",
+              "name": "bond identifier",
+              "summary": "Bond id and bindung id both mean bindung_id on the bindung table, an identifier encoding a bond molecule and the positions of its two atoms.",
+              "synonyms": [
+                "bond id",
+                "bindung id"
+              ]
+            }
+          ]
+        }
+  - name: molekuel_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: molekuel_id
+    description: |-
+      The molecule a bond belongs to, a reference to molekuel (molekuel_id).
+
+      Foreign key to molekuel.molekuel_id, format TRxxx such as TR001 or TR501. Join on this column to count a molecule's bonds or to bring in its carcinogenicity label.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bindungstyp
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bindungstyp
+    description: |-
+      The type of a bond between two atoms (bindungstyp).
+
+      One-character code: a hyphen is a single bond, an equals sign is a double bond, and a hash mark is a triple bond. Sample values seen: a hyphen and an equals sign.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "bindungstyp holds one of three one-character codes: a hyphen for a single bond, an equals sign for a double bond, and a hash mark for a triple bond. Use these codes to filter bindung by bond type, for example when counting a molecule's double bonds or triple bonds.",
+              "id": "term_toxicology_bond_type",
+              "name": "bond type",
+              "summary": "Single bond, double bond, and triple bond describe the bindungstyp code on the bindung table, marking how many electron pairs a bond shares.",
+              "synonyms": [
+                "single bond",
+                "double bond",
+                "triple bond"
+              ]
+            }
+          ]
+        }
+  - name: bindung_kennung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bindung_kennung
+    description: |-
+      bindung_kennung, a text column on the bindung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: zugeordnetes_molekuel_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zugeordnetes_molekuel_id
+    description: |-
+      zugeordnetes_molekuel_id, a text column on the bindung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: art_der_bindung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: art_der_bindung
+    description: |-
+      art_der_bindung, a text column on the bindung table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_toxicology_bond_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(bindung_id)
+    description: |-
+      Bond count per molecule: the number of bonds recorded for a molecule in the bindung table.
+
+      Computed as COUNT(bindung_id) from bindung filtered to one molekuel_id, or grouped by molekuel_id to get the count for every molecule. Used as the denominator when computing what share of a molecule's bonds are of a given bindungstyp.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "bond count per molecule"
+        }
+  - name: metric_toxicology_bond_type_share
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(CASE WHEN bindungstyp = '=' THEN 1 END) * 100.0 / COUNT(bindung_id)
+    description: |-
+      Double bond share: the percentage of bonds in a molecule, from the bindung table, that are double bonds.
+
+      Computed as COUNT(CASE WHEN bindungstyp = '=' THEN 1 END) * 100.0 / COUNT(bindung_id) over the bindung rows for one molekuel_id. The same pattern with bindungstyp = '-' gives the single bond share, and bindungstyp = '#' gives the triple bond share.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "double bond share"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: chemische_substanz
+  source: toxicology.chemische_substanz
+  description: |-
+    The chemische_substanz table holds compound records in the toxicology database; it is not used to answer questions.
+
+    Grain: one row per compound record. Values in this table are not dependable and do not correspond to the business facts a compound table would otherwise record. Do not use this table to answer questions.
+  ai_context:
+    instructions: Do not use this table to answer questions; its data is not dependable.
+  fields:
+  - name: substanz_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: substanz_id
+    description: |-
+      substanz_id, a text column on the chemische_substanz table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bezeichnung_deutsch
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bezeichnung_deutsch
+    description: |-
+      bezeichnung_deutsch, a text column on the chemische_substanz table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: molekuel
+  source: toxicology.molekuel
+  description: |-
+    The molekuel table lists every molecule tested in the toxicology database and records whether it is carcinogenic, one row per molecule (molekuel).
+
+    Grain: one row per molecule. molekuel_id is referenced by atom.molekuel_id and bindung.molekuel_id to attach atoms and bonds to a molecule. bezeichnung carries the outcome of the carcinogenicity assay for the molecule. chemische_substanz looks similar in shape to this table but is not a dependable source of molecule data; use molekuel for molecule information.
+  fields:
+  - name: molekuel_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: molekuel_id
+    description: |-
+      The identifier of a molecule (molekuel_id).
+
+      Format TRxxx, such as TR001 or TR502. Referenced by atom.molekuel_id and bindung.molekuel_id; join on this column to bring in a molecule's atoms or bonds. A phrase such as molecules between TR010 and TR050 compares the numeric part of this id rather than the text itself, because plain text comparison and numeric comparison disagree once ids reach three digits.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "molekuel_id values look like TR001 through TR502. A phrase such as molecules between TR010 and TR050 compares the numeric part of the id, using substr(molekuel_id, 3, 3) BETWEEN 10 AND 50 rather than plain text comparison, because text order and numeric order disagree once ids reach three digits. list top three molecules with no other ranking criterion conventionally means order by molekuel_id ascending and take the first three rows.",
+              "id": "term_toxicology_molecule_identifier",
+              "name": "molecule identifier",
+              "summary": "Molecule id and molekuel id both mean molekuel_id on the molekuel table, the TR-prefixed identifier a molecule keeps everywhere it appears.",
+              "synonyms": [
+                "molecule id",
+                "molekuel id"
+              ]
+            }
+          ]
+        }
+  - name: bezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bezeichnung
+    description: |-
+      The carcinogenicity outcome recorded for a molecule (bezeichnung).
+
+      One-character code: a plus sign means the molecule is carcinogenic, and a minus sign means it is not carcinogenic. Sample values seen: a plus sign and a minus sign. This is the label produced by the assay the database is built around, and a request for the top molecules with no other ranking given conventionally means ordering by molekuel_id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "bezeichnung on molekuel records the outcome of the assay that gave the database its purpose: a plus sign means the molecule is carcinogenic, and a minus sign means it is not. Filter or aggregate on this column to answer questions phrased as carcinogenic molecules, non-carcinogenic molecules, or a molecule's carcinogenicity label.",
+              "id": "term_toxicology_carcinogenic_label",
+              "name": "carcinogenic label",
+              "summary": "Carcinogenic and non-carcinogenic describe the carcinogenicity label of a molecule, recorded in bezeichnung on the molekuel table as the assay outcome.",
+              "synonyms": [
+                "carcinogenic",
+                "non-carcinogenic"
+              ]
+            }
+          ]
+        }
+  - name: molekuel_identifier
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: molekuel_identifier
+    description: |-
+      molekuel_identifier, a text column on the molekuel table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: molekuel_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: molekuel_name
+    description: |-
+      molekuel_name, a text column on the molekuel table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_toxicology_carcinogenic_share
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(CASE WHEN bezeichnung = '+' THEN 1 END) * 100.0 / COUNT(molekuel_id)
+    description: |-
+      Carcinogenic molecule share: the percentage of molecules in the molekuel table labelled carcinogenic.
+
+      Computed as COUNT(CASE WHEN bezeichnung = '+' THEN 1 END) * 100.0 / COUNT(molekuel_id) over all molekuel rows, or over a filtered subset such as molecules that contain a given element. The complement, using bezeichnung = '-', gives the non-carcinogenic share.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "carcinogenic molecule share"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: verbunden
+  source: toxicology.verbunden
+  description: |-
+    The verbunden table records which two atoms a bond connects, one row per bonded atom pair (verbunden).
+
+    Grain: one row per bond's atom pair. atom_id and atom_id2 are the two atoms, from atom.atom_id, that bindung_id's bond joins; because either column can hold either endpoint, find every bond touching a given atom by matching that atom against both atom_id and atom_id2. bindung_id joins back to bindung to bring in the bond's type and molecule; do not confuse this table with bindung, since bindung records a bond's type and molecule while verbunden records only the two atoms it joins.
+  fields:
+  - name: atom_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: atom_id
+    description: |-
+      One of the two atoms a bond connects (atom_id).
+
+      References atom.atom_id, format TRxxx_n such as TR296_49. A bond's two endpoints are split across this column and atom_id2; check both when looking for bonds that touch a particular atom.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "A bond's two atoms are split across atom_id and atom_id2 in verbunden, so a phrase like atoms refer to atom_id or atom_id2 means checking both columns. involved atom 12 applies the same pattern to one specific atom: match that atom against both atom_id and atom_id2 rather than just one column.",
+              "id": "term_toxicology_bond_endpoints",
+              "name": "bond endpoint atoms",
+              "summary": "Bond endpoints and connected atoms both describe atom_id and atom_id2 on the verbunden table, the pair of atoms a bond joins.",
+              "synonyms": [
+                "bond endpoints",
+                "connected atoms"
+              ]
+            }
+          ]
+        }
+  - name: atom_id2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: atom_id2
+    description: |-
+      The other atom a bond connects (atom_id2).
+
+      References atom.atom_id, format TRxxx_n such as TR296_58. Paired with atom_id to give the two endpoints of the bond named by bindung_id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bindung_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bindung_id
+    description: |-
+      The bond whose two endpoint atoms this row records (bindung_id).
+
+      References bindung.bindung_id, format TRxxx_a1_a2 such as TR296_49_58, where a1 and a2 match the positions encoded in atom_id and atom_id2. Join to bindung on this column to bring in the bond's type.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: verbunden_atom_kennung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verbunden_atom_kennung
+    description: |-
+      verbunden_atom_kennung, a text column on the verbunden table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: partner_atom_kennung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: partner_atom_kennung
+    description: |-
+      partner_atom_kennung, a text column on the verbunden table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: zugehoerige_bindung_kennung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zugehoerige_bindung_kennung
+    description: |-
+      zugehoerige_bindung_kennung, a text column on the verbunden table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. This column must not be used to join to any other table.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: wechselwirkungen
+  source: toxicology.wechselwirkungen
+  description: |-
+    The wechselwirkungen table holds interaction records in the toxicology database; it is not used to answer questions.
+
+    Grain: one row per interaction record. Values in this table are not dependable and do not correspond to the business facts an interaction or bond table would otherwise record. Do not use this table to answer questions.
+  ai_context:
+    instructions: Do not use this table to answer questions; its data is not dependable.
+  fields:
+  - name: wechselwirkung_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wechselwirkung_id
+    description: |-
+      wechselwirkung_id, a text column on the wechselwirkungen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: beteiligtes_molekuel_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: beteiligtes_molekuel_id
+    description: |-
+      beteiligtes_molekuel_id, a text column on the wechselwirkungen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bindungsart
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bindungsart
+    description: |-
+      bindungsart, a text column on the wechselwirkungen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_toxicology_atom_molekuel_d9aee90d
+  from: atom
+  to: molekuel
+  from_columns:
+  - molekuel_id
+  to_columns:
+  - molekuel_id
+  ai_context:
+    instructions: |-
+      Links atom to molekuel, matching each atom's molekuel_id to its owning molekuel row.
+
+      The standard path from an atom to its molecule record, including the molecule's carcinogenicity label in bezeichnung. Many atom rows share one molekuel row.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between atom and molekuel in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_toxicology_atom_verbunden_3631fbd4
+  from: verbunden
+  to: atom
+  from_columns:
+  - atom_id2
+  to_columns:
+  - atom_id
+  ai_context:
+    instructions: |-
+      Links atom to verbunden, matching atom_id to the second endpoint recorded in verbunden.atom_id2.
+
+      verbunden splits a bond's two endpoints across atom_id and atom_id2; this join finds bonds where the given atom is the atom_id2 side. Pair it with the join on verbunden.atom_id to cover both endpoints when looking for every bond that touches an atom.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between atom and verbunden in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_toxicology_atom_verbunden_88b4d6e6
+  from: verbunden
+  to: atom
+  from_columns:
+  - atom_id
+  to_columns:
+  - atom_id
+  ai_context:
+    instructions: |-
+      Links atom to verbunden, matching atom_id to the first endpoint recorded in verbunden.atom_id.
+
+      verbunden splits a bond's two endpoints across atom_id and atom_id2; this join finds bonds where the given atom is the atom_id side. Pair it with the join on verbunden.atom_id2 to cover both endpoints when looking for every bond that touches an atom.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between atom and verbunden in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_toxicology_bindung_molekuel_6444c007
+  from: bindung
+  to: molekuel
+  from_columns:
+  - molekuel_id
+  to_columns:
+  - molekuel_id
+  ai_context:
+    instructions: |-
+      Links bindung to molekuel, matching each bindung row's molekuel_id to its owning molekuel row.
+
+      The standard path from a bond to its molecule record, including the molecule's carcinogenicity label in bezeichnung. Many bindung rows share one molekuel row.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between bindung and molekuel in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_toxicology_bindung_verbunden_200dd893
+  from: bindung
+  to: verbunden
+  from_columns:
+  - bindung_id
+  to_columns:
+  - bindung_id
+  ai_context:
+    instructions: |-
+      Links bindung to verbunden, matching bindung_id to the verbunden row naming that bond's two atoms.
+
+      Each bindung row has one matching verbunden row that names the bond's two endpoint atoms in atom_id and atom_id2. Use this join to go from a bond's type to the specific atoms it connects.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between bindung and verbunden in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question 198",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0000",
+          "sql": "SELECT AVG(\"single_bond_count\") FROM (SELECT \"T3\".\"molekuel_id\", COUNT(\"T1\".\"bindungstyp\") AS \"single_bond_count\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"atom\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T3\" ON \"T3\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"bindungstyp\" = '-' AND \"T3\".\"bezeichnung\" = '+' GROUP BY \"T3\".\"molekuel_id\") AS \"subquery\"",
+          "summary": "On average how many carcinogenic molecules are single bonded?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 199",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0001",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"molekuel_id\") FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"element\" = 'na' AND \"T2\".\"bezeichnung\" = '-'",
+          "summary": "In the molecule containing sodium atoms, how many are non-carcinogenic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 201",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0002",
+          "sql": "SELECT CAST(COUNT(DISTINCT CASE WHEN \"T1\".\"element\" = 'c' THEN \"T1\".\"atom_id\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(DISTINCT \"T1\".\"atom_id\"), 0) FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"bindung\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"bindungstyp\" = '='",
+          "summary": "What is the percentage of carbon in double-bond molecules?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 202",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0003",
+          "sql": "SELECT COUNT(\"T\".\"bindung_id\") FROM \"toxicology\".\"bindung\" AS \"T\" WHERE \"T\".\"bindungstyp\" = '#'",
+          "summary": "How many triple type bonds are there?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 206",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0004",
+          "sql": "SELECT DISTINCT \"T1\".\"element\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"atom_id\" = \"T2\".\"atom_id\" WHERE \"T2\".\"bindung_id\" = 'TR004_8_9'",
+          "summary": "What elements are in the TR004_8_9 bond atoms?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 210",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0005",
+          "sql": "SELECT \"T2\".\"atom_id\", \"T2\".\"atom_id2\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"bindung_id\" = \"T2\".\"bindung_id\" WHERE \"T1\".\"bindungstyp\" = '-'",
+          "summary": "What atoms are connected in single type bonds?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 212",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0006",
+          "sql": "SELECT \"t\".\"element\" FROM (SELECT \"T1\".\"element\", COUNT(DISTINCT \"T1\".\"molekuel_id\") FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"bezeichnung\" = '-' GROUP BY \"T1\".\"element\" ORDER BY COUNT(DISTINCT \"T1\".\"molekuel_id\") ASC NULLS FIRST LIMIT 1) AS \"t\"",
+          "summary": "Which element is the least numerous in non-carcinogenic molecules?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 214",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0007",
+          "sql": "SELECT DISTINCT \"T2\".\"bezeichnung\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"element\" <> 'sn'",
+          "summary": "What type of label is not on molecules with atoms with tin?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 215",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0008",
+          "sql": "SELECT COUNT(DISTINCT CASE WHEN \"T1\".\"element\" = 'i' THEN \"T1\".\"atom_id\" ELSE NULL END) AS \"iodine_nums\", COUNT(DISTINCT CASE WHEN \"T1\".\"element\" = 's' THEN \"T1\".\"atom_id\" ELSE NULL END) AS \"sulfur_nums\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"atom_id\" = \"T2\".\"atom_id\" INNER JOIN \"toxicology\".\"bindung\" AS \"T3\" ON \"T2\".\"bindung_id\" = \"T3\".\"bindung_id\" WHERE \"T3\".\"bindungstyp\" = '-'",
+          "summary": "How many atoms with iodine and with sulfur type elements are there in single bond molecules?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 219",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0009",
+          "sql": "SELECT CAST(COUNT(DISTINCT CASE WHEN \"T2\".\"bezeichnung\" = '+' THEN \"T2\".\"molekuel_id\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(DISTINCT \"T2\".\"molekuel_id\"), 0) FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" INNER JOIN \"toxicology\".\"bindung\" AS \"T3\" ON \"T2\".\"molekuel_id\" = \"T3\".\"molekuel_id\" WHERE \"T3\".\"bindungstyp\" = '#'",
+          "summary": "What is the percentage of carcinogenic molecules in triple type bonds?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 221",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0010",
+          "sql": "SELECT SUBSTRING(\"T\".\"bindung_id\" FROM 1 FOR 7) AS \"atom_id1\", \"T\".\"molekuel_id\" || SUBSTRING(\"T\".\"bindung_id\" FROM 8 FOR 2) AS \"atom_id2\" FROM \"toxicology\".\"bindung\" AS \"T\" WHERE \"T\".\"molekuel_id\" = 'TR001' AND \"T\".\"bindung_id\" = 'TR001_2_6'",
+          "summary": "What are the atoms that are bonded in the molecule TR001 with the bond ID of TR001_2_6?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 223",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0011",
+          "sql": "SELECT \"T\".\"atom_id\" FROM \"toxicology\".\"verbunden\" AS \"T\" WHERE \"T\".\"bindung_id\" = 'TR000_2_5'",
+          "summary": "What are the atom IDs of the bond TR000_2_5?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 225",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0012",
+          "sql": "SELECT DISTINCT \"T\".\"molekuel_id\" FROM \"toxicology\".\"bindung\" AS \"T\" WHERE \"T\".\"bindungstyp\" = '=' ORDER BY \"T\".\"molekuel_id\" NULLS FIRST LIMIT 5",
+          "summary": "Please list top five molecules that have double bonds in alphabetical order."
+        },
+        {
+          "audit": {
+            "evidence": "train question 230",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0013",
+          "sql": "SELECT DISTINCT \"T1\".\"element\", \"T2\".\"bezeichnung\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"molekuel_id\" = 'TR060'",
+          "summary": "What are the elements of the toxicology and label of molecule TR060?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 232",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0014",
+          "sql": "SELECT DISTINCT \"T2\".\"molekuel_id\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"bindungstyp\" = '-' AND \"T2\".\"bezeichnung\" = '-' ORDER BY \"T2\".\"molekuel_id\" NULLS FIRST LIMIT 3",
+          "summary": "Please list top three molecules that have single bonds between two atoms and are not carcinogenic in alphabetical order."
+        },
+        {
+          "audit": {
+            "evidence": "train question 234",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0015",
+          "sql": "SELECT COUNT(\"T2\".\"bindung_id\") FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"bindung_id\" = \"T2\".\"bindung_id\" WHERE \"T1\".\"molekuel_id\" = 'TR009' AND \"T2\".\"atom_id\" = \"T1\".\"molekuel_id\" || '_1' AND \"T2\".\"atom_id2\" = \"T1\".\"molekuel_id\" || '_2'",
+          "summary": "How many bonds which involved atom 12 does molecule TR009 have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 235",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0016",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"molekuel_id\") FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"bezeichnung\" = '+' AND \"T1\".\"element\" = 'br'",
+          "summary": "How many molecules are carcinogenic and have the bromine element?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 236",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0017",
+          "sql": "SELECT \"T1\".\"bindungstyp\", \"T2\".\"atom_id\", \"T2\".\"atom_id2\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"bindung_id\" = \"T2\".\"bindung_id\" WHERE \"T2\".\"bindung_id\" = 'TR001_6_9'",
+          "summary": "What are the bond type and the atoms of the bond ID of TR001_6_9?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 237",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0018",
+          "sql": "SELECT \"T2\".\"molekuel_id\", CASE WHEN \"T2\".\"bezeichnung\" = '+' THEN 'YES' ELSE 'NO' END AS \"flag_carcinogenic\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"atom_id\" = 'TR001_10'",
+          "summary": "Which molecule does the atom TR001_10 belong to? Please state whether this molecule is carcinogenic or not."
+        },
+        {
+          "audit": {
+            "evidence": "train question 240",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0019",
+          "sql": "SELECT DISTINCT \"T\".\"element\" FROM \"toxicology\".\"atom\" AS \"T\" WHERE \"T\".\"molekuel_id\" = 'TR004'",
+          "summary": "List all the elements of the toxicology of the molecule \"TR004\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question 241",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0020",
+          "sql": "SELECT COUNT(\"T\".\"molekuel_id\") FROM \"toxicology\".\"molekuel\" AS \"T\" WHERE \"T\".\"bezeichnung\" = '-'",
+          "summary": "How many of the molecules are not carcinogenic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 243",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0021",
+          "sql": "SELECT \"T2\".\"bindung_id\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"atom_id\" = \"T2\".\"atom_id\" WHERE \"T2\".\"bindung_id\" IN (SELECT \"T3\".\"bindung_id\" FROM \"toxicology\".\"verbunden\" AS \"T3\" INNER JOIN \"toxicology\".\"atom\" AS \"T4\" ON \"T3\".\"atom_id\" = \"T4\".\"atom_id\" WHERE \"T4\".\"element\" = 'p') AND \"T1\".\"element\" = 'n'",
+          "summary": "What are the bonds that have phosphorus and nitrogen as their atom elements?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 246",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0022",
+          "sql": "SELECT \"T1\".\"bindungstyp\", \"T1\".\"bindung_id\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"bindung_id\" = \"T2\".\"bindung_id\" WHERE SUBSTRING(\"T2\".\"atom_id\" FROM 7 FOR 2) = '45'",
+          "summary": "List the bond type and the bond ID of the atom 45."
+        },
+        {
+          "audit": {
+            "evidence": "train question 254",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0023",
+          "sql": "SELECT CAST((SELECT COUNT(\"T1\".\"atom_id\") FROM \"toxicology\".\"verbunden\" AS \"T1\" INNER JOIN \"toxicology\".\"bindung\" AS \"T2\" ON \"T1\".\"bindung_id\" = \"T2\".\"bindung_id\" GROUP BY \"T2\".\"bindungstyp\" ORDER BY COUNT(\"T2\".\"bindung_id\") DESC NULLS LAST LIMIT 1) AS REAL) * 100 / NULLIF((SELECT COUNT(\"atom_id\") FROM \"toxicology\".\"verbunden\"), 0)",
+          "summary": "What percentage of bonds have the most common combination of atoms' elements?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 256",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0024",
+          "sql": "SELECT COUNT(\"T\".\"atom_id\") FROM \"toxicology\".\"atom\" AS \"T\" WHERE \"T\".\"element\" = 'c' OR \"T\".\"element\" = 'h'",
+          "summary": "Calculate the total atoms consisting of the element carbon and hydrogen."
+        },
+        {
+          "audit": {
+            "evidence": "train question 257",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0025",
+          "sql": "SELECT DISTINCT \"T2\".\"atom_id2\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"atom_id\" = \"T2\".\"atom_id\" WHERE \"T1\".\"element\" = 's'",
+          "summary": "List down atom id2 for atoms with element sulfur."
+        },
+        {
+          "audit": {
+            "evidence": "train question 258",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0026",
+          "sql": "SELECT DISTINCT \"T3\".\"bindungstyp\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"atom_id\" = \"T2\".\"atom_id\" INNER JOIN \"toxicology\".\"bindung\" AS \"T3\" ON \"T3\".\"bindung_id\" = \"T2\".\"bindung_id\" WHERE \"T1\".\"element\" = 'sn'",
+          "summary": "What are the bond type for atoms with element Tin?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 259",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0027",
+          "sql": "SELECT COUNT(DISTINCT \"T\".\"element\") FROM (SELECT DISTINCT \"T2\".\"molekuel_id\", \"T1\".\"element\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" INNER JOIN \"toxicology\".\"bindung\" AS \"T3\" ON \"T2\".\"molekuel_id\" = \"T3\".\"molekuel_id\" WHERE \"T3\".\"bindungstyp\" = '-') AS \"T\"",
+          "summary": "How many elements are there for single bond molecules?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 260",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0028",
+          "sql": "SELECT COUNT(\"T1\".\"atom_id\") FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" INNER JOIN \"toxicology\".\"bindung\" AS \"T3\" ON \"T2\".\"molekuel_id\" = \"T3\".\"molekuel_id\" WHERE \"T3\".\"bindungstyp\" = '#' AND \"T1\".\"element\" IN ('p', 'br')",
+          "summary": "Calculate the total atoms with triple-bond molecules containing the element phosphorus or bromine."
+        },
+        {
+          "audit": {
+            "evidence": "train question 261",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0029",
+          "sql": "SELECT DISTINCT \"T1\".\"bindung_id\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"bezeichnung\" = '+'",
+          "summary": "Write down bond id for molecules that are carcinogenic."
+        },
+        {
+          "audit": {
+            "evidence": "train question 262",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0030",
+          "sql": "SELECT DISTINCT \"T1\".\"molekuel_id\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"bezeichnung\" = '-' AND \"T1\".\"bindungstyp\" = '-'",
+          "summary": "Among the single bond molecule id, which molecules are not carcinogenic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 263",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0031",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T\".\"element\" = 'cl' THEN \"T\".\"atom_id\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T\".\"atom_id\"), 0) FROM (SELECT \"T1\".\"atom_id\", \"T1\".\"element\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" INNER JOIN \"toxicology\".\"bindung\" AS \"T3\" ON \"T2\".\"molekuel_id\" = \"T3\".\"molekuel_id\" WHERE \"T3\".\"bindungstyp\" = '-') AS \"T\"",
+          "summary": "What is the composition of element chlorine in percentage among the single bond molecules?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 264",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0032",
+          "sql": "SELECT \"molekuel_id\", \"T\".\"bezeichnung\" FROM \"toxicology\".\"molekuel\" AS \"T\" WHERE \"T\".\"molekuel_id\" IN ('TR000', 'TR001', 'TR002')",
+          "summary": "What are the labels for TR000, TR001 and TR002?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 265",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0033",
+          "sql": "SELECT \"T\".\"molekuel_id\" FROM \"toxicology\".\"molekuel\" AS \"T\" WHERE \"T\".\"bezeichnung\" = '-'",
+          "summary": "List down the molecule id for non carcinogenic molecules."
+        },
+        {
+          "audit": {
+            "evidence": "train question 266",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0034",
+          "sql": "SELECT COUNT(\"T\".\"molekuel_id\") FROM \"toxicology\".\"molekuel\" AS \"T\" WHERE \"T\".\"molekuel_id\" BETWEEN 'TR000' AND 'TR030' AND \"T\".\"bezeichnung\" = '+'",
+          "summary": "Calculate the total carcinogenic molecules for molecule id from TR000 to TR030."
+        },
+        {
+          "audit": {
+            "evidence": "train question 267",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0035",
+          "sql": "SELECT \"T2\".\"molekuel_id\", \"T2\".\"bindungstyp\" FROM \"toxicology\".\"molekuel\" AS \"T1\" INNER JOIN \"toxicology\".\"bindung\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"molekuel_id\" BETWEEN 'TR000' AND 'TR050'",
+          "summary": "List down the bond type for molecules from molecule id TR000 to TR050."
+        },
+        {
+          "audit": {
+            "evidence": "train question 268",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0036",
+          "sql": "SELECT \"T2\".\"element\" FROM \"toxicology\".\"verbunden\" AS \"T1\" INNER JOIN \"toxicology\".\"atom\" AS \"T2\" ON \"T1\".\"atom_id\" = \"T2\".\"atom_id\" WHERE \"T1\".\"bindung_id\" = 'TR001_10_11'",
+          "summary": "What are the elements for bond id TR001_10_11?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 269",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0037",
+          "sql": "SELECT COUNT(\"T3\".\"bindung_id\") FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" INNER JOIN \"toxicology\".\"bindung\" AS \"T3\" ON \"T2\".\"molekuel_id\" = \"T3\".\"molekuel_id\" WHERE \"T1\".\"element\" = 'i'",
+          "summary": "How many bond id have element iodine?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 270",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0038",
+          "sql": "SELECT \"T2\".\"bezeichnung\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"element\" = 'ca' GROUP BY \"T2\".\"bezeichnung\" ORDER BY COUNT(\"T2\".\"bezeichnung\") DESC NULLS LAST LIMIT 1",
+          "summary": "Among the molecules with element Calcium, are they mostly carcinogenic or non carcinogenic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 278",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0039",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"molekuel_id\") FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"bezeichnung\" = '-' AND \"T1\".\"bindungstyp\" = '-'",
+          "summary": "How many of the single bond type molecules are non-carcinogenic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 279",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0040",
+          "sql": "SELECT \"T2\".\"bezeichnung\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"bindung_id\" = 'TR001_10_11'",
+          "summary": "What is the label for bond ID TR001_10_11?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 283",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0041",
+          "sql": "SELECT \"T2\".\"bezeichnung\" AS \"flag_carcinogenic\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"element\" = 'ca'",
+          "summary": "Identify whether the chemical compound that contains Calcium is carcinogenic."
+        },
+        {
+          "audit": {
+            "evidence": "train question 285",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0042",
+          "sql": "SELECT \"T1\".\"element\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"atom_id\" = \"T2\".\"atom_id\" INNER JOIN \"toxicology\".\"bindung\" AS \"T3\" ON \"T2\".\"bindung_id\" = \"T3\".\"bindung_id\" WHERE \"T3\".\"bindung_id\" = 'TR001_10_11'",
+          "summary": "Name chemical elements that form a bond TR001_10_11."
+        },
+        {
+          "audit": {
+            "evidence": "train question 287",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0043",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T\".\"bindungstyp\" = '=' THEN \"T\".\"bindung_id\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T\".\"bindung_id\"), 0) FROM \"toxicology\".\"bindung\" AS \"T\" WHERE \"T\".\"molekuel_id\" = 'TR047'",
+          "summary": "Among all chemical compounds that contain molecule TR047, identify the percent that form a double-bond."
+        },
+        {
+          "audit": {
+            "evidence": "train question 289",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0044",
+          "sql": "SELECT \"T\".\"bezeichnung\" FROM \"toxicology\".\"molekuel\" AS \"T\" WHERE \"T\".\"molekuel_id\" = 'TR151'",
+          "summary": "Is molecule TR151 carcinogenic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 290",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0045",
+          "sql": "SELECT DISTINCT \"T\".\"element\" FROM \"toxicology\".\"atom\" AS \"T\" WHERE \"T\".\"molekuel_id\" = 'TR151'",
+          "summary": "Which toxic element can be found in the molecule TR151?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 292",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0046",
+          "sql": "SELECT \"T\".\"atom_id\" FROM \"toxicology\".\"atom\" AS \"T\" WHERE \"T\".\"molekuel_id\" BETWEEN 'TR010' AND 'TR050' AND \"T\".\"element\" = 'c'",
+          "summary": "Identify the atoms belong to the molecule with ID between TR010 to TR050 that contain the element carbon."
+        },
+        {
+          "audit": {
+            "evidence": "train question 293",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0047",
+          "sql": "SELECT COUNT(\"T1\".\"atom_id\") FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"bezeichnung\" = '+'",
+          "summary": "How many atoms belong to the molecule labeled with carcinogenic compounds?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 294",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0048",
+          "sql": "SELECT \"T1\".\"bindung_id\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"bezeichnung\" = '+' AND \"T1\".\"bindungstyp\" = '='",
+          "summary": "Which bond ids are double-bond with carcinogenic compound?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 295",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0049",
+          "sql": "SELECT COUNT(\"T1\".\"atom_id\") AS \"atomnums_h\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"bezeichnung\" = '+' AND \"T1\".\"element\" = 'h'",
+          "summary": "How many atoms belong to the molecule that element is hydrogen and labeled with carcinogenic compound?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 296",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0050",
+          "sql": "SELECT \"T2\".\"molekuel_id\", \"T2\".\"bindung_id\", \"T1\".\"atom_id\" FROM \"toxicology\".\"verbunden\" AS \"T1\" INNER JOIN \"toxicology\".\"bindung\" AS \"T2\" ON \"T1\".\"bindung_id\" = \"T2\".\"bindung_id\" WHERE \"T1\".\"atom_id\" = 'TR000_1' AND \"T2\".\"bindung_id\" = 'TR000_1_2'",
+          "summary": "Indicate the molecule id is belonging to the TR000_1_2 bond that has the first atom named TR000_1."
+        },
+        {
+          "audit": {
+            "evidence": "train question 298",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0051",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T1\".\"element\" = 'h' AND \"T2\".\"bezeichnung\" = '+' THEN \"T2\".\"molekuel_id\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"molekuel_id\"), 0) FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\"",
+          "summary": "Calculate the percentage of molecules containing carcinogenic compounds that element is hydrogen."
+        },
+        {
+          "audit": {
+            "evidence": "train question 300",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0052",
+          "sql": "SELECT \"T\".\"atom_id\" FROM \"toxicology\".\"atom\" AS \"T\" WHERE \"T\".\"molekuel_id\" = 'TR186'",
+          "summary": "What atoms comprise TR186?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 301",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0053",
+          "sql": "SELECT \"T\".\"bindungstyp\" FROM \"toxicology\".\"bindung\" AS \"T\" WHERE \"T\".\"bindung_id\" = 'TR007_4_19'",
+          "summary": "What is the bond type of TR007_4_19?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 302",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0054",
+          "sql": "SELECT DISTINCT \"T1\".\"element\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"atom_id\" = \"T2\".\"atom_id\" WHERE \"T2\".\"bindung_id\" = 'TR001_2_4'",
+          "summary": "Name the elements that comprise the atoms of bond TR001_2_4."
+        },
+        {
+          "audit": {
+            "evidence": "train question 303",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0055",
+          "sql": "SELECT COUNT(\"T1\".\"bindung_id\"), \"T2\".\"bezeichnung\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"bindungstyp\" = '=' AND \"T2\".\"molekuel_id\" = 'TR006' GROUP BY \"T2\".\"bezeichnung\"",
+          "summary": "How many double bonds does TR006 have and is it carcinogenic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 304",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0056",
+          "sql": "SELECT DISTINCT \"T2\".\"molekuel_id\", \"T1\".\"element\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"bezeichnung\" = '+'",
+          "summary": "List all carcinogenic molecules and their elements."
+        },
+        {
+          "audit": {
+            "evidence": "train question 305",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0057",
+          "sql": "SELECT \"T1\".\"bindung_id\", \"T2\".\"atom_id\", \"T2\".\"atom_id2\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"bindung_id\" = \"T2\".\"bindung_id\" WHERE \"T1\".\"bindungstyp\" = '-'",
+          "summary": "Name all bonds with single bond types and what atoms are connected to the molecules."
+        },
+        {
+          "audit": {
+            "evidence": "train question 306",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0058",
+          "sql": "SELECT DISTINCT \"T1\".\"molekuel_id\", \"T2\".\"element\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"atom\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"bindungstyp\" = '#'",
+          "summary": "Which molecules have triple bonds and list all the elements they contain."
+        },
+        {
+          "audit": {
+            "evidence": "train question 307",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0059",
+          "sql": "SELECT \"T2\".\"element\" FROM \"toxicology\".\"verbunden\" AS \"T1\" INNER JOIN \"toxicology\".\"atom\" AS \"T2\" ON \"T1\".\"atom_id\" = \"T2\".\"atom_id\" WHERE \"T1\".\"bindung_id\" = 'TR000_2_3'",
+          "summary": "Name the atoms' elements that form bond TR000_2_3."
+        },
+        {
+          "audit": {
+            "evidence": "train question 308",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0060",
+          "sql": "SELECT COUNT(\"T1\".\"bindung_id\") FROM \"toxicology\".\"verbunden\" AS \"T1\" INNER JOIN \"toxicology\".\"atom\" AS \"T2\" ON \"T1\".\"atom_id\" = \"T2\".\"atom_id\" WHERE \"T2\".\"element\" = 'cl'",
+          "summary": "How many bonds are created by bonding atoms with chlorine element?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 312",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0061",
+          "sql": "SELECT DISTINCT \"T2\".\"bezeichnung\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" INNER JOIN \"toxicology\".\"bindung\" AS \"T3\" ON \"T2\".\"molekuel_id\" = \"T3\".\"molekuel_id\" WHERE \"T3\".\"bindung_id\" = 'TR001_2_4'",
+          "summary": "What is the carcinogenic label for bond TR001_2_4?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 313",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0062",
+          "sql": "SELECT COUNT(\"T\".\"atom_id\") FROM \"toxicology\".\"atom\" AS \"T\" WHERE \"T\".\"molekuel_id\" = 'TR001'",
+          "summary": "How many atoms belong to molecule id TR001?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 314",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0063",
+          "sql": "SELECT COUNT(\"T\".\"bindung_id\") FROM \"toxicology\".\"bindung\" AS \"T\" WHERE \"T\".\"bindungstyp\" = '-'",
+          "summary": "How many single bonds are there in the list?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 315",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0064",
+          "sql": "SELECT DISTINCT \"T1\".\"molekuel_id\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"element\" = 'cl' AND \"T2\".\"bezeichnung\" = '+'",
+          "summary": "Among the molecules which contain \"cl\" element, which of them are carcinogenic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 316",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0065",
+          "sql": "SELECT DISTINCT \"T1\".\"molekuel_id\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"element\" = 'c' AND \"T2\".\"bezeichnung\" = '-'",
+          "summary": "Among the molecules which contain \"c\" element, which of them are not carcinogenic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 319",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0066",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"element\") FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"atom_id\" = \"T2\".\"atom_id\" WHERE \"T2\".\"bindung_id\" = 'TR001_3_4'",
+          "summary": "How many elements are contained in bond_id TR001_3_4?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 320",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0067",
+          "sql": "SELECT \"T1\".\"bindungstyp\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"bindung_id\" = \"T2\".\"bindung_id\" WHERE \"T2\".\"atom_id\" = 'TR000_1' AND \"T2\".\"atom_id2\" = 'TR000_2'",
+          "summary": "What is the type of the bond which is presenting the connection between two atoms TR000_1 and TR000_2?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 321",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0068",
+          "sql": "SELECT \"T1\".\"molekuel_id\" FROM \"toxicology\".\"bindung\" AS \"T1\" INNER JOIN \"toxicology\".\"verbunden\" AS \"T2\" ON \"T1\".\"bindung_id\" = \"T2\".\"bindung_id\" WHERE \"T2\".\"atom_id\" = 'TR000_2' AND \"T2\".\"atom_id2\" = 'TR000_4'",
+          "summary": "What is the molecule of atom id \"TR000_2\" and atom id 2 \"TR000_4\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 322",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0069",
+          "sql": "SELECT \"T\".\"element\" FROM \"toxicology\".\"atom\" AS \"T\" WHERE \"T\".\"atom_id\" = 'TR000_1'",
+          "summary": "What is the element of toxicology for the atom with the ID of TR000_1?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 323",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0070",
+          "sql": "SELECT \"bezeichnung\" FROM \"toxicology\".\"molekuel\" AS \"T\" WHERE \"T\".\"molekuel_id\" = 'TR000'",
+          "summary": "Is molecule TR000 is carcinogenic or not?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 325",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0071",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"molekuel_id\") FROM \"toxicology\".\"molekuel\" AS \"T1\" INNER JOIN \"toxicology\".\"atom\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"element\" = 'n' AND \"T1\".\"bezeichnung\" = '+'",
+          "summary": "How many carcinogenic molecules that consisted of Nitrogen?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 326",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0072",
+          "sql": "SELECT DISTINCT \"T1\".\"molekuel_id\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"bindung\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"element\" = 's' AND \"T2\".\"bindungstyp\" = '='",
+          "summary": "Which molecule consisted of Sulphur atom with double bond?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 330",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0073",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"bezeichnung\" = '+' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(DISTINCT \"T1\".\"molekuel_id\"), 0) FROM \"toxicology\".\"molekuel\" AS \"T1\" INNER JOIN \"toxicology\".\"atom\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" INNER JOIN \"toxicology\".\"bindung\" AS \"T3\" ON \"T1\".\"molekuel_id\" = \"T3\".\"molekuel_id\" WHERE \"T3\".\"bindungstyp\" = '#' AND \"T2\".\"element\" = 'h'",
+          "summary": "Calculate the percentage of carcinogenic molecules with triple bonded Hidrogen atoms."
+        },
+        {
+          "audit": {
+            "evidence": "train question 332",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0074",
+          "sql": "SELECT COUNT(DISTINCT \"T\".\"molekuel_id\") FROM \"toxicology\".\"bindung\" AS \"T\" WHERE \"T\".\"molekuel_id\" BETWEEN 'TR004' AND 'TR010' AND \"T\".\"bindungstyp\" = '-'",
+          "summary": "Among the molecules between TR004 to TR010, how many of them has single bonds?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 333",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0075",
+          "sql": "SELECT COUNT(\"T\".\"atom_id\") FROM \"toxicology\".\"atom\" AS \"T\" WHERE \"T\".\"molekuel_id\" = 'TR008' AND \"T\".\"element\" = 'c'",
+          "summary": "In the molecule TR008, how many carbons are present?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 334",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0076",
+          "sql": "SELECT \"T1\".\"element\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"atom_id\" = 'TR004_7' AND \"T2\".\"bezeichnung\" = '-'",
+          "summary": "What is the element with the atom ID of TR004_7 in molecule that is not carcinogenic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 335",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0077",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"molekuel_id\") FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"bindung\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"bindungstyp\" = '=' AND \"T1\".\"element\" = 'o'",
+          "summary": "What is the total number of molecules with double bonded oxygen?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 336",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0078",
+          "sql": "SELECT COUNT(DISTINCT \"T1\".\"molekuel_id\") FROM \"toxicology\".\"molekuel\" AS \"T1\" INNER JOIN \"toxicology\".\"bindung\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T2\".\"bindungstyp\" = '#' AND \"T1\".\"bezeichnung\" = '-'",
+          "summary": "in molecules with triple bonds, how many of them are not carcinogenic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question 337",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0079",
+          "sql": "SELECT DISTINCT \"T1\".\"element\", \"T2\".\"bindungstyp\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"bindung\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" WHERE \"T1\".\"molekuel_id\" = 'TR002'",
+          "summary": "List the element and bond type included in the molecule with molecule ID of TR002."
+        },
+        {
+          "audit": {
+            "evidence": "train question 338",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_toxicology_0080",
+          "sql": "SELECT \"T1\".\"atom_id\" FROM \"toxicology\".\"atom\" AS \"T1\" INNER JOIN \"toxicology\".\"molekuel\" AS \"T2\" ON \"T1\".\"molekuel_id\" = \"T2\".\"molekuel_id\" INNER JOIN \"toxicology\".\"bindung\" AS \"T3\" ON \"T2\".\"molekuel_id\" = \"T3\".\"molekuel_id\" WHERE \"T2\".\"molekuel_id\" = 'TR012' AND \"T3\".\"bindungstyp\" = '=' AND \"T1\".\"element\" = 'c'",
+          "summary": "What is the atom ID of double bonded carbon in TR012 molecule?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between atom and bindung in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Every atom row and every bindung row for one molecule share the same molekuel_id, so this join pairs each atom in a molecule with each bond in that molecule. Use it to relate a molecule's atoms and bonds, for example to check bond types alongside atom elements within one molecule; it is not a one-to-one mapping between a specific atom and a specific bond.",
+          "cardinality": "many_to_many",
+          "id": "join_toxicology_atom_bindung_9a1b6022",
+          "left_table": "toxicology.atom",
+          "on": "toxicology.atom.molekuel_id = toxicology.bindung.molekuel_id",
+          "right_table": "toxicology.bindung",
+          "summary": "Links atom to bindung, matching an atom's molekuel_id to every bindung row for the same molecule."
+        }
+      ]
+    }

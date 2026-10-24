@@ -1,31 +1,2063 @@
-asset_type: schema
-id: codebase_comments
+version: 0.2.0.dev0
 name: codebase_comments
-summary: "codebase_comments profiles open-source GitHub repositories and the Visual Studio
-  solutions, methods and parameters mined from them, tracking each method comment and language
-  and each repository popularity signal: stars, forks and watchers."
-body: This corpus catalogs a sample of open-source .NET solutions harvested from GitHub for a
-  source-code-comment mining study. Repo holds one row per GitHub repository, keyed by Url, with
-  the community metrics Stars, Forks and Watchers plus the time the repository was downloaded
-  (ProcessedTime). Solution holds one row per Visual Studio solution (.sln) file found inside a
-  repository, linked back to Repo via RepoId, and records whether that solution needed to be
-  compiled before it could run (WasCompiled). Method holds one row per source-code method
-  sampled from a solution's codebase, linked to Solution via SolutionId, carrying the method's
-  fully qualified name, its raw and summarized comments, the language its comment is written in,
-  whether that comment is XML-doc formatted, and a linearized list of the other methods it
-  calls. MethodParameter holds one row per parameter declared by a method, linked to Method via
-  MethodId.
-rules:
-- Join Repo to Solution on Repo.Id = Solution.RepoId, and Solution to Method on Solution.Id =
-  Method.SolutionId; the columns repo_identifier, solution_identifier and solution_repo_id do
-  not carry this relationship and must not be used as join keys.
-- Solution.WasCompiled is 0 when the solution still needs to be compiled and 1 when it can run
-  without compiling; the polarity is opposite of what the name suggests, so do not assume 1
-  means the solution was already compiled.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |-
+  codebase_comments profiles open-source GitHub repositories and the Visual Studio solutions, methods and parameters mined from them, tracking each method comment and language and each repository popularity signal: stars, forks and watchers.
+
+  This corpus catalogs a sample of open-source .NET solutions harvested from GitHub for a source-code-comment mining study. Repo holds one row per GitHub repository, keyed by Url, with the community metrics Stars, Forks and Watchers plus the time the repository was downloaded (ProcessedTime). Solution holds one row per Visual Studio solution (.sln) file found inside a repository, linked back to Repo via RepoId, and records whether that solution needed to be compiled before it could run (WasCompiled). Method holds one row per source-code method sampled from a solution's codebase, linked to Solution via SolutionId, carrying the method's fully qualified name, its raw and summarized comments, the language its comment is written in, whether that comment is XML-doc formatted, and a linearized list of the other methods it calls. MethodParameter holds one row per parameter declared by a method, linked to Method via MethodId.
+ai_context:
+  instructions: |-
+    Join Repo to Solution on Repo.Id = Solution.RepoId, and Solution to Method on Solution.Id = Method.SolutionId; the columns repo_identifier, solution_identifier and solution_repo_id do not carry this relationship and must not be used as join keys.
+    Solution.WasCompiled is 0 when the solution still needs to be compiled and 1 when it can run without compiling; the polarity is opposite of what the name suggests, so do not assume 1 means the solution was already compiled.
+datasets:
+- name: Method
+  source: codebase_comments.Method
+  description: |-
+    Method: one row per source-code method sampled from a solution codebase, with its name, comment, summary, language and call sequence.
+
+    One row per method sampled from the codebase of a Visual Studio solution. Each row belongs to exactly one solution through SolutionId, which joins to Solution.Id. A method's declared parameters are recorded separately, one row per parameter, in MethodParameter, linked back here by MethodId. Do not confuse this table's own Id, the method's own identifier, with SolutionId, the identifier of the solution it belongs to.
+  fields:
+  - name: Id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Id
+    description: |-
+      Id: the surrogate integer key that uniquely identifies a sampled method.
+
+      Primary key of Method, assigned when the method was sampled. Referenced by MethodParameter.MethodId to attach a parameter to the method that declares it.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": false,
+          "physical_type": "bigint"
+        }
+  - name: Name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Name
+    description: |-
+      Name: the fully qualified, dot-delimited identifier of a method in its source repository.
+
+      A period-delimited path such as HtmlSharp.HtmlParser.Feed or IQ.Data.DbQueryProvider.GetQueryText. The segment after the leading namespace names the class and the specific action the method performs, which a question means by the method's task. Distinct from NameTokenized, which lower-cases and space-separates this same name for text search.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Method.Name is a dot-delimited fully qualified identifier, such as HtmlSharp.HtmlParser.Feed. The segment after the first dot names the class and method, which training questions call the method's task; extracting it means taking the substring of Name after its first period.",
+              "id": "term_codebase_comments_method_task",
+              "name": "method task",
+              "summary": "Task of the method: the action a method performs, read from the part of its name after the leading namespace.",
+              "synonyms": [
+                "Task of the method"
+              ]
+            }
+          ]
+        }
+  - name: FullComment
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: FullComment
+    description: |-
+      FullComment: the raw source-code comment text captured for a method.
+
+      Verbatim comment text extracted from the method's source, which may span multiple lines and may be formatted as XML documentation (see CommentIsXml) with tags such as <summary>. Distinct from Summary, which is a shorter, cleaned-up description rather than the raw comment. Sample values range from short phrases like 'Feeds data into the parser' to raw XML doc blocks; the column is never null in the sampled rows.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: Summary
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Summary
+    description: |-
+      Summary: a short natural-language description of what a method does.
+
+      A cleaned, human-readable synopsis of the method's behavior, distinct from the raw FullComment it is derived from. About 28% of sampled rows are null when no usable summary could be extracted from the comment. Sample values include 'Execute the query expression' and 'Convert the query expression into an execution plan'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ApiCalls
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ApiCalls
+    description: |-
+      ApiCalls: the linearized sequence of API and method calls made inside a method body.
+
+      A single space-separated text field listing, in call order, the fully qualified names of the other methods and APIs a method invokes, for example System.String.IsNullOrEmpty or IQ.Data.DbQueryProvider.Translate. Used to profile a method's runtime behavior rather than its documentation.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: CommentIsXml
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: CommentIsXml
+    description: |-
+      CommentIsXml: a flag for whether a method's recorded comment is written in XML documentation format.
+
+      Coded 0/1. 0 means the comment recorded in FullComment is not XML-formatted, 1 means it is (for example, wrapped in <summary> tags). Training questions phrase both boundary conditions directly as CommentIsXml = 0 and CommentIsXml = 1.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "CommentIsXml is 0 when the comment in FullComment is not XML-formatted and 1 when it is, for example wrapped in <summary> tags. Training questions phrase both boundary conditions as CommentIsXml = 0 (not XML format) and CommentIsXml = 1 (XML format).",
+              "id": "term_codebase_comments_xml_comment",
+              "name": "XML-format comment",
+              "summary": "XML format, XML comment: whether a method's recorded comment is written as XML documentation rather than plain text.",
+              "synonyms": [
+                "XML format",
+                "XML comment"
+              ]
+            }
+          ]
+        }
+  - name: SampledAt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SampledAt
+    description: |-
+      SampledAt: the timestamp recording when a method was sampled from its repository.
+
+      A large integer .NET tick count (100-nanosecond intervals since 0001-01-01), not a Unix timestamp. Sample values cluster tightly, for example 636430963695654788, reflecting the batch window in which the underlying solutions were processed. MAX(SampledAt) identifies the most recently sampled method.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: SolutionId
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SolutionId
+    description: |-
+      SolutionId: the identifier of the solution that a method was sampled from.
+
+      Foreign key joining to Solution.Id; every method belongs to exactly one solution. Not to be confused with this table's own Id, which identifies the method row itself.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: Lang
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Lang
+    description: |-
+      Lang: the language code of the natural-language text in a method's comment.
+
+      A short lowercase code such as en, fr, fi, it, af, ro, sw or zh-cn, detected from FullComment. About 28% of sampled rows are null when no comment language could be detected. English methods, the most common case in questions, are filtered with Lang = 'en'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "The boundary condition used across training questions is Lang = 'en'. Method.Lang holds a lowercase language code such as en, fr, fi, it, af, ro, sw or zh-cn; restricting to English methods means restricting to the rows where this code is 'en'.",
+              "id": "term_codebase_comments_english_method",
+              "name": "English method",
+              "summary": "English method, English methods, en methods: a sampled method whose source comment is written in English.",
+              "synonyms": [
+                "English method",
+                "English methods",
+                "en methods"
+              ]
+            }
+          ]
+        }
+  - name: NameTokenized
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: NameTokenized
+    description: |-
+      NameTokenized: the tokenized, space-separated breakdown of a method's name.
+
+      Derived from Name by splitting on dots and camel-case boundaries and lower-casing every part, for example 'html parser feed' for HtmlSharp.HtmlParser.Feed. Used for text search and readability rather than as a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  metrics:
+  - name: metric_codebase_comments_max_sampled_at
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(SampledAt)
+    description: |-
+      Highest sampling time, latest sampling time: the most recent sampling timestamp recorded across methods.
+
+      MAX(Method.SampledAt), the largest tick-count value in the column, identifying the most recently sampled method row. Often paired in a question with that row's SolutionId to name which solution the latest-sampled method came from.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "latest method sampling time"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: MethodParameter
+  source: codebase_comments.MethodParameter
+  description: |-
+    MethodParameter: one row per parameter declared by a sampled method, with its type and name.
+
+    One row per formal parameter of a method recorded in Method. Linked back by MethodId, which stores the same identifier as Method.Id even though it is typed as text rather than an integer. Grain is one row per parameter position, so a method with three declared parameters contributes three rows here. No join asset is defined between this table and Method in this corpus, so a query joins on MethodId = Method.Id explicitly.
+  fields:
+  - name: Id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Id
+    description: |-
+      Id: the surrogate integer key that uniquely identifies a method-parameter row.
+
+      Primary key of MethodParameter, one value per parameter row; unrelated to Method.Id or to this table's own MethodId.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": false,
+          "physical_type": "bigint"
+        }
+  - name: MethodId
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MethodId
+    description: |-
+      MethodId: the identifier of the method that declares a parameter.
+
+      References Method.Id, though this column is stored as text while Method.Id is an integer; its values are the same digit strings, for example '1' through the low hundreds in the sampled rows.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: Type
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Type
+    description: |-
+      Type: the fully qualified data type declared for a method parameter.
+
+      A .NET type name such as System.String, System.Int32, System.Linq.Expressions.Expression or IQ.Data.SelectExpression. The value <global namespace> appears when a parameter's type is not resolved to a named namespace.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: Name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Name
+    description: |-
+      Name: the identifier used for a parameter in a method's source declaration.
+
+      The literal parameter name from source code, for example data, i, declstartpos, expression or s. A terse, single-letter name such as 'i' or 's' is commonly read as a sign that the method is not well self-documenting, since the name itself carries little information about the parameter's role.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: Repo
+  source: codebase_comments.Repo
+  description: |-
+    Repo: one row per GitHub repository harvested for this corpus, with its address and community popularity signals.
+
+    One row per repository, keyed by Id and by the unique Url it was downloaded from. Stars, Forks and Watchers are the repository's community popularity signals as reported by GitHub at harvest time; ProcessedTime records when that harvesting finished. A repository can own many solutions, joined through Solution.RepoId. Do not use fork_count, repo_identifier or star_count for analysis; they do not correspond to the business facts this table otherwise records.
+  fields:
+  - name: Id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Id
+    description: |-
+      Id: the surrogate integer key that uniquely identifies a repository.
+
+      Primary key of Repo. Referenced by Solution.RepoId to attach a solution to the repository that contains it.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": false,
+          "physical_type": "bigint"
+        }
+  - name: Url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Url
+    description: |-
+      Url: the GitHub web address of a repository.
+
+      The full https://github.com/<owner>/<repo>.git clone address, unique per repository in the sampled rows, for example https://github.com/tordf/iLabs.git. Questions that name a specific repository by its GitHub address filter on this column.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Repo.Url stores the full https://github.com/<owner>/<repo>.git address used to clone the repository. Questions that ask for a repository by its link, its URL or its github address are asking for this column; a small number of training questions pin a specific repository by quoting its exact address, for example https://github.com/dogeth/vss2git.git.",
+              "id": "term_codebase_comments_repository_url",
+              "name": "repository URL",
+              "summary": "URL, also called the link or github address: the GitHub web address that uniquely identifies a repository.",
+              "synonyms": [
+                "URL",
+                "link",
+                "github address"
+              ]
+            }
+          ]
+        }
+  - name: Stars
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Stars
+    description: |-
+      Stars: the count of GitHub stars a repository has received.
+
+      A non-negative integer reflecting how many GitHub users starred the repository at harvest time; more stars indicates the repository is more liked. Sampled values range from 0 to the low tens. MAX(Stars) identifies the most-starred repository.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: Forks
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Forks
+    description: |-
+      Forks: the count of GitHub forks a repository has received.
+
+      A non-negative integer reflecting how many times the repository was forked at harvest time; more forks indicates the repository is followed by more downstream developers. Sampled values range from 0 to the low nineties. MAX(Forks) identifies the most-forked repository.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: Watchers
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Watchers
+    description: |-
+      Watchers: the count of GitHub users watching a repository.
+
+      A non-negative integer reflecting how many GitHub users were watching the repository at harvest time; more watchers indicates the repository is more popular. Sampled values range from 0 to the low tens. MAX(Watchers) identifies the most-watched repository.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ProcessedTime
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ProcessedTime
+    description: |-
+      ProcessedTime: the timestamp recording when a repository finished being downloaded and processed.
+
+      A large integer .NET tick count (100-nanosecond intervals since 0001-01-01), not a Unix timestamp. Distinct from Solution.ProcessedTime, which records processing time for an individual solution rather than for the whole repository.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: fork_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fork_count
+    description: |-
+      fork_count, an integer column on the Repo table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: repo_identifier
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: repo_identifier
+    description: |-
+      repo_identifier, an integer column on the Repo table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: star_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: star_count
+    description: |-
+      star_count, an integer column on the Repo table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_codebase_comments_max_forks
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(Forks)
+    description: |-
+      Most forks, most followed repository: the highest fork count recorded across repositories.
+
+      MAX(Repo.Forks), the largest number of forks any repository in the corpus has received. Training questions describe the repository with this value as the most followed repository or the repository that received the most forks.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most-forked repository"
+        }
+  - name: metric_codebase_comments_max_stars
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(Stars)
+    description: |-
+      Most stars, most liked repository: the highest star count recorded across repositories.
+
+      MAX(Repo.Stars), the largest number of GitHub stars any repository in the corpus has received. Training questions describe the repository with this value as the most liked repository or the one the most people like.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most-starred repository"
+        }
+  - name: metric_codebase_comments_max_watchers
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(Watchers)
+    description: |-
+      Most watchers, most popular repository, well-known repository: the highest watcher count recorded across repositories.
+
+      MAX(Repo.Watchers), the largest number of GitHub watchers any repository in the corpus has received. Training questions describe the repository with this value as the most popular or the well-known repository.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most-watched repository"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: Solution
+  source: codebase_comments.Solution
+  description: |-
+    Solution: one row per Visual Studio solution file found in a repository, with its file path and compile status.
+
+    One row per .sln solution discovered inside a repository, linked back to Repo through RepoId. Path records the solution's file location, ProcessedTime records when it was processed, and WasCompiled records whether it needed to be compiled before use. A solution can contain many sampled methods, joined through Method.SolutionId. Do not use solution_identifier, solution_repo_id or solution_path for analysis; they do not correspond to the business facts this table otherwise records.
+  fields:
+  - name: Id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Id
+    description: |-
+      Id: the surrogate integer key that uniquely identifies a solution.
+
+      Primary key of Solution. Referenced by Method.SolutionId to attach a sampled method to the solution it came from.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": false,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Solution.Id is the primary key of Solution. Questions that ask for the solution by number, when the question is really about a row in Solution itself, mean this column. Method.SolutionId stores the same values but as a foreign key on the method side of the relationship rather than as the row's own identity.",
+              "id": "term_codebase_comments_solution_number",
+              "name": "solution number",
+              "summary": "Solution number, id of the solution: the row identifier of a solution, found on Solution.Id.",
+              "synonyms": [
+                "Solution number",
+                "id of the solution"
+              ]
+            }
+          ]
+        }
+  - name: RepoId
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: RepoId
+    description: |-
+      RepoId: the identifier of the repository that a solution belongs to.
+
+      Foreign key joining to Repo.Id; every solution belongs to exactly one repository, though one repository can contain many solutions. Not to be confused with solution_repo_id, which does not carry this relationship.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Solution.RepoId is the foreign key joining a solution to Repo.Id, the repository that contains it. Distinct from repo_identifier, an unreliable column on Repo that does not carry this relationship.",
+              "id": "term_codebase_comments_repository_number",
+              "name": "repository number",
+              "summary": "Repository number, id of the repository: the identifier of the GitHub repository that owns a solution, found on Solution.RepoId.",
+              "synonyms": [
+                "Repository number",
+                "id of the repository"
+              ]
+            }
+          ]
+        }
+  - name: Path
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Path
+    description: |-
+      Path: the file path of a solution inside its repository checkout.
+
+      The relative path to the .sln file, for example taylan_vita\Vita.sln or lvarvel_aura\Aura.sln. Nearly unique per solution in the sampled rows. Distinct from solution_path, an unreliable column on this same table.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ProcessedTime
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ProcessedTime
+    description: |-
+      ProcessedTime: the timestamp recording when a solution finished being processed.
+
+      A large integer .NET tick count (100-nanosecond intervals since 0001-01-01), not a Unix timestamp. Distinct from Repo.ProcessedTime, which records processing time for the whole repository rather than one solution within it. AVG(ProcessedTime) and MAX(ProcessedTime) over this column answer questions about average and longest processing time.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: WasCompiled
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: WasCompiled
+    description: |-
+      WasCompiled: a flag for whether a solution still needs to be compiled before it can run.
+
+      Coded 0/1, and the polarity is counter to what the name suggests: 0 means the solution still needs to be compiled to be used, 1 means it can be used without compiling. Roughly half of the sampled rows take each value.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "WasCompiled's polarity is counter-intuitive. A solution that still needs to be compiled is WasCompiled = 0, and a solution that can be implemented without needing compilation is WasCompiled = 1. Do not assume a 1 means the solution was already compiled in the ordinary sense of the column name.",
+              "id": "term_codebase_comments_needs_compilation",
+              "name": "solution needing compilation",
+              "summary": "Needs to be compiled, can be implemented without compilation: whether a solution must still be built before it can run.",
+              "synonyms": [
+                "needs to be compiled",
+                "can be implemented without compilation"
+              ]
+            }
+          ]
+        }
+  - name: solution_identifier
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: solution_identifier
+    description: |-
+      solution_identifier, an integer column on the Solution table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: solution_repo_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: solution_repo_id
+    description: |-
+      solution_repo_id, an integer column on the Solution table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: solution_path
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: solution_path
+    description: |-
+      solution_path, a text column on the Solution table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_codebase_comments_avg_solution_processed_time
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(ProcessedTime)
+    description: |-
+      Average processed time: the mean processing time across solutions.
+
+      AVG(Solution.ProcessedTime) across all solutions, or within a filtered subset when a question scopes to a particular repository or set of solutions. ProcessedTime is a .NET tick count, not a Unix timestamp or a duration in seconds, so the average is only meaningful as a relative comparison between rows rather than a wall-clock duration.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average solution processed time"
+        }
+  - name: metric_codebase_comments_max_solution_processed_time
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(ProcessedTime)
+    description: |-
+      Longest processed time, highest processed time: the maximum processing time recorded across solutions.
+
+      MAX(Solution.ProcessedTime), the single largest tick-count value in the column. Training questions phrase this as the solution with the highest, longest or most processed time.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "longest solution processed time"
+        }
+  - name: metric_codebase_comments_pct_solutions_needing_compile
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: 100.0 * SUM(CASE WHEN WasCompiled = 0 THEN 1 ELSE 0 END) / COUNT(*)
+    description: |-
+      Percentage of solutions needing compilation: the share of solutions whose WasCompiled value shows they still require a build step.
+
+      Counts rows where WasCompiled = 0, the needs-compiling case, divides by the total row count, and multiplies by 100. Remember the polarity: WasCompiled = 0 is the needs-compiling case, not WasCompiled = 1.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "percentage of solutions needing compilation"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_codebase_comments_Method_Solution_adaf2100
+  from: Method
+  to: Solution
+  from_columns:
+  - SolutionId
+  to_columns:
+  - Id
+  ai_context:
+    instructions: |-
+      Joins Method to Solution, attaching each sampled method to the solution its code was taken from.
+
+      Method.SolutionId equals Solution.Id. Many methods can belong to one solution, so this is a many-to-one join from Method to Solution. Do not substitute solution_identifier or solution_repo_id for either side of this join; they are unreliable columns and do not carry this relationship.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between Method and Solution in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_codebase_comments_Repo_Solution_dec560c6
+  from: Solution
+  to: Repo
+  from_columns:
+  - RepoId
+  to_columns:
+  - Id
+  ai_context:
+    instructions: |-
+      Joins Repo to Solution, attaching each Visual Studio solution to the GitHub repository that contains it.
+
+      Repo.Id equals Solution.RepoId. One repository can contain many solutions, so this is a one-to-many join from Repo to Solution. Do not substitute repo_identifier or solution_repo_id for either side of this join; they are unreliable columns and do not carry this relationship.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between Repo and Solution in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+metrics:
+- name: metric_codebase_comments_common_solution_path
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: (SELECT MAX(path_count) FROM (SELECT COUNT(*) AS path_count FROM Solution GROUP BY Path) AS per_path)
+  description: |-
+    Highest number of solution path, path used most often: the largest number of times any single solution path value repeats.
+
+    Group Solution rows by Path, count rows in each group, then take the maximum of those counts. Path is close to unique across sampled solutions, so this metric is usually small; it only rises when the same relative path, for example a common .sln file name, appears under more than one repository.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "codebase_comments.Solution",
+        "name": "most repeated solution path"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_568",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0000",
+          "sql": "SELECT DISTINCT \"SampledAt\", \"SolutionId\" FROM \"codebase_comments\".\"Method\" WHERE \"SampledAt\" = (SELECT MAX(\"SampledAt\") FROM \"codebase_comments\".\"Method\")",
+          "summary": "What is the time of sampling of the solution with the highest sampling time? Indicate the id number of the solution."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_569",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0001",
+          "sql": "SELECT \"Forks\", \"Url\" FROM \"codebase_comments\".\"Repo\" WHERE \"Forks\" = (SELECT MAX(\"Forks\") FROM \"codebase_comments\".\"Repo\")",
+          "summary": "How many followers do the most followed repository on Github have? Give the github address of the repository."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_570",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0002",
+          "sql": "SELECT \"RepoId\" FROM \"codebase_comments\".\"Solution\" GROUP BY \"RepoId\" ORDER BY COUNT(\"Path\") DESC LIMIT 1",
+          "summary": "What is the id of the repository with the highest number of solution path?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_571",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0003",
+          "sql": "SELECT \"Url\", \"Stars\" FROM \"codebase_comments\".\"Repo\" WHERE \"Stars\" = (SELECT MAX(\"Stars\") FROM \"codebase_comments\".\"Repo\")",
+          "summary": "What is the most liked repository? Indicate its github address and the amount of stars it has received."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_572",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0004",
+          "sql": "SELECT \"Path\" FROM \"codebase_comments\".\"Solution\" WHERE \"ProcessedTime\" = (SELECT MAX(\"ProcessedTime\") FROM \"codebase_comments\".\"Solution\")",
+          "summary": "What is the name of the solution path with the highest processed time?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_575",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0005",
+          "sql": "SELECT DISTINCT \"T1\".\"Id\", \"T2\".\"WasCompiled\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"ProcessedTime\" = (SELECT MAX(\"ProcessedTime\") FROM \"codebase_comments\".\"Repo\")",
+          "summary": "Which repository has the longest amount of processed time of downloading? Indicate whether the solution paths in the repository can be implemented without needs of compilation."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_578",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0006",
+          "sql": "SELECT \"T3\".\"ApiCalls\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T3\" ON \"T2\".\"Id\" = \"T3\".\"SolutionId\" WHERE \"T1\".\"Url\" = 'https://github.com/wallerdev/htmlsharp.git'",
+          "summary": "In the \"https://github.com/wallerdev/htmlsharp.git\", give all the linearized sequenced of API calls."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_579",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0007",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"Path\") FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Watchers\" = (SELECT \"Watchers\" FROM \"codebase_comments\".\"Repo\" ORDER BY \"Watchers\" DESC NULLS LAST LIMIT 1 OFFSET 1)",
+          "summary": "How many solution paths are there inside the 2nd most popular repository?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_580",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0008",
+          "sql": "SELECT SUM(CAST(\"T2\".\"ProcessedTime\" AS DECIMAL)) / COUNT(\"T2\".\"RepoId\") FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Url\" = 'https://github.com/zphingphong/DiscardCustomerApp.git'",
+          "summary": "What is the average processed time of the solution paths inside the \"https://github.com/zphingphong/DiscardCustomerApp.git\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_584",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0009",
+          "sql": "SELECT DISTINCT \"T1\".\"ProcessedTime\", \"T2\".\"Lang\" FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"NameTokenized\" = 'about box1 dispose'",
+          "summary": "How much is the processed time of the method whose tokenized name is \"about box1 dispose\"? Indicate the language of the method."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_588",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0010",
+          "sql": "SELECT CASE WHEN \"CommentIsXml\" = 0 THEN 'No' WHEN \"CommentIsXml\" = 1 THEN 'Yes' END AS \"isXMLFormat\" FROM \"codebase_comments\".\"Method\" WHERE \"Name\" = 'HtmlSharp.HtmlParser.Feed'",
+          "summary": "Are the comments for the method \"HtmlSharp.HtmlParser.Feed\" in XML format?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_589",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0011",
+          "sql": "SELECT \"Name\" FROM \"codebase_comments\".\"Method\" WHERE \"Summary\" = 'Write a command to the log'",
+          "summary": "Which method has the summary \"Write a command to the log\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_590",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0012",
+          "sql": "SELECT COUNT(\"T2\".\"RepoId\") FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Stars\" = (SELECT MAX(\"Stars\") FROM \"codebase_comments\".\"Repo\")",
+          "summary": "How many solutions contain files found within the repository most people like?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_591",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0013",
+          "sql": "SELECT DISTINCT \"T2\".\"Path\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Stars\" = (SELECT MAX(\"Stars\") FROM \"codebase_comments\".\"Repo\")",
+          "summary": "Please list the path of the solution that contains files found within the repository most people like."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_592",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0014",
+          "sql": "SELECT \"T1\".\"Url\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T2\".\"Id\" = 12",
+          "summary": "What is the github address of the repository that contains files used by solution ID12?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_594",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0015",
+          "sql": "SELECT CASE WHEN SUM(CASE WHEN \"T2\".\"Id\" = 18 THEN \"T1\".\"Watchers\" ELSE 0 END) > SUM(CASE WHEN \"T2\".\"Id\" = 19 THEN \"T1\".\"Watchers\" ELSE 0 END) THEN 'SolutionID18' WHEN SUM(CASE WHEN \"T2\".\"Id\" = 18 THEN \"T1\".\"Watchers\" ELSE 0 END) < SUM(CASE WHEN \"T2\".\"Id\" = 19 THEN \"T1\".\"Watchers\" ELSE 0 END) THEN 'SolutionID19' END AS \"isMorePopular\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\"",
+          "summary": "Which solution contains files within a more popular repository, the solution ID18 or solution ID19?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_597",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0016",
+          "sql": "SELECT \"T1\".\"Url\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T2\".\"Id\" = 9",
+          "summary": "Please give the url of the repository whose files are contained in solution ID 9?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_603",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0017",
+          "sql": "SELECT \"Lang\" FROM \"codebase_comments\".\"Method\" WHERE \"Name\" = 'PixieTests.SqlConnectionLayerTests.TestSqlCreateGuidColumn'",
+          "summary": "What is the language of the method ''PixieTests.SqlConnectionLayerTests.TestSqlCreateGuidColumn\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_605",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0018",
+          "sql": "SELECT DISTINCT \"Summary\" FROM \"codebase_comments\".\"Method\" WHERE \"Name\" = 'Castle.MonoRail.Framework.Test.StubViewComponentContext.RenderSection'",
+          "summary": "List the summary of the method \"Castle.MonoRail.Framework.Test.StubViewComponentContext.RenderSection\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_606",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0019",
+          "sql": "SELECT \"NameTokenized\" FROM \"codebase_comments\".\"Method\" WHERE \"Name\" = 'Supay.Irc.Messages.KnockMessage.GetTokens'",
+          "summary": "Give the tokenized name for the method \"Supay.Irc.Messages.KnockMessage.GetTokens\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_607",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0020",
+          "sql": "SELECT \"T1\".\"Stars\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T2\".\"Id\" = 45997",
+          "summary": "How many stars does the repository of the solution No. 45997 have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_609",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0021",
+          "sql": "SELECT \"T1\".\"Path\" FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"Name\" = 'IQ.Data.DbQueryProvider.CanBeEvaluatedLocally'",
+          "summary": "What is the solution path for the method \"IQ.Data.DbQueryProvider.CanBeEvaluatedLocally\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_610",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0022",
+          "sql": "SELECT \"T1\".\"ProcessedTime\" FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"NameTokenized\" = 'interp parser expr'",
+          "summary": "For the method which got the tokenized name as 'interp parser expr', what is the processed time for its solution?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_611",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0023",
+          "sql": "SELECT \"T1\".\"RepoId\" FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"Name\" = 'SCore.Poisson.ngtIndex'",
+          "summary": "What is the repository number for the solution of method \"SCore.Poisson.ngtIndex\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_613",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0024",
+          "sql": "SELECT COUNT(\"T2\".\"RepoId\") FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Watchers\" = 8094",
+          "summary": "For the repository with '8094' watchers , how many solutions does it contain?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_615",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0025",
+          "sql": "SELECT COUNT(\"T2\".\"RepoId\") FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Forks\" = 1445",
+          "summary": "How many solutions does the repository which has 1445 Forks contain?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_616",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0026",
+          "sql": "SELECT \"T1\".\"Path\" FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"Lang\" = 'zh-cn' GROUP BY \"T1\".\"Path\" ORDER BY COUNT(\"T1\".\"Path\") DESC NULLS LAST LIMIT 1",
+          "summary": "Among all the solution of the 'zh-cn' methods, which path is most often used?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_620",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0027",
+          "sql": "SELECT DISTINCT \"T1\".\"ProcessedTime\" FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"NameTokenized\" = 't jadwal entity get single mpic'",
+          "summary": "For the method which got the tokenized name as 't jadwal entity get single mpic', what is the path time for its solution?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_623",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0028",
+          "sql": "SELECT COUNT(\"T2\".\"RepoId\") FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Stars\" = 3060",
+          "summary": "Give the number of solutions that the repository which has 3060 Stars contains."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_624",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0029",
+          "sql": "SELECT DISTINCT \"T1\".\"Path\" FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"Lang\" = 'sw'",
+          "summary": "For the solution of the most 'sw' methods, what is its path?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_626",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0030",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"Id\" = 51424 THEN \"T1\".\"Stars\" ELSE 0 END) - SUM(CASE WHEN \"T2\".\"Id\" = 167053 THEN \"T1\".\"Stars\" ELSE 0 END) AS REAL) * 100 / NULLIF(SUM(CASE WHEN \"T2\".\"Id\" = 167053 THEN \"T1\".\"Stars\" ELSE 0 END), 0) FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\"",
+          "summary": "How many percent more of the stars for the repository of solution No.51424 than No.167053?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_627",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0031",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"Id\" = 53546 THEN \"T1\".\"Forks\" ELSE 0 END) - SUM(CASE WHEN \"T2\".\"Id\" = 1502 THEN \"T1\".\"Forks\" ELSE 0 END) AS REAL) * 100 / NULLIF(SUM(CASE WHEN \"T2\".\"Id\" = 1502 THEN \"T1\".\"Forks\" ELSE 0 END), 0) FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\"",
+          "summary": "How many percent more of the Forks for the repository of solution No.53546 than No.1502?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_629",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0032",
+          "sql": "SELECT COUNT(\"T2\".\"RepoId\") FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Url\" = 'https://github.com/derickbailey/presentations-and-training.git'",
+          "summary": "How many solutions are in \"https://github.com/derickbailey/presentations-and-training.git\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_630",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0033",
+          "sql": "SELECT SUM(\"T2\".\"ProcessedTime\") FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Forks\" = (SELECT MAX(\"Forks\") FROM \"codebase_comments\".\"Repo\")",
+          "summary": "What is the total processed time of all solutions from the repository with the most forks?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_631",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0034",
+          "sql": "SELECT DISTINCT \"T1\".\"Path\" FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"Lang\" = 'it'",
+          "summary": "List all the path of solution from all the \"it\" lang code method."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_632",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0035",
+          "sql": "SELECT \"T1\".\"Path\" FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"Name\" = 'spinachLexer.mT__55'",
+          "summary": "What is the path of solution of \"spinachLexer.mT__55\" method?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_633",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0036",
+          "sql": "SELECT DISTINCT \"T2\".\"Id\" FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T1\".\"RepoId\" = 1093 AND \"T2\".\"Lang\" = 'en'",
+          "summary": "What are the \"en\" methods with solutions from repository \"1093\""
+        },
+        {
+          "audit": {
+            "evidence": "train question train_634",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0037",
+          "sql": "SELECT DISTINCT \"T2\".\"Path\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Url\" = 'https://github.com/ecoffey/Bebop.git'",
+          "summary": "What are the paths of solutions in repository \"https://github.com/ecoffey/Bebop.git\""
+        },
+        {
+          "audit": {
+            "evidence": "train question train_639",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0038",
+          "sql": "SELECT \"T1\".\"Url\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T2\".\"ProcessedTime\" = (SELECT MAX(\"ProcessedTime\") FROM \"codebase_comments\".\"Solution\")",
+          "summary": "What is the url for repository that has the longest processed time solution?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_640",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0039",
+          "sql": "SELECT DISTINCT \"T2\".\"Id\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Forks\" > \"T1\".\"Watchers\" / NULLIF(2, 0)",
+          "summary": "List all the solutions of repositories with the Forks higher than half of the watchers."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_642",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0040",
+          "sql": "SELECT \"Id\" FROM \"codebase_comments\".\"Repo\" WHERE \"Stars\" = (SELECT MAX(\"Stars\") FROM \"codebase_comments\".\"Repo\")",
+          "summary": "Please provide the id of the respository that the most people like."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_643",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0041",
+          "sql": "SELECT \"T1\".\"Path\" FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"Name\" = 'HtmlSharp.HtmlParser.Feed'",
+          "summary": "What is the solution's path of method \"HtmlSharp.HtmlParser.Feed\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_645",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0042",
+          "sql": "SELECT \"T2\".\"Id\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Watchers\" = (SELECT MAX(\"Watchers\") FROM \"codebase_comments\".\"Repo\")",
+          "summary": "Please provide the id of the solution whose repository has the most watchers."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_646",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0043",
+          "sql": "SELECT \"T1\".\"Stars\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T2\".\"Id\" = 20",
+          "summary": "Please provide the number of stars that the repository of the solution 20 have."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_648",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0044",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"WasCompiled\" = 0 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"SolutionId\"), 0) FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"CommentIsXml\" = 1",
+          "summary": "What is the percentage of the methods' solutions that need to be compiled among the methods whose comments is XML format?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_651",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0045",
+          "sql": "SELECT \"T1\".\"Url\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T2\".\"Id\" = 1",
+          "summary": "What is the url of solution 1?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_652",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0046",
+          "sql": "SELECT \"Id\" FROM \"codebase_comments\".\"Repo\" WHERE \"Stars\" = 21 AND \"Forks\" = (SELECT MAX(\"Forks\") FROM \"codebase_comments\".\"Repo\" WHERE \"Stars\" = 21)",
+          "summary": "Please provide the id of the respository that received the most forks among the respositories that receive 21 stars."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_653",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0047",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"Lang\" = 'en' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"Name\"), 0) FROM \"codebase_comments\".\"Method\" WHERE \"CommentIsXml\" = 1",
+          "summary": "What the percentage of the english methods among the methods whose comments is XML format?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_658",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0048",
+          "sql": "SELECT \"T1\".\"Path\" FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"FullComment\" = 'Feeds data into the parser'",
+          "summary": "Please provide the path of solution of method whose full comment is Feeds data into the parser."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_660",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0049",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"WasCompiled\" = 0 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"Lang\"), 0) FROM \"codebase_comments\".\"Solution\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"SolutionId\" WHERE \"T2\".\"Lang\" = 'en'",
+          "summary": "What is the percentage of solutions for the method that needs to be compiled in the English methods?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_661",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0050",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"Id\" = 1 THEN \"T1\".\"Stars\" ELSE 0 END) - SUM(CASE WHEN \"T2\".\"Id\" = 2 THEN \"T1\".\"Stars\" ELSE 0 END) AS REAL) * 100 / NULLIF(SUM(CASE WHEN \"T2\".\"Id\" = 2 THEN \"T1\".\"Stars\" ELSE 0 END), 0) FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\"",
+          "summary": "How many more stars in percentage are there for the repository of solution \"1\" than solution \"2\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_663",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0051",
+          "sql": "SELECT SUBSTRING(SUBSTRING(\"Name\" FROM POSITION('.' IN \"Name\") + 1) FROM 1 FOR POSITION('.' IN SUBSTRING(\"Name\" FROM POSITION('.' IN \"Name\") + 1)) - 1) AS \"task\" FROM \"codebase_comments\".\"Method\" WHERE \"Id\" = 2",
+          "summary": "What is the task of method number 2?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_664",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0052",
+          "sql": "SELECT CASE WHEN \"CommentIsXml\" = 0 THEN 'isNotXMLFormat' WHEN \"CommentIsXml\" = 1 THEN 'isXMLFormat' END AS \"format\" FROM \"codebase_comments\".\"Method\" WHERE \"Id\" = 8",
+          "summary": "What format does the method number 8's comment have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_665",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0053",
+          "sql": "SELECT \"Url\" FROM \"codebase_comments\".\"Repo\" WHERE \"Watchers\" = (SELECT MAX(\"Watchers\") FROM \"codebase_comments\".\"Repo\")",
+          "summary": "Please provide a link to the most well-known repository's Github address."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_674",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0054",
+          "sql": "SELECT DISTINCT SUBSTRING(SUBSTRING(\"Name\" FROM POSITION('.' IN \"Name\") + 1) FROM 1 FOR POSITION('.' IN SUBSTRING(\"Name\" FROM POSITION('.' IN \"Name\") + 1)) - 1) AS \"task\" FROM \"codebase_comments\".\"Method\" WHERE \"NameTokenized\" = 'string extensions to pascal case'",
+          "summary": "What is the task method of the tokenized name \"string extensions to pascal case \"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_675",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0055",
+          "sql": "SELECT \"NameTokenized\" FROM \"codebase_comments\".\"Method\" WHERE \"Name\" = 'Sky.Excel.ExcelBook.TypeConvert'",
+          "summary": "Provide the tokenized name of the method \"Sky.Excel.ExcelBook.TypeConvert\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_676",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0056",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"Path\") FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Url\" = 'https://github.com/jeffdik/tachy.git'",
+          "summary": "How many path does the github address \"https://github.com/jeffdik/tachy.git\" have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_680",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0057",
+          "sql": "SELECT COUNT(\"T3\".\"CommentIsXml\") FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T3\" ON \"T2\".\"Id\" = \"T3\".\"SolutionId\" WHERE \"T1\".\"Url\" = 'https://github.com/dogeth/vss2git.git' AND \"T3\".\"CommentIsXml\" = 1",
+          "summary": "How many XML format does the github address \"https://github.com/dogeth/vss2git.git\" have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_685",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0058",
+          "sql": "SELECT \"T1\".\"Url\" FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T3\" ON \"T2\".\"Id\" = \"T3\".\"SolutionId\" WHERE \"T3\".\"Summary\" = 'A test for Decompose'",
+          "summary": "Provide the github address with the summary of method \"A test for Decompose \"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_687",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0059",
+          "sql": "SELECT COUNT(\"T2\".\"Path\") FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" WHERE \"T1\".\"Stars\" = 111 AND \"T1\".\"Forks\" = 58 AND \"T1\".\"Watchers\" = 111",
+          "summary": "How many solution path does the repository with 111 stars, 58 forks, and 111 watchers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_689",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_codebase_comments_0060",
+          "sql": "SELECT COUNT(DISTINCT \"T3\".\"Lang\") FROM \"codebase_comments\".\"Repo\" AS \"T1\" INNER JOIN \"codebase_comments\".\"Solution\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"RepoId\" INNER JOIN \"codebase_comments\".\"Method\" AS \"T3\" ON \"T2\".\"Id\" = \"T3\".\"SolutionId\" WHERE \"T1\".\"Url\" = 'https://github.com/managedfusion/managedfusion.git'",
+          "summary": "How many language code of method is used for the github address \"https://github.com/managedfusion/managedfusion.git \"?"
+        }
+      ]
+    }

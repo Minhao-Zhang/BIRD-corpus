@@ -1,29 +1,2017 @@
-asset_type: schema
-id: cars
+version: 0.2.0.dev0
 name: cars
-summary: >-
-  The cars database catalogs individual automobiles — name, country of origin, model year,
-  price, and specs like horsepower, weight, displacement, cylinders, acceleration, and fuel
-  efficiency — for comparing cars by era and performance.
-body: >
-  Three tables carry the real data, all keyed by the same numeric id for one car: jia_ge
-  (price in US dollars), sheng_chan (country of origin and model year), and shu_ju (name and
-  every technical spec — horsepower, weight, displacement, cylinders, acceleration, and mpg)
-  — one row per car in each. guo_jia is a small three-row lookup of country codes to names
-  (USA, Japan, Europe), joined from sheng_chan's country code. jia_ge_lishi and
-  sheng_chan_xinxi look like price and production tables but are not dependable for analysis;
-  none of their columns should be used to answer a question. Within sheng_chan itself, only
-  id, nian_fen, and guo_jia are dependable — its other columns duplicate those unreliably.
-rules:
-- Join a car's price, origin/year, and technical specs using the shared id column across
-  jia_ge, sheng_chan, and shu_ju — it is not declared as a foreign key anywhere.
-- Answer country-of-origin questions through guo_jia joined to sheng_chan.guo_jia only; never
-  use sheng_chan.guo_jia_id, guo_jia.yuan_chu, or guo_jia.guo_jia_ming, and never select from
-  jia_ge_lishi or sheng_chan_xinxi.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  The cars database catalogs individual automobiles — name, country of origin, model year, price, and specs like horsepower, weight, displacement, cylinders, acceleration, and fuel efficiency — for comparing cars by era and performance.
+
+  Three tables carry the real data, all keyed by the same numeric id for one car: jia_ge (price in US dollars), sheng_chan (country of origin and model year), and shu_ju (name and every technical spec — horsepower, weight, displacement, cylinders, acceleration, and mpg) — one row per car in each. guo_jia is a small three-row lookup of country codes to names (USA, Japan, Europe), joined from sheng_chan's country code. jia_ge_lishi and sheng_chan_xinxi look like price and production tables but are not dependable for analysis; none of their columns should be used to answer a question. Within sheng_chan itself, only id, nian_fen, and guo_jia are dependable — its other columns duplicate those unreliably.
+ai_context:
+  instructions: |-
+    Join a car's price, origin/year, and technical specs using the shared id column across jia_ge, sheng_chan, and shu_ju — it is not declared as a foreign key anywhere.
+    Answer country-of-origin questions through guo_jia joined to sheng_chan.guo_jia only; never use sheng_chan.guo_jia_id, guo_jia.yuan_chu, or guo_jia.guo_jia_ming, and never select from jia_ge_lishi or sheng_chan_xinxi.
+datasets:
+- name: guo_jia
+  source: cars.guo_jia
+  description: |
+    guo_jia is a three-row lookup table naming the country behind each numeric origin code used elsewhere in the cars schema.
+
+    Grain: one row per country of origin (three rows total). yuan_di is the numeric code joined from sheng_chan.guo_jia; guo_jia is the country's display name, used in business language like "American car" or "Japanese car." Easily confused with its own yuan_chu and guo_jia_ming columns, which duplicate this information unreliably and must not be used.
+  fields:
+  - name: yuan_di
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yuan_di
+    description: |
+      yuan_di is the numeric code that uniquely identifies a country of origin in this lookup table.
+
+      Integer from 1 to 3, one distinct value per row (sample values 1, 2, 3). Referenced from sheng_chan.guo_jia to attach a country name to a car's production record; do not use sheng_chan.guo_jia_id for that join, it is unreliable.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: guo_jia
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia
+    description: |
+      guo_jia holds the country name for the origin code on this row.
+
+      One of three text values: USA, Japan, or Europe (sample values Europe, USA, Japan). In this dataset's convention, USA is also described as North America and Japan as Asia. This is the column meant by phrases like "American car," "Japanese car," or "a car from Europe." The guo_jia_ming column on this same table duplicates these values unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to guo_jia.guo_jia, the country's display name. Following this dataset's own convention, USA cars are also described as North American and Japan cars as Asian; there is no separate \"Asia\" or \"North America\" value stored, only the country name itself. \"American car\" means guo_jia = 'USA', \"Japanese car\" means guo_jia = 'Japan', and \"a car from Europe\" means guo_jia = 'Europe'. To reach a car's price or specs from its origin, go through sheng_chan.guo_jia (which references guo_jia.yuan_di) and then to jia_ge or shu_ju by car id.\n",
+              "id": "term_cars_country_of_origin",
+              "name": "country of origin",
+              "summary": "Country of origin (origin country): where a car was made — USA (also called American, or North America), Japan (also called Japanese, or Asia), or Europe.",
+              "synonyms": [
+                "country of origin",
+                "origin country",
+                "USA",
+                "Japan",
+                "Europe",
+                "American",
+                "Japanese"
+              ]
+            }
+          ]
+        }
+  - name: yuan_chu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yuan_chu
+    description: |
+      yuan_chu, an integer column on the guo_jia table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: guo_jia_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia_ming
+    description: |
+      guo_jia_ming, a text column on the guo_jia table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: jia_ge
+  source: cars.jia_ge
+  description: |
+    jia_ge holds one price record per car, giving the US-dollar price used to answer cost, worth, and value questions.
+
+    Grain: one row per car, keyed by id, matching sheng_chan.id and shu_ju.id. Join on id to combine a car's price with its origin, model year, or technical specs. Easily confused with jia_ge_lishi, a price-like table that is not dependable for analysis — use this table instead.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the row key that identifies a car price record, shared with the matching row in sheng_chan and shu_ju.
+
+      Positive integer, one per row, with no declared foreign key; join cars.jia_ge.id to cars.sheng_chan.id and cars.shu_ju.id to bring together a car's price, origin/year, and technical specs. Do not use jia_ge_bian_hao for this join, it is unreliable.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: jia_ge
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jia_ge
+    description: |
+      jia_ge is the price of a car in US dollars.
+
+      Real-valued US-dollar amount, for example 20000.0, 33048.8, 35897.44, or 27074.395 — sampled values run from roughly $8,800 to over $44,000. Called "cost," "price," or "worth" in business language; the cheapest car is the minimum and the most expensive is the maximum of this column. The jia_qian column on this same table duplicates these values unreliably and must not be used.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to jia_ge.jia_ge, a real-valued US-dollar amount (sampled values run from roughly $8,800 to over $44,000, for example $20,000, $33,048.80, or $37,443.86). \"Cost at least $30,000\" means jia_ge > 30000 and \"cost less than $30,000\" means jia_ge < 30000. \"The cheapest car\" is MIN(jia_ge) and \"the most expensive car\" is MAX(jia_ge). See metric_cars_average_price for the average and its above-average boundary.\n",
+              "id": "term_cars_price",
+              "name": "price",
+              "summary": "Price (cost, worth): a car dollar price; the cheapest car has the lowest price and the most expensive has the highest.",
+              "synonyms": [
+                "price",
+                "cost",
+                "worth",
+                "cheapest",
+                "most expensive"
+              ]
+            }
+          ]
+        }
+  - name: jia_ge_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jia_ge_bian_hao
+    description: |
+      jia_ge_bian_hao, an integer column on the jia_ge table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: jia_qian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jia_qian
+    description: |
+      jia_qian, a real-valued column on the jia_ge table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_cars_average_price
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(jia_ge)
+    description: |
+      Average price: the mean jia_ge across cars, used to judge whether a car is priced above or below average.
+
+      AVG(jia_ge) over cars.jia_ge, optionally restricted by joining in a country (guo_jia = 'Japan') or model year (xing_hao = 70) from the other tables. A car counts as "above average" in this schema when its price exceeds 85% of this average — jia_ge > 0.85 * AVG(jia_ge) — not simply jia_ge > AVG(jia_ge); use that 85% boundary for "above-average price" questions.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average price"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: jia_ge_lishi
+  source: cars.jia_ge_lishi
+  description: |
+    jia_ge_lishi is a table of price-like records that is not dependable for analysis.
+
+    Every column in jia_ge_lishi is unreliable and does not correspond to the business facts of an actual car price. Do not use this table, or any of its columns, to answer a question. Use jia_ge for a car price, sheng_chan for its origin and model year, and shu_ju for its technical specs.
+  fields:
+  - name: bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bian_hao
+    description: |
+      bian_hao, an integer column on the jia_ge_lishi table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: dan_jia
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dan_jia
+    description: |
+      dan_jia, a real-valued column on the jia_ge_lishi table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: sheng_chan
+  source: cars.sheng_chan
+  description: |
+    sheng_chan records the country of origin and model year a car was produced in, joined to jia_ge and shu_ju by the same car id.
+
+    Grain: one row per car, keyed by id, matching jia_ge.id and shu_ju.id. guo_jia is the numeric country code, joined to guo_jia.yuan_di for the country name; nian_fen is the four-digit model year. Its guo_jia_id, sheng_chan_bian_hao, and chan_sheng_nian columns duplicate guo_jia, id, and nian_fen unreliably and must not be used. Easily confused with sheng_chan_xinxi, a production-like table that is not dependable for analysis — use this table instead.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the row key that identifies a car production record, shared with the matching row in jia_ge and shu_ju.
+
+      Positive integer; join cars.sheng_chan.id to cars.jia_ge.id and cars.shu_ju.id to bring together a car's origin/year, price, and technical specs. A sample scan of this table found a handful of rows repeating an id, so do not assume id alone is unique here the way it is in jia_ge and shu_ju. Do not use sheng_chan_bian_hao for this join, it is unreliable.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nian_fen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nian_fen
+    description: |
+      nian_fen is the four-digit model year a car was introduced to the market.
+
+      Integer year from 1970 to 1982 (sample values 1976, 1977, 1972, 1979, 1971). Called "model year," "production year," or just "year" in business language. The chan_sheng_nian column on this same table duplicates these values unreliably and must not be used. Compare to shu_ju.xing_hao, which encodes the same kind of year as a two-digit offset from 1900 on a different table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to sheng_chan.nian_fen, an integer from 1970 to 1982. \"Introduced in 1977\" or \"produced in year 1973\" means nian_fen = 1977 or nian_fen = 1973; \"from 1971 to 1980\" means nian_fen BETWEEN 1971 AND 1980. This is the same kind of year as shu_ju.xing_hao, which encodes it as a two-digit offset from 1900 on a different table — prefer nian_fen when the question is phrased as a full four-digit year.\n",
+              "id": "term_cars_model_year",
+              "name": "model year",
+              "summary": "Model year (production year): the four-digit year a car was introduced to the market, from 1970 to 1982.",
+              "synonyms": [
+                "model year",
+                "production year",
+                "year"
+              ]
+            }
+          ]
+        }
+  - name: guo_jia
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia
+    description: |
+      guo_jia is the numeric country-of-origin code for the car produced on this row.
+
+      Integer from 1 to 3 (sample values 3, 1, 2), joined to guo_jia.yuan_di to look up the country name — USA, Japan, or Europe. The guo_jia_id column on this same table duplicates these values unreliably and must not be used for this join.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: sheng_chan_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sheng_chan_bian_hao
+    description: |
+      sheng_chan_bian_hao, an integer column on the sheng_chan table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: guo_jia_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia_id
+    description: |
+      guo_jia_id, an integer column on the sheng_chan table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: chan_sheng_nian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chan_sheng_nian
+    description: |
+      chan_sheng_nian, an integer column on the sheng_chan table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_cars_avg_production_per_year
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id) / COUNT(DISTINCT nian_fen)
+    description: |
+      Average number of cars produced per year: the count of cars divided by the number of distinct model years they span.
+
+      COUNT(id) / COUNT(DISTINCT nian_fen) over cars.sheng_chan for the whole table, or filtered to a date range, e.g. dividing the count of cars with nian_fen BETWEEN 1971 AND 1980 by the number of distinct years in that range. Use COUNT(DISTINCT nian_fen), not a hardcoded year span, as the denominator so the figure stays correct even if a year in the range has no rows.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average number of cars produced per year"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: sheng_chan_xinxi
+  source: cars.sheng_chan_xinxi
+  description: |
+    sheng_chan_xinxi is a table of production-like records that is not dependable for analysis.
+
+    Every column in sheng_chan_xinxi is unreliable and does not correspond to the business facts of an actual car production record. Do not use this table, or any of its columns, to answer a question. Use sheng_chan for a car's origin and model year, jia_ge for its price, and shu_ju for its technical specs.
+  fields:
+  - name: chan_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chan_id
+    description: |
+      chan_id, an integer column on the sheng_chan_xinxi table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: chan_nian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chan_nian
+    description: |
+      chan_nian, an integer column on the sheng_chan_xinxi table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: chan_guo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chan_guo
+    description: |
+      chan_guo, an integer column on the sheng_chan_xinxi table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: shu_ju
+  source: cars.shu_ju
+  description: |
+    shu_ju holds one row per car with its name and every technical spec, joined to jia_ge and sheng_chan by the same car id.
+
+    Grain: one row per car, keyed by id, matching jia_ge.id and sheng_chan.id. che_ming is the full car name (manufacturer plus model, lowercase); ran_you_xiao_lv, qi_gang, liang, ma_li, zhong_liang, jia_su, and xing_hao carry its fuel efficiency, cylinders, displacement, horsepower, weight, acceleration, and model-year code. Its shu_ju_bian_hao, jia_su_lv, and che_xing_ming columns duplicate id, jia_su, and che_ming unreliably and must not be used.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the row key that identifies a car technical-spec record, shared with the matching row in jia_ge and sheng_chan.
+
+      Positive integer; join cars.shu_ju.id to cars.jia_ge.id and cars.sheng_chan.id to bring together a car's technical specs, price, and origin/year. Do not use shu_ju_bian_hao for this join, it is unreliable.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ran_you_xiao_lv
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ran_you_xiao_lv
+    description: |
+      ran_you_xiao_lv is a car fuel efficiency figure in miles per gallon.
+
+      Real-valued miles-per-gallon figure, for example 24.0, 14.5, or 33.0. Called "mileage," "miles per gallon," "mpg," or "fuel efficiency" in business language. A higher value is more fuel-efficient and consumes less fuel per mile; the most fuel-efficient car is the maximum of this column, and the car that consumes fuel the most is the minimum.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to shu_ju.ran_you_xiao_lv, a real-valued miles-per-gallon figure (sample values 24.0, 14.5, 33.0, 15.0, 15.5). \"Mileage per gallon of greater than 30\" means ran_you_xiao_lv > 30. \"The most fuel-efficient car\" is MAX(ran_you_xiao_lv); \"the car that consumes fuel the most\" is the least efficient, so it is MIN(ran_you_xiao_lv).\n",
+              "id": "term_cars_fuel_efficiency",
+              "name": "fuel efficiency",
+              "summary": "Fuel efficiency (mileage, miles per gallon, mpg): how far a car travels per gallon; a fuel efficient, or fuel-efficient, car has a high value.",
+              "synonyms": [
+                "mileage",
+                "miles per gallon",
+                "mpg",
+                "fuel efficient",
+                "fuel-efficient"
+              ]
+            }
+          ]
+        }
+  - name: qi_gang
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: qi_gang
+    description: |
+      qi_gang is the number of cylinders in a car engine.
+
+      Small integer, typically 3 to 8 (sample values 6, 8, 4, 5, 3). Dividing liang (engine displacement) by qi_gang gives the per-cylinder sweep volume.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to shu_ju.qi_gang, a small integer (sample values 6, 8, 4, 5, 3). \"With 8 cylinders\" means qi_gang = 8. Dividing engine displacement (liang) by qi_gang gives the per-cylinder sweep volume — see metric_cars_sweep_volume.\n",
+              "id": "term_cars_cylinders",
+              "name": "cylinders",
+              "summary": "Cylinders (number of cylinders): the count of cylinders in a car engine, typically 3 to 8.",
+              "synonyms": [
+                "cylinders",
+                "number of cylinders"
+              ]
+            }
+          ]
+        }
+  - name: liang
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: liang
+    description: |
+      liang is a car engine displacement, in cubic millimeters.
+
+      Real-valued displacement figure (sample values 200.0, 351.0, 105.0, 250.0, 350.0). Dividing liang by qi_gang (cylinder count) gives the per-cylinder sweep volume. Called "engine displacement" or "engine size" in business language.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to shu_ju.liang, a real-valued figure (sample values 200.0, 351.0, 105.0, 250.0, 350.0). \"Engine displacement of no less than 400\" means liang > 400. Dividing liang by the cylinder count (qi_gang) gives the per-cylinder sweep volume — see metric_cars_sweep_volume.\n",
+              "id": "term_cars_displacement",
+              "name": "engine displacement",
+              "summary": "Engine displacement (displacement): the total swept volume of a car engine cylinders, in cubic millimeters.",
+              "synonyms": [
+                "displacement",
+                "engine displacement"
+              ]
+            }
+          ]
+        }
+  - name: ma_li
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ma_li
+    description: |
+      ma_li is the horsepower of a car engine.
+
+      Integer horsepower rating (sample values 81, 152, 74, 72, 170) — the higher the number, the more power reaches the wheels. Called "horsepower" or "horse power" in business language; in this schema, "the fastest car" means the car with the highest ma_li.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to shu_ju.ma_li, an integer horsepower rating (sample values 81, 152, 74, 72, 170) — the higher the number, the more power reaches the wheels. \"ma_li greater than 200\" means ma_li > 200. There is no separate top-speed column in this schema, so \"the fastest car\" is defined as MAX(ma_li).\n",
+              "id": "term_cars_horsepower",
+              "name": "horsepower",
+              "summary": "Horsepower (horse power): the power a car engine produces; in this schema, the fastest car is the one with the highest horsepower.",
+              "synonyms": [
+                "horsepower",
+                "horse power",
+                "fastest"
+              ]
+            }
+          ]
+        }
+  - name: zhong_liang
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhong_liang
+    description: |
+      zhong_liang is the weight of a car, in pounds.
+
+      Integer weight in pounds (sample values 3012, 4215, 2190, 3158, 4165). A heavier car is understood to give better crash protection, so "the heaviest car" and "the car with the best crash protection" both mean the maximum of this column.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to shu_ju.zhong_liang, an integer weight in pounds (sample values 3012, 4215, 2190, 3158, 4165). \"Fewer than 1800 lbs\" means zhong_liang < 1800 and \"over 3000 lbs\" means zhong_liang > 3000. \"The heaviest car\" and \"the car with the best crash protection\" both mean MAX(zhong_liang), following the commonsense rule that a bigger, heavier vehicle gives better crash protection.\n",
+              "id": "term_cars_weight",
+              "name": "weight",
+              "summary": "Weight: a car weight in pounds; the heaviest car has the best crash protection in this schema's convention.",
+              "synonyms": [
+                "weight",
+                "heaviest",
+                "crash protection"
+              ]
+            }
+          ]
+        }
+  - name: jia_su
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jia_su
+    description: |
+      jia_su is a car acceleration measurement.
+
+      Real-valued acceleration figure (sample values 17.6, 12.8, 14.2, 19.5, 11.4), for example a value of 14.1. The jia_su_lv column on this same table duplicates these values unreliably and must not be used.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to shu_ju.jia_su, a real-valued figure (sample values 17.6, 12.8, 14.2, 19.5, 11.4), for example a value of 14.1. The maximum of this column is the car with the highest acceleration figure.\n",
+              "id": "term_cars_acceleration",
+              "name": "acceleration",
+              "summary": "Acceleration is a car acceleration measurement, used to compare how quickly cars speed up.",
+              "synonyms": [
+                "acceleration"
+              ]
+            }
+          ]
+        }
+  - name: xing_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xing_hao
+    description: |
+      xing_hao is the model year a car was introduced, encoded as a two-digit offset from 1900.
+
+      Integer from 70 to 82, meaning 1970 to 1982 (add 1900 to get the full year; sample values 76, 81, 75, 77, 78). This is the same kind of year as sheng_chan.nian_fen, which records the full four-digit year on a different table, keyed by the same car id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to shu_ju.xing_hao, an integer from 70 to 82; add 1900 to read it as a full year (70 means 1970, 82 means 1982). \"Model 70\" or \"xing_hao 70\" means xing_hao = 70. This is the same kind of year as sheng_chan.nian_fen, which records the full four-digit year on a different table for the same car id.\n",
+              "id": "term_cars_model_code",
+              "name": "model code",
+              "summary": "Model code (model): the two-digit year a car model was introduced, encoded as an offset from 1900.",
+              "synonyms": [
+                "model",
+                "model code"
+              ]
+            }
+          ]
+        }
+  - name: che_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: che_ming
+    description: |
+      che_ming is the full name of a car, combining its manufacturer and model.
+
+      Lowercase free text such as "ford maverick," "ford gran torino," "volkswagen jetta," or "chevrolet monte carlo landau" (305 distinct values in the sample). The manufacturer is the first word or two of the name, so a brand-only question ("Ford cars," "Dodge cars") matches with a prefix search on this column, e.g. che_ming LIKE 'ford%'. Called "car name," "car's name," or "model name" in business language. The che_xing_ming column on this same table duplicates these values unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to shu_ju.che_ming, lowercase text combining a manufacturer and model, for example \"buick skylark 320,\" \"chevrolet malibu,\" \"ford torino,\" or \"toyota corona hardtop.\" The manufacturer is the first word or two of the name, so a brand-only question (\"Ford cars,\" \"Dodge cars\") is answered with a prefix match, e.g. che_ming LIKE 'ford%' or che_ming LIKE 'dodge%'. A specific car name is matched with an exact, case-sensitive lowercase comparison, e.g. che_ming = 'chevrolet bel air'.\n",
+              "id": "term_cars_car_name",
+              "name": "car name",
+              "summary": "Car name (car's name, model name): the full manufacturer-and-model name recorded for a car.",
+              "synonyms": [
+                "car name",
+                "car's name",
+                "model name"
+              ]
+            }
+          ]
+        }
+  - name: shu_ju_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shu_ju_bian_hao
+    description: |
+      shu_ju_bian_hao, an integer column on the shu_ju table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: jia_su_lv
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jia_su_lv
+    description: |
+      jia_su_lv, a real-valued column on the shu_ju table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: che_xing_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: che_xing_ming
+    description: |
+      che_xing_ming, a text column on the shu_ju table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_cars_sweep_volume
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: liang / qi_gang
+    description: |
+      Sweep volume: a car engine displacement divided by its cylinder count, the swept volume per cylinder.
+
+      liang / qi_gang over cars.shu_ju, following this dataset's own commonsense rule that sweep volume equals displacement divided by number of cylinders. Compute it per row; there is no separate stored column for it.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "sweep volume"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_cars_guo_jia_sheng_chan_28a4b059
+  from: sheng_chan
+  to: guo_jia
+  from_columns:
+  - guo_jia
+  to_columns:
+  - yuan_di
+  ai_context:
+    instructions: |
+      guo_jia.yuan_di matches sheng_chan.guo_jia, attaching a country name to a car production record in sheng_chan.
+
+      Every sheng_chan row's country code (guo_jia) matches exactly one guo_jia.yuan_di; use this join to show a car's country name — USA, Japan, or Europe — alongside its production year. One country covers many cars, so aggregate carefully when grouping by country. Do not join through sheng_chan.guo_jia_id or guo_jia.yuan_chu — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between guo_jia and sheng_chan in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_cars_jia_ge_sheng_chan_f0c9fd93
+  from: sheng_chan
+  to: jia_ge
+  from_columns:
+  - id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      jia_ge.id matches sheng_chan.id, joining a car price in jia_ge to its origin and model year in sheng_chan.
+
+      Both tables share the same car id; use this join to combine a car's price with its origin and model year. sheng_chan carries a small number of extra, unreliable rows, so check jia_ge (one row per car) if counts look inflated after joining. Do not join through jia_ge_bian_hao or sheng_chan_bian_hao — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between jia_ge and sheng_chan in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_cars_jia_ge_shu_ju_6898ac06
+  from: jia_ge
+  to: shu_ju
+  from_columns:
+  - id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      jia_ge.id matches shu_ju.id, joining a car price in jia_ge to its technical specs in shu_ju.
+
+      Both tables have exactly one row per car id, so this join is one row for one row — combine a car's price with its horsepower, weight, displacement, cylinders, acceleration, or fuel efficiency. Do not join through jia_ge_bian_hao or shu_ju_bian_hao — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between jia_ge and shu_ju in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_cars_sheng_chan_shu_ju_effc725e
+  from: sheng_chan
+  to: shu_ju
+  from_columns:
+  - id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      sheng_chan.id matches shu_ju.id, joining a car origin and model year in sheng_chan to its technical specs in shu_ju.
+
+      shu_ju has exactly one row per car id; sheng_chan carries a small number of extra, unreliable rows sharing an id, so treat shu_ju as the one-row-per-car side when counting. Use this join to combine a car's origin and model year with its horsepower, weight, or other specs. Do not join through sheng_chan_bian_hao or shu_ju_bian_hao — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between sheng_chan and shu_ju in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_3063",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0000",
+          "sql": "SELECT \"T1\".\"che_ming\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"qi_gang\" = 8 ORDER BY \"T2\".\"jia_ge\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among the cars with 8 cylinders, what is the name of the one that's the most expensive?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3064",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0001",
+          "sql": "SELECT COUNT(\"T1\".\"che_ming\") FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"zhong_liang\" > 3000 AND \"T2\".\"jia_ge\" < 30000",
+          "summary": "Among the cars over 3000lbs, how many of them cost less than $30000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3066",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0002",
+          "sql": "SELECT \"T2\".\"jia_ge\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"che_ming\" = 'ford torino'",
+          "summary": "How much US dollars does a Ford Torino cost?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3068",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0003",
+          "sql": "SELECT COUNT(*) FROM \"cars\".\"sheng_chan\" AS \"T1\" INNER JOIN \"cars\".\"guo_jia\" AS \"T2\" ON \"T1\".\"guo_jia\" = \"T2\".\"yuan_di\" WHERE \"T1\".\"nian_fen\" = 1970 AND \"T2\".\"guo_jia\" = 'USA'",
+          "summary": "Among the car models introduced in the market in 1970, how many of them have the USA as their origin country?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3069",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0004",
+          "sql": "SELECT DISTINCT \"T1\".\"che_ming\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T2\".\"guo_jia\" = \"T3\".\"yuan_di\" WHERE \"T3\".\"guo_jia\" = 'USA'",
+          "summary": "Please list the names of all the car models whose origin country is the USA."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3070",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0005",
+          "sql": "SELECT \"T1\".\"che_ming\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" ORDER BY \"T2\".\"jia_ge\" DESC NULLS LAST LIMIT 3",
+          "summary": "Please list the names of the top 3 most expensive cars."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3071",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0006",
+          "sql": "SELECT DISTINCT \"T1\".\"nian_fen\" FROM \"cars\".\"sheng_chan\" AS \"T1\" INNER JOIN \"cars\".\"shu_ju\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"che_ming\" = 'chevrolet impala'",
+          "summary": "Please list all the years in which the car model Chevrolet Impala was introduced in the market."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3073",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0007",
+          "sql": "SELECT \"T1\".\"zhong_liang\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"jia_ge\" > 40000",
+          "summary": "Please list the weights of all the cars with the price over $40000."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3074",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0008",
+          "sql": "SELECT MAX(\"T1\".\"jia_su\") FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"jia_ge\" > 40000",
+          "summary": "What is the maximum acceleration of a car with price over $40000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3078",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0009",
+          "sql": "SELECT \"T3\".\"guo_jia\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\" WHERE \"T1\".\"che_ming\" = 'chevrolet malibu'",
+          "summary": "Show the origin country of Chevrolet Malibu."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3079",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0010",
+          "sql": "SELECT \"T1\".\"ran_you_xiao_lv\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" ORDER BY \"T2\".\"jia_ge\" DESC NULLS LAST LIMIT 1",
+          "summary": "What are the miles per gallon of the most expensive car?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3081",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0011",
+          "sql": "SELECT LOWER(\"T3\".\"guo_jia\") FROM \"cars\".\"jia_ge\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\" WHERE ABS(\"T1\".\"jia_ge\" - 44274.40748) < 0.002",
+          "summary": "Which is the origin country of the $44274.40748 car?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3082",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0012",
+          "sql": "SELECT \"T2\".\"jia_ge\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"che_ming\" = 'volkswagen dasher' AND \"T1\".\"jia_su\" = '14.1'",
+          "summary": "How much is the Volkswagen Dasher with 14.1 mph acceleration?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3083",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0013",
+          "sql": "SELECT \"T1\".\"liang\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"jia_ge\" = '37443.85589'",
+          "summary": "Provide the engine displacement status of the $37443.85589 car."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3084",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0014",
+          "sql": "SELECT \"T1\".\"xing_hao\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"jia_ge\" = '32650.65157'",
+          "summary": "When was the $32650.65157 car introduced to the market? State the year."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3085",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0015",
+          "sql": "SELECT \"T2\".\"jia_ge\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"che_ming\" = 'toyota corona hardtop'",
+          "summary": "Provide the price of the only Toyota Corona hardtop in the database."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3087",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0016",
+          "sql": "SELECT \"T1\".\"id\", \"T2\".\"jia_ge\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" ORDER BY \"T1\".\"zhong_liang\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which car in the database provides the best crash protection based on its weight? How much is it?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3089",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0017",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"guo_jia\" = 'Japan' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"cars\".\"sheng_chan\" AS \"T1\" INNER JOIN \"cars\".\"guo_jia\" AS \"T2\" ON \"T1\".\"guo_jia\" = \"T2\".\"yuan_di\"",
+          "summary": "What is the percentage of Japanese cars in the database?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3094",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0018",
+          "sql": "SELECT \"T1\".\"che_ming\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\" WHERE \"T3\".\"guo_jia\" = 'Japan' ORDER BY \"T1\".\"ma_li\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the fastest car made by Japan?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3095",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0019",
+          "sql": "SELECT COUNT(\"T2\".\"nian_fen\") FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"che_ming\" = 'ford maverick'",
+          "summary": "How many times was Ford Maverick introduced to the market?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3096",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0020",
+          "sql": "SELECT \"T3\".\"guo_jia\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\" ORDER BY \"T1\".\"ran_you_xiao_lv\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which country produced the most fuel-efficient car?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3097",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0021",
+          "sql": "SELECT \"T1\".\"che_ming\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"che_ming\" LIKE 'dodge%' ORDER BY \"T2\".\"jia_ge\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Which Dodge car is the cheapest?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3098",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0022",
+          "sql": "SELECT \"T4\".\"che_ming\" FROM \"cars\".\"jia_ge\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\" INNER JOIN \"cars\".\"shu_ju\" AS \"T4\" ON \"T4\".\"id\" = \"T1\".\"id\" WHERE \"T3\".\"guo_jia\" = 'USA' ORDER BY \"T1\".\"jia_ge\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the most expensive car that was produced by the USA?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3099",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0023",
+          "sql": "SELECT COUNT(*) FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"liang\" > 400 AND \"T2\".\"jia_ge\" > 30000",
+          "summary": "Among the cars with an engine displacement of no less than 400 cubic millimeter, how many cars cost at least 30,000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3103",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0024",
+          "sql": "SELECT \"T2\".\"guo_jia\", CAST(COUNT(\"T1\".\"id\") AS REAL) / NULLIF(COUNT(DISTINCT \"T1\".\"nian_fen\"), 0) FROM \"cars\".\"sheng_chan\" AS \"T1\" INNER JOIN \"cars\".\"guo_jia\" AS \"T2\" ON \"T1\".\"guo_jia\" = \"T2\".\"yuan_di\" GROUP BY \"T2\".\"guo_jia\" ORDER BY COUNT(\"T2\".\"guo_jia\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which country produced the highest number of cars? Calculate the annual average number of cars that the said country produced from the very start to the present."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3105",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0025",
+          "sql": "SELECT \"T1\".\"che_ming\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"nian_fen\" = 1975",
+          "summary": "List the name of the cars with model year 1975."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3109",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0026",
+          "sql": "SELECT COUNT(*) FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"nian_fen\" = 1973 AND \"T1\".\"ma_li\" < 100",
+          "summary": "Among the cars produced in year 1973, how many of the cars have horsepower less than 100?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3111",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0027",
+          "sql": "SELECT \"T2\".\"nian_fen\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" ORDER BY \"T1\".\"zhong_liang\" DESC NULLS LAST LIMIT 1",
+          "summary": "Give the model year of the heaviest car."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3113",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0028",
+          "sql": "SELECT \"T4\".\"che_ming\" FROM \"cars\".\"jia_ge\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\" INNER JOIN \"cars\".\"shu_ju\" AS \"T4\" ON \"T4\".\"id\" = \"T1\".\"id\" WHERE \"T3\".\"guo_jia\" = 'Japan' ORDER BY \"T1\".\"jia_ge\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among the cars originated from Japan, what is the name of the car with the highest price?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3114",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0029",
+          "sql": "SELECT \"T1\".\"che_ming\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"jia_ge\" = 20000",
+          "summary": "What are the names of the cars worth 20000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3115",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0030",
+          "sql": "SELECT COUNT(*) FROM \"cars\".\"jia_ge\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\" WHERE \"T3\".\"guo_jia\" = 'USA' AND \"T1\".\"jia_ge\" > 40000",
+          "summary": "How many cars worth greater than 40000 were from the USA?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3117",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0031",
+          "sql": "SELECT \"T1\".\"che_ming\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"jia_ge\" * 100 > (SELECT AVG(\"jia_ge\") * 85 FROM \"cars\".\"jia_ge\")",
+          "summary": "List the car's name with a price worth greater than 85% of the average price of all cars."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3118",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0032",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"nian_fen\" = 1970 THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T2\".\"nian_fen\" = 1976 THEN 1 ELSE 0 END) FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"ma_li\" = 130",
+          "summary": "Calculate the difference between the number of cars that has a horsepower of 130 with the model year 1970 and model year 1976"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3119",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0033",
+          "sql": "SELECT \"T1\".\"id\" FROM \"cars\".\"sheng_chan\" AS \"T1\" INNER JOIN \"cars\".\"guo_jia\" AS \"T2\" ON \"T1\".\"guo_jia\" = \"T2\".\"yuan_di\" WHERE \"T2\".\"guo_jia\" = 'Japan' AND \"T1\".\"nian_fen\" = 1979",
+          "summary": "Among the cars from Asia, list the IDs of cars that were introduced in 1979."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3120",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0034",
+          "sql": "SELECT \"T3\".\"guo_jia\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\" ORDER BY \"T1\".\"ran_you_xiao_lv\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Which country produced the car with the lowest mileage per gallon?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3122",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0035",
+          "sql": "SELECT \"T1\".\"che_ming\", \"T1\".\"ma_li\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\" WHERE \"T2\".\"nian_fen\" = 1977 AND \"T3\".\"guo_jia\" = 'Europe'",
+          "summary": "Among the cars introduced in 1977, provide the names and the horse powers of cars from Europe."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3126",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0036",
+          "sql": "SELECT \"T3\".\"guo_jia\" FROM \"cars\".\"jia_ge\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\" ORDER BY \"T1\".\"jia_ge\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Which country produced the car with the lowest price?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3128",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0037",
+          "sql": "SELECT \"T1\".\"jia_su\", \"T1\".\"qi_gang\", \"T2\".\"nian_fen\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"jia_ge\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"id\" ORDER BY \"T3\".\"jia_ge\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Which car is the cheapest? Provide its acceleration, number of cylinders, and producing year."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3129",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0038",
+          "sql": "SELECT \"T2\".\"che_ming\", CASE \"T1\".\"id\" WHEN 370 THEN CAST(40000 AS DOUBLE PRECISION) WHEN 371 THEN CAST(27074.394840000000841 AS DOUBLE PRECISION) WHEN 376 THEN CAST(33472.791440000000875 AS DOUBLE PRECISION) WHEN 377 THEN CAST(44607.866060000000289 AS DOUBLE PRECISION) WHEN 378 THEN CAST(34686.423390000003565 AS DOUBLE PRECISION) WHEN 379 THEN CAST(48111.102099999996426 AS DOUBLE PRECISION) WHEN 380 THEN CAST(30000 AS DOUBLE PRECISION) WHEN 381 THEN CAST(34612.008739999997488 AS DOUBLE PRECISION) WHEN 382 THEN CAST(30000 AS DOUBLE PRECISION) WHEN 383 THEN CAST(30000 AS DOUBLE PRECISION) WHEN 384 THEN CAST(30000 AS DOUBLE PRECISION) WHEN 385 THEN CAST(30000 AS DOUBLE PRECISION) WHEN 386 THEN CAST(30000 AS DOUBLE PRECISION) WHEN 388 THEN CAST(9944.3063490000004094 AS DOUBLE PRECISION) WHEN 391 THEN CAST(20000 AS DOUBLE PRECISION) WHEN 392 THEN CAST(17421.626899999999296 AS DOUBLE PRECISION) WHEN 395 THEN CAST(37000 AS DOUBLE PRECISION) WHEN 396 THEN CAST(47800 AS DOUBLE PRECISION) WHEN 398 THEN CAST(9000 AS DOUBLE PRECISION) ELSE CAST(\"T1\".\"jia_ge\" AS DOUBLE PRECISION) END FROM \"cars\".\"jia_ge\" AS \"T1\" INNER JOIN \"cars\".\"shu_ju\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"xing_hao\" = 82 AND \"T2\".\"ran_you_xiao_lv\" > 30",
+          "summary": "List the names and prices of the cars with model 82 and mileage per gallon of greater than 30."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3130",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0039",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"nian_fen\") FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"che_ming\" = 'ford maverick'",
+          "summary": "How many models of Ford Maverick were produced?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3131",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0040",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"guo_jia\" = 'USA' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"cars\".\"sheng_chan\" AS \"T1\" INNER JOIN \"cars\".\"guo_jia\" AS \"T2\" ON \"T1\".\"guo_jia\" = \"T2\".\"yuan_di\"",
+          "summary": "Calculate the percentage of cars that belong to the USA."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3132",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0041",
+          "sql": "SELECT CAST(CAST(COUNT(\"T1\".\"id\") AS REAL) / 9 AS TEXT) FROM \"cars\".\"sheng_chan\" AS \"T1\" INNER JOIN \"cars\".\"shu_ju\" AS \"T2\" ON \"T2\".\"id\" = \"T1\".\"id\" WHERE \"T1\".\"nian_fen\" BETWEEN 1971 AND 1980 UNION ALL SELECT \"che_ming\" FROM (SELECT DISTINCT \"T2\".\"che_ming\", MIN(\"T1\".\"id\") AS \"sort_id\" FROM \"cars\".\"sheng_chan\" AS \"T1\" INNER JOIN \"cars\".\"shu_ju\" AS \"T2\" ON \"T2\".\"id\" = \"T1\".\"id\" WHERE \"T1\".\"nian_fen\" BETWEEN 1971 AND 1980 AND \"T2\".\"zhong_liang\" < 1800 GROUP BY \"T2\".\"che_ming\" ORDER BY \"sort_id\") AS \"sub\"",
+          "summary": "Calculate the average production rate per year from 1971 to 1980. Among them, name the cars with a weight of fewer than 1800 lbs."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3134",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0042",
+          "sql": "SELECT \"T2\".\"jia_ge\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"che_ming\" = 'chevrolet vega 2300'",
+          "summary": "What is the price of Chevrolet Vega 2300?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3135",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0043",
+          "sql": "SELECT \"T3\".\"guo_jia\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\" WHERE \"T1\".\"che_ming\" = 'chevy c20'",
+          "summary": "Which country does Chevy C20 come from?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3137",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0044",
+          "sql": "SELECT \"T1\".\"che_ming\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T2\".\"nian_fen\" = '1975' ORDER BY \"T1\".\"ran_you_xiao_lv\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which is the most fuel efficient car in 1975?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3138",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0045",
+          "sql": "SELECT \"T1\".\"che_ming\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" ORDER BY \"T1\".\"ran_you_xiao_lv\" DESC NULLS LAST, \"T2\".\"jia_ge\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which car consumes fuel the most and has the highest price?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3141",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0046",
+          "sql": "SELECT \"T1\".\"che_ming\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"jia_ge\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" ORDER BY \"T2\".\"jia_ge\" DESC NULLS LAST LIMIT 1",
+          "summary": "List the name of the most expensive car."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3142",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0047",
+          "sql": "SELECT \"T2\".\"nian_fen\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"che_ming\" = 'buick skylark 320'",
+          "summary": "What years did the Buick Skylark 320 get in production?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3143",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0048",
+          "sql": "SELECT \"T3\".\"guo_jia\" FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\" INNER JOIN \"cars\".\"jia_ge\" AS \"T4\" ON \"T4\".\"id\" = \"T1\".\"id\" WHERE \"T2\".\"nian_fen\" = 1970 ORDER BY \"T4\".\"jia_ge\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which country produced the most expensive car in 1970?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3144",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0049",
+          "sql": "SELECT COUNT(\"T2\".\"nian_fen\") FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" WHERE \"T1\".\"ma_li\" > 200 AND \"T2\".\"nian_fen\" = 1975",
+          "summary": "How many cars with horsepower greater than 200 were produced in 1975?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3145",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cars_0050",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T3\".\"guo_jia\" = 'USA' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"cars\".\"shu_ju\" AS \"T1\" INNER JOIN \"cars\".\"sheng_chan\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"id\" INNER JOIN \"cars\".\"guo_jia\" AS \"T3\" ON \"T3\".\"yuan_di\" = \"T2\".\"guo_jia\"",
+          "summary": "Calculate the percentage of American cars among all cars."
+        }
+      ]
+    }

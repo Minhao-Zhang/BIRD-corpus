@@ -1,31 +1,4249 @@
-asset_type: schema
-id: olympics
+version: 0.2.0.dev0
 name: olympics
-summary: 'olympics: Olympic Games history — athletes and the events, sports, and
-  medals they compete for, the games editions and host cities, and the countries
-  and regions they represent.'
-body: >
-  Data spans Olympic Games editions from 1896 to 2016, both Summer and Winter. A person
-  (ren_wu) competes in one or more games editions (yun_dong_hui_xuan_shou, one row per person
-  per edition, carrying the age they competed at) and, within an edition, in one or more
-  events (xuan_shou_bi_sai, one row per competitor per event, carrying the medal won). An
-  event (bi_sai) belongs to one sport (yun_dong_xiang_mu); a games edition is hosted by one
-  city (yun_dong_hui_cheng_shi joining to cheng_shi); a person represents one national
-  Olympic committee region (ren_wu_qu_yu joining to guo_jia_qu_yu). Several tables carry a
-  second, unreliable copy of a real column, and jiang_xiang_leibie and ti_yu_xiang_mu each
-  duplicate a whole table; those are marked suspect and must not be used.
-rules:
-  - shen_gao (height) and ti_zhong (weight) equal to 0 mean the value is missing, not an
-    actual measurement; exclude those rows before averaging or comparing height or weight.
-  - xuan_shou_bi_sai.xuan_shou_id joins to yun_dong_hui_xuan_shou.id, not directly to
-    ren_wu.id; go through yun_dong_hui_xuan_shou to reach the person or the age they competed
-    at.
-  - jiang_pai includes a row for no medal (jiang_pai_ming = 'NA'); exclude it when counting
-    how many medals a competitor or region has won.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  olympics: Olympic Games history — athletes and the events, sports, and medals they compete for, the games editions and host cities, and the countries and regions they represent.
+
+  Data spans Olympic Games editions from 1896 to 2016, both Summer and Winter. A person (ren_wu) competes in one or more games editions (yun_dong_hui_xuan_shou, one row per person per edition, carrying the age they competed at) and, within an edition, in one or more events (xuan_shou_bi_sai, one row per competitor per event, carrying the medal won). An event (bi_sai) belongs to one sport (yun_dong_xiang_mu); a games edition is hosted by one city (yun_dong_hui_cheng_shi joining to cheng_shi); a person represents one national Olympic committee region (ren_wu_qu_yu joining to guo_jia_qu_yu). Several tables carry a second, unreliable copy of a real column, and jiang_xiang_leibie and ti_yu_xiang_mu each duplicate a whole table; those are marked suspect and must not be used.
+ai_context:
+  instructions: |-
+    shen_gao (height) and ti_zhong (weight) equal to 0 mean the value is missing, not an actual measurement; exclude those rows before averaging or comparing height or weight.
+    xuan_shou_bi_sai.xuan_shou_id joins to yun_dong_hui_xuan_shou.id, not directly to ren_wu.id; go through yun_dong_hui_xuan_shou to reach the person or the age they competed at.
+    jiang_pai includes a row for no medal (jiang_pai_ming = 'NA'); exclude it when counting how many medals a competitor or region has won.
+datasets:
+- name: bi_sai
+  source: olympics.bi_sai
+  description: |
+    bi_sai: the catalog of Olympic events, each one belonging to a sport and contested at the Games.
+
+    One row per Olympic event: a specific competition held within a sport, such as a weight class, distance, or discipline. Grain: one row per event. Every event belongs to exactly one sport via yun_dong_xiang_mu_id, joining to yun_dong_xiang_mu. The competitors and medals awarded in an event are recorded in xuan_shou_bi_sai, joined on id = xuan_shou_bi_sai.bi_sai_id. Do not confuse bi_sai (a single event) with yun_dong_xiang_mu (the broader sport, which may have many events) or with yun_dong_hui (the four-yearly games edition, which contains many sports).
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The unique identifier of a bi_sai record, the event that a competitor took part in.
+
+      Numeric primary key, ranging from 1 to several hundred across roughly 500 sampled rows. Referenced by xuan_shou_bi_sai.bi_sai_id to record which competitors took part in the event and what medal, if any, they won.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: yun_dong_xiang_mu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_xiang_mu_id
+    description: |
+      yun_dong_xiang_mu_id, the identifier of the sport that a bi_sai event belongs to, foreign key to yun_dong_xiang_mu.
+
+      References yun_dong_xiang_mu.id. Several events typically share the same sport, since a sport is broken into multiple weight classes, distances, or styles of competition, each with its own bi_sai row.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: bi_sai_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bi_sai_ming
+    description: |
+      bi_sai_ming, the name of a bi_sai event, describing the sport and the specific competition it covers.
+
+      Free text combining a sport with its discipline, gender category, and sometimes a weight class or distance, for example 'Swimming Men's 200 metres Freestyle' or 'Basketball Men's Basketball'. Essentially distinct per row: 500 distinct values across 500 sampled rows.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Free text combining a sport with its discipline and gender category, for example 'Swimming Men's 200 metres Freestyle'. Distinct for essentially every event.\n",
+              "id": "term_olympics_event",
+              "name": "event",
+              "summary": "event (kinds of events, names of events): a specific competition contested within a sport at the Olympics.",
+              "synonyms": [
+                "event",
+                "kinds of events",
+                "names of events"
+              ]
+            }
+          ]
+        }
+  - name: bi_sai_bian_hao_2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bi_sai_bian_hao_2
+    description: |
+      bi_sai_bian_hao_2, a numeric column on the bi_sai table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: yun_dong_xiang_mu_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_xiang_mu_bian_hao
+    description: |
+      yun_dong_xiang_mu_bian_hao, a numeric column on the bi_sai table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bi_sai_biao_ti
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bi_sai_biao_ti
+    description: |
+      bi_sai_biao_ti, a text column on the bi_sai table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: cheng_shi
+  source: olympics.cheng_shi
+  description: |
+    cheng_shi: the host cities where Olympic games editions have been held.
+
+    One row per host city. Grain: one row per city name. A city can host more than one games edition, which is why yun_dong_hui_cheng_shi exists as a bridge table between cheng_shi and yun_dong_hui rather than a direct city column on yun_dong_hui. Join to yun_dong_hui_cheng_shi on id = yun_dong_hui_cheng_shi.cheng_shi_id to find which games edition or editions a city hosted.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |-
+      id, the unique identifier of a cheng_shi record, the city that hosted one or more Olympic games editions.
+
+      Numeric primary key. Referenced by yun_dong_hui_cheng_shi.cheng_shi_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: cheng_shi_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cheng_shi_ming
+    description: |
+      cheng_shi_ming, the name of the city where a games edition took place.
+
+      Free text city name, for example 'London', 'Tokyo', or 'Rio de Janeiro'. 42 distinct cities in the sampled data.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Free text city name, for example 'London' or 'Tokyo', reached from a games edition via yun_dong_hui_cheng_shi. A city can host more than one edition.\n",
+              "id": "term_olympics_host_city",
+              "name": "host city",
+              "summary": "host city (city, where held): the city an Olympic Games edition took place in.",
+              "synonyms": [
+                "host city",
+                "city",
+                "where held"
+              ]
+            }
+          ]
+        }
+  - name: cheng_shi_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cheng_shi_bian_hao
+    description: |
+      cheng_shi_bian_hao, a numeric column on the cheng_shi table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: cheng_shi_ming_zi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cheng_shi_ming_zi
+    description: |
+      cheng_shi_ming_zi, a text column on the cheng_shi table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: guo_jia_qu_yu
+  source: olympics.guo_jia_qu_yu
+  description: |
+    guo_jia_qu_yu: the national Olympic committee regions that competitors represent.
+
+    One row per NOC region: a country or territory recognised by the International Olympic Committee for the purpose of fielding competitors. Grain: one row per region. Joins to ren_wu_qu_yu on id = ren_wu_qu_yu.qu_yu_id to find which competitors represent a region. A region groups competitors by the committee they compete under, which does not always match modern national borders.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |-
+      id, the unique identifier of a guo_jia_qu_yu record, the region a competitor represents.
+
+      Numeric primary key. Referenced by ren_wu_qu_yu.qu_yu_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: guo_jia_ao_wei_hui_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia_ao_wei_hui_dai_ma
+    description: |
+      guo_jia_ao_wei_hui_dai_ma, the three-letter NOC code the International Olympic Committee assigns to identify a region.
+
+      Three-letter code, for example 'COL' for Colombia or 'ISV' for the Virgin Islands. 231 distinct codes, one per region row.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Three-letter code assigned by the International Olympic Committee, for example 'COL' for Colombia. One code per guo_jia_qu_yu row.\n",
+              "id": "term_olympics_noc_code",
+              "name": "NOC code",
+              "summary": "NOC code (National Olympic Committee code, country code): the three-letter code identifying a region.",
+              "synonyms": [
+                "NOC code",
+                "National Olympic Committee code",
+                "country code"
+              ]
+            }
+          ]
+        }
+  - name: qu_yu_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: qu_yu_ming
+    description: |
+      qu_yu_ming, the name of the country or territory a region represents.
+
+      Free text region name, for example 'Argentina', 'Belgium', or 'Zimbabwe (Rhodesia)'. 230 distinct names across 231 rows, since a small number of historical name changes share close spellings.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Free text name of the country or territory recognised by the International Olympic Committee, for example 'Argentina' or 'Belgium'. Reflects the committee a competitor is registered under, reached through ren_wu_qu_yu and guo_jia_qu_yu, and does not always match the modern political map.\n",
+              "id": "term_olympics_region",
+              "name": "region",
+              "summary": "region (country, nation, NOC region): the National Olympic Committee area a competitor represents.",
+              "synonyms": [
+                "region",
+                "country",
+                "nation",
+                "NOC region"
+              ]
+            }
+          ]
+        }
+  - name: guo_jia_qu_yu_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia_qu_yu_bian_hao
+    description: |
+      guo_jia_qu_yu_bian_hao, a numeric column on the guo_jia_qu_yu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: guo_jia_ao_wei_dai_ma
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: guo_jia_ao_wei_dai_ma
+    description: |
+      guo_jia_ao_wei_dai_ma, a text column on the guo_jia_qu_yu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: qu_yu_ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: qu_yu_ming_cheng
+    description: |
+      qu_yu_ming_cheng, a text column on the guo_jia_qu_yu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: jiang_pai
+  source: olympics.jiang_pai
+  description: |
+    jiang_pai: the medal categories a competitor can be awarded in an event.
+
+    One row per medal category: Gold, Silver, Bronze, or a placeholder for no medal. Grain: one row per category, four rows total. Joins to xuan_shou_bi_sai on id = xuan_shou_bi_sai.jiang_pai_id to find what a competitor won in a specific event.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id, the unique identifier of a jiang_pai record, the medal category awarded in an event.
+
+      Numeric primary key, one of 1 through 4. Referenced by xuan_shou_bi_sai.jiang_pai_id. The row whose jiang_pai_ming is 'NA' represents no medal awarded and should be excluded when counting medals won.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: jiang_pai_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiang_pai_ming
+    description: |
+      jiang_pai_ming, the medal a competitor won in an event.
+
+      One of four values: 'Gold', 'Silver', 'Bronze', or 'NA'. 'NA' means the competitor did not place and holds no medal; exclude it when counting medals or gold medals.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "One of four values: 'Gold', 'Silver', 'Bronze', or 'NA' for no medal. Reached from a competitor's event result in xuan_shou_bi_sai via jiang_pai_id. Exclude the 'NA' row when counting how many medals, or how many of a specific colour, a competitor or region has won.\n",
+              "id": "term_olympics_medal",
+              "name": "medal",
+              "summary": "medal (gold medal, silver medal, bronze medal, medal name): the award category a competitor received in an event.",
+              "synonyms": [
+                "medal",
+                "gold medal",
+                "silver medal",
+                "bronze medal",
+                "medal name"
+              ]
+            }
+          ]
+        }
+  - name: jiang_pai_ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiang_pai_ming_cheng
+    description: |
+      jiang_pai_ming_cheng, a text column on the jiang_pai table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bian_hao
+    description: |
+      bian_hao, a numeric column on the jiang_pai table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: jiang_xiang_leibie
+  source: olympics.jiang_xiang_leibie
+  description: |
+    jiang_xiang_leibie: a table in the olympics schema whose data is not dependable for analysis.
+
+    Every column in this table fails to correspond to the business facts recorded elsewhere in the schema. Do not use this table to answer questions about medals or any other topic; use jiang_pai instead for medal categories.
+  fields:
+  - name: jiang_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiang_id
+    description: |
+      jiang_id, a numeric column on the jiang_xiang_leibie table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: jiang_xiang_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiang_xiang_ming
+    description: |
+      jiang_xiang_ming, a text column on the jiang_xiang_leibie table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ren_wu
+  source: olympics.ren_wu
+  description: |
+    ren_wu: the people who competed as athletes in the Olympic Games.
+
+    One row per person. Grain: one row per athlete, regardless of how many games editions or events they took part in. Joins to yun_dong_hui_xuan_shou on id = yun_dong_hui_xuan_shou.ren_wu_id to find which games editions, and at what age, a person competed, and to ren_wu_qu_yu on id = ren_wu_qu_yu.ren_wu_id to find the region they represent. Do not confuse ren_wu (a person, one row each) with yun_dong_hui_xuan_shou (a person's participation in one games edition, many rows per person) or xuan_shou_bi_sai (a person's participation in one event, many rows per person).
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id, the unique identifier of a ren_wu record, the person who competed as an athlete.
+
+      Numeric primary key. Referenced by yun_dong_hui_xuan_shou.ren_wu_id and ren_wu_qu_yu.ren_wu_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "The identifier of the person. Their full name is in ren_wu.quan_ming. Their participation in a specific games edition, including the age they competed at, is recorded one row per edition in yun_dong_hui_xuan_shou; their participation in a specific event and any medal won is recorded one row per event in xuan_shou_bi_sai.\n",
+              "id": "term_olympics_athlete",
+              "name": "athlete",
+              "summary": "athlete (competitor): a person who competed in the Olympic Games.",
+              "synonyms": [
+                "athlete",
+                "competitor"
+              ]
+            }
+          ]
+        }
+  - name: quan_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: quan_ming
+    description: |
+      quan_ming, the full name of the athlete who competed.
+
+      Free text name, typically a first and last name, for example 'James Clark' or 'Enrico Colli'. Nearly unique per person: 499 distinct values across 500 sampled rows.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Free text, typically a first and last name, for example 'James Clark'. Nearly unique per person in the sample.\n",
+              "id": "term_olympics_athlete_name",
+              "name": "athlete name",
+              "summary": "athlete name (competitor name, name, who, full name): the full name of the person who competed.",
+              "synonyms": [
+                "athlete name",
+                "competitor name",
+                "name",
+                "who",
+                "full name"
+              ]
+            }
+          ]
+        }
+  - name: xing_bie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xing_bie
+    description: |-
+      xing_bie, the gender of the athlete, recorded as one of two categories.
+
+      'M' for male or 'F' for female. No other values appear in the sampled data.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Two values, 'M' for male and 'F' for female. No other values appear in the data.",
+              "id": "term_olympics_gender",
+              "name": "gender",
+              "summary": "gender (sex, male, female): the category recording whether a competitor is male or female.",
+              "synonyms": [
+                "gender",
+                "sex",
+                "male",
+                "female"
+              ]
+            }
+          ]
+        }
+  - name: shen_gao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shen_gao
+    description: |
+      shen_gao, the height of the athlete, recorded in centimetres.
+
+      Integer centimetres, observed range 0 to 206 in the sample. A value of 0 means the height is missing, not that the person is zero centimetres tall; exclude 0 rows before averaging or comparing this column.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ti_zhong
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ti_zhong
+    description: |
+      ti_zhong, the weight of the athlete, recorded in kilograms.
+
+      Integer kilograms, observed range 0 to 99 in the sample. A value of 0 means the weight is missing, not that the person is weightless; exclude 0 rows before averaging or comparing this column.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: quan_ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: quan_ming_cheng
+    description: |
+      quan_ming_cheng, a text column on the ren_wu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: xing_bie_leibie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xing_bie_leibie
+    description: |
+      xing_bie_leibie, a text column on the ren_wu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ren_shi_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ren_shi_bian_hao
+    description: |
+      ren_shi_bian_hao, a numeric column on the ren_wu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_olympics_average_height
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(shen_gao)
+    description: |
+      average height: the mean height of athletes, computed over shen_gao.
+
+      AVG(shen_gao) over ren_wu, in centimetres. Exclude shen_gao = 0 first, since 0 means the height is missing rather than an actual measurement. A recurring comparison in business questions is an athlete whose height exceeds a fraction of this average, for example more than 87 percent of it.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average height"
+        }
+  - name: metric_olympics_average_weight
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(ti_zhong)
+    description: |
+      average weight: the mean weight of athletes, computed over ti_zhong.
+
+      AVG(ti_zhong) over ren_wu, in kilograms. Exclude ti_zhong = 0 first, since 0 means the weight is missing rather than an actual measurement.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average weight"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ren_wu_qu_yu
+  source: olympics.ren_wu_qu_yu
+  description: |
+    ren_wu_qu_yu: which national Olympic committee region each person represents.
+
+    One row per person, linking a competitor to the region they compete under. Grain: one row per ren_wu_id. Joins to ren_wu on ren_wu_id = ren_wu.id and to guo_jia_qu_yu on qu_yu_id = guo_jia_qu_yu.id. A region reflects the NOC a person is registered under, which is not always their country of birth or residence.
+  fields:
+  - name: ren_wu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ren_wu_id
+    description: |-
+      ren_wu_id, the identifier of the person, foreign key to ren_wu.
+
+      References ren_wu.id. One row per person in this table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: qu_yu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: qu_yu_id
+    description: |-
+      qu_yu_id, the identifier of the region, foreign key to guo_jia_qu_yu.
+
+      References guo_jia_qu_yu.id. Many people share the same region.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ren_wu_bianhao_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ren_wu_bianhao_ref
+    description: |
+      ren_wu_bianhao_ref, a numeric column on the ren_wu_qu_yu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: qu_yu_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: qu_yu_bian_hao
+    description: |
+      qu_yu_bian_hao, a numeric column on the ren_wu_qu_yu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ti_yu_xiang_mu
+  source: olympics.ti_yu_xiang_mu
+  description: |
+    ti_yu_xiang_mu: a table in the olympics schema whose data is not dependable for analysis.
+
+    Every column in this table fails to correspond to the business facts recorded elsewhere in the schema. Do not use this table to answer questions about sports or any other topic; use yun_dong_xiang_mu instead for sports.
+  fields:
+  - name: xiang_mu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiang_mu_id
+    description: |
+      xiang_mu_id, a numeric column on the ti_yu_xiang_mu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ti_yu_xiang_mu_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ti_yu_xiang_mu_ming
+    description: |
+      ti_yu_xiang_mu_ming, a text column on the ti_yu_xiang_mu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: xuan_shou_bi_sai
+  source: olympics.xuan_shou_bi_sai
+  description: |
+    xuan_shou_bi_sai: a competitor's participation in one Olympic event, with the medal they won.
+
+    One row per competitor per event. Grain: one row per (xuan_shou_id, bi_sai_id) pair. Joins to bi_sai on bi_sai_id = bi_sai.id, to jiang_pai on jiang_pai_id = jiang_pai.id, and xuan_shou_id joins to yun_dong_hui_xuan_shou.id, not directly to ren_wu.id, because xuan_shou_id names a person's participation in a specific games edition rather than the person themselves. To reach the person and their region, join through yun_dong_hui_xuan_shou first.
+  fields:
+  - name: bi_sai_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bi_sai_id
+    description: |-
+      bi_sai_id, the identifier of the event, foreign key to bi_sai.
+
+      References bi_sai.id. Several competitors typically share one event.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: xuan_shou_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuan_shou_id
+    description: |
+      xuan_shou_id, the identifier of the competitor's participation, foreign key to yun_dong_hui_xuan_shou.
+
+      References yun_dong_hui_xuan_shou.id, a person's appearance in one games edition, not ren_wu.id directly. The number of competitors in an event can be counted by grouping rows on bi_sai_id and counting distinct xuan_shou_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: jiang_pai_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiang_pai_id
+    description: |
+      jiang_pai_id, the identifier of the medal, foreign key to jiang_pai.
+
+      References jiang_pai.id. The competitor whose jiang_pai_id is 1 is the champion (gold), 2 the runner-up (silver), and 3 third place (bronze); 4 means no medal was won.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: xuan_shou_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuan_shou_bian_hao
+    description: |
+      xuan_shou_bian_hao, a numeric column on the xuan_shou_bi_sai table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bi_sai_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bi_sai_bian_hao
+    description: |
+      bi_sai_bian_hao, a numeric column on the xuan_shou_bi_sai table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: jiang_pai_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiang_pai_bian_hao
+    description: |
+      jiang_pai_bian_hao, a numeric column on the xuan_shou_bi_sai table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_olympics_medal_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(jiang_pai_id)
+    description: |
+      medal count: the number of medals won, computed over jiang_pai_id.
+
+      COUNT of xuan_shou_bi_sai rows joined to jiang_pai, excluding the row where jiang_pai_ming is 'NA' since that represents no medal. Group by xuan_shou_id (through yun_dong_hui_xuan_shou to reach a person) or by region to find who or which region won the most medals.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "medal count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: yun_dong_hui
+  source: olympics.yun_dong_hui
+  description: |
+    yun_dong_hui: one edition of the Olympic Games, held in a given year and season.
+
+    One row per games edition, for example the 1996 Summer Games or the 2014 Winter Games. Grain: one row per edition, 51 editions in the sampled data ranging from 1896 to 2016. Joins to yun_dong_hui_cheng_shi on id = yun_dong_hui_cheng_shi.yun_dong_hui_id to find the host city, and to yun_dong_hui_xuan_shou on id = yun_dong_hui_xuan_shou.yun_dong_hui_id to find who competed. Do not confuse an edition (yun_dong_hui, one row per year and season) with an event (bi_sai, one row per specific competition within a sport).
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id, the unique identifier of a yun_dong_hui record, one games edition.
+
+      Numeric primary key. Referenced by yun_dong_hui_cheng_shi.yun_dong_hui_id and yun_dong_hui_xuan_shou.yun_dong_hui_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: yun_dong_hui_nian_fen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_hui_nian_fen
+    description: |
+      yun_dong_hui_nian_fen, the calendar year a games edition was held.
+
+      Four-digit year, observed range 1896 to 2016 in the sample. Combined with ji_jie it forms yun_dong_hui_ming.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Four-digit year, for example 1896 or 2016. Paired with the season in ji_jie to form the edition's full name in yun_dong_hui_ming.\n",
+              "id": "term_olympics_games_year",
+              "name": "games year",
+              "summary": "games year (year): the calendar year in which an Olympic Games edition was held.",
+              "synonyms": [
+                "games year",
+                "year"
+              ]
+            }
+          ]
+        }
+  - name: yun_dong_hui_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_hui_ming
+    description: |
+      yun_dong_hui_ming, the name of a games edition, combining its year and season.
+
+      Formatted as the year followed by the season, for example '1976 Winter' or '2012 Summer'. One row per edition; this is the form most business questions use to pick out a specific games edition.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Formatted as the year followed by the season, for example '1976 Winter' or '2012 Summer'. Business questions that name a specific edition, such as 'the 1984 Summer Olympics' or '1994 Winter', are asking for the row where yun_dong_hui_ming equals that exact string. The year alone is stored separately in yun_dong_hui_nian_fen and the season in ji_jie.\n",
+              "id": "term_olympics_games_edition",
+              "name": "Olympic Games edition",
+              "summary": "Olympic Games edition (games edition, the Olympic Games): one occurrence of the Olympic Games, identified by the year and season it was held in.",
+              "synonyms": [
+                "games edition",
+                "Olympic Games edition",
+                "the Olympic Games"
+              ]
+            }
+          ]
+        }
+  - name: ji_jie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_jie
+    description: |
+      ji_jie, the season a games edition was held in.
+
+      'Summer' or 'Winter'. Before 1994 both seasons of an Olympic year were held in the same calendar year; from 1994 onward the Winter Games moved to its own two-year offset from the Summer Games.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Two values: 'Summer' or 'Winter'. Before 1994 both seasons of an Olympic year were held in the same calendar year; since then the Winter Games run on their own four-year cycle offset from the Summer Games, so a question about years that only held a Summer Games needs to check that no Winter row shares that year rather than assuming the two seasons always pair up.\n",
+              "id": "term_olympics_season",
+              "name": "season",
+              "summary": "season (Summer Games, Winter Games): which half of a calendar cycle an Olympic Games edition was held in.",
+              "synonyms": [
+                "season",
+                "Summer Games",
+                "Winter Games"
+              ]
+            }
+          ]
+        }
+  - name: yun_dong_hui_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_hui_bian_hao
+    description: |
+      yun_dong_hui_bian_hao, a numeric column on the yun_dong_hui table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: yun_dong_hui_ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_hui_ming_cheng
+    description: |
+      yun_dong_hui_ming_cheng, a text column on the yun_dong_hui table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: yun_dong_hui_nian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_hui_nian
+    description: |
+      yun_dong_hui_nian, a numeric column on the yun_dong_hui table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: yun_dong_hui_cheng_shi
+  source: olympics.yun_dong_hui_cheng_shi
+  description: |
+    yun_dong_hui_cheng_shi: which city hosted each Olympic games edition.
+
+    One row per games edition, linking it to the city that hosted it. Grain: one row per yun_dong_hui_id. Joins to yun_dong_hui on yun_dong_hui_id = yun_dong_hui.id and to cheng_shi on cheng_shi_id = cheng_shi.id. Exists as a separate table, rather than a city column on yun_dong_hui, because the same city can host more than one edition.
+  fields:
+  - name: yun_dong_hui_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_hui_id
+    description: |-
+      yun_dong_hui_id, the identifier of the games edition, foreign key to yun_dong_hui.
+
+      References yun_dong_hui.id. One row per edition.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: cheng_shi_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cheng_shi_id
+    description: |
+      cheng_shi_id, the identifier of the host city, foreign key to cheng_shi.
+
+      References cheng_shi.id. A city can appear on more than one row if it hosted multiple editions.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: cheng_shi_bianhao_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cheng_shi_bianhao_ref
+    description: |
+      cheng_shi_bianhao_ref, a numeric column on the yun_dong_hui_cheng_shi table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: yun_dong_hui_bianhao_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_hui_bianhao_ref
+    description: |
+      yun_dong_hui_bianhao_ref, a numeric column on the yun_dong_hui_cheng_shi table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: yun_dong_hui_xuan_shou
+  source: olympics.yun_dong_hui_xuan_shou
+  description: |
+    yun_dong_hui_xuan_shou: a person's participation in one Olympic games edition, and the age they competed at.
+
+    One row per person per games edition. Grain: one row per (ren_wu_id, yun_dong_hui_id) pair. Joins to ren_wu on ren_wu_id = ren_wu.id, to yun_dong_hui on yun_dong_hui_id = yun_dong_hui.id, and its id is referenced by xuan_shou_bi_sai.xuan_shou_id to record what events that participation covered. The number of editions a person has competed in can be counted by grouping on ren_wu_id and counting rows; the number of competitors in an edition can be counted by grouping on yun_dong_hui_id.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |-
+      id, the unique identifier of a yun_dong_hui_xuan_shou record, one person's participation in one games edition.
+
+      Numeric primary key. Referenced by xuan_shou_bi_sai.xuan_shou_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: yun_dong_hui_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_hui_id
+    description: |-
+      yun_dong_hui_id, the identifier of the games edition, foreign key to yun_dong_hui.
+
+      References yun_dong_hui.id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ren_wu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ren_wu_id
+    description: |
+      ren_wu_id, the identifier of the person, foreign key to ren_wu.
+
+      References ren_wu.id. The same person can appear on multiple rows, one per games edition they competed in.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nian_ling
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nian_ling
+    description: |
+      nian_ling, the age of the person at the time of that games edition.
+
+      Integer years, observed range 15 to 53 in the sample. A person's age differs across the rows for different editions, so an earlier edition's row holds a lower age than a later one; comparing two of a person's rows tells you which edition came first.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Integer years, observed range 15 to 53 in the sample. Recorded per games edition, not per person, so the same person's age here differs across the editions they competed in; comparing ages across two of a person's rows tells you which edition happened first.\n",
+              "id": "term_olympics_age",
+              "name": "age",
+              "summary": "age (how old, years old): a competitor's age at the time of a specific Olympic Games edition.",
+              "synonyms": [
+                "age",
+                "how old",
+                "years old"
+              ]
+            }
+          ]
+        }
+  - name: yun_dong_hui_ref_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_hui_ref_id
+    description: |
+      yun_dong_hui_ref_id, a numeric column on the yun_dong_hui_xuan_shou table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: yun_dong_hui_xuan_shou_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_hui_xuan_shou_bian_hao
+    description: |
+      yun_dong_hui_xuan_shou_bian_hao, a numeric column on the yun_dong_hui_xuan_shou table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ren_wu_bian_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ren_wu_bian_hao
+    description: |
+      ren_wu_bian_hao, a numeric column on the yun_dong_hui_xuan_shou table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_olympics_average_age
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(nian_ling)
+    description: |
+      average age: the mean age of competitors, computed over nian_ling.
+
+      AVG(nian_ling) over yun_dong_hui_xuan_shou, commonly filtered by games edition (yun_dong_hui_ming), season (ji_jie), or region (through ren_wu_qu_yu and guo_jia_qu_yu). No rows need excluding, since age has no missing-value sentinel.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "dimensions": [
+            "olympics.yun_dong_hui_xuan_shou.yun_dong_hui_id"
+          ],
+          "name": "average age"
+        }
+  - name: metric_olympics_competitor_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(ren_wu_id)
+    description: |
+      competitor count: the number of competitors who took part, computed over the ren_wu_id column.
+
+      COUNT of yun_dong_hui_xuan_shou rows, typically grouped by yun_dong_hui_id to find which games edition had the most competitors, or joined further to xuan_shou_bi_sai and bi_sai to count competitors in a specific event.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "competitor count"
+        }
+  - name: metric_olympics_maximum_age
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(nian_ling)
+    description: |
+      maximum age: the oldest age at which a competitor took part, computed over nian_ling.
+
+      MAX(nian_ling) over yun_dong_hui_xuan_shou. Used to find the oldest competitor in the data, typically joined back to ren_wu for the person's name.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "maximum age"
+        }
+  - name: metric_olympics_minimum_age
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(nian_ling)
+    description: |
+      minimum age: the youngest age at which a competitor took part, computed over nian_ling.
+
+      MIN(nian_ling) over yun_dong_hui_xuan_shou. Used to find who joined the Olympics at the earliest age, typically joined back to ren_wu for the person's name.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "minimum age"
+        }
+  - name: metric_olympics_participation_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(yun_dong_hui_id)
+    description: |
+      participation count: how many Olympic Games editions a person has competed in, computed over yun_dong_hui_id.
+
+      COUNT of yun_dong_hui_xuan_shou rows grouped by ren_wu_id. The person with the highest count has participated in the most Olympic Games editions.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "participation count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: yun_dong_xiang_mu
+  source: olympics.yun_dong_xiang_mu
+  description: |
+    yun_dong_xiang_mu: the sports contested at the Olympic Games.
+
+    One row per sport, for example Athletics, Cycling, or Modern Pentathlon. Grain: one row per sport, 66 sports in the sampled data. Joins to bi_sai on id = bi_sai.yun_dong_xiang_mu_id; a sport typically has many events (bi_sai rows), one per weight class, distance, or discipline.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |-
+      id, the unique identifier of a yun_dong_xiang_mu record, a sport contested at the Games.
+
+      Numeric primary key. Referenced by bi_sai.yun_dong_xiang_mu_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: yun_dong_xiang_mu_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_xiang_mu_ming
+    description: |
+      yun_dong_xiang_mu_ming, the name of the sport contested.
+
+      Free text sport name, for example 'Cycling', 'Athletics', or 'Art Competitions'. One row per distinct sport name; 66 distinct values in the sample.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Free text, for example 'Cycling', 'Athletics', or 'Modern Pentathlon'. A sport typically contains several events, reached through bi_sai.yun_dong_xiang_mu_id.\n",
+              "id": "term_olympics_sport",
+              "name": "sport",
+              "summary": "sport (sport name): the broad discipline an Olympic event belongs to.",
+              "synonyms": [
+                "sport",
+                "sport name"
+              ]
+            }
+          ]
+        }
+  - name: yun_dong_xiang_mu_ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yun_dong_xiang_mu_ming_cheng
+    description: |
+      yun_dong_xiang_mu_ming_cheng, a numeric column on the yun_dong_xiang_mu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: xiang_mu_ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiang_mu_ming_cheng
+    description: |
+      xiang_mu_ming_cheng, a text column on the yun_dong_xiang_mu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_olympics_bi_sai_xuan_shou_bi_sai_229f4661
+  from: xuan_shou_bi_sai
+  to: bi_sai
+  from_columns:
+  - bi_sai_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins bi_sai (an event) to xuan_shou_bi_sai (a competitor's participation in it) on the event identifier.
+
+      One bi_sai row can match many xuan_shou_bi_sai rows, one per competitor who took part in that event.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between bi_sai and xuan_shou_bi_sai in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_olympics_bi_sai_yun_dong_xiang_mu_a9e8301a
+  from: bi_sai
+  to: yun_dong_xiang_mu
+  from_columns:
+  - yun_dong_xiang_mu_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins bi_sai (an event) to yun_dong_xiang_mu (the sport it belongs to) on the sport identifier.
+
+      Many bi_sai rows can match one yun_dong_xiang_mu row, since a sport is broken into multiple events.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between bi_sai and yun_dong_xiang_mu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_olympics_cheng_shi_yun_dong_hui_cheng_shi_e9f2d983
+  from: yun_dong_hui_cheng_shi
+  to: cheng_shi
+  from_columns:
+  - cheng_shi_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins cheng_shi (a host city) to yun_dong_hui_cheng_shi (the games edition it hosted) on the city identifier.
+
+      One cheng_shi row can match many yun_dong_hui_cheng_shi rows if the same city hosted more than one games edition.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between cheng_shi and yun_dong_hui_cheng_shi in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_olympics_guo_jia_qu_yu_ren_wu_qu_yu_9fcfb851
+  from: ren_wu_qu_yu
+  to: guo_jia_qu_yu
+  from_columns:
+  - qu_yu_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins guo_jia_qu_yu (a region) to ren_wu_qu_yu (the people who represent it) on the region identifier.
+
+      One guo_jia_qu_yu row can match many ren_wu_qu_yu rows, one per person registered under that region.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between guo_jia_qu_yu and ren_wu_qu_yu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_olympics_jiang_pai_xuan_shou_bi_sai_f9c45d0e
+  from: xuan_shou_bi_sai
+  to: jiang_pai
+  from_columns:
+  - jiang_pai_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins jiang_pai (a medal category) to xuan_shou_bi_sai (the competitor who won it) on the medal identifier.
+
+      One jiang_pai row can match many xuan_shou_bi_sai rows, since many competitors can win the same medal category across different events.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between jiang_pai and xuan_shou_bi_sai in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_olympics_ren_wu_qu_yu_yun_dong_hui_xuan_shou_2f1320ac
+  from: yun_dong_hui_xuan_shou
+  to: ren_wu_qu_yu
+  from_columns:
+  - ren_wu_id
+  to_columns:
+  - ren_wu_id
+  ai_context:
+    instructions: |
+      Joins ren_wu_qu_yu (a person's region) to yun_dong_hui_xuan_shou (that person's participation in a games edition) on the person identifier.
+
+      One ren_wu_qu_yu row can match many yun_dong_hui_xuan_shou rows, one per games edition the person competed in. Use this path to find a competitor's region alongside the edition they took part in.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ren_wu_qu_yu and yun_dong_hui_xuan_shou in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_olympics_ren_wu_ren_wu_qu_yu_b7449e8f
+  from: ren_wu
+  to: ren_wu_qu_yu
+  from_columns:
+  - id
+  to_columns:
+  - ren_wu_id
+  ai_context:
+    instructions: |
+      Joins ren_wu (a person) to ren_wu_qu_yu (the region they represent) on the person identifier.
+
+      Each ren_wu row matches exactly one ren_wu_qu_yu row, since every person is registered under exactly one region.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ren_wu and ren_wu_qu_yu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_olympics_ren_wu_yun_dong_hui_xuan_shou_1de7d2a7
+  from: yun_dong_hui_xuan_shou
+  to: ren_wu
+  from_columns:
+  - ren_wu_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins ren_wu (a person) to yun_dong_hui_xuan_shou (their participation in a games edition) on the person identifier.
+
+      One ren_wu row can match many yun_dong_hui_xuan_shou rows, one per games edition the person competed in.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ren_wu and yun_dong_hui_xuan_shou in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_olympics_xuan_shou_bi_sai_yun_dong_hui_xuan_shou_12eec4d4
+  from: xuan_shou_bi_sai
+  to: yun_dong_hui_xuan_shou
+  from_columns:
+  - xuan_shou_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins xuan_shou_bi_sai (a competitor's participation in an event) to yun_dong_hui_xuan_shou (that competitor's participation in the games edition) on the competitor identifier.
+
+      Many xuan_shou_bi_sai rows can match one yun_dong_hui_xuan_shou row, since a person can compete in several events within the same games edition. This is the path from an event result back to the person and the age they competed at.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between xuan_shou_bi_sai and yun_dong_hui_xuan_shou in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_olympics_yun_dong_hui_cheng_shi_yun_dong_hui_xuan_shou_75c54c79
+  from: yun_dong_hui_xuan_shou
+  to: yun_dong_hui_cheng_shi
+  from_columns:
+  - yun_dong_hui_id
+  to_columns:
+  - yun_dong_hui_id
+  ai_context:
+    instructions: |
+      Joins yun_dong_hui_cheng_shi (a games edition's host city) to yun_dong_hui_xuan_shou (the competitors in that edition) on the games edition identifier.
+
+      One yun_dong_hui_cheng_shi row can match many yun_dong_hui_xuan_shou rows, one per competitor in that edition.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between yun_dong_hui_cheng_shi and yun_dong_hui_xuan_shou in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_olympics_yun_dong_hui_yun_dong_hui_cheng_shi_c6c8ae7f
+  from: yun_dong_hui
+  to: yun_dong_hui_cheng_shi
+  from_columns:
+  - id
+  to_columns:
+  - yun_dong_hui_id
+  ai_context:
+    instructions: |
+      Joins yun_dong_hui (a games edition) to yun_dong_hui_cheng_shi (the city that hosted it) on the games edition identifier.
+
+      Each yun_dong_hui row matches exactly one yun_dong_hui_cheng_shi row, since every edition has one host city record.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between yun_dong_hui and yun_dong_hui_cheng_shi in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_olympics_yun_dong_hui_yun_dong_hui_xuan_shou_4ced68a3
+  from: yun_dong_hui_xuan_shou
+  to: yun_dong_hui
+  from_columns:
+  - yun_dong_hui_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Joins yun_dong_hui (a games edition) to yun_dong_hui_xuan_shou (the competitors in it) on the games edition identifier.
+
+      One yun_dong_hui row can match many yun_dong_hui_xuan_shou rows, one per competitor in that edition.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between yun_dong_hui and yun_dong_hui_xuan_shou in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+metrics:
+- name: metric_olympics_gold_medal_count
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: COUNT(*) WHERE jiang_pai_ming = 'Gold'
+  description: |
+    gold medal count: the number of gold medals a competitor or region has won, filtering jiang_pai_ming to the gold category.
+
+    COUNT of xuan_shou_bi_sai rows joined to jiang_pai where jiang_pai_ming is 'Gold'. This is the metric behind business questions about who or which region received the most gold medals.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "olympics.xuan_shou_bi_sai",
+        "name": "gold medal count"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_4913",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0000",
+          "sql": "SELECT \"T1\".\"yun_dong_hui_ming\" FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"quan_ming\" = 'John Aalberg'",
+          "summary": "Please list the names of all the Olympic games that John Aalberg has taken part in."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4914",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0001",
+          "sql": "SELECT \"T1\".\"yun_dong_hui_ming\" FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"quan_ming\" = 'John Aalberg' AND \"T2\".\"nian_ling\" = 31",
+          "summary": "What was the name of the Olympic game that John Aalberg took part in when he was 31?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4915",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0002",
+          "sql": "SELECT \"T2\".\"nian_ling\" FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"quan_ming\" = 'John Aalberg' AND \"T1\".\"yun_dong_hui_ming\" = '1994 Winter'",
+          "summary": "When John Aalberg took part in the 1994 Winter Olympic Game, how old was he?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4916",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0003",
+          "sql": "SELECT COUNT(\"T1\".\"ren_wu_id\") FROM \"olympics\".\"ren_wu_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"guo_jia_qu_yu\" AS \"T2\" ON \"T1\".\"qu_yu_id\" = \"T2\".\"id\" WHERE \"T2\".\"qu_yu_ming\" = 'Finland'",
+          "summary": "How many Olympic competitors are from Finland?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4917",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0004",
+          "sql": "SELECT \"T3\".\"quan_ming\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"qu_yu_ming\" = 'Finland'",
+          "summary": "Please list the names of all the Olympic competitors from Finland."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4918",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0005",
+          "sql": "SELECT \"T1\".\"qu_yu_ming\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"quan_ming\" = 'John Aalberg'",
+          "summary": "The Olympic competitor John Aalberg is from which region?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4919",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0006",
+          "sql": "SELECT \"T1\".\"guo_jia_ao_wei_hui_dai_ma\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"xing_bie\" = 'M' ORDER BY \"T3\".\"shen_gao\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the NOC code of the region where the tallest male Olympic competitor is from?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4920",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0007",
+          "sql": "SELECT COUNT(\"T3\".\"id\") FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"qu_yu_ming\" = 'Finland' AND \"T3\".\"xing_bie\" = 'F'",
+          "summary": "Among all the Olympic competitors from Finland, how many of them are female?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4924",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0008",
+          "sql": "SELECT COUNT(\"T1\".\"yun_dong_hui_id\") FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" WHERE \"T2\".\"cheng_shi_ming\" = 'London'",
+          "summary": "For how many times has London held the Olympic games?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4927",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0009",
+          "sql": "SELECT \"T1\".\"yun_dong_xiang_mu_ming\" FROM \"olympics\".\"yun_dong_xiang_mu\" AS \"T1\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_xiang_mu_id\" WHERE \"T2\".\"bi_sai_ming\" LIKE 'Shooting Women%s Trap'",
+          "summary": "Which sport does the event \"Shooting Women's Trap\" belong to?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4928",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0010",
+          "sql": "SELECT \"T2\".\"cheng_shi_ming\" FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T3\".\"yun_dong_hui_ming\" = '1936 Winter'",
+          "summary": "Which city was the host of 1936 Winter Olympic Games?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4929",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0011",
+          "sql": "SELECT COUNT(\"T3\".\"id\") FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T2\".\"cheng_shi_ming\" = 'London'",
+          "summary": "How many Olympic Games has London hosted?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4931",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0012",
+          "sql": "SELECT \"T1\".\"qu_yu_ming\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"quan_ming\" = 'Peter Kohnke'",
+          "summary": "For Peter Kohnke, show the name of his/her region."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4932",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0013",
+          "sql": "SELECT \"T2\".\"yun_dong_hui_id\" FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"quan_ming\" = 'Jessica Carolina Aguilera Aguilera'",
+          "summary": "Which game has Jessica Carolina Aguilera Aguilera participated in? Give the id of the game."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4934",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0014",
+          "sql": "SELECT \"T3\".\"quan_ming\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"qu_yu_ming\" = 'Sweden' ORDER BY \"T3\".\"shen_gao\" DESC NULLS LAST LIMIT 1",
+          "summary": "Give the name of the tallest athlete from Sweden."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4935",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0015",
+          "sql": "SELECT COUNT(\"T1\".\"ren_wu_id\") FROM \"olympics\".\"ren_wu_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"guo_jia_qu_yu\" AS \"T2\" ON \"T1\".\"qu_yu_id\" = \"T2\".\"id\" WHERE \"T2\".\"qu_yu_ming\" = 'Guatemala'",
+          "summary": "How many athletes in the database are from Guatemala?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4937",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0016",
+          "sql": "SELECT \"T1\".\"quan_ming\" FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" WHERE \"T2\".\"id\" = 90991",
+          "summary": "Show the name of the competitor id 90991."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4939",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0017",
+          "sql": "SELECT CAST(\"T1\".\"ti_zhong\" AS REAL) / NULLIF((\"T1\".\"shen_gao\" * \"T1\".\"shen_gao\"), 0) FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" WHERE \"T2\".\"id\" = 147420",
+          "summary": "Calculate the bmi of the competitor id 147420."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4940",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0018",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T3\".\"xing_bie\" = 'M' THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"ren_wu_id\"), 0) FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"qu_yu_ming\" = 'Estonia'",
+          "summary": "What is the percentage of male athletes from Estonia?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4941",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0019",
+          "sql": "SELECT \"T1\".\"quan_ming\" FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" ORDER BY \"T2\".\"nian_ling\" NULLS FIRST LIMIT 1",
+          "summary": "Who is the youngest person who participated in the Olympics?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4942",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0020",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"olympics\".\"xuan_shou_bi_sai\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"xuan_shou_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T3\" ON \"T1\".\"bi_sai_id\" = \"T3\".\"id\" WHERE \"T3\".\"bi_sai_ming\" LIKE 'Basketball Men%s Basketball' AND \"T2\".\"nian_ling\" = 24",
+          "summary": "How many 24 years old competitors competed in Men's Basketball?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4943",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0021",
+          "sql": "SELECT \"T2\".\"bi_sai_ming\" FROM \"olympics\".\"yun_dong_xiang_mu\" AS \"T1\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_xiang_mu_id\" WHERE \"T1\".\"yun_dong_xiang_mu_ming\" = 'Art Competitions'",
+          "summary": "What are the names of the events under Art Competitions?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4944",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0022",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" INNER JOIN \"olympics\".\"xuan_shou_bi_sai\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"xuan_shou_id\" INNER JOIN \"olympics\".\"jiang_pai\" AS \"T4\" ON \"T3\".\"jiang_pai_id\" = \"T4\".\"id\" WHERE \"T1\".\"quan_ming\" = 'Henk Jan Zwolle' AND \"T4\".\"jiang_pai_ming\" = 'Gold'",
+          "summary": "How many gold medals does Henk Jan Zwolle have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4946",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0023",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" WHERE \"T1\".\"qu_yu_ming\" = 'Australia'",
+          "summary": "How many athletes are from Australia?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4948",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0024",
+          "sql": "SELECT COUNT(\"T3\".\"id\") FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T2\".\"cheng_shi_ming\" = 'Stockholm' AND \"T3\".\"ji_jie\" = 'Summer'",
+          "summary": "How many Summer games were held in Stockholm?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4949",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0025",
+          "sql": "SELECT \"T2\".\"qu_yu_ming\" FROM \"olympics\".\"ren_wu_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"guo_jia_qu_yu\" AS \"T2\" ON \"T1\".\"qu_yu_id\" = \"T2\".\"id\" GROUP BY \"T2\".\"qu_yu_ming\" ORDER BY COUNT(\"T1\".\"ren_wu_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which region do most of the athletes are from?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4956",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0026",
+          "sql": "SELECT \"cheng_shi_ming\" FROM \"olympics\".\"cheng_shi\" WHERE \"cheng_shi_ming\" LIKE 'M%'",
+          "summary": "In which cities beginning with the letter M have the Olympic Games been held?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4957",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0027",
+          "sql": "SELECT \"T2\".\"cheng_shi_ming\" FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T3\".\"yun_dong_hui_ming\" IN ('1976 Summer', '1976 Winter')",
+          "summary": "In which cities were the 1976 winter and summer games held?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4959",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0028",
+          "sql": "SELECT \"T1\".\"quan_ming\" FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" INNER JOIN \"olympics\".\"xuan_shou_bi_sai\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"xuan_shou_id\" INNER JOIN \"olympics\".\"jiang_pai\" AS \"T4\" ON \"T3\".\"jiang_pai_id\" = \"T4\".\"id\" WHERE \"T4\".\"id\" <> 4 GROUP BY \"T1\".\"quan_ming\" ORDER BY COUNT(\"T4\".\"id\") DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the competitor who has won the most medals?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4960",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0029",
+          "sql": "SELECT \"T1\".\"qu_yu_ming\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"quan_ming\" = 'Estelle Nze Minko'",
+          "summary": "Where is competitor Estelle Nze Minko from?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4961",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0030",
+          "sql": "SELECT DISTINCT \"T1\".\"yun_dong_xiang_mu_ming\" FROM \"olympics\".\"yun_dong_xiang_mu\" AS \"T1\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_xiang_mu_id\" INNER JOIN \"olympics\".\"xuan_shou_bi_sai\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"bi_sai_id\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T4\" ON \"T3\".\"xuan_shou_id\" = \"T4\".\"id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T5\" ON \"T4\".\"ren_wu_id\" = \"T5\".\"id\" WHERE \"T5\".\"quan_ming\" = 'Chin Eei Hui'",
+          "summary": "What is the name of all the sports Chin Eei Hui has competed in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4962",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0031",
+          "sql": "SELECT \"T1\".\"quan_ming\" FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" ORDER BY \"T2\".\"nian_ling\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the oldest person who participated in the Olympic Games?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4963",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0032",
+          "sql": "SELECT \"T1\".\"yun_dong_hui_ming\" FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"xing_bie\" = 'F' GROUP BY \"T1\".\"yun_dong_hui_ming\" ORDER BY COUNT(\"T2\".\"ren_wu_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "In which Olympic Games have the largest number of women participation?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4964",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0033",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"qu_yu_ming\" = 'Belgium' AND \"T3\".\"xing_bie\" = 'M'",
+          "summary": "How many males from Belgium have participated in an Olympic Games?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4965",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0034",
+          "sql": "SELECT COUNT(\"T1\".\"ren_wu_id\") FROM \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T2\" ON \"T1\".\"yun_dong_hui_id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T3\" ON \"T2\".\"cheng_shi_id\" = \"T3\".\"id\" WHERE \"T3\".\"cheng_shi_ming\" = 'Sapporo'",
+          "summary": "How many persons participated in the Sapporo Olympics?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4966",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0035",
+          "sql": "SELECT \"T1\".\"yun_dong_hui_ming\" FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"quan_ming\" = 'Morten Aleksander Djupvik'",
+          "summary": "In which Olympic Games has Morten Aleksander Djupvik participated?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4968",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0036",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"bi_sai_ming\") FROM \"olympics\".\"yun_dong_xiang_mu\" AS \"T1\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_xiang_mu_id\" WHERE \"T1\".\"yun_dong_xiang_mu_ming\" = 'Modern Pentathlon'",
+          "summary": "How many different events are there of Modern Pentathlon?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4969",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0037",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T1\".\"xing_bie\" = 'F' THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id\"), 0) FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" INNER JOIN \"olympics\".\"xuan_shou_bi_sai\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"xuan_shou_id\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T4\" ON \"T3\".\"bi_sai_id\" = \"T4\".\"id\" WHERE \"T4\".\"bi_sai_ming\" = 'Equestrianism Mixed Three-Day Event, Individual'",
+          "summary": "Calculate the percentage of women who have participated in Equestrianism Mixed Three-Day Event, Individual."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4970",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0038",
+          "sql": "SELECT AVG(\"T2\".\"nian_ling\") FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '1992 Summer'",
+          "summary": "Calculate the average age of the persons who participated in the 1992 Summer Games."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4971",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0039",
+          "sql": "SELECT \"yun_dong_hui_nian_fen\" FROM \"olympics\".\"yun_dong_hui\" WHERE \"ji_jie\" <> 'Winter' GROUP BY \"yun_dong_hui_nian_fen\" HAVING COUNT(\"ji_jie\") = 1",
+          "summary": "List out years that only have summer games."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4973",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0040",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '2014 Winter'",
+          "summary": "How many athletes participated in the 2014 Winter Olympics?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4976",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0041",
+          "sql": "SELECT COUNT(\"T2\".\"xuan_shou_id\") FROM \"olympics\".\"bi_sai\" AS \"T1\" INNER JOIN \"olympics\".\"xuan_shou_bi_sai\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"bi_sai_id\" WHERE \"T1\".\"bi_sai_ming\" LIKE 'Ice Hockey Men%s Ice Hockey' AND \"T2\".\"jiang_pai_id\" = 1",
+          "summary": "How many gold medals were given to the winners in the Ice Hockey Men's Ice Hockey event?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4978",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0042",
+          "sql": "SELECT DISTINCT \"T5\".\"quan_ming\" FROM \"olympics\".\"bi_sai\" AS \"T1\" INNER JOIN \"olympics\".\"xuan_shou_bi_sai\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"bi_sai_id\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T3\" ON \"T2\".\"xuan_shou_id\" = \"T3\".\"id\" INNER JOIN \"olympics\".\"yun_dong_xiang_mu\" AS \"T4\" ON \"T1\".\"yun_dong_xiang_mu_id\" = \"T4\".\"id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T5\" ON \"T3\".\"ren_wu_id\" = \"T5\".\"id\" WHERE \"T4\".\"yun_dong_xiang_mu_ming\" = 'Cycling' AND \"T2\".\"jiang_pai_id\" = 1",
+          "summary": "List out all the gold medalist winners in cycling sport."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4979",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0043",
+          "sql": "SELECT DISTINCT \"T1\".\"jiang_pai_ming\" FROM \"olympics\".\"jiang_pai\" AS \"T1\" INNER JOIN \"olympics\".\"xuan_shou_bi_sai\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"jiang_pai_id\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T3\" ON \"T2\".\"xuan_shou_id\" = \"T3\".\"id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T4\" ON \"T3\".\"ren_wu_id\" = \"T4\".\"id\" WHERE \"T4\".\"quan_ming\" = 'Lee Chong Wei' AND \"T2\".\"jiang_pai_id\" <> 4",
+          "summary": "List out all the medals won by Lee Chong Wei."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4980",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0044",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T3\".\"xing_bie\" = 'F' THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"ren_wu_id\"), 0) FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '2002 Winter' AND \"T2\".\"nian_ling\" < 20",
+          "summary": "What is the percentage of female athletes below 20s who participated in the 2002 Winter Olympic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4981",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0045",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T3\".\"xing_bie\" = 'M' THEN 1 ELSE NULL END) AS REAL) / NULLIF(COUNT(CASE WHEN \"T3\".\"xing_bie\" = 'F' THEN 1 ELSE NULL END), 0) FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '2012 Summer'",
+          "summary": "What is the ratio male to female athletes in the 2012 Summer Olympic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4985",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0046",
+          "sql": "SELECT AVG(\"T5\".\"shen_gao\") FROM \"olympics\".\"yun_dong_xiang_mu\" AS \"T1\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_xiang_mu_id\" INNER JOIN \"olympics\".\"xuan_shou_bi_sai\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"bi_sai_id\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T4\" ON \"T3\".\"xuan_shou_id\" = \"T4\".\"id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T5\" ON \"T4\".\"ren_wu_id\" = \"T5\".\"id\" WHERE \"T1\".\"yun_dong_xiang_mu_ming\" = 'Basketball' AND \"T5\".\"xing_bie\" = 'M'",
+          "summary": "What is the average height of male athletes playing basketball sport?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4986",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0047",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"qu_yu_ming\" = 'Philippines' AND \"T3\".\"xing_bie\" = 'F'",
+          "summary": "How many female athletes are from the Philippines?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4987",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0048",
+          "sql": "SELECT \"T1\".\"qu_yu_ming\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"quan_ming\" = 'Yao Ming'",
+          "summary": "Which region is Yao Ming from?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4988",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0049",
+          "sql": "SELECT \"T2\".\"nian_ling\" FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"quan_ming\" = 'Michael Fred Phelps, II' ORDER BY \"T2\".\"nian_ling\" NULLS FIRST LIMIT 1",
+          "summary": "At what age did Michael Fred Phelps, II join the Olympics?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4989",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0050",
+          "sql": "SELECT COUNT(\"ren_wu_id\") FROM \"olympics\".\"ren_wu_qu_yu\" WHERE \"qu_yu_id\" = (SELECT \"T1\".\"qu_yu_id\" FROM \"olympics\".\"ren_wu_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"id\" WHERE \"T2\".\"quan_ming\" = 'Clara Hughes')",
+          "summary": "How many athletes are there in the region where Clara Hughes is from?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4990",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0051",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" INNER JOIN \"olympics\".\"xuan_shou_bi_sai\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"xuan_shou_id\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T4\" ON \"T3\".\"bi_sai_id\" = \"T4\".\"id\" WHERE \"T1\".\"quan_ming\" = 'Ian James Thorpe' AND \"T4\".\"bi_sai_ming\" LIKE 'Swimming Men%s 200 metres Freestyle'",
+          "summary": "How many Men's 200 Metres Freestyle events did Ian James Thorpe compete in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4992",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0052",
+          "sql": "SELECT \"T4\".\"cheng_shi_ming\" FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" INNER JOIN \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T3\" ON \"T2\".\"yun_dong_hui_id\" = \"T3\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T4\" ON \"T3\".\"cheng_shi_id\" = \"T4\".\"id\" WHERE \"T1\".\"quan_ming\" = 'Carl Lewis Borack'",
+          "summary": "What are the names of the cities where Carl Lewis Borack competed?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4995",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0053",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '2016 Summer' AND \"T2\".\"nian_ling\" > 59",
+          "summary": "How many athletes over the age of 59 competed in the 2016 Summer Olympics?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4997",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0054",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"olympics\".\"xuan_shou_bi_sai\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"xuan_shou_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T3\" ON \"T1\".\"bi_sai_id\" = \"T3\".\"id\" WHERE \"T3\".\"bi_sai_ming\" LIKE 'Gymnastics Men%s Parallel Bars, Teams' AND \"T2\".\"nian_ling\" = 10",
+          "summary": "How many 10-year old athletes participated in the Gymnastics Men's Parallel Bars, Teams event?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4999",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0055",
+          "sql": "SELECT \"qu_yu_ming\" FROM \"olympics\".\"guo_jia_qu_yu\" WHERE \"guo_jia_ao_wei_hui_dai_ma\" = 'COL'",
+          "summary": "Which region does the NOC code \"COL\" stand for?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5002",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0056",
+          "sql": "SELECT \"id\" FROM \"olympics\".\"yun_dong_xiang_mu\" WHERE \"yun_dong_xiang_mu_ming\" = 'Hockey'",
+          "summary": "Provide hockey's sport id."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5003",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0057",
+          "sql": "SELECT \"ti_zhong\" FROM \"olympics\".\"ren_wu\" WHERE \"quan_ming\" = 'Dagfinn Sverre Aarskog'",
+          "summary": "Tell the weight of Dagfinn Sverre Aarskog."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5004",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0058",
+          "sql": "SELECT \"id\" FROM \"olympics\".\"cheng_shi\" WHERE \"cheng_shi_ming\" = 'Rio de Janeiro'",
+          "summary": "What is the id of Rio de Janeiro?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5005",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0059",
+          "sql": "SELECT COUNT(\"T1\".\"xuan_shou_id\") FROM \"olympics\".\"xuan_shou_bi_sai\" AS \"T1\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T2\" ON \"T1\".\"bi_sai_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"jiang_pai\" AS \"T3\" ON \"T1\".\"jiang_pai_id\" = \"T3\".\"id\" WHERE \"T2\".\"bi_sai_ming\" LIKE 'Rowing Women%s Coxed Eights' AND \"T3\".\"jiang_pai_ming\" = 'Gold'",
+          "summary": "How many people have won the gold medal of the event \"Rowing Women's Coxed Eights\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5006",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0060",
+          "sql": "SELECT COUNT(\"T2\".\"bi_sai_ming\") FROM \"olympics\".\"yun_dong_xiang_mu\" AS \"T1\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_xiang_mu_id\" WHERE \"T1\".\"yun_dong_xiang_mu_ming\" = 'Cycling'",
+          "summary": "How many kinds of events belong to the sport of cycling?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5007",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0061",
+          "sql": "SELECT \"T1\".\"qu_yu_ming\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"quan_ming\" = 'Vijay Singh Chauhan'",
+          "summary": "What is Vijay Singh Chauhan's region name?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5008",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0062",
+          "sql": "SELECT \"T3\".\"yun_dong_hui_nian_fen\" FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T2\".\"cheng_shi_ming\" = 'Roma'",
+          "summary": "When did Roma host the Olympic Games?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5009",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0063",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '1984 Summer' AND \"T2\".\"nian_ling\" = 20",
+          "summary": "How many 20 years old athletes were there in the 1984 Summer Olympic Games?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5010",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0064",
+          "sql": "SELECT COUNT(\"T2\".\"yun_dong_hui_id\") FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" WHERE \"T1\".\"quan_ming\" = 'Prithipal Singh'",
+          "summary": "How many games has Prithipal Singh participated in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5011",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0065",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '1984 Summer' AND \"T2\".\"nian_ling\" > 50",
+          "summary": "State the number of athletes in the 1984 Summer Olympic Games who were more than 50 years old."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5012",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0066",
+          "sql": "SELECT COUNT(\"T2\".\"bi_sai_ming\") FROM \"olympics\".\"yun_dong_xiang_mu\" AS \"T1\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_xiang_mu_id\" WHERE \"T1\".\"yun_dong_xiang_mu_ming\" = 'Athletics'",
+          "summary": "How many kinds of events does athletics have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5014",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0067",
+          "sql": "SELECT \"T3\".\"shen_gao\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"qu_yu_ming\" = 'Portugal' ORDER BY \"T3\".\"shen_gao\" DESC NULLS LAST LIMIT 1",
+          "summary": "Give the height of the tallest athlete from Portugal."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5017",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0068",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T3\".\"shen_gao\" > 175 THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"ren_wu_id\"), 0) FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"qu_yu_ming\" = 'Vanuatu'",
+          "summary": "What is the percentage of athletes from Vanuatu who are taller than 175?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5018",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0069",
+          "sql": "SELECT AVG(\"T3\".\"ti_zhong\") FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"qu_yu_ming\" = 'Tonga' AND \"T3\".\"xing_bie\" = 'M'",
+          "summary": "Calculate the average weight of male athletes from Tonga."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5019",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0070",
+          "sql": "SELECT \"T2\".\"cheng_shi_ming\" FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T3\".\"yun_dong_hui_ming\" = '1920 Summer'",
+          "summary": "Where was the 1920 Summer held?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5020",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0071",
+          "sql": "SELECT COUNT(\"T3\".\"id\") FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T2\".\"cheng_shi_ming\" = 'London' AND \"T3\".\"yun_dong_hui_nian_fen\" BETWEEN 1900 AND 1992",
+          "summary": "From 1900 to 1992, how many games did London host?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5021",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0072",
+          "sql": "SELECT COUNT(\"T3\".\"id\") FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T2\".\"cheng_shi_ming\" = 'Paris' AND \"T3\".\"ji_jie\" = 'Summer'",
+          "summary": "How many Summer games are there that were held in Paris?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5022",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0073",
+          "sql": "SELECT \"T3\".\"yun_dong_hui_ming\" FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T2\".\"cheng_shi_ming\" = 'Los Angeles'",
+          "summary": "Please list all game names that were held in Los Angeles."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5024",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0074",
+          "sql": "SELECT \"T3\".\"yun_dong_hui_ming\" FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T2\".\"cheng_shi_ming\" = 'Beijing' AND \"T3\".\"yun_dong_hui_nian_fen\" = 2008",
+          "summary": "What is the game name that was held in Beijing in 2008?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5025",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0075",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T2\".\"nian_ling\" > 30 THEN 1 END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"ren_wu_id\"), 0) FROM \"olympics\".\"xuan_shou_bi_sai\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"xuan_shou_id\" = \"T2\".\"id\" WHERE \"T1\".\"jiang_pai_id\" = 1",
+          "summary": "What is the percentage of champions at the age of over 30?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5026",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0076",
+          "sql": "SELECT \"T2\".\"nian_ling\" FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '2012 Summer' AND \"T3\".\"quan_ming\" = 'A Lamusi'",
+          "summary": "At which age did A Lamusi participate in 2012 Summer?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5027",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0077",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '2000 Summer' AND \"T2\".\"nian_ling\" = 31",
+          "summary": "How many competitors were there who participated in 2000 Summer with age 31?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5028",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0078",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '1948 Summer' AND \"T3\".\"xing_bie\" = 'M'",
+          "summary": "How many male competitors were there who participated in 1948 Summer?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5029",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0079",
+          "sql": "SELECT \"T3\".\"quan_ming\" FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '1936 Summer'",
+          "summary": "Please list all competitors' names who participated in 1936 Summer."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5030",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0080",
+          "sql": "SELECT \"T3\".\"quan_ming\" FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '2014 Winter' ORDER BY \"T2\".\"nian_ling\" NULLS FIRST LIMIT 1",
+          "summary": "Who is the youngest competitor that participated in 2014 Winter?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5031",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0081",
+          "sql": "SELECT AVG(\"T2\".\"nian_ling\") FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '1988 Winter'",
+          "summary": "What is the average age of competitors who participated in 1988 Winter?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5032",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0082",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T3\".\"xing_bie\" = 'F' AND \"T3\".\"shen_gao\" > 170 THEN 1 END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"ren_wu_id\"), 0) FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"yun_dong_hui_nian_fen\" = 1988",
+          "summary": "What is the percentage of female competitors whose heights are over 170 that participated in the game in 1988?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5033",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0083",
+          "sql": "SELECT \"T1\".\"yun_dong_xiang_mu_ming\" FROM \"olympics\".\"yun_dong_xiang_mu\" AS \"T1\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_xiang_mu_id\" WHERE \"T2\".\"bi_sai_ming\" LIKE 'Cross Country Skiing Men%s 10/15 kilometres Pursuit'",
+          "summary": "What is the sport name of \"Cross Country Skiing Men's 10/15 kilometres Pursuit\" event?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5035",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0084",
+          "sql": "SELECT \"T1\".\"qu_yu_id\" FROM \"olympics\".\"ren_wu_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"id\" WHERE \"T2\".\"quan_ming\" = 'Christine Jacoba Aaftink'",
+          "summary": "What is the region id of Christine Jacoba Aaftink?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5036",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0085",
+          "sql": "SELECT \"T2\".\"shen_gao\" FROM \"olympics\".\"ren_wu_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T2\" ON \"T1\".\"ren_wu_id\" = \"T2\".\"id\" WHERE \"T1\".\"qu_yu_id\" = 7",
+          "summary": "Mention the height of people who belong to region id 7."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5037",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0086",
+          "sql": "SELECT \"T2\".\"cheng_shi_ming\" FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" WHERE \"T1\".\"yun_dong_hui_id\" = 3",
+          "summary": "State the name of the city that held game id 3."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5038",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0087",
+          "sql": "SELECT \"T1\".\"yun_dong_hui_id\" FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" WHERE \"T2\".\"cheng_shi_ming\" = 'London'",
+          "summary": "What are the id of the games held in London?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5039",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0088",
+          "sql": "SELECT COUNT(\"T2\".\"ren_wu_id\") FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" WHERE \"T1\".\"ji_jie\" = 'Summer' AND \"T2\".\"nian_ling\" < 30",
+          "summary": "How many people who are below 30 and participated in the summer season?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5040",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0089",
+          "sql": "SELECT DISTINCT \"T1\".\"yun_dong_hui_ming\" FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" WHERE \"T2\".\"yun_dong_hui_id\" = 13",
+          "summary": "List out the name of the game that the people participated in games id 13."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5041",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0090",
+          "sql": "SELECT AVG(\"T2\".\"nian_ling\") FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" WHERE \"T1\".\"ji_jie\" = 'Winter'",
+          "summary": "What is the average age of the people who participated in the winter season?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5045",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0091",
+          "sql": "SELECT \"T2\".\"bi_sai_id\" FROM \"olympics\".\"jiang_pai\" AS \"T1\" INNER JOIN \"olympics\".\"xuan_shou_bi_sai\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"jiang_pai_id\" WHERE \"T1\".\"jiang_pai_ming\" = 'Gold'",
+          "summary": "List out the id of event that achieve the gold medal."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5046",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0092",
+          "sql": "SELECT \"quan_ming\" FROM \"olympics\".\"ren_wu\" ORDER BY \"ti_zhong\" DESC NULLS LAST LIMIT 1",
+          "summary": "Who is the heaviest athlete?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5047",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0093",
+          "sql": "SELECT \"T2\".\"cheng_shi_ming\" FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T3\".\"yun_dong_hui_nian_fen\" = 1992",
+          "summary": "Which city were the Olympic games held in 1992?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5052",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0094",
+          "sql": "SELECT COUNT(\"T1\".\"ren_wu_id\") FROM \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T2\" ON \"T1\".\"yun_dong_hui_id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T3\" ON \"T2\".\"cheng_shi_id\" = \"T3\".\"id\" WHERE \"T3\".\"cheng_shi_ming\" = 'Barcelona'",
+          "summary": "How many athletes took part in the Olympic games held in Barcelona?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5054",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0095",
+          "sql": "SELECT \"T4\".\"cheng_shi_ming\" FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" INNER JOIN \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T3\" ON \"T2\".\"yun_dong_hui_id\" = \"T3\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T4\" ON \"T3\".\"cheng_shi_id\" = \"T4\".\"id\" WHERE \"T1\".\"quan_ming\" = 'John Aalberg'",
+          "summary": "What were the cities in which John Aalberg competed?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5058",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0096",
+          "sql": "SELECT \"T3\".\"quan_ming\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"qu_yu_ming\" = 'Argentina'",
+          "summary": "List the name of competitors from Argentina."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5059",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0097",
+          "sql": "SELECT AVG(\"T2\".\"nian_ling\") FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"ren_wu_id\" INNER JOIN \"olympics\".\"guo_jia_qu_yu\" AS \"T4\" ON \"T3\".\"qu_yu_id\" = \"T4\".\"id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '2012 Summer' AND \"T4\".\"qu_yu_ming\" = 'Argentina'",
+          "summary": "What is the average age of Argentina's athletes who participated in the Summer Olympics in 2012?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5060",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0098",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T4\".\"jiang_pai_ming\" = 'Bronze' THEN 1 ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"ren_wu_id\"), 0) FROM \"olympics\".\"xuan_shou_bi_sai\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"xuan_shou_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"bi_sai\" AS \"T3\" ON \"T1\".\"bi_sai_id\" = \"T3\".\"id\" INNER JOIN \"olympics\".\"jiang_pai\" AS \"T4\" ON \"T1\".\"jiang_pai_id\" = \"T4\".\"id\" WHERE \"T3\".\"bi_sai_ming\" LIKE 'Basketball Men%s Basketball'",
+          "summary": "Calculate the percentage of bronze medals won by men's basketball players."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5061",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0099",
+          "sql": "SELECT \"T1\".\"yun_dong_hui_ming\" FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"quan_ming\" = 'Georgios Abaris'",
+          "summary": "List the name of the games that Georgios Abaris participated."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5062",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0100",
+          "sql": "SELECT \"T3\".\"quan_ming\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T1\".\"qu_yu_ming\" = 'Greece'",
+          "summary": "Provide the name of competitors from Greece."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5063",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0101",
+          "sql": "SELECT AVG(\"T2\".\"nian_ling\") FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '1924 Winter'",
+          "summary": "Calculate the average age of the competitors who participated in the 1924 Winter."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5064",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0102",
+          "sql": "SELECT \"T1\".\"guo_jia_ao_wei_hui_dai_ma\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"ti_zhong\" = 77",
+          "summary": "What is the NOC code of the region of the competitors weighted 77 kg?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5065",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0103",
+          "sql": "SELECT \"T3\".\"yun_dong_hui_ming\" FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T2\".\"cheng_shi_ming\" = 'Paris'",
+          "summary": "List the names of the games held in Paris."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5067",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0104",
+          "sql": "SELECT \"T4\".\"cheng_shi_ming\" FROM \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T2\" ON \"T1\".\"yun_dong_hui_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T4\" ON \"T3\".\"cheng_shi_id\" = \"T4\".\"id\" ORDER BY \"T1\".\"nian_ling\" DESC NULLS LAST LIMIT 1",
+          "summary": "In which city was the game held where the oldest competitor participated?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5069",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0105",
+          "sql": "SELECT \"T1\".\"yun_dong_hui_id\" FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" WHERE \"T2\".\"cheng_shi_ming\" = 'Tokyo'",
+          "summary": "List down the games ID of games held in Tokyo."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5070",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0106",
+          "sql": "SELECT \"T1\".\"guo_jia_ao_wei_hui_dai_ma\", \"T1\".\"qu_yu_ming\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" ORDER BY \"T3\".\"ti_zhong\" DESC NULLS LAST LIMIT 1",
+          "summary": "Give the NOC code and region name of the heaviest competitor."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5071",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0107",
+          "sql": "SELECT \"T1\".\"yun_dong_hui_nian_fen\", \"T1\".\"ji_jie\" FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"quan_ming\" = 'Sohail Abbas'",
+          "summary": "In what year and season did Sohail Abbas compete?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5073",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0108",
+          "sql": "SELECT \"T2\".\"cheng_shi_ming\" FROM \"olympics\".\"yun_dong_hui_cheng_shi\" AS \"T1\" INNER JOIN \"olympics\".\"cheng_shi\" AS \"T2\" ON \"T1\".\"cheng_shi_id\" = \"T2\".\"id\" INNER JOIN \"olympics\".\"yun_dong_hui\" AS \"T3\" ON \"T1\".\"yun_dong_hui_id\" = \"T3\".\"id\" WHERE \"T3\".\"yun_dong_hui_ming\" = '2004 Summer'",
+          "summary": "In which city the 2004 Summer was held?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5074",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0109",
+          "sql": "SELECT DISTINCT \"T1\".\"ji_jie\" FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"shen_gao\" = 180 AND \"T3\".\"ti_zhong\" = 73",
+          "summary": "What is the season of the game where a competitor who weighted 73 kg and 180 cm tall, participated?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5075",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0110",
+          "sql": "SELECT DISTINCT \"T1\".\"quan_ming\" FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" INNER JOIN \"olympics\".\"xuan_shou_bi_sai\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"xuan_shou_id\" INNER JOIN \"olympics\".\"jiang_pai\" AS \"T4\" ON \"T3\".\"jiang_pai_id\" = \"T4\".\"id\" WHERE \"T4\".\"jiang_pai_ming\" = 'Gold'",
+          "summary": "Provide the names of competitors who received a gold medal."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5078",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0111",
+          "sql": "SELECT \"T2\".\"nian_ling\" FROM \"olympics\".\"ren_wu\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"ren_wu_id\" ORDER BY \"T1\".\"shen_gao\" DESC NULLS LAST LIMIT 1",
+          "summary": "Provide the age of the tallest competitor."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5080",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0112",
+          "sql": "SELECT CAST(COUNT(CASE WHEN \"T2\".\"nian_ling\" = 28 THEN 1 END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"ren_wu_id\"), 0) FROM \"olympics\".\"yun_dong_hui\" AS \"T1\" INNER JOIN \"olympics\".\"yun_dong_hui_xuan_shou\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"yun_dong_hui_id\" WHERE \"T1\".\"yun_dong_hui_ming\" = '2014 Winter'",
+          "summary": "In the 2014 Winter game, what is the percentage of competitors who age 28 years old?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5081",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_olympics_0113",
+          "sql": "SELECT DISTINCT \"T1\".\"qu_yu_ming\" FROM \"olympics\".\"guo_jia_qu_yu\" AS \"T1\" INNER JOIN \"olympics\".\"ren_wu_qu_yu\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"qu_yu_id\" INNER JOIN \"olympics\".\"ren_wu\" AS \"T3\" ON \"T2\".\"ren_wu_id\" = \"T3\".\"id\" WHERE \"T3\".\"xing_bie\" = 'M' AND \"T3\".\"shen_gao\" * 100 > (SELECT AVG(\"shen_gao\") FROM \"olympics\".\"ren_wu\" WHERE \"xing_bie\" = 'M') * 87",
+          "summary": "Among the males, list the region name of people with height greater than 87% of the average height of all people listed."
+        }
+      ]
+    }

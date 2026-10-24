@@ -1,30 +1,2215 @@
-asset_type: schema
-id: movielens
+version: 0.2.0.dev0
 name: movielens
-summary: >-
-  movielens tracks movies with their year, country, language, and runtime, the actors and
-  directors who worked on them, the users who rate them, and each rating, for questions about
-  cast, quality, revenue, ratings, and viewer demographics.
-body: >
-  Six tables carry the real data: peliculas (one row per movie), actores and directores (one
-  row per person), peliculas_actores and peliculas_directores (cast and crew, linking a movie
-  to a person), and calificaciones (one row per user rating a movie, linking usuarios to
-  peliculas). "Movie" and "film" both mean a row of peliculas; "audience" means usuarios.
-  Quality and revenue are recorded on a coded 0-5 scale rather than in dollars or stars, and
-  several tables carry a second numeric identifier column alongside the real primary key that
-  must not be joined on. cineastas and filmes_cineastas look like the director and crew tables
-  but are not dependable for analysis.
-rules:
-- Answer casting, quality, and revenue questions from actores, directores, peliculas,
-  peliculas_actores, and peliculas_directores. Never select, filter, or join on a column from
-  cineastas or filmes_cineastas, which are not dependable for analysis.
-- Join actores, directores, peliculas, and usuarios to the association tables on their plain
-  id columns (id_actor, id_director, id_pelicula, id_usuario). The identificador_* and *_fk
-  twin columns on the same tables must never be used as join keys.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  movielens tracks movies with their year, country, language, and runtime, the actors and directors who worked on them, the users who rate them, and each rating, for questions about cast, quality, revenue, ratings, and viewer demographics.
+
+  Six tables carry the real data: peliculas (one row per movie), actores and directores (one row per person), peliculas_actores and peliculas_directores (cast and crew, linking a movie to a person), and calificaciones (one row per user rating a movie, linking usuarios to peliculas). "Movie" and "film" both mean a row of peliculas; "audience" means usuarios. Quality and revenue are recorded on a coded 0-5 scale rather than in dollars or stars, and several tables carry a second numeric identifier column alongside the real primary key that must not be joined on. cineastas and filmes_cineastas look like the director and crew tables but are not dependable for analysis.
+ai_context:
+  instructions: |-
+    Answer casting, quality, and revenue questions from actores, directores, peliculas, peliculas_actores, and peliculas_directores. Never select, filter, or join on a column from cineastas or filmes_cineastas, which are not dependable for analysis.
+    Join actores, directores, peliculas, and usuarios to the association tables on their plain id columns (id_actor, id_director, id_pelicula, id_usuario). The identificador_* and *_fk twin columns on the same tables must never be used as join keys.
+datasets:
+- name: actores
+  source: movielens.actores
+  description: |
+    actores holds the actors who appear in movies, one row per performer, with a gender code and a quality score.
+
+    One row per actor, keyed by id_actor. Join to peliculas_actores on id_actor to find which movies an actor appeared in and their billing order. Not to be confused with directores, which tracks the separate population of movie directors, or with cineastas, which is not dependable for analysis. identificador_actor, sexo, and valoracion_calidad on this table are not dependable; see each column's own note before using it.
+  fields:
+  - name: id_actor
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_actor
+    description: |
+      The unique identifier of an actor, id_actor.
+
+      Primary key of actores, a large integer (sample values like 1701873 or 557483, not a small sequential id). Join to peliculas_actores.id_actor to find an actor's movie appearances.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: genero
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: genero
+    description: |
+      The gender code recorded for an actor, genero.
+
+      A single-letter text code: M for male, F for female. Used to compute the gender mix of a cast, or to filter for female or male actors specifically.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to actores.genero. \"Female actor\" or \"actress\" resolves to genero = 'F'; \"male actor\" or \"men actor\" resolves to genero = 'M'. A gender ratio for actors divides the count of one code by the count of the other, or by the total row count for a share.\n",
+              "id": "term_movielens_actor_gender",
+              "name": "actor gender",
+              "summary": "female actor, male actor, men actor: the coding of an actor's gender used to filter or group actores.genero.",
+              "synonyms": [
+                "female actor",
+                "male actor",
+                "men actor"
+              ]
+            }
+          ]
+        }
+  - name: calidad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: calidad
+    description: |
+      An actor's quality score, calidad.
+
+      Integer scale from 0 to 5. 0 is the worst quality an actor can have, 5 is the best, and higher values always mean a more highly regarded actor. Distinct from directores.calidad, the analogous quality score kept for directors, and from peliculas_directores.genero, which is a movie genre rather than a quality score.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to actores.calidad, an integer from 0 to 5. \"The worst actor\" resolves to calidad = 0 and \"the best actor\" resolves to calidad = 5; a higher value always means a more highly regarded actor. Distinct from the coded quality kept separately for directors.\n",
+              "id": "term_movielens_actor_quality",
+              "name": "actor quality",
+              "summary": "actor quality, best actor, worst actor: the coded 0-5 scale on actores.calidad, where a higher value is a better actor.",
+              "synonyms": [
+                "actor quality",
+                "best actor",
+                "worst actor"
+              ]
+            }
+          ]
+        }
+  - name: identificador_actor
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identificador_actor
+    description: |
+      identificador_actor, a numeric column on the actores table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: sexo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sexo
+    description: |
+      sexo, a text column on the actores table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: valoracion_calidad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: valoracion_calidad
+    description: |
+      valoracion_calidad, a numeric column on the actores table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_movielens_actor_gender_ratio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(COUNT(genero = 'M'), COUNT(genero = 'F'))
+    description: |
+      actor gender ratio: how many male actores rows there are for every female one.
+
+      Bound to actores.genero. Count the rows where genero = 'M', divide by the count of rows where genero = 'F'. A value above 1 means male actors outnumber female actors in scope; a value below 1 means the opposite.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "actor gender ratio"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: calificaciones
+  source: movielens.calificaciones
+  description: |
+    calificaciones records the ratings users have left for movies, one row per user rating a movie.
+
+    One row per rating event, linking a usuario to a pelicula through id_usuario and id_pelicula. A given user rates a given movie at most once, so the pair of ids identifies a row. Not to be confused with peliculas_actores or peliculas_directores, which record cast and crew rather than opinions, or with the quality scores kept on actores and directores, which come from a different scale.
+  fields:
+  - name: id_usuario
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_usuario
+    description: |
+      The identifier of the user who left the rating, id_usuario.
+
+      Foreign key to usuarios.id_usuario. Join to usuarios to bring in the rating user's age, gender, and occupation.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_pelicula
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pelicula
+    description: |
+      The identifier of the movie being rated, id_pelicula.
+
+      Foreign key to peliculas.id_pelicula. Join to peliculas to bring in the rated movie's year, country, language, and running time.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: calificacion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: calificacion
+    description: |
+      The rating a user gave a movie, calificacion.
+
+      Stored as text but numeric in value, on a scale from 1 (lowest, least satisfied) to 5 (highest, most satisfied); a higher value always means a more positive rating. The share of a movie's ratings equal to 1 is used as a measure of negative critical reception.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  metrics:
+  - name: metric_movielens_negative_critical_reception
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(COUNT(calificacion = 1), COUNT(*)) * 100
+    description: |
+      negative critical reception: the percentage of a movie's ratings that are the lowest possible score.
+
+      Bound to calificaciones.calificacion. Count the rows where calificacion = 1 (the lowest score on the 1-5 scale), divide by the count of all rating rows in scope, and multiply by 100. Scope the count to one movie's ratings by joining calificaciones to peliculas on id_pelicula and filtering, or leave it unfiltered for the reception rate across all ratings.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "negative critical reception"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: cineastas
+  source: movielens.cineastas
+  description: |
+    cineastas is a table of director-like records that is not dependable for analysis.
+
+    Every column in cineastas is unreliable and does not correspond to the business facts of an actual movie person. Do not use this table, or any of its columns, to answer a question. Use directores for a person's identity, quality score, and average revenue, and peliculas_directores for which movies they worked on.
+  fields:
+  - name: id_cineasta
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_cineasta
+    description: |
+      id_cineasta, a numeric column on the cineastas table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: valoracion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: valoracion
+    description: |
+      valoracion, a numeric column on the cineastas table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: promedio_ingresos
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: promedio_ingresos
+    description: |
+      promedio_ingresos, a numeric column on the cineastas table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: directores
+  source: movielens.directores
+  description: |
+    directores holds the directors who made movies, one row per director, with a quality score and an average revenue score.
+
+    One row per director, keyed by id_director. Join to peliculas_directores on id_director to find which movies a director worked on and in which genre. Not to be confused with actores, the separate population of performers, or with cineastas, which is not dependable for analysis. media_ingresos, calificacion_2, and identificador_director on this table are not dependable; see each column's own note before using it.
+  fields:
+  - name: id_director
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_director
+    description: |
+      The unique identifier of a director, id_director.
+
+      Primary key of directores, a large integer (sample values like 306351 or 7309, not a small sequential id). Join to peliculas_directores.id_director to find a director's movies.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: calidad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: calidad
+    description: |
+      A director's quality score, calidad.
+
+      Integer scale from 0 to 5. 0 is the worst quality a director can have, 5 is the best, and higher values always mean a more highly regarded director. Distinct from actores.calidad, the analogous quality score kept for actors.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to directores.calidad, an integer from 0 to 5. \"The worst director\" resolves to calidad = 0 and \"the best director\" resolves to calidad = 5; a higher value always means a more highly regarded director. Distinct from the coded quality kept separately for actors.\n",
+              "id": "term_movielens_director_quality",
+              "name": "director quality",
+              "summary": "director quality, best director, worst director: the coded 0-5 scale on directores.calidad, where a higher value is a better director.",
+              "synonyms": [
+                "director quality",
+                "best director",
+                "worst director"
+              ]
+            }
+          ]
+        }
+  - name: ingresos_promedio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ingresos_promedio
+    description: |
+      A director's average revenue score, ingresos_promedio.
+
+      Integer scale from 0 to 4, where a higher value means the movies a director works on generate more revenue on average. Comparing this value to the director's own calidad identifies directors whose movies earn more than their quality score would suggest.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: media_ingresos
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: media_ingresos
+    description: |
+      media_ingresos, a numeric column on the directores table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: calificacion_2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: calificacion_2
+    description: |
+      calificacion_2, a numeric column on the directores table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: identificador_director
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identificador_director
+    description: |
+      identificador_director, a numeric column on the directores table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_movielens_box_office_paradox_share
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(COUNT(ingresos_promedio > calidad), COUNT(*)) * 100
+    description: |
+      share of directors with a box office success paradox: the percentage of directors whose average revenue score exceeds their own quality score.
+
+      Bound to directores.ingresos_promedio and directores.calidad. Count the rows where ingresos_promedio is greater than calidad on the same row, divide by the count of all director rows in scope, and multiply by 100. The comparison must be within a single director's own two columns, not between different directors.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "share of directors with a box office success paradox"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "A director shows the box office success paradox when directores.ingresos_promedio is greater than that same director's directores.calidad, meaning their movies earn more on average than their quality score would predict. Compare the two columns on the same row; do not compare across different directors.\n",
+            "id": "term_movielens_box_office_paradox",
+            "name": "box office success paradox",
+            "summary": "box office success paradox: a director whose average revenue score exceeds their own quality score.",
+            "synonyms": [
+              "box office success paradox"
+            ]
+          }
+        ]
+      }
+- name: filmes_cineastas
+  source: movielens.filmes_cineastas
+  description: |
+    filmes_cineastas is a table of crew-assignment-like records that is not dependable for analysis.
+
+    Every column in filmes_cineastas is unreliable and does not correspond to the business facts of an actual movie-crew assignment. Do not use this table, or any of its columns, to answer a question. Use peliculas_directores for which genre a director worked in on a given movie.
+  fields:
+  - name: id_filme
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_filme
+    description: |
+      id_filme, a numeric column on the filmes_cineastas table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_cineasta
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_cineasta
+    description: |
+      id_cineasta, a numeric column on the filmes_cineastas table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: tipo_genero
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tipo_genero
+    description: |
+      tipo_genero, a text column on the filmes_cineastas table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: peliculas
+  source: movielens.peliculas
+  description: |
+    peliculas holds the movies, one row per movie, with its release recency, language, country, and running time.
+
+    One row per movie, keyed by id_pelicula. "Movie" and "film" both refer to a row of peliculas. Join to peliculas_actores or peliculas_directores on id_pelicula to reach a movie's cast or director, and to calificaciones on id_pelicula to reach the ratings it received. pais_origen and idioma_ingles on this table repeat the same values as pais and es_ingles but are not dependable; identificador_pelicula on this table is not dependable either. See each column's own note before using it.
+  fields:
+  - name: id_pelicula
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pelicula
+    description: |
+      The unique identifier of a movie, id_pelicula.
+
+      Primary key of peliculas, a large integer (sample values like 2102302 or 1833995, not a small sequential id). Join to peliculas_actores.id_pelicula, peliculas_directores. id_pelicula, or calificaciones.id_pelicula to reach cast, crew, or ratings.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: a_o
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: a_o
+    description: |
+      A movie's release recency code, a_o.
+
+      Integer from 1 to 4 recording relative release order rather than a calendar year: 1 is the oldest release date and 4 is the newest, and a higher value always means a more recently released movie. "Oldest" resolves to a_o = 1 and "newest" to a_o = 4.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to peliculas.a_o, an integer from 1 to 4 that orders movies by relative release date rather than giving a calendar year. \"Oldest movie\" resolves to a_o = 1 and \"newest movie\" resolves to a_o = 4; a higher value always means a more recently released movie.\n",
+              "id": "term_movielens_movie_year",
+              "name": "movie release recency",
+              "summary": "release year, oldest movie, newest movie: the coded recency scale on peliculas.a_o, where a higher value is a more recent release.",
+              "synonyms": [
+                "release year",
+                "oldest movie",
+                "newest movie"
+              ]
+            }
+          ]
+        }
+  - name: es_ingles
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: es_ingles
+    description: |
+      Whether a movie is in English, es_ingles.
+
+      Single-letter text flag: T means the movie is in English, F means it is not. "English movie" or "films in English" resolves to es_ingles = 'T'; "non-English" or "not in English" resolves to es_ingles = 'F'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to peliculas.es_ingles. \"English movie\" or \"in English\" resolves to es_ingles = 'T'; \"non-English\" or \"not in English\" resolves to es_ingles = 'F'.\n",
+              "id": "term_movielens_movie_language",
+              "name": "movie language flag",
+              "summary": "English movie, non-English, in English: whether a movie's language is English, on peliculas.es_ingles.",
+              "synonyms": [
+                "English movie",
+                "non-English",
+                "in English"
+              ]
+            }
+          ]
+        }
+  - name: pais
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pais
+    description: |
+      The country a movie is associated with, pais.
+
+      Text values observed include France, USA, UK, and other, where other groups every country outside those three. Filter on the exact country name for a specific-country question.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to peliculas.pais. France, UK, and USA are each valid exact values; every other country is grouped under the value other rather than being spelled out.\n",
+              "id": "term_movielens_movie_country",
+              "name": "movie country",
+              "summary": "France, UK, USA: countries a movie can be filtered to on peliculas.pais.",
+              "synonyms": [
+                "France",
+                "UK",
+                "USA"
+              ]
+            }
+          ]
+        }
+  - name: duracion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: duracion
+    description: |
+      A movie's running time code, duracion.
+
+      Integer from 0 to 3 recording relative running time rather than actual minutes; a higher value means a longer running time than a lower one.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: identificador_pelicula
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identificador_pelicula
+    description: |
+      identificador_pelicula, a numeric column on the peliculas table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: pais_origen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pais_origen
+    description: |
+      pais_origen, a text column on the peliculas table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: idioma_ingles
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: idioma_ingles
+    description: |
+      idioma_ingles, a text column on the peliculas table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "A question that says \"movie\" or \"film\" is asking about peliculas. Both singular and plural forms (movies, films) resolve the same way.\n",
+            "id": "term_movielens_movie",
+            "name": "movie",
+            "summary": "movie, film, peliculas: the everyday words a question uses for a row of the peliculas table.",
+            "synonyms": [
+              "movie",
+              "film",
+              "peliculas"
+            ]
+          }
+        ]
+      }
+- name: peliculas_actores
+  source: movielens.peliculas_actores
+  description: |
+    peliculas_actores links movies to the actors who appeared in them, one row per actor's appearance in one movie.
+
+    One row per (id_pelicula, id_actor) cast assignment. Join to peliculas on id_pelicula and to actores on id_actor to bring in a movie's or actor's own attributes. Not to be confused with peliculas_directores, which links movies to directors rather than actors. id_actor_fk and id_pelicula_fk on this table repeat the roles of id_actor and id_pelicula but are not dependable; orden_reparto is likewise not dependable. See each column's own note before using it.
+  fields:
+  - name: id_pelicula
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pelicula
+    description: |
+      The movie a cast assignment belongs to, id_pelicula.
+
+      Foreign key to peliculas.id_pelicula. Join to peliculas to bring in the movie's year, country, and language.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_actor
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_actor
+    description: |
+      The actor in a cast assignment, id_actor.
+
+      Foreign key to actores.id_actor. Join to actores to bring in the actor's gender and quality score.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: numero_reparto
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: numero_reparto
+    description: |
+      An actor's cast position on a movie, numero_reparto.
+
+      Integer from 0 to 3 recording an actor's billing order within the cast of one movie; a lower value means higher billing.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_actor_fk
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_actor_fk
+    description: |
+      id_actor_fk, a numeric column on the peliculas_actores table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_pelicula_fk
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pelicula_fk
+    description: |
+      id_pelicula_fk, a numeric column on the peliculas_actores table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: orden_reparto
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: orden_reparto
+    description: |
+      orden_reparto, a numeric column on the peliculas_actores table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: peliculas_directores
+  source: movielens.peliculas_directores
+  description: |
+    peliculas_directores links movies to the directors who made them, one row per director's genre credit on one movie.
+
+    One row per (id_pelicula, id_director) crew assignment, carrying the genre that credit was made in. Join to peliculas on id_pelicula and to directores on id_director to bring in a movie's or director's own attributes. Not to be confused with peliculas_actores, which links movies to cast rather than crew. id_director_fk and id_pelicula_fk_dir on this table repeat the roles of id_director and id_pelicula but are not dependable; categoria is likewise not dependable. See each column's own note before using it.
+  fields:
+  - name: id_pelicula
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pelicula
+    description: |
+      The movie a crew assignment belongs to, id_pelicula.
+
+      Foreign key to peliculas.id_pelicula. Join to peliculas to bring in the movie's year, country, and language.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_director
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_director
+    description: |
+      The director in a crew assignment, id_director.
+
+      Foreign key to directores.id_director. Join to directores to bring in the director's quality score and average revenue.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: genero
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: genero
+    description: |
+      The genre a director worked in on a movie, genero.
+
+      Text values like Action, Comedy, Crime, Drama, Animation, or Other. Distinct from actores.genero and usuarios.genero, which record a person's gender rather than a movie genre despite sharing the same physical column name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_director_fk
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_director_fk
+    description: |
+      id_director_fk, a numeric column on the peliculas_directores table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_pelicula_fk_dir
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pelicula_fk_dir
+    description: |
+      id_pelicula_fk_dir, a numeric column on the peliculas_directores table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: categoria
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: categoria
+    description: |
+      categoria, a text column on the peliculas_directores table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: usuarios
+  source: movielens.usuarios
+  description: |
+    usuarios holds the registered users, one row per user, with their age band, gender, and occupation code.
+
+    One row per user, keyed by id_usuario. "Audience" and "users" both refer to a row of usuarios. Join to calificaciones on id_usuario to find the ratings a user has left. edad_anios and profesion_usuario on this table repeat the same values as edad and ocupacion but are not dependable; identificador_usuario on this table is not dependable either. See each column's own note before using it.
+  fields:
+  - name: id_usuario
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_usuario
+    description: |
+      The unique identifier of a user, id_usuario.
+
+      Primary key of usuarios. Join to calificaciones.id_usuario to find the movies a user has rated.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: edad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: edad
+    description: |
+      A user's age band, edad.
+
+      Text code for a ten-year-ish age bracket rather than an exact age: 1 means 1-18 years old, 18 means 18-25, 25 means 25-35, 35 means 35-45, 45 means 45-50, 50 means 50-56, and 56 means over 56. Match the code to the bracket rather than treating it as an exact age.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: genero
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: genero
+    description: |
+      The gender code recorded for a user, genero.
+
+      A single-letter text code: M for male, F for female. Used to compute the gender mix of the audience, or to filter for female or male users specifically.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to usuarios.genero. \"Female user\" or \"women\" resolves to genero = 'F'; \"male user\" or \"men\" resolves to genero = 'M'. The share of female users divides the count of genero = 'F' rows by the total row count of usuarios.\n",
+              "id": "term_movielens_user_gender",
+              "name": "user gender",
+              "summary": "female user, male user, women, men: the coding of a user's gender used to filter or group usuarios.genero.",
+              "synonyms": [
+                "female user",
+                "male user",
+                "women",
+                "men"
+              ]
+            }
+          ]
+        }
+  - name: ocupacion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ocupacion
+    description: |
+      A user's occupation code, ocupacion.
+
+      Small integer from 1 to 5 identifying an occupation category; the categories are not spelled out anywhere in the data, so compare by the code value rather than a job title.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: identificador_usuario
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identificador_usuario
+    description: |
+      identificador_usuario, a numeric column on the usuarios table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: edad_anios
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: edad_anios
+    description: |
+      edad_anios, a text column on the usuarios table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: profesion_usuario
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: profesion_usuario
+    description: |
+      profesion_usuario, a text column on the usuarios table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_movielens_female_user_share
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(COUNT(genero = 'F'), COUNT(*)) * 100
+    description: |
+      share of female users: the percentage of usuarios rows whose gender code is female.
+
+      Bound to usuarios.genero. Count the rows where genero = 'F', divide by the count of all rows in usuarios, and multiply by 100. Every user row is either 'F' or 'M', so this share and the matching share of male users always add to 100%.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "share of female users"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "A question that says \"audience\" or \"users\" is asking about usuarios, the table of registered people who leave ratings through calificaciones.\n",
+            "id": "term_movielens_audience",
+            "name": "audience",
+            "summary": "audience, users, usuarios: the everyday words a question uses for a row of the usuarios table.",
+            "synonyms": [
+              "audience",
+              "users",
+              "usuarios"
+            ]
+          }
+        ]
+      }
+relationships:
+- name: join_movielens_calificaciones_peliculas_c8383a42
+  from: calificaciones
+  to: peliculas
+  from_columns:
+  - id_pelicula
+  to_columns:
+  - id_pelicula
+  ai_context:
+    instructions: |
+      Links calificaciones to peliculas to find the movie behind each rating.
+
+      calificaciones.id_pelicula equals peliculas.id_pelicula. One movie can receive many ratings, but one rating row names exactly one movie, so this join is many-to-one from calificaciones to peliculas.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between calificaciones and peliculas in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_movielens_calificaciones_usuarios_be708458
+  from: calificaciones
+  to: usuarios
+  from_columns:
+  - id_usuario
+  to_columns:
+  - id_usuario
+  ai_context:
+    instructions: |
+      Links calificaciones to usuarios to find who left each rating.
+
+      calificaciones.id_usuario equals usuarios.id_usuario. One user can leave many ratings, but one rating row names exactly one user, so this join is many-to-one from calificaciones to usuarios.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between calificaciones and usuarios in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_movielens_peliculas_peliculas_actores_53c720d3
+  from: peliculas_actores
+  to: peliculas
+  from_columns:
+  - id_pelicula
+  to_columns:
+  - id_pelicula
+  ai_context:
+    instructions: |
+      Links peliculas to peliculas_actores to find a movie's cast.
+
+      peliculas.id_pelicula equals peliculas_actores.id_pelicula. One movie can have many cast rows, but one cast row names exactly one movie, so this join is one-to-many from peliculas to peliculas_actores.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between peliculas and peliculas_actores in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_movielens_peliculas_peliculas_directores_7982774b
+  from: peliculas_directores
+  to: peliculas
+  from_columns:
+  - id_pelicula
+  to_columns:
+  - id_pelicula
+  ai_context:
+    instructions: |
+      Links peliculas to peliculas_directores to find a movie's director credits.
+
+      peliculas.id_pelicula equals peliculas_directores.id_pelicula. One movie can have many director-credit rows, but one credit row names exactly one movie, so this join is one-to-many from peliculas to peliculas_directores.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between peliculas and peliculas_directores in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_2249",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0000",
+          "sql": "SELECT \"T2\".\"genero\" FROM \"movielens\".\"peliculas_actores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" INNER JOIN \"movielens\".\"actores\" AS \"T3\" ON \"T1\".\"id_actor\" = \"T3\".\"id_actor\" WHERE \"T3\".\"id_actor\" = 851",
+          "summary": "List the genres of the movies which actor id 851 is the star."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2254",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0001",
+          "sql": "SELECT AVG(\"T2\".\"numero_reparto\") FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_actores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"pais\" = 'USA'",
+          "summary": "What is the average number of casts of movies that are from the USA?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2262",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0002",
+          "sql": "SELECT \"T2\".\"id_actor\", \"T4\".\"genero\" FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_actores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" INNER JOIN \"movielens\".\"actores\" AS \"T3\" ON \"T2\".\"id_actor\" = \"T3\".\"id_actor\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T4\" ON \"T1\".\"id_pelicula\" = \"T4\".\"id_pelicula\" WHERE \"T4\".\"id_director\" = 22397",
+          "summary": "What are the ID of actors that had worked together with director 22397? What was the genre of that movie?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2263",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0003",
+          "sql": "SELECT \"T2\".\"id_actor\", \"T1\".\"id_director\" FROM \"movielens\".\"peliculas_directores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_actores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"genero\" = 'Action'",
+          "summary": "Please list down the ID of actors and directors in action movies."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2264",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0004",
+          "sql": "SELECT COUNT(\"T2\".\"id_actor\") FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_actores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" INNER JOIN \"movielens\".\"actores\" AS \"T3\" ON \"T2\".\"id_actor\" = \"T3\".\"id_actor\" WHERE \"T3\".\"genero\" = 'F' AND \"T1\".\"a_o\" = 4",
+          "summary": "How many female actors acted in the movies of year 4?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2267",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0005",
+          "sql": "SELECT \"T2\".\"genero\" FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"pais\" = 'UK'",
+          "summary": "UK produced what genre of movies?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2271",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0006",
+          "sql": "SELECT \"T3\".\"pais\" FROM \"movielens\".\"peliculas_directores\" AS \"T1\" INNER JOIN \"movielens\".\"directores\" AS \"T2\" ON \"T1\".\"id_director\" = \"T2\".\"id_director\" INNER JOIN \"movielens\".\"peliculas\" AS \"T3\" ON \"T1\".\"id_pelicula\" = \"T3\".\"id_pelicula\" WHERE \"T1\".\"genero\" = 'Action' GROUP BY \"T3\".\"pais\" ORDER BY COUNT(\"T3\".\"pais\") DESC NULLS LAST LIMIT 1",
+          "summary": "Action movies are mostly directed by directors of which country?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2277",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0007",
+          "sql": "SELECT COUNT(\"T1\".\"id_pelicula\") FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"pais\" = 'USA' AND \"T1\".\"es_ingles\" = 'F' AND \"T2\".\"genero\" = 'Action'",
+          "summary": "Among the action movies from the USA, how many of them are not in English?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2279",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0008",
+          "sql": "SELECT \"T1\".\"id_pelicula\" FROM \"movielens\".\"calificaciones\" AS \"T1\" INNER JOIN \"movielens\".\"usuarios\" AS \"T2\" ON \"T1\".\"id_usuario\" = \"T2\".\"id_usuario\" WHERE \"T2\".\"genero\" = 'F' GROUP BY \"T1\".\"id_pelicula\" ORDER BY COUNT(\"T2\".\"id_usuario\") DESC NULLS LAST LIMIT 1",
+          "summary": "Please list the ID of the movie that has been mostly rated by female users."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2283",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0009",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"id_usuario\") FROM \"movielens\".\"usuarios\" AS \"T1\" INNER JOIN \"movielens\".\"calificaciones\" AS \"T2\" ON \"T1\".\"id_usuario\" = \"T2\".\"id_usuario\" INNER JOIN \"movielens\".\"peliculas\" AS \"T3\" ON \"T2\".\"id_pelicula\" = \"T3\".\"id_pelicula\" WHERE \"T1\".\"genero\" = 'F' AND \"T3\".\"pais\" = 'France'",
+          "summary": "How many different female users have rated movies from France?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2285",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0010",
+          "sql": "SELECT \"T2\".\"genero\" FROM \"movielens\".\"directores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_director\" = \"T2\".\"id_director\" WHERE \"T1\".\"ingresos_promedio\" = 4",
+          "summary": "Please list the genre of the movies that are directed by the directors with the highest level of average revenue."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2287",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0011",
+          "sql": "SELECT \"T3\".\"pais\" FROM \"movielens\".\"actores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_actores\" AS \"T2\" ON \"T1\".\"id_actor\" = \"T2\".\"id_actor\" INNER JOIN \"movielens\".\"peliculas\" AS \"T3\" ON \"T2\".\"id_pelicula\" = \"T3\".\"id_pelicula\" WHERE \"T1\".\"genero\" = 'F' AND \"T1\".\"calidad\" = 0",
+          "summary": "Please list the country of the movie that stars an actress who acts the worse."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2293",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0012",
+          "sql": "SELECT \"T1\".\"id_actor\", \"T1\".\"calidad\" FROM \"movielens\".\"actores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_actores\" AS \"T2\" ON \"T1\".\"id_actor\" = \"T2\".\"id_actor\" WHERE \"T2\".\"id_pelicula\" = 1722327",
+          "summary": "List the ids and ratings of each actors played in the movie with the id 1722327?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2294",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0013",
+          "sql": "SELECT \"T1\".\"id_director\" FROM \"movielens\".\"directores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_director\" = \"T2\".\"id_director\" WHERE \"T1\".\"calidad\" = 5 GROUP BY \"T1\".\"id_director\" ORDER BY COUNT(\"T2\".\"id_pelicula\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which directors with the best quality directed the most films?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2298",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0014",
+          "sql": "SELECT \"T2\".\"id_director\" FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"pais\" = 'France'",
+          "summary": "List the IDs of all the directors who worked on French films."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2300",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0015",
+          "sql": "SELECT \"T2\".\"genero\" FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"es_ingles\" = 'F' GROUP BY \"T2\".\"genero\" ORDER BY COUNT(\"T1\".\"id_pelicula\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which genre contains the greatest number of non-English films?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2301",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0016",
+          "sql": "SELECT \"T1\".\"id_actor\", \"T2\".\"id_director\" FROM \"movielens\".\"peliculas_actores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"id_pelicula\" = 1949144",
+          "summary": "List the cast and the director of the movie with the id 1949144."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2302",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0017",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T3\".\"calidad\" >= 3 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id_pelicula\"), 0) FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_actores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" INNER JOIN \"movielens\".\"actores\" AS \"T3\" ON \"T2\".\"id_actor\" = \"T3\".\"id_actor\" WHERE \"T1\".\"pais\" = 'UK'",
+          "summary": "Among the actors who acted in UK movies, what percentage of actors received a rating of at least 3?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2303",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0018",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"ingresos_promedio\" > \"T2\".\"calidad\" THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id_pelicula\"), 0) FROM \"movielens\".\"peliculas_directores\" AS \"T1\" INNER JOIN \"movielens\".\"directores\" AS \"T2\" ON \"T1\".\"id_director\" = \"T2\".\"id_director\" WHERE \"T1\".\"genero\" = 'Action'",
+          "summary": "What is the proportion of action movies directors who are called 'box office success paradox'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2304",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0019",
+          "sql": "SELECT \"T1\".\"id_actor\" FROM \"movielens\".\"peliculas_actores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T2\".\"a_o\" = 4",
+          "summary": "Please list the actor IDs whose movies have the newest published date."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2305",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0020",
+          "sql": "SELECT \"T2\".\"id_actor\" FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_actores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"duracion\" = 2 AND \"T1\".\"es_ingles\" = 'T'",
+          "summary": "Who are cast members in an English movie which has a running time equal to 2? Please list their IDs."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2306",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0021",
+          "sql": "SELECT \"T2\".\"id_actor\" FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_actores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"pais\" = 'France' GROUP BY \"T2\".\"id_actor\" HAVING COUNT(\"T1\".\"id_pelicula\") > 2",
+          "summary": "Which actor has acted in at least 2 French films? Please list their IDs."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2307",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0022",
+          "sql": "SELECT COUNT(\"T2\".\"id_actor\") FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_actores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"pais\" = 'USA' AND \"T2\".\"numero_reparto\" > 1",
+          "summary": "How many American movies have cast number more than 1?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2308",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0023",
+          "sql": "SELECT DISTINCT \"T1\".\"id_pelicula\" FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_actores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"a_o\" = 1 AND \"T2\".\"numero_reparto\" = 0",
+          "summary": "Please list movie IDs which has the oldest publication date and the cast numbers are zero."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2312",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0024",
+          "sql": "SELECT COUNT(\"T1\".\"id_pelicula\") FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"pais\" = 'USA' AND \"T2\".\"genero\" = 'comedy'",
+          "summary": "How many American comedies are there?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2313",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0025",
+          "sql": "SELECT COUNT(\"T1\".\"id_pelicula\") FROM \"movielens\".\"peliculas_directores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T2\".\"a_o\" = 4 AND \"T1\".\"genero\" IN ('Action', 'drama')",
+          "summary": "How many latest released dramas and action movies?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2314",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0026",
+          "sql": "SELECT \"T1\".\"id_pelicula\" FROM \"movielens\".\"peliculas_directores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T2\".\"duracion\" >= 2 AND \"T1\".\"genero\" = 'Horror'",
+          "summary": "What horror movies have a running time of at least 2? Please list movie IDs."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2317",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0027",
+          "sql": "SELECT DISTINCT \"T1\".\"ingresos_promedio\" FROM \"movielens\".\"directores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_director\" = \"T2\".\"id_director\" WHERE \"T1\".\"calidad\" = 5",
+          "summary": "What's different average revenue status for director who directed the movie that got the most 1 ratings?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2327",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0028",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T3\".\"genero\" = 'M' THEN 1 ELSE 0 END) AS REAL) / NULLIF(SUM(CASE WHEN \"T3\".\"genero\" = 'F' THEN 1 ELSE 0 END), 0) FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_actores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" INNER JOIN \"movielens\".\"actores\" AS \"T3\" ON \"T2\".\"id_actor\" = \"T3\".\"id_actor\" WHERE \"T1\".\"pais\" = 'UK'",
+          "summary": "What's the ratio of gender in actors to actress in all the UK movies?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2332",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0029",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"genero\" = 'M' THEN 1 ELSE 0 END) AS REAL) / NULLIF(SUM(CASE WHEN \"genero\" = 'F' THEN 1 ELSE 0 END), 0) FROM \"movielens\".\"actores\" WHERE \"calidad\" = 0",
+          "summary": "How many of the worst actors are men and how many of the worst actors are women? Indicate your answer in ratio form."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2333",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0030",
+          "sql": "SELECT \"id_actor\" FROM \"movielens\".\"peliculas_actores\" GROUP BY \"id_actor\" ORDER BY COUNT(\"id_pelicula\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which actor has appeared in the most films?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2335",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0031",
+          "sql": "SELECT \"T2\".\"genero\" FROM \"movielens\".\"directores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_director\" = \"T2\".\"id_director\" WHERE \"T1\".\"calidad\" = 0 GROUP BY \"T2\".\"genero\" ORDER BY COUNT(\"T2\".\"id_pelicula\") DESC NULLS LAST LIMIT 1",
+          "summary": "What are the most common film genres made by the worst directors?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2336",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0032",
+          "sql": "SELECT \"T2\".\"id_pelicula\" FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"calificaciones\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"es_ingles\" = 'F' AND \"T1\".\"pais\" = 'USA' ORDER BY \"T2\".\"calificacion\" NULLS FIRST LIMIT 1",
+          "summary": "What non-English American film/s has received the lowest user ratings? Mention the movie's I.D."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2337",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0033",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"calidad\" = 4 AND \"T1\".\"ingresos_promedio\" = 4 THEN 1 ELSE 0 END) AS REAL) / NULLIF(COUNT(\"T2\".\"id_pelicula\"), 0) FROM \"movielens\".\"directores\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_director\" = \"T2\".\"id_director\"",
+          "summary": "What is the total average movie directed by the directors who's quality and revenue is 4?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2341",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movielens_0034",
+          "sql": "SELECT \"T2\".\"genero\" FROM \"movielens\".\"peliculas\" AS \"T1\" INNER JOIN \"movielens\".\"peliculas_directores\" AS \"T2\" ON \"T1\".\"id_pelicula\" = \"T2\".\"id_pelicula\" WHERE \"T1\".\"duracion\" <= 2 AND \"T1\".\"es_ingles\" = 'T' AND \"T1\".\"pais\" = 'other'",
+          "summary": "What are the genres of all the English-language foreign films having a runtime of two hours or less? List each one."
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between actores and peliculas_actores in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "actores.id_actor equals peliculas_actores.id_actor. One actor can appear in many movies, and one movie has many cast members, so this join is many-to-many at the movie/actor grain through the peliculas_actores association table. Use peliculas_actores.id_actor, not the unreliable id_actor_fk column on the same table, as the join key.\n",
+          "cardinality": "many_to_many",
+          "id": "join_movielens_actores_peliculas_actores_f0b09524",
+          "left_table": "movielens.actores",
+          "on": "movielens.actores.id_actor = movielens.peliculas_actores.id_actor",
+          "right_table": "movielens.peliculas_actores",
+          "summary": "Links actores to peliculas_actores to find which movies an actor appeared in."
+        },
+        {
+          "audit": {
+            "evidence": "equality between directores and peliculas_directores in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "directores.id_director equals peliculas_directores.id_director. One director can work on many movies, and one movie can credit many directors, so this join is many-to-many at the movie/director grain through the peliculas_directores association table. Use peliculas_directores.id_director, not the unreliable id_director_fk column on the same table, as the join key.\n",
+          "cardinality": "many_to_many",
+          "id": "join_movielens_directores_peliculas_directores_e83a6bc9",
+          "left_table": "movielens.directores",
+          "on": "movielens.directores.id_director = movielens.peliculas_directores.id_director",
+          "right_table": "movielens.peliculas_directores",
+          "summary": "Links directores to peliculas_directores to find which movies a director worked on."
+        },
+        {
+          "audit": {
+            "evidence": "equality between peliculas_actores and peliculas_directores in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "peliculas_actores.id_pelicula equals peliculas_directores.id_pelicula. Each side can hold many rows for the same movie (several cast members, several director credits), so this join is many-to-many, and it fans out fastest of any join in this schema because it multiplies cast rows by crew rows for every shared movie.\n",
+          "cardinality": "many_to_many",
+          "id": "join_movielens_peliculas_actores_peliculas_directores_b3521062",
+          "left_table": "movielens.peliculas_actores",
+          "on": "movielens.peliculas_actores.id_pelicula = movielens.peliculas_directores.id_pelicula",
+          "right_table": "movielens.peliculas_directores",
+          "summary": "Links peliculas_actores to peliculas_directores through the movie they share, to bring cast and crew together for one movie."
+        }
+      ]
+    }

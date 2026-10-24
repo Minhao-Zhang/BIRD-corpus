@@ -1,31 +1,2907 @@
-asset_type: schema
-id: cs_semester
+version: 0.2.0.dev0
 name: cs_semester
-summary: >-
-  cs_semester tracks one university CS department's semester: professors and the courses they
-  teach, student registrations with grades and satisfaction, student GPA, and which students
-  hold paid or unpaid research-assistant (RA) positions.
-body: >
-  Five tables carry the real data: prof (professor profiles), course (the course catalog),
-  student (student profiles), registration (one row per student's enrollment in a course, with
-  grade and satisfaction), and RA (one row per student's research-assistant assignment to a
-  professor, with capability and salary). ra_positions and student_profiles look like RA and
-  student but are not dependable for analysis; none of their columns should be used to answer a
-  question. Within RA, course, prof, registration, and student themselves, several columns
-  duplicate the real join keys and ratings unreliably — instructor_id, learner_id,
-  competency_level, class_id, credit_hours, difficulty_level, professor_ref_id, contact_email,
-  given_name, registered_course_id, registered_student_id, letter_grade, pupil_id,
-  student_email_address, and student_given_name — and must not be used.
-rules:
-- Join RA, registration, course, prof, and student on student_id, course_id, and prof_id only —
-  never on instructor_id, learner_id, professor_ref_id, pupil_id, registered_student_id,
-  registered_course_id, class_id, student_ref, or supervisor_id, all of which are unreliable.
-- Never select from or join through ra_positions or student_profiles; use RA and student
-  instead.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  cs_semester tracks one university CS department's semester: professors and the courses they teach, student registrations with grades and satisfaction, student GPA, and which students hold paid or unpaid research-assistant (RA) positions.
+
+  Five tables carry the real data: prof (professor profiles), course (the course catalog), student (student profiles), registration (one row per student's enrollment in a course, with grade and satisfaction), and RA (one row per student's research-assistant assignment to a professor, with capability and salary). ra_positions and student_profiles look like RA and student but are not dependable for analysis; none of their columns should be used to answer a question. Within RA, course, prof, registration, and student themselves, several columns duplicate the real join keys and ratings unreliably — instructor_id, learner_id, competency_level, class_id, credit_hours, difficulty_level, professor_ref_id, contact_email, given_name, registered_course_id, registered_student_id, letter_grade, pupil_id, student_email_address, and student_given_name — and must not be used.
+ai_context:
+  instructions: |-
+    Join RA, registration, course, prof, and student on student_id, course_id, and prof_id only — never on instructor_id, learner_id, professor_ref_id, pupil_id, registered_student_id, registered_course_id, class_id, student_ref, or supervisor_id, all of which are unreliable.
+    Never select from or join through ra_positions or student_profiles; use RA and student instead.
+datasets:
+- name: RA
+  source: cs_semester.RA
+  description: |
+    The RA table records each student's research-assistant appointment to a professor this semester, with the professor's capability rating and the salary tier paid for the work.
+
+    One row per research-assistant (RA) appointment: a student working for a professor this semester, with the professor's rating of the student's research capability and the salary tier paid for the work. Grain is one row per student-professor RA assignment, not one row per student — a student can hold more than one RA appointment, and different rows for the same student can carry different capability and salary values. Join to student on student_id and to prof on prof_id. Looks like ra_positions, which mirrors this same appointment data but is not dependable and must not be used. Within this table itself, instructor_id, learner_id, and competency_level are unreliable duplicates of prof_id, student_id, and capability, and must not be used.
+  fields:
+  - name: student_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: student_id
+    description: |
+      The student holding this research-assistant appointment, student_id.
+
+      Join to student.student_id to bring in the student's name, GPA, and type. Sample values in this table include 30, 36, 23, 31, and 17; one student may appear on more than one row if they hold more than one RA appointment.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: capability
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: capability
+    description: |
+      The professor's rating of this student's research capability, capability.
+
+      Evaluated by the advising professor; a higher value means a higher research capability. Sample values run 2 through 5. capability > AVG(capability) marks an appointment as above-average capability (see metric_cs_semester_average_capability); capability = 5 is the highest research capability observed, and capability < 3 marks a below-average band used to flag lower-capability appointments.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to RA.capability, an integer where a higher value means higher research ability, evaluated by the advising professor. capability = 5 is the highest research capability observed; the lowest research ability means the row(s) where capability is MIN(capability). \"Above-average capability\" means capability > AVG(capability) — see metric_cs_semester_average_capability.\n",
+              "id": "term_cs_semester_capability",
+              "name": "research capability",
+              "summary": "Research capability (capability, capability on research): a professor's evaluation of a research assistant's research ability.",
+              "synonyms": [
+                "research capability",
+                "capability",
+                "capability on research"
+              ]
+            }
+          ]
+        }
+  - name: prof_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prof_id
+    description: |
+      The professor who advises this student on research, prof_id.
+
+      Join to prof.prof_id to bring in the professor's name and other attributes. The same prof_id repeats across rows when one professor advises several students in the semester; a professor with COUNT(student_id) of 2 or more across their RA rows is read as carrying a heavy research workload, or as having higher research popularity (see metric_cs_semester_students_advised_per_prof).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: salary
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: salary
+    description: |
+      The pay tier for this research-assistant appointment, salary.
+
+      One of four pay tiers, from lowest to highest pay: free (no pay — an unpaid research-assistant appointment), low, med (the middle, average tier), and high. See term_cs_semester_salary_tier for the full definition and metric_cs_semester_satisfaction_gap_by_salary for comparing course satisfaction between the free and high tiers.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to RA.salary, one of four text values: 'free', 'low', 'med', or 'high'. \"No salary\" and \"unpaid research assistant\" both mean salary = 'free'; \"high salary\" means salary = 'high'. 'med' is the middle, average-pay tier. See metric_cs_semester_satisfaction_gap_by_salary for comparing course satisfaction between the free and high tiers.\n",
+              "id": "term_cs_semester_salary_tier",
+              "name": "salary tier",
+              "summary": "Salary tier (salary range, unpaid research assistant): the pay level of an RA appointment, from free (an unpaid research assistant) up to high.",
+              "synonyms": [
+                "salary tier",
+                "salary range",
+                "unpaid research assistant"
+              ]
+            }
+          ]
+        }
+  - name: instructor_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: instructor_id
+    description: |
+      instructor_id, a numeric column on the RA table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: learner_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: learner_id
+    description: |
+      learner_id, a numeric column on the RA table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: competency_level
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: competency_level
+    description: |
+      competency_level, a numeric column on the RA table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_cs_semester_average_capability
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(capability)
+    description: |
+      Average research capability: the mean capability rating across research-assistant appointments in RA.
+
+      AVG(capability) over cs_semester.RA, optionally restricted to one professor's appointments by filtering on prof_id. "Above-average capability" means capability > AVG(capability), not simply a high capability value in isolation — use this average as the comparison boundary.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average research capability"
+        }
+  - name: metric_cs_semester_students_advised_per_prof
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(student_id)
+    description: |
+      Students advised per professor: the count of research-assistant appointments in RA grouped by prof_id.
+
+      COUNT(student_id) over cs_semester.RA, grouped by prof_id. This dataset reads a professor advising two or more students (COUNT(student_id) >= 2) as carrying a heavy research workload, or as having higher research popularity; "a professor advising more than 2 students" means COUNT(student_id) > 2 for that prof_id; "more than 3 research assistants" means COUNT(student_id) > 3. Pick the exact boundary (>=, >) and threshold the question states rather than assuming one.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "students advised per professor"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "\"RA\" is the abbreviation for research assistant. A research assistant is a student who does research work for a professor, recorded as one row in cs_semester.RA per assignment, with that row's capability and salary columns. Do not confuse with ra_positions, which mirrors this same concept but is not dependable.\n",
+            "id": "term_cs_semester_research_assistant",
+            "name": "research assistant",
+            "summary": "Research assistant (RA): a student who serves for research under a professor, recorded one row per appointment in the RA table.",
+            "synonyms": [
+              "research assistant",
+              "RA"
+            ]
+          }
+        ]
+      }
+- name: course
+  source: cs_semester.course
+  description: |
+    The course table is the CS department's course catalog, one row per course with its name, credit weight, and difficulty rating.
+
+    One row per course offered by the department (13 rows in this dataset). course_id is the primary key; join to registration.course_id to see who is enrolled, their grade, and their satisfaction rating. Business language calls this table's name column simply "the course," so a question naming a course by title filters on name rather than course_id. class_id, credit_hours, and difficulty_level look like alternate copies of course_id, credit, and diff but are unreliable and must not be used.
+  fields:
+  - name: course_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: course_id
+    description: |
+      The unique id of a course, course_id.
+
+      Primary key of this table, sample values 1 through 13. Join to registration.course_id to find every student enrolled in the course.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: name
+    description: |
+      The title of a course, name.
+
+      Free-text course title, for example "Intro to Database 2," "Statistical learning," "Data Structure and Algorithms," "Machine Learning Theory," or "Intro to BlockChain." When a business question says just "the course" or names a course by title, it means this column — see term_cs_semester_course_grade and term_cs_semester_course_difficulty for the columns most often asked about alongside it.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: credit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: credit
+    description: |
+      The credit weight of a course, credit.
+
+      A small integer, 2 or 3 in this dataset's sample. A higher credit weight means the course counts as more important; a lower one means less important. The course or courses with the highest credit value are the "most important" courses. Also the weight used in the semester GPA calculation — see metric_cs_semester_semester_gpa.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: diff
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: diff
+    description: |
+      The difficulty rating of a course, diff.
+
+      An integer from 1 to 5; a higher value means a harder course, a lower value an easier one. diff = 1 is the easiest difficulty in this dataset and diff = 5 is the hardest. See term_cs_semester_course_difficulty for the full set of phrasings this column answers to.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to course.diff, an integer from 1 to 5 where a higher value means a harder course. \"The easiest difficulty\" means diff = 1; \"the hardest difficulty\" or \"highest difficulty\" means diff = 5. \"The most difficult course\" and \"the least difficult courses\" mean the course_id(s) where diff is MAX(diff) or MIN(diff) respectively.\n",
+              "id": "term_cs_semester_course_difficulty",
+              "name": "course difficulty",
+              "summary": "Course difficulty (difficulty, diff): how hard a course is, from the easiest to the hardest course offered.",
+              "synonyms": [
+                "course difficulty",
+                "difficulty",
+                "diff"
+              ]
+            }
+          ]
+        }
+  - name: class_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: class_id
+    description: |
+      class_id, a numeric column on the course table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: credit_hours
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: credit_hours
+    description: |
+      credit_hours, a numeric column on the course table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: difficulty_level
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: difficulty_level
+    description: |
+      difficulty_level, a numeric column on the course table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: prof
+  source: cs_semester.prof
+  description: |
+    The prof table holds one row per CS department professor, with name, contact email, gender, popularity, teaching ability, and the school they graduated from.
+
+    Grain is one row per professor (10 rows in this dataset). prof_id is the primary key; join to RA.prof_id to see which students a professor advises as research assistants. There is no direct link from prof to course or registration in this schema — a professor's teaching load is not tracked here, only their popularity and teaching-ability ratings. professor_ref_id, contact_email, and given_name look like alternate copies of prof_id, email, and first_name but are unreliable and must not be used.
+  fields:
+  - name: prof_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prof_id
+    description: |
+      The unique id of a professor, prof_id.
+
+      Primary key of this table, sample values 1 through 10. Join to RA.prof_id to find every student this professor advises.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: gender
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: gender
+    description: |-
+      The professor's gender, gender.
+
+      Text values "Male" or "Female".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: first_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: first_name
+    description: |
+      The professor's first name, first_name.
+
+      Sample values Zhihua, Merwyn, Bernhard, Sauveur, Mateo. A professor's full name is first_name followed by last_name — see term_cs_semester_prof_full_name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "A professor's full name is prof.first_name followed by prof.last_name, concatenated with a space or comma as the question requires — there is no single stored full-name column.\n",
+              "id": "term_cs_semester_prof_full_name",
+              "name": "professor's full name",
+              "summary": "Professor's full name (full name of the professor, full names of the professors): a professor's first_name and last_name combined.",
+              "synonyms": [
+                "professor's full name",
+                "full name of the professor",
+                "full names of the professors"
+              ]
+            }
+          ]
+        }
+  - name: last_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: last_name
+    description: |
+      The professor's last name, last_name.
+
+      Sample values Zhou, Conkay, Molen, Skyme, Medmore. Combined with first_name to form the professor's full name — see term_cs_semester_prof_full_name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: email
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: email
+    description: |
+      The professor's email address, email.
+
+      Institutional address, for example zzhihua@hku.hk, mconkay3@ucla.edu, or sskyme5@columbia.edu. The domain reflects where the professor currently holds an account and is not necessarily graduate_from.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: popularity
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: popularity
+    description: |
+      The professor's popularity rating, popularity.
+
+      An integer rating; a higher value means the professor is more popular. See term_cs_semester_popularity for how "most popular professor" and similar phrasings resolve to this column.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to prof.popularity, an integer rating; a higher value means the professor is more popular. \"The most popular professor(s)\" means the prof_id(s) where popularity is MAX(popularity). A professor advising many students in RA (COUNT(student_id) >= 2 or more) is separately read as having higher research popularity — see metric_cs_semester_students_advised_per_prof, which is a different signal from this column.\n",
+              "id": "term_cs_semester_popularity",
+              "name": "professor popularity",
+              "summary": "Professor popularity (popularity): how popular a professor is, a rating where a higher value means more popular.",
+              "synonyms": [
+                "professor popularity",
+                "popularity"
+              ]
+            }
+          ]
+        }
+  - name: teachingability
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: teachingability
+    description: |
+      The professor's teaching-ability rating, teachingability.
+
+      An integer from 1 to 5; a higher value means better teaching ability, read as the professor's lectures having better quality. See term_cs_semester_teaching_ability and metric_cs_semester_average_teaching_ability for the average and above-average boundary.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to prof.teachingability, an integer from 1 to 5; a higher value means better teaching ability, read as the professor's lectures having better quality. \"Higher teachability\" or the professor with the best teaching ability means the row where teachingability is MAX(teachingability); \"more than average teaching ability\" means teachingability > AVG(teachingability) — see metric_cs_semester_average_teaching_ability.\n",
+              "id": "term_cs_semester_teaching_ability",
+              "name": "teaching ability",
+              "summary": "Teaching ability (teachingability): a professor's rating for lecture quality, where a higher value means better teaching ability.",
+              "synonyms": [
+                "teaching ability",
+                "teachingability"
+              ]
+            }
+          ]
+        }
+  - name: graduate_from
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: graduate_from
+    description: |
+      The school the professor graduated from, graduate_from.
+
+      Free-text institution name, for example "Beijing Polytechnic University," "Carnegie Mellon University," "Princeton University," "University of Pennsylvania," or "ETH Zurich". See term_cs_semester_ivy_league for the fixed list of eight Ivy League schools matched against this column.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "\"Ivy League school\" is a fixed list of eight universities, matched against prof.graduate_from: Brown University, Columbia University, Cornell University, Dartmouth College, Harvard University, Princeton University, University of Pennsylvania, and Yale University. A professor \"graduated from an Ivy League school\" means graduate_from IN (that list of eight exact names); do not match on any other institution.\n",
+              "id": "term_cs_semester_ivy_league",
+              "name": "Ivy League school",
+              "summary": "Ivy League school: one of eight fixed universities matched against graduate_from — Brown, Columbia, Cornell, Dartmouth, Harvard, Princeton, Penn, and Yale.",
+              "synonyms": [
+                "Ivy League school",
+                "Ivy League"
+              ]
+            }
+          ]
+        }
+  - name: professor_ref_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: professor_ref_id
+    description: |
+      professor_ref_id, a numeric column on the prof table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: contact_email
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: contact_email
+    description: |
+      contact_email, a text column on the prof table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: given_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: given_name
+    description: |
+      given_name, a text column on the prof table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_cs_semester_average_teaching_ability
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(teachingability)
+    description: |
+      Average teaching ability: the mean teachingability rating across professors in prof.
+
+      AVG(teachingability) over cs_semester.prof. "More than average teaching ability" means teachingability > AVG(teachingability) for that professor's row, not simply a high teachingability value on its own — use this average as the comparison boundary.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average teaching ability"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ra_positions
+  source: cs_semester.ra_positions
+  description: |
+    ra_positions is a research-assistant-appointment lookup table that is not dependable for analysis.
+
+    This table resembles a record of research-assistant appointments, with a student reference, a skill rating, a supervisor reference, and a pay amount, but its rows and values are not dependable and should not be used to answer questions. Use RA instead for research-assistant appointments, capability ratings, and salary tiers. Every column in this table is unreliable for analysis.
+  fields:
+  - name: student_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: student_ref
+    description: |
+      student_ref, a numeric column on the ra_positions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: skill_level
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: skill_level
+    description: |
+      skill_level, a numeric column on the ra_positions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: supervisor_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: supervisor_id
+    description: |
+      supervisor_id, a numeric column on the ra_positions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: stipend_amount
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stipend_amount
+    description: |
+      stipend_amount, a text column on the ra_positions table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: registration
+  source: cs_semester.registration
+  description: |
+    The registration table records one row per student's enrollment in a course, with the grade earned and a satisfaction rating.
+
+    Grain is one row per student-course enrollment (101 rows in this dataset). Join to student.student_id for the student's name, GPA, and type, and to course.course_id for the course's name, credit weight, and difficulty. A missing grade means the student failed the course, not a data gap. registered_course_id, registered_student_id, and letter_grade look like alternate copies of course_id, student_id, and grade but are unreliable and must not be used.
+  fields:
+  - name: course_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: course_id
+    description: |-
+      The course this enrollment is in, course_id.
+
+      Join to course.course_id to bring in the course's name, credit weight, and difficulty.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: student_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: student_id
+    description: |
+      The student who enrolled, student_id.
+
+      Join to student.student_id to bring in the student's name, GPA, and type. A student can have many registration rows, one per course taken.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: grade
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: grade
+    description: |
+      The letter grade a student earned in a course, grade.
+
+      One of 'A' (excellent, worth 4 grade points), 'B' (good, worth 3), 'C' (fair, worth 2), or 'D' (poorly pass, worth 1); null or empty means the student failed to pass the course. "Got a C," "an excellent grade," and "a good student" in this dataset all mean an exact match on this column's letter. Weighted with course.credit to compute a semester GPA — see metric_cs_semester_semester_gpa. See term_cs_semester_course_grade for the full mapping.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to registration.grade. 'A' is an excellent grade (4 grade points, phrased as \"got an A\" or \"getting an A\"), 'B' is a good grade (3 points, sometimes phrased as \"a good student\" for that course), 'C' is a fair grade (2 points, \"got a C\"), and 'D' is a poorly-pass grade (1 point). A null or empty grade means the student failed to pass the course — \"failed\" means grade IS NULL, not grade = 'F'; there is no 'F' value stored. Weighted by course.credit to compute a semester GPA — see metric_cs_semester_semester_gpa.\n",
+              "id": "term_cs_semester_course_grade",
+              "name": "course grade",
+              "summary": "Course grade (grade, letter grade): the letter grade a student earned in a course, from an excellent grade down to failing.",
+              "synonyms": [
+                "course grade",
+                "grade",
+                "letter grade"
+              ]
+            }
+          ]
+        }
+  - name: sat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sat
+    description: |
+      The student's satisfaction rating for the course, sat.
+
+      An integer from 1 to 5; a higher value means more satisfied. sat = 1 is the least satisfaction recorded. See term_cs_semester_satisfaction and metric_cs_semester_average_satisfaction.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to registration.sat, an integer from 1 to 5 where a higher value means more satisfied. \"Least satisfaction\" means sat = 1; \"highest satisfaction\" means the row(s) where sat is MAX(sat). \"Average satisfaction\" means AVG(sat) or the equivalent SUM(sat)/COUNT(sat) — see metric_cs_semester_average_satisfaction, and metric_cs_semester_satisfaction_gap_by_salary for comparing satisfaction between salary tiers.\n",
+              "id": "term_cs_semester_satisfaction",
+              "name": "satisfaction",
+              "summary": "Satisfaction (sat, satisfying degree): a student's satisfaction rating with a course they took.",
+              "synonyms": [
+                "satisfaction",
+                "sat",
+                "satisfying degree"
+              ]
+            }
+          ]
+        }
+  - name: registered_course_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: registered_course_id
+    description: |
+      registered_course_id, a numeric column on the registration table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: registered_student_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: registered_student_id
+    description: |
+      registered_student_id, a numeric column on the registration table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: letter_grade
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: letter_grade
+    description: |
+      letter_grade, a text column on the registration table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_cs_semester_average_satisfaction
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(SUM(sat), COUNT(sat))
+    description: |
+      Average satisfaction: the mean satisfaction rating across registration rows, sum of sat divided by the count of rows.
+
+      DIVIDE(SUM(sat), COUNT(sat)) over cs_semester.registration, equivalent to AVG(sat), computed for the whole table or filtered to one course or one student's rows. See metric_cs_semester_satisfaction_gap_by_salary for taking the difference between two such averages split by an advisor's salary tier.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average satisfaction"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: student
+  source: cs_semester.student
+  description: |
+    The student table holds one row per CS department student, with name, contact details, intelligence rating, GPA, and degree type.
+
+    Grain is one row per student (38 rows in this dataset). student_id is the primary key; join to registration.student_id for the courses a student is enrolled in and to RA.student_id for any research-assistant appointments they hold. pupil_id, student_email_address, and student_given_name look like alternate copies of student_id, email, and f_name but are unreliable and must not be used. Looks like student_profiles, which mirrors this same student data but is not dependable and must not be used at all.
+  fields:
+  - name: student_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: student_id
+    description: |
+      The unique id of a student, student_id.
+
+      Primary key of this table, sample values 1 through 38. Join to registration.student_id and to RA.student_id.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: f_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: f_name
+    description: |
+      The student's first name, f_name.
+
+      Sample values Rik, Pembroke, Faina, Andris, Pablo. Combined with l_name to form the student's full name — see term_cs_semester_student_full_name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "A student's full name is student.f_name followed by student.l_name, concatenated with a space or comma as the question requires — there is no single stored full-name column. \"Student's first name\" means f_name alone; \"student's last name\" means l_name alone.\n",
+              "id": "term_cs_semester_student_full_name",
+              "name": "student's full name",
+              "summary": "Student's full name (student's first name, student's last name, full name): a student's f_name and l_name combined.",
+              "synonyms": [
+                "student's full name",
+                "student's first name",
+                "student's last name",
+                "full name"
+              ]
+            }
+          ]
+        }
+  - name: l_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: l_name
+    description: |
+      The student's last name, l_name.
+
+      Sample values Unsworth, Hardey, Mallinar, Olerenshaw, Wellings. Combined with f_name to form the student's full name — see term_cs_semester_student_full_name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: phone_number
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: phone_number
+    description: |-
+      The student's phone number, phone_number.
+
+      Formatted text, for example "(780) 7855001" or "(296) 8386115".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: email
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: email
+    description: |
+      The student's email address, email.
+
+      Institutional address, for example runsworthi@cuhk.edu.com or phardeyx@hku.hk.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: intelligence
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: intelligence
+    description: |
+      The student's intelligence rating, intelligence.
+
+      An integer from 1 to 5; a higher value means more intelligent. intelligence >= 4 marks a student as having a high intelligence level, and intelligence = 1 marks the lowest intelligence band.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to student.intelligence, an integer from 1 to 5; a higher value means more intelligent. \"Intelligence level of 4 and above\" means intelligence >= 4; \"lower intelligence\" means intelligence = 1; \"the highest intelligence\" means the student_id(s) where intelligence is MAX(intelligence).\n",
+              "id": "term_cs_semester_intelligence",
+              "name": "student intelligence",
+              "summary": "Student intelligence (intelligence): a rating of how intelligent a student is, where a higher value means more intelligent.",
+              "synonyms": [
+                "student intelligence",
+                "intelligence"
+              ]
+            }
+          ]
+        }
+  - name: gpa
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: gpa
+    description: |
+      The student's grade point average, gpa.
+
+      A decimal typically between 2.0 and 3.9 in this dataset. See term_cs_semester_gpa for boundary phrasings such as "GPA higher than 3" (gpa > 3) and "GPA between 3 and 4" (gpa BETWEEN 3 AND 4), and metric_cs_semester_semester_gpa for how a semester GPA is computed from registration and course rather than read from this column.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to student.gpa, a decimal typically between 2.0 and 3.9 in this dataset. \"GPA higher than 3\" means gpa > 3; \"GPA between 3 and 4\" means gpa BETWEEN 3 AND 4; \"average GPA\" means AVG(gpa); \"the student with the highest GPA\" means the student_id where gpa is MAX(gpa). Do not confuse this stored value with metric_cs_semester_semester_gpa, which computes a GPA for the current semester from registration.grade and course.credit rather than reading this column.\n",
+              "id": "term_cs_semester_gpa",
+              "name": "GPA",
+              "summary": "GPA (Grade Point Average): the student's stored overall grade point average, used to filter or rank students by academic performance.",
+              "synonyms": [
+                "GPA",
+                "Grade Point Average"
+              ]
+            }
+          ]
+        }
+  - name: type
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: type
+    description: |
+      The student's degree type, type.
+
+      One of three codes: 'UG' (undergraduate, a bachelor's degree), 'TPG' (taught postgraduate, a taught master's degree), or 'RPG' (research postgraduate, a research master's degree). Both TPG and RPG are pursuing a master's degree; only UG is pursuing a bachelor's degree. See term_cs_semester_student_type for the full set of phrasings.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to student.type. 'UG' means undergraduate student, pursuing a bachelor's degree — \"undergraduate students\" and \"bachelor's degree\" both mean type = 'UG'. 'TPG' means taught postgraduate student and 'RPG' means research postgraduate student; both TPG and RPG are pursuing a master's degree, so \"master's degree\" alone means type IN ('TPG', 'RPG'), while a question naming one of the two abbreviations means only that value.\n",
+              "id": "term_cs_semester_student_type",
+              "name": "student type",
+              "summary": "Student type (UG, TPG, RPG): a student's degree track — undergraduate, taught postgraduate, or research postgraduate.",
+              "synonyms": [
+                "student type",
+                "UG",
+                "TPG",
+                "RPG"
+              ]
+            }
+          ]
+        }
+  - name: pupil_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pupil_id
+    description: |
+      pupil_id, a numeric column on the student table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: student_email_address
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: student_email_address
+    description: |
+      student_email_address, a text column on the student table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: student_given_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: student_given_name
+    description: |
+      student_given_name, a text column on the student table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_cs_semester_ug_rpg_count_difference
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(type = 'UG') - COUNT(type = 'RPG')
+    description: |
+      Undergraduate-to-research-postgraduate count difference: how many more undergraduate students there are than research postgraduate students.
+
+      COUNT(type = 'UG') minus COUNT(type = 'RPG') over cs_semester.student, following this dataset's phrasing of "the difference between undergraduate and research postgraduate students." A negative result means research postgraduates outnumber undergraduates. See term_cs_semester_student_type for what 'UG' and 'RPG' mean.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "undergraduate-to-research-postgraduate count difference"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: student_profiles
+  source: cs_semester.student_profiles
+  description: |
+    student_profiles is a student-record lookup table that is not dependable for analysis.
+
+    This table resembles a record of students, with a name, contact details, a cognitive score, a cumulative GPA, and an enrollment status, but its rows and values are not dependable and should not be used to answer questions. Use student instead for student names, GPA, and degree type. Every column in this table is unreliable for analysis.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id, a numeric column on the student_profiles table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: first_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: first_name
+    description: |
+      first_name, a text column on the student_profiles table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: last_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: last_name
+    description: |
+      last_name, a text column on the student_profiles table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: mobile_number
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mobile_number
+    description: |
+      mobile_number, a text column on the student_profiles table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: email_address
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: email_address
+    description: |
+      email_address, a text column on the student_profiles table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: cognitive_score
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cognitive_score
+    description: |
+      cognitive_score, a numeric column on the student_profiles table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: cumulative_gpa
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cumulative_gpa
+    description: |
+      cumulative_gpa, a numeric column on the student_profiles table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: enrollment_status
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: enrollment_status
+    description: |
+      enrollment_status, a text column on the student_profiles table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_cs_semester_RA_prof_427e1973
+  from: RA
+  to: prof
+  from_columns:
+  - prof_id
+  to_columns:
+  - prof_id
+  ai_context:
+    instructions: |
+      RA.prof_id matches prof.prof_id, attaching the advising professor's name and ratings to a research-assistant appointment in RA.
+
+      Every RA row's prof_id matches exactly one prof.prof_id; use this join to bring a professor's name, popularity, teaching ability, and graduate_from onto a research-assistant appointment, or to count how many students a professor advises. One professor can advise many students, so this is many RA rows to one prof row. Do not join through RA.instructor_id or prof.professor_ref_id — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between RA and prof in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_cs_semester_RA_student_a5521416
+  from: RA
+  to: student
+  from_columns:
+  - student_id
+  to_columns:
+  - student_id
+  ai_context:
+    instructions: |
+      RA.student_id matches student.student_id, attaching a research assistant's name, GPA, and degree type to their appointment row in RA.
+
+      Every RA row's student_id matches exactly one student.student_id; use this join to bring a student's name, GPA, intelligence, or degree type onto their research-assistant appointment. One student can hold more than one RA appointment, so this is many RA rows to one student row. Do not join through RA.learner_id or student.pupil_id — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between RA and student in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_cs_semester_course_registration_c77073f6
+  from: registration
+  to: course
+  from_columns:
+  - course_id
+  to_columns:
+  - course_id
+  ai_context:
+    instructions: |
+      course.course_id matches registration.course_id, attaching a course's name, credit weight, and difficulty to each enrollment row in registration.
+
+      Every registration row's course_id matches exactly one course.course_id; use this join to find who is enrolled in a named course, to bring credit weight into a semester GPA calculation (see metric_cs_semester_semester_gpa), or to compare grades and satisfaction across courses of different difficulty. One course has many registration rows, so this is one course row to many registration rows. Do not join through course.class_id or registration.registered_course_id — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between course and registration in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_cs_semester_registration_student_8547a836
+  from: student
+  to: registration
+  from_columns:
+  - student_id
+  to_columns:
+  - student_id
+  ai_context:
+    instructions: |
+      registration.student_id matches student.student_id, attaching a student's name, GPA, and degree type to each enrollment row in registration.
+
+      Every registration row's student_id matches exactly one student.student_id; use this join to find which courses a named student took, or to bring a student's degree type or GPA into a question about their grades and satisfaction. One student has many registration rows, so this is one student row to many registration rows. Do not join through registration.registered_student_id or student.pupil_id — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between registration and student in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+metrics:
+- name: metric_cs_semester_satisfaction_gap_by_salary
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: AVG(sat) FILTER (WHERE salary = 'high') - AVG(sat) FILTER (WHERE salary = 'free')
+  description: |
+    Satisfaction gap by salary tier: the difference in average course satisfaction between highly paid and unpaid research assistants.
+
+    Subtract the average registration.sat of students whose RA.salary = 'free' from the average registration.sat of students whose RA.salary = 'high', joining registration to RA on student_id (see join_cs_semester_RA_registration_c1918db6) to bring the salary tier onto each satisfaction row. A student with more than one RA row or registration row contributes every matching combination, so scope the join carefully when a question restricts to one course.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "cs_semester.registration",
+        "name": "satisfaction gap by salary tier"
+      }
+- name: metric_cs_semester_semester_gpa
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(credit * grade_points) / SUM(credit)
+  description: |
+    Semester GPA: a student's grade point average for the current semester, courses weighted by credit.
+
+    Computed as SUM(credit * grade_points) / SUM(credit) over a student's registration rows, joining to course on course_id for credit. grade_points comes from mapping registration.grade: 'A' = 4, 'B' = 3, 'C' = 2, 'D' = 1, and a NULL grade (a failed course) contributes 0 grade points but its credit still counts in the SUM(credit) denominator. This is a different figure from student.gpa, which is a stored overall average — use this expression only when a question explicitly asks for a semester or per-course-weighted GPA.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "cs_semester.registration",
+        "name": "semester GPA"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_855",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0000",
+          "sql": "SELECT \"name\" FROM \"cs_semester\".\"course\" WHERE \"credit\" < (SELECT \"credit\" FROM \"cs_semester\".\"course\" WHERE \"name\" = 'Machine Learning Theory')",
+          "summary": "Please list the names of the courses that are less important than Machine Learning Theory."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_856",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0001",
+          "sql": "SELECT COUNT(\"prof_id\") FROM \"cs_semester\".\"prof\" WHERE \"popularity\" > (SELECT \"popularity\" FROM \"cs_semester\".\"prof\" WHERE \"first_name\" = 'Zhihua' AND \"last_name\" = 'Zhou')",
+          "summary": "How many professors are more popular than Zhou Zhihua?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_859",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0002",
+          "sql": "SELECT COUNT(\"T1\".\"student_id\") FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"prof\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" WHERE \"T2\".\"first_name\" = 'Sauveur' AND \"T2\".\"last_name\" = 'Skyme'",
+          "summary": "How many research assistants does Sauveur Skyme have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_860",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0003",
+          "sql": "SELECT \"T1\".\"f_name\", \"T1\".\"l_name\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"RA\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T2\".\"capability\" = 5",
+          "summary": "Please list the full names of all the students who are research assistants with the highest research capability."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_862",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0004",
+          "sql": "SELECT \"T1\".\"f_name\", \"T1\".\"l_name\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T3\".\"name\" = 'Machine Learning Theory'",
+          "summary": "Please list the full names of all the students who took the course Machine Learning Theory."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_864",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0005",
+          "sql": "SELECT \"T3\".\"name\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T1\".\"f_name\" = 'Laughton' AND \"T1\".\"l_name\" = 'Antonio'",
+          "summary": "Please list the names of the courses taken by Laughton Antonio."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_867",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0006",
+          "sql": "SELECT COUNT(*) FROM (SELECT MAX(\"T2\".\"prof_id\") AS \"prof_id\" FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"prof\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" WHERE \"T2\".\"gender\" = 'Male' GROUP BY \"T1\".\"prof_id\" HAVING COUNT(\"T1\".\"student_id\") > 3)",
+          "summary": "Among the professors who have more than 3 research assistants, how many of them are male?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_868",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0007",
+          "sql": "SELECT COUNT(\"T1\".\"student_id\") FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T3\".\"name\" = 'Machine Learning Theory' AND \"T1\".\"type\" = 'UG'",
+          "summary": "Among the students who took the course Machine Learning Theory, how many of them are undergraduates?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_869",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0008",
+          "sql": "SELECT \"T1\".\"first_name\", \"T1\".\"last_name\" FROM \"cs_semester\".\"prof\" AS \"T1\" INNER JOIN \"cs_semester\".\"RA\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" INNER JOIN \"cs_semester\".\"student\" AS \"T3\" ON \"T2\".\"student_id\" = \"T3\".\"student_id\" WHERE \"T3\".\"f_name\" = 'Willie' AND \"T3\".\"l_name\" = 'Rechert'",
+          "summary": "Which professor advised Willie Rechert to work as a research assistant? Please give his or her full name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_870",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0009",
+          "sql": "SELECT CAST(SUM(COALESCE(CASE WHEN \"T3\".\"gpa\" IS NULL OR TRIM(CAST(\"T3\".\"gpa\" AS TEXT)) IN ('', 'NULL', 'null') THEN 0 WHEN CAST(\"T3\".\"gpa\" AS TEXT) ~ '^[+-]?[0-9]*\\.?[0-9]+([eE][+-]?[0-9]+)?$' THEN CAST(\"T3\".\"gpa\" AS DOUBLE PRECISION) ELSE 0 END, 0)) / NULLIF(COUNT(\"T1\".\"student_id\"), 0) AS REAL) FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"prof\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" INNER JOIN \"cs_semester\".\"student\" AS \"T3\" ON \"T1\".\"student_id\" = \"T3\".\"student_id\" WHERE \"T2\".\"first_name\" = 'Ogdon' AND \"T2\".\"last_name\" = 'Zywicki'",
+          "summary": "What is the average gpa of Ogdon Zywicki's research assistants?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_871",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0010",
+          "sql": "SELECT CAST(SUM(\"T1\".\"sat\") AS REAL) / NULLIF(COUNT(\"T1\".\"student_id\"), 0) FROM \"cs_semester\".\"registration\" AS \"T1\" INNER JOIN \"cs_semester\".\"course\" AS \"T2\" ON \"T1\".\"course_id\" = \"T2\".\"course_id\" WHERE \"T2\".\"name\" = 'Machine Learning Theory'",
+          "summary": "What is the average satisfying degree of the course Machine Learning Theory?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_872",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0011",
+          "sql": "SELECT COUNT(\"student_id\") FROM \"cs_semester\".\"student\" WHERE \"type\" = 'RPG'",
+          "summary": "Give the number of research postgraduate students."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_874",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0012",
+          "sql": "SELECT COUNT(\"T1\".\"student_id\") FROM \"cs_semester\".\"registration\" AS \"T1\" INNER JOIN \"cs_semester\".\"course\" AS \"T2\" ON \"T1\".\"course_id\" = \"T2\".\"course_id\" WHERE \"T1\".\"grade\" = 'A' AND \"T2\".\"credit\" = '3' AND \"T2\".\"diff\" = 1",
+          "summary": "For the 3-credit course with the easiest difficulty, how many students get an \"A\" in that course?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_875",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0013",
+          "sql": "SELECT COUNT(\"T1\".\"student_id\") FROM \"cs_semester\".\"registration\" AS \"T1\" INNER JOIN \"cs_semester\".\"course\" AS \"T2\" ON \"T1\".\"course_id\" = \"T2\".\"course_id\" WHERE \"T2\".\"diff\" = 5",
+          "summary": "How many students took the hardest course?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_876",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0014",
+          "sql": "SELECT \"T1\".\"first_name\", \"T1\".\"last_name\" FROM \"cs_semester\".\"prof\" AS \"T1\" INNER JOIN \"cs_semester\".\"RA\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" INNER JOIN \"cs_semester\".\"student\" AS \"T3\" ON \"T2\".\"student_id\" = \"T3\".\"student_id\" WHERE \"T3\".\"f_name\" = 'Oliy' AND \"T3\".\"l_name\" = 'Spratling'",
+          "summary": "Which professor is Oliy Spratling working with? Give the full name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_877",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0015",
+          "sql": "SELECT \"T1\".\"popularity\" FROM \"cs_semester\".\"prof\" AS \"T1\" INNER JOIN \"cs_semester\".\"RA\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" INNER JOIN \"cs_semester\".\"student\" AS \"T3\" ON \"T2\".\"student_id\" = \"T3\".\"student_id\" WHERE \"T3\".\"f_name\" = 'Harrietta' AND \"T3\".\"l_name\" = 'Lydford'",
+          "summary": "For the professor who is working with Harrietta Lydford, how is his popularity?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_878",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0016",
+          "sql": "SELECT COUNT(\"T1\".\"student_id\") FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"prof\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" WHERE \"T2\".\"teachingability\" = '1' AND \"T2\".\"gender\" = 'Female'",
+          "summary": "How many research assistants does the female professor with the lowest teaching ability have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_879",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0017",
+          "sql": "SELECT \"T\".\"first_name\", \"T\".\"last_name\" FROM (SELECT MAX(\"T2\".\"first_name\") AS \"first_name\", MAX(\"T2\".\"last_name\") AS \"last_name\", MAX(COALESCE(CASE WHEN \"T2\".\"teachingability\" IS NULL OR TRIM(CAST(\"T2\".\"teachingability\" AS TEXT)) IN ('', 'NULL', 'null') THEN 0 WHEN CAST(\"T2\".\"teachingability\" AS TEXT) ~ '^[+-]?[0-9]*\\.?[0-9]+([eE][+-]?[0-9]+)?$' THEN CAST(\"T2\".\"teachingability\" AS DOUBLE PRECISION) ELSE 0 END, 0)) AS \"teachingability\", MIN(\"T1\".\"prof_id\") AS \"prof_id\" FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"prof\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" GROUP BY \"T1\".\"prof_id\" HAVING COUNT(\"student_id\") > 2) AS \"T\" ORDER BY \"T\".\"teachingability\" DESC, \"T\".\"prof_id\" ASC LIMIT 1",
+          "summary": "For the professors who advise more than 2 students, which professor has a higher teaching ability? Give the full name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_881",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0018",
+          "sql": "SELECT COUNT(\"T1\".\"course_id\") FROM \"cs_semester\".\"registration\" AS \"T1\" INNER JOIN \"cs_semester\".\"student\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T2\".\"f_name\" = 'Alvera' AND \"T2\".\"l_name\" = 'McQuillin'",
+          "summary": "How many courses does Alvera McQuillin take?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_884",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0019",
+          "sql": "SELECT \"T1\".\"f_name\", \"T1\".\"l_name\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T3\".\"name\" = 'Applied Deep Learning ' AND \"T2\".\"grade\" IS NULL",
+          "summary": "Who were the students who failed the course \"Applied Deep Learning\"? Give the full name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_885",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0020",
+          "sql": "SELECT \"T1\".\"phone_number\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T3\".\"name\" = 'Intro to BlockChain' AND \"T2\".\"grade\" = 'A'",
+          "summary": "Give the phone number of the only student who obtained \"A\" in the course \"Intro to BlockChain\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_886",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0021",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T3\".\"type\" = 'TPG' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"student_id\"), 0) FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"prof\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" INNER JOIN \"cs_semester\".\"student\" AS \"T3\" ON \"T1\".\"student_id\" = \"T3\".\"student_id\" WHERE \"T2\".\"first_name\" = 'Ogdon' AND \"T2\".\"last_name\" = 'Zywicki'",
+          "summary": "What is the percentage of Professor Ogdon Zywicki's research assistants are taught postgraduate students?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_887",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0022",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"grade\" = 'B' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"student_id\"), 0) FROM \"cs_semester\".\"registration\" AS \"T1\" INNER JOIN \"cs_semester\".\"course\" AS \"T2\" ON \"T1\".\"course_id\" = \"T2\".\"course_id\" WHERE \"T2\".\"name\" = 'Computer Network'",
+          "summary": "What is the percentage of students who get a \"B\" in the course \"Computer Network\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_888",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0023",
+          "sql": "SELECT COUNT(\"course_id\") FROM \"cs_semester\".\"course\" WHERE \"diff\" = 5",
+          "summary": "How many courses have the highest difficulty?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_889",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0024",
+          "sql": "SELECT \"first_name\", \"last_name\" FROM \"cs_semester\".\"prof\" WHERE \"graduate_from\" IN ('Brown University', 'Columbia University', 'Cornell University', 'Dartmouth College', 'Harvard University', 'Princeton University', 'University of Pennsylvania', 'Yale University')",
+          "summary": "What is the full name of the professor who graduated from an Ivy League School?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_890",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0025",
+          "sql": "SELECT \"name\" FROM \"cs_semester\".\"course\" WHERE \"credit\" = (SELECT MAX(\"credit\") FROM \"cs_semester\".\"course\") AND \"diff\" = (SELECT MAX(\"diff\") FROM \"cs_semester\".\"course\")",
+          "summary": "Among the most important courses, what is the name of the most difficult course?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_891",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0026",
+          "sql": "SELECT COUNT(\"student_id\") FROM \"cs_semester\".\"student\" WHERE \"type\" = 'UG' AND \"intelligence\" = (SELECT MAX(\"intelligence\") FROM \"cs_semester\".\"student\")",
+          "summary": "How many students have the highest intelligence among those taking a bachelor's degree?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_892",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0027",
+          "sql": "SELECT COUNT(\"prof_id\") FROM \"cs_semester\".\"prof\" WHERE \"gender\" = 'Female' AND \"popularity\" = (SELECT MAX(\"popularity\") FROM \"cs_semester\".\"prof\")",
+          "summary": "Among the most popular professors, how many are females?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_894",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0028",
+          "sql": "SELECT COUNT(\"T2\".\"student_id\") FROM \"cs_semester\".\"course\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"course_id\" = \"T2\".\"course_id\" WHERE \"T2\".\"grade\" = 'A' AND \"T1\".\"name\" = 'Applied Deep Learning '",
+          "summary": "How many students got an A in Applied Deep Learning?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_895",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0029",
+          "sql": "SELECT \"T2\".\"gpa\" FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"student\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T1\".\"salary\" = 'free'",
+          "summary": "What are the GPAs of the unpaid Research Assistants?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_897",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0030",
+          "sql": "SELECT COUNT(\"course_id\") FROM \"cs_semester\".\"registration\" WHERE \"student_id\" IN (SELECT \"student_id\" FROM \"cs_semester\".\"student\" WHERE \"gpa\" = (SELECT MAX(\"gpa\") FROM \"cs_semester\".\"student\"))",
+          "summary": "How many courses does the student with the highest GPA this semester take?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_900",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0031",
+          "sql": "SELECT \"T3\".\"name\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T2\".\"sat\" = 1 AND \"T1\".\"intelligence\" = 1",
+          "summary": "What are the names of the courses that the students with the lowest intelligence are least satisfied with?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_901",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0032",
+          "sql": "SELECT \"T2\".\"name\" FROM \"cs_semester\".\"registration\" AS \"T1\" INNER JOIN \"cs_semester\".\"course\" AS \"T2\" ON \"T1\".\"course_id\" = \"T2\".\"course_id\" WHERE \"T1\".\"grade\" = 'A' AND \"T2\".\"name\" IN ('Advanced Operating System', 'Intro to BlockChain') GROUP BY \"T2\".\"name\" ORDER BY COUNT(\"T1\".\"student_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which of the two courses, \"Advanced Operating System\" or \"Intro to BlockChain', did most of the students receive an A in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_904",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0033",
+          "sql": "SELECT COUNT(\"T2\".\"student_id\") FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T2\".\"grade\" IS NULL AND \"T1\".\"gpa\" BETWEEN 3 AND 4",
+          "summary": "How many students, who have a GPA between 3 to 4, failed a course?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_907",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0034",
+          "sql": "SELECT \"prof_id\", \"student_id\" FROM \"cs_semester\".\"RA\" WHERE \"capability\" = (SELECT MIN(\"capability\") FROM \"cs_semester\".\"RA\")",
+          "summary": "List the professors' IDs and students' IDs with the lowest research ability."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_909",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0035",
+          "sql": "SELECT \"course_id\", \"student_id\" FROM \"cs_semester\".\"registration\" WHERE \"grade\" IS NULL OR \"grade\" = ''",
+          "summary": "List the courses' IDs and students' IDs who failed to pass the course."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_911",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0036",
+          "sql": "SELECT \"name\", \"credit\" FROM \"cs_semester\".\"course\" WHERE \"diff\" = (SELECT MIN(\"diff\") FROM \"cs_semester\".\"course\")",
+          "summary": "Describe the names and credits of the least difficult courses."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_913",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0037",
+          "sql": "SELECT \"T2\".\"f_name\", \"T2\".\"l_name\", \"T2\".\"email\" FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"student\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T1\".\"salary\" = 'free'",
+          "summary": "Provide the full names and emails of unpaid research assistants."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_914",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0038",
+          "sql": "SELECT \"T3\".\"f_name\", \"T3\".\"l_name\", \"T2\".\"capability\", \"T3\".\"gpa\" FROM \"cs_semester\".\"prof\" AS \"T1\" INNER JOIN \"cs_semester\".\"RA\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" INNER JOIN \"cs_semester\".\"student\" AS \"T3\" ON \"T2\".\"student_id\" = \"T3\".\"student_id\" WHERE \"T1\".\"first_name\" = 'Merwyn' AND \"T1\".\"last_name\" = 'Conkay'",
+          "summary": "List the research assistants' full names, capabilities and GPAs who were under the supervision of Merwyn Conkay."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_915",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0039",
+          "sql": "SELECT \"T1\".\"f_name\", \"T1\".\"l_name\", \"T2\".\"grade\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T3\".\"name\" = 'Intro to BlockChain'",
+          "summary": "Describe the students' full names and grades in Intro to BlockChain course."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_916",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0040",
+          "sql": "SELECT \"T1\".\"f_name\", \"T1\".\"l_name\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T2\".\"grade\" = 'A' ORDER BY \"T3\".\"diff\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among students registered for the most difficult course, list the students' full names who got grade A."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_917",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0041",
+          "sql": "SELECT \"T1\".\"first_name\", \"T1\".\"last_name\", \"T1\".\"graduate_from\" FROM \"cs_semester\".\"prof\" AS \"T1\" INNER JOIN \"cs_semester\".\"RA\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" INNER JOIN \"cs_semester\".\"student\" AS \"T3\" ON \"T2\".\"student_id\" = \"T3\".\"student_id\" WHERE \"T3\".\"f_name\" = 'Olia' AND \"T3\".\"l_name\" = 'Rabier'",
+          "summary": "Describe the full names and graduated universities of the professors who advised Olia Rabier."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_918",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0042",
+          "sql": "SELECT \"T1\".\"f_name\", \"T1\".\"l_name\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T3\".\"name\" = 'Advanced Database Systems' ORDER BY \"T2\".\"sat\" DESC NULLS LAST LIMIT 1",
+          "summary": "Name the students of the Advanced Database Systems course with the highest satisfaction."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_924",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0043",
+          "sql": "SELECT COUNT(\"prof_id\") FROM \"cs_semester\".\"prof\" WHERE \"gender\" = 'Female'",
+          "summary": "How many of the professors are female?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_925",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0044",
+          "sql": "SELECT \"name\" FROM \"cs_semester\".\"course\" WHERE \"diff\" = (SELECT MAX(\"diff\") FROM \"cs_semester\".\"course\")",
+          "summary": "What is the name of the most difficult course?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_930",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0045",
+          "sql": "SELECT COUNT(\"T1\".\"student_id\") FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"student\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T1\".\"salary\" = 'high' AND \"T2\".\"gpa\" > 3",
+          "summary": "Among the students with high salary, what is total number of students with a GPA higher than 3?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_931",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0046",
+          "sql": "SELECT \"T3\".\"name\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T1\".\"type\" = 'UG' ORDER BY \"T2\".\"sat\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among undergraduate students, list the name of the course with the highest student satisfaction."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_932",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0047",
+          "sql": "SELECT \"T1\".\"capability\" FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"student\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T2\".\"type\" = 'RPG' AND \"T2\".\"intelligence\" >= 4",
+          "summary": "List the capability of research postgraduate students with an intellegence level of 4 and above."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_933",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0048",
+          "sql": "SELECT COUNT(\"T1\".\"student_id\") FROM \"cs_semester\".\"registration\" AS \"T1\" INNER JOIN \"cs_semester\".\"student\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T1\".\"grade\" = 'B' AND \"T2\".\"intelligence\" = 3",
+          "summary": "In students with a grade of B, how many of them have an intellegence level of 3?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_934",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0049",
+          "sql": "SELECT \"T3\".\"diff\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T2\".\"grade\" = 'A' AND \"T1\".\"intelligence\" = 5",
+          "summary": "What is the difficulty of the course in which a student with level of intellengence of 5 got an A grade?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_936",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0050",
+          "sql": "SELECT \"T1\".\"name\" FROM \"cs_semester\".\"course\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"course_id\" = \"T2\".\"course_id\" WHERE \"T2\".\"grade\" = 'D'",
+          "summary": "List the course's name where students acquired a grade of D."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_937",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0051",
+          "sql": "SELECT \"T2\".\"capability\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"RA\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T1\".\"f_name\" = 'Alvera' AND \"T1\".\"l_name\" = 'McQuillin'",
+          "summary": "What is the capability on research of the student named Alvera McQuillin?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_938",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0052",
+          "sql": "SELECT COUNT(\"T1\".\"student_id\") FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T3\".\"credit\" = 3 AND CAST(\"T1\".\"gpa\" AS TEXT) = '3.2'",
+          "summary": "Of courses with 3 credit, how many students have GPA of 3.2?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_943",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0053",
+          "sql": "SELECT CAST(SUM(\"teachingability\") AS REAL) / NULLIF(COUNT(\"prof_id\"), 0) FROM \"cs_semester\".\"prof\" WHERE \"popularity\" = (SELECT MAX(\"popularity\") FROM \"cs_semester\".\"prof\")",
+          "summary": "What is the average teaching ability of the most popular professors?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_944",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0054",
+          "sql": "SELECT CAST(SUM(\"sat\") AS REAL) / NULLIF(COUNT(\"course_id\"), 0) FROM \"cs_semester\".\"registration\" WHERE \"grade\" = 'B'",
+          "summary": "Calculate the average satisfaction of the good students with their courses."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_946",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0055",
+          "sql": "SELECT \"T1\".\"f_name\", \"T1\".\"l_name\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"RA\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T2\".\"capability\" > (SELECT AVG(\"capability\") FROM \"cs_semester\".\"RA\")",
+          "summary": "Name the students with above-average capability."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_948",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0056",
+          "sql": "SELECT CAST(SUM(\"T1\".\"capability\") AS REAL) / NULLIF(COUNT(\"T1\".\"student_id\"), 0) FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"student\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T2\".\"gpa\" < 2.5",
+          "summary": "What is the average capability of students with less than a 2.5 GPA?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_949",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0057",
+          "sql": "SELECT \"T1\".\"first_name\", \"T1\".\"last_name\" FROM \"cs_semester\".\"prof\" AS \"T1\" INNER JOIN \"cs_semester\".\"RA\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" INNER JOIN \"cs_semester\".\"student\" AS \"T3\" ON \"T2\".\"student_id\" = \"T3\".\"student_id\" WHERE \"T3\".\"intelligence\" = 1",
+          "summary": "List the full name of the professors who advised students with intelligence 1."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_951",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0058",
+          "sql": "SELECT \"T2\".\"f_name\", \"T2\".\"l_name\", \"T1\".\"capability\" FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"student\" AS \"T2\" ON \"T2\".\"student_id\" = \"T1\".\"student_id\" INNER JOIN \"cs_semester\".\"registration\" AS \"T3\" ON \"T2\".\"student_id\" = \"T3\".\"student_id\" WHERE \"T3\".\"grade\" IS NULL OR \"T3\".\"grade\" = ''",
+          "summary": "Give the full name and capability of students who failed in any courses."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_955",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0059",
+          "sql": "SELECT AVG(CASE WHEN \"T2\".\"sat\" IS NULL OR TRIM(CAST(\"T2\".\"sat\" AS TEXT)) IN ('NULL', 'null', '', 'NA', 'N/A') OR NOT (CAST(\"T2\".\"sat\" AS TEXT) ~ '^[+-]?[0-9]*\\.?[0-9]+([eE][+-]?[0-9]+)?$') THEN NULL ELSE CAST(\"T2\".\"sat\" AS DOUBLE PRECISION) END) - (SELECT AVG(CASE WHEN \"T2\".\"sat\" IS NULL OR TRIM(CAST(\"T2\".\"sat\" AS TEXT)) IN ('NULL', 'null', '', 'NA', 'N/A') OR NOT (CAST(\"T2\".\"sat\" AS TEXT) ~ '^[+-]?[0-9]*\\.?[0-9]+([eE][+-]?[0-9]+)?$') THEN NULL ELSE CAST(\"T2\".\"sat\" AS DOUBLE PRECISION) END) FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T1\".\"salary\" = 'free') AS \"diff\" FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T1\".\"salary\" = 'high'",
+          "summary": "Calculate the difference between the average satisfaction of the students with high salaries and no salary."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_957",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0060",
+          "sql": "SELECT MAX(\"T2\".\"first_name\"), MAX(\"T2\".\"last_name\"), MAX(\"T2\".\"email\") FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"prof\" AS \"T2\" ON \"T1\".\"prof_id\" = \"T2\".\"prof_id\" WHERE \"T2\".\"teachingability\" > (SELECT AVG(\"teachingability\") FROM \"cs_semester\".\"prof\") GROUP BY \"T2\".\"prof_id\" HAVING COUNT(\"T1\".\"student_id\") >= 2",
+          "summary": "Among the professors with more than average teaching ability, list the full name and email address of the professors who advise two or more students."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_961",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0061",
+          "sql": "SELECT \"T1\".\"salary\" FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"student\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T2\".\"email\" = 'grosellg@hku.hk'",
+          "summary": "What is the salary range of the student with an email of grosellg@hku.hk?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_964",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0062",
+          "sql": "SELECT \"T1\".\"f_name\", \"T1\".\"l_name\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T3\".\"name\" = 'Applied Deep Learning ' AND \"T2\".\"grade\" = 'C'",
+          "summary": "List the student's first and last name that got a C in the course named \"Applied Deep Learning\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_965",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0063",
+          "sql": "SELECT \"T3\".\"name\" FROM \"cs_semester\".\"student\" AS \"T1\" INNER JOIN \"cs_semester\".\"registration\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" INNER JOIN \"cs_semester\".\"course\" AS \"T3\" ON \"T2\".\"course_id\" = \"T3\".\"course_id\" WHERE \"T2\".\"sat\" = 1 AND \"T1\".\"type\" = 'RPG'",
+          "summary": "Among research postgraduate students, give the name of the course with the student satisfaction value of 1."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_966",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_cs_semester_0064",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"type\" = 'UG' THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T2\".\"type\" = 'RPG' THEN 1 ELSE 0 END) FROM \"cs_semester\".\"RA\" AS \"T1\" INNER JOIN \"cs_semester\".\"student\" AS \"T2\" ON \"T1\".\"student_id\" = \"T2\".\"student_id\" WHERE \"T1\".\"capability\" < 3",
+          "summary": "Among the students with a capability below 3, what is the difference of undergraduate students from research postgraduate students?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between RA and registration in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Every RA row's student_id matches one or more registration.student_id rows for the same student. Use this join to compare a research assistant's salary tier or capability against the grades or satisfaction they recorded in their courses — for example, metric_cs_semester_satisfaction_gap_by_salary compares registration.sat between students on RA.salary = 'high' and RA.salary = 'free'. A student can appear on more than one RA row and more than one registration row, so this is many to many. Do not join through RA.learner_id or registration.registered_student_id — both are unreliable.\n",
+          "cardinality": "many_to_many",
+          "id": "join_cs_semester_RA_registration_c1918db6",
+          "left_table": "cs_semester.RA",
+          "on": "cs_semester.RA.student_id = cs_semester.registration.student_id",
+          "right_table": "cs_semester.registration",
+          "summary": "RA.student_id matches registration.student_id, linking a research-assistant appointment in RA to that same student's course enrollments in registration."
+        }
+      ]
+    }

@@ -1,25 +1,2849 @@
-asset_type: schema
-id: shipping
+version: 0.2.0.dev0
 name: shipping
-summary: The shipping schema tracks a trucking company's fleet, drivers, and customers, recording which truck and driver carried each shipment, for which customer, to which destination city, on what date, and at what weight.
-body: >
-  The central fact table is expedition, one row per shipment, joined to camion for the truck,
-  chauffeur for the driver, client for the customer, and ville for the destination city.
-  chauffeur and client both store their state as a two-letter abbreviation (etat = 'TX', 'NY',
-  and so on), while ville stores the state as its full name (etat = 'Texas', 'New York') —
-  convert between the two forms rather than comparing them directly. conducteur_routier and
-  vehicule_lourd are look-alike tables of drivers and trucks that are not dependable for
-  analysis, and id_ville_expedition, id_client_expedition, and id_chauffeur_expedition on
-  expedition itself look like foreign keys but are not the ones to join on.
-rules:
-- Join expedition to its neighbours on id_camion, id_chauffeur, id_client, and id_ville only.
-  Never join on id_ville_expedition, id_client_expedition, or id_chauffeur_expedition, and
-  never select, filter, or join on any column from conducteur_routier or vehicule_lourd — all
-  are unreliable for analysis.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  The shipping schema tracks a trucking company's fleet, drivers, and customers, recording which truck and driver carried each shipment, for which customer, to which destination city, on what date, and at what weight.
+
+  The central fact table is expedition, one row per shipment, joined to camion for the truck, chauffeur for the driver, client for the customer, and ville for the destination city. chauffeur and client both store their state as a two-letter abbreviation (etat = 'TX', 'NY', and so on), while ville stores the state as its full name (etat = 'Texas', 'New York') — convert between the two forms rather than comparing them directly. conducteur_routier and vehicule_lourd are look-alike tables of drivers and trucks that are not dependable for analysis, and id_ville_expedition, id_client_expedition, and id_chauffeur_expedition on expedition itself look like foreign keys but are not the ones to join on.
+ai_context:
+  instructions: Join expedition to its neighbours on id_camion, id_chauffeur, id_client, and id_ville only. Never join on id_ville_expedition, id_client_expedition, or id_chauffeur_expedition, and never select, filter, or join on any column from conducteur_routier or vehicule_lourd — all are unreliable for analysis.
+datasets:
+- name: camion
+  source: shipping.camion
+  description: |
+    camion holds one row per truck in the shipping company's fleet, recording its brand and model year.
+
+    Grain: one row per truck, keyed by id_camion (12 trucks in the loaded sample). Use this table for a truck's brand or model year. It is easily confused with vehicule_lourd, a table of truck-like records that is not dependable for analysis — use camion instead. Join to expedition on id_camion (one truck can appear on many shipments) to see which shipments a truck carried.
+  fields:
+  - name: id_camion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_camion
+    description: |
+      The unique identifier for a truck, id_camion.
+
+      A numeric id, one per truck in the fleet. Join to expedition.id_camion to find every shipment a truck carried.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: marque
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: marque
+    description: |
+      The brand of a truck, marque.
+
+      One of three truck brands in the loaded sample: Peterbilt, Mack, or Kenworth. A question about a brand's manufacturer headquarters is answered from the truck headquarters term, not a stored column.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to camion.marque. The loaded sample holds exactly three brands: Peterbilt, Mack, and Kenworth. A question about where a brand is headquartered does not read this column's values — it resolves through the truck headquarters term instead.\n",
+              "id": "term_shipping_truck_brand",
+              "name": "truck brand",
+              "summary": "truck brand (brand, make): the manufacturer that built a truck in the shipping company's fleet.",
+              "synonyms": [
+                "truck brand",
+                "brand",
+                "make"
+              ]
+            },
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Not a stored column — a fixed, commonsense mapping from camion.marque used when a question asks about a truck's manufacturer headquarters. Peterbilt is headquartered in Texas (TX), Mack in North Carolina (NC), and Kenworth in Washington (WA). Answer by matching marque to this mapping, not by looking for a headquarters column on camion or vehicule_lourd.\n",
+              "id": "term_shipping_truck_headquarters",
+              "name": "truck manufacturer headquarters",
+              "summary": "truck manufacturer headquarters: the U.S. state where a truck brand's manufacturer is based, a fixed lookup rather than a stored column.",
+              "synonyms": [
+                "truck manufacturer headquarters",
+                "headquarters"
+              ]
+            }
+          ]
+        }
+  - name: annee_modele
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: annee_modele
+    description: |
+      The model year of a truck, annee_modele.
+
+      A four-digit calendar year, 2005 to 2010 in the loaded sample. "Oldest" resolves to the smallest annee_modele and "newest" or "latest" to the largest, the ordinary sense of the words.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to camion.annee_modele. A smaller value is an older truck and a larger value a newer one, the ordinary sense of \"oldest\" and \"newest\" — do not read it as a version number.\n",
+              "id": "term_shipping_model_year",
+              "name": "truck model year",
+              "summary": "truck model year (model): the calendar year a truck in the fleet was manufactured.",
+              "synonyms": [
+                "truck model year",
+                "model"
+              ]
+            }
+          ]
+        }
+  - name: identifiant_camion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_camion
+    description: |
+      identifiant_camion, a numeric column on the camion table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: constructeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: constructeur
+    description: |
+      constructeur, a text column on the camion table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: annee_fabrication
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: annee_fabrication
+    description: |
+      annee_fabrication, a numeric column on the camion table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_shipping_oldest_truck_model_year
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(annee_modele)
+    description: |
+      oldest truck model year: the minimum annee_modele among trucks in the fleet.
+
+      Bound to camion.annee_modele. "The oldest camion model" resolves to MIN(annee_modele); the newest resolves to MAX(annee_modele) instead.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "oldest truck model year"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: chauffeur
+  source: shipping.chauffeur
+  description: |
+    chauffeur holds one row per driver, recording their name, contact details, and home address.
+
+    Grain: one row per driver, keyed by id_chauffeur (11 drivers in the loaded sample, all based in Memphis, TN). It is easily confused with conducteur_routier, a table of driver-like records that is not dependable for analysis — use chauffeur instead. Join to expedition on id_chauffeur (one driver can appear on many shipments) to see which shipments a driver carried.
+  fields:
+  - name: id_chauffeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_chauffeur
+    description: |
+      The unique identifier for a driver, id_chauffeur.
+
+      A numeric id, one per driver. Join to expedition.id_chauffeur to find every shipment a driver carried.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: prenom
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prenom
+    description: |
+      A driver's first given name, prenom.
+
+      Free-text first name, for example Adel, Sue, Gale, Zachery, or Maria. Combine with nom for the driver's full name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nom
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom
+    description: |
+      A driver's family name, nom.
+
+      Free-text last name, for example Al-Alawi, Newell, Oneal, Hicks, or Craft. Combine with prenom for the driver's full name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "A driver's full name is prenom (first name) concatenated with nom (last name), for example \"Adel\" and \"Al-Alawi\" combine to \"Adel Al-Alawi\". Neither column alone is the full name; a question asking for a driver's name by name usually needs both.\n",
+              "id": "term_shipping_driver_full_name",
+              "name": "driver full name",
+              "summary": "driver full name (driver name, chauffeur name, name): a driver's first and last name together.",
+              "synonyms": [
+                "driver full name",
+                "driver name",
+                "chauffeur name",
+                "name"
+              ]
+            }
+          ]
+        }
+  - name: adresse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse
+    description: |
+      The street address of a driver's home, adresse.
+
+      Free-text street address, for example 749 E Mckellar Ave or 268 Richmond Ave.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ville
+    description: |
+      The city where a driver lives, ville.
+
+      Text city name; every driver in the loaded sample lives in Memphis.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: etat
+    description: |
+      The state where a driver lives, etat.
+
+      Two-letter state abbreviation; every driver in the loaded sample lives in Tennessee (TN). When a question names a state in full, convert it to this abbreviation before filtering.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: code_postal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_postal
+    description: |
+      The postal code of a driver's address, code_postal.
+
+      Five-digit ZIP code, for example 38106 to 38135 in the loaded sample.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: telephone
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: telephone
+    description: |
+      The telephone number of a driver, telephone.
+
+      Formatted phone number, for example (901) 947-4433.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_du_chauffeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_du_chauffeur
+    description: |
+      id_du_chauffeur, a numeric column on the chauffeur table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: adresse_residence
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse_residence
+    description: |
+      adresse_residence, a text column on the chauffeur table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ville_residence
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ville_residence
+    description: |
+      ville_residence, a text column on the chauffeur table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: client
+  source: shipping.client
+  description: |
+    client holds one row per customer, recording their business name, type, annual revenue, and address.
+
+    Grain: one row per customer, keyed by id_client. type_client marks whether a customer is a manufacturer, wholesaler, or retailer. Join to expedition on id_client (one customer can appear on many shipments) to see which shipments a customer ordered.
+  fields:
+  - name: id_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_client
+    description: |
+      The unique identifier for a customer, id_client.
+
+      A numeric id, one per customer. Join to expedition.id_client to find every shipment a customer ordered.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nom_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_client
+    description: |
+      The business name of a customer, nom_client.
+
+      Free-text company name, for example Autoware Inc, Olympic Camper Sales Inc, or S K L Enterprises Inc. Called "customer name" or "client name" in business language.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to client.nom_client, the customer's business name, for example \"Autoware Inc\" or \"Olympic Camper Sales Inc\". This is the column a question means by \"customer\" or \"client\" when it asks for a name rather than an id.\n",
+              "id": "term_shipping_customer_name",
+              "name": "customer name",
+              "summary": "customer name (client name, client): the registered business name of a customer.",
+              "synonyms": [
+                "customer name",
+                "client name",
+                "client"
+              ]
+            }
+          ]
+        }
+  - name: chiffre_affaires_annuel
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chiffre_affaires_annuel
+    description: |
+      The annual revenue of a customer, chiffre_affaires_annuel.
+
+      A dollar amount, ranging from about 979,237 to 44,876,186 in the loaded sample. "Annual revenue of over 30000000" means chiffre_affaires_annuel > 30000000.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: type_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: type_client
+    description: |
+      The business type of a customer, type_client.
+
+      One of three values: manufacturer, wholesaler, or retailer.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: adresse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse
+    description: |
+      The street address of a customer, adresse.
+
+      Free-text street address, for example 105 NW 13th St or 400 North Tustin Street.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ville
+    description: |
+      The city of a customer's address, ville.
+
+      Text city name, 82 distinct values in the loaded sample, for example Grand Prairie, Orange, or Sunnyvale.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: etat
+    description: |
+      The state of a customer's address, etat.
+
+      Two-letter state abbreviation, 33 distinct values in the loaded sample. Convert a full state name given in a question (Texas, Florida, New York, South Carolina, California, and so on) to its two-letter abbreviation before filtering.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "chauffeur.etat and client.etat store a two-letter postal abbreviation ('TX', 'NY', 'FL', 'SC', 'CA', and so on), so a question naming a state in full — Texas, New York, Florida, South Carolina, California, Illinois, New Jersey — must be converted to that abbreviation before filtering. ville.etat is the one exception: it already stores the state's full name, so no conversion is needed there.\n",
+              "id": "term_shipping_state_abbreviation",
+              "name": "state abbreviation",
+              "summary": "state abbreviation: the two-letter postal code a question's full state name converts to before filtering chauffeur or client.",
+              "synonyms": [
+                "state abbreviation"
+              ]
+            }
+          ]
+        }
+  - name: code_postal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_postal
+    description: |
+      The postal code of a customer's address, code_postal.
+
+      Five-digit ZIP code stored as a decimal, for example 75050.0 or 92867.0.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: telephone
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: telephone
+    description: |
+      The telephone number of a customer, telephone.
+
+      Formatted phone number, for example (972) 263-8080.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_du_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_du_client
+    description: |
+      id_du_client, a numeric column on the client table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: adresse_postale
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse_postale
+    description: |
+      adresse_postale, a text column on the client table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ca_annuel
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ca_annuel
+    description: |
+      ca_annuel, a numeric column on the client table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_shipping_average_annual_revenue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(chiffre_affaires_annuel)
+    description: |
+      average annual revenue: the mean chiffre_affaires_annuel across customers in a group.
+
+      Bound to client.chiffre_affaires_annuel: AVG(chiffre_affaires_annuel) over the customers in scope, for example all customers of one type_client. "Above-average" or "below-average" revenue compares one customer's chiffre_affaires_annuel to this metric computed over the same group, not over the whole table.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average annual revenue"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: conducteur_routier
+  source: shipping.conducteur_routier
+  description: |
+    conducteur_routier is a driver-like table in the shipping schema that is not dependable for analysis.
+
+    This table is not dependable for analysis; do not use it or any of its columns to answer a question. Use chauffeur for driver information instead.
+  fields:
+  - name: id_conducteur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_conducteur
+    description: |
+      id_conducteur, a numeric column on the conducteur_routier table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: prenom_conducteur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prenom_conducteur
+    description: |
+      prenom_conducteur, a text column on the conducteur_routier table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_conducteur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_conducteur
+    description: |
+      nom_conducteur, a text column on the conducteur_routier table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: adresse_domicile
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse_domicile
+    description: |
+      adresse_domicile, a text column on the conducteur_routier table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ville_residence
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ville_residence
+    description: |
+      ville_residence, a text column on the conducteur_routier table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: province_region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: province_region
+    description: |
+      province_region, a text column on the conducteur_routier table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: code_postal_local
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_postal_local
+    description: |
+      code_postal_local, a numeric column on the conducteur_routier table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: telephone_contact
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: telephone_contact
+    description: |
+      telephone_contact, a text column on the conducteur_routier table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: expedition
+  source: shipping.expedition
+  description: |
+    expedition is the shipping company's shipment log, one row per shipment with its truck, driver, customer, destination, date, and weight.
+
+    Grain: one row per shipment, keyed by id_expedition (500 shipments in the loaded sample). This is the central fact table of the schema: join it to camion for the truck, chauffeur for the driver, client for the customer, and ville for the destination city. It carries three columns that look like a second set of foreign keys — id_ville_expedition, id_client_expedition, and id_chauffeur_expedition — but those are not dependable for analysis; use id_ville, id_client, and id_chauffeur instead.
+  fields:
+  - name: id_expedition
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_expedition
+    description: |
+      The unique identifier for a shipment, id_expedition.
+
+      A numeric id, one per shipment, for example 1003, 1011, or 1275. Referenced in questions as "shipment id", "ship id", or "expedition no.".
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to expedition.id_expedition. A question naming \"shipment no. 1021\" or \"expedition id 1275\" filters this column to that literal value.\n",
+              "id": "term_shipping_shipment_id",
+              "name": "shipment id",
+              "summary": "shipment id (ship id, expedition id): the identifier of one shipment record.",
+              "synonyms": [
+                "shipment id",
+                "ship id",
+                "expedition id"
+              ]
+            }
+          ]
+        }
+  - name: id_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_client
+    description: |
+      A reference to the customer a shipment was ordered for, id_client.
+
+      Join to client.id_client to find the customer that ordered a shipment. Many shipments can reference the same customer.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: poids
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: poids
+    description: |
+      The weight being transported on a shipment, poids.
+
+      A weight in pounds, for example 567.0, 2601.0, or 13734.0 in the loaded sample. Called "pounds" or "weight" in business language. A condition like "poids exceed 10,000 pounds" means poids >= 10000.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to expedition.poids. Boundary phrasings seen in practice: \"exceed 10,000 pounds\" means poids >= 10000, \"less than 65000 pounds\" means poids < 65000, and \"not greater than 70000 pounds\" means poids < 70000.\n",
+              "id": "term_shipping_weight",
+              "name": "shipment weight",
+              "summary": "shipment weight (pounds, weight): the load carried on one shipment, measured in pounds.",
+              "synonyms": [
+                "pounds",
+                "weight"
+              ]
+            }
+          ]
+        }
+  - name: id_camion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_camion
+    description: |
+      A reference to the truck used on a shipment, id_camion.
+
+      Join to camion.id_camion to find the truck that carried a shipment. Many shipments can reference the same truck.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_chauffeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_chauffeur
+    description: |
+      A reference to the driver who carried the goods on a shipment, id_chauffeur.
+
+      Join to chauffeur.id_chauffeur to find the driver that transported a shipment. Many shipments can reference the same driver.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_ville
+    description: |
+      A reference to the destination city of a shipment, id_ville.
+
+      Join to ville.id_ville to find the destination city of a shipment. Many shipments can reference the same city.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: date_expedition
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_expedition
+    description: |
+      The date a shipment's goods were received by the driver, date_expedition.
+
+      Stored as text in yyyy-mm-dd format, for example 2016-01-18 or 2017-12-27. A question naming a month and year, such as "February 2017", filters on the year-month prefix of this column; a question naming only a year filters on its first four characters.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_ville_expedition
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_ville_expedition
+    description: |
+      id_ville_expedition, a numeric column on the expedition table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_client_expedition
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_client_expedition
+    description: |
+      id_client_expedition, a numeric column on the expedition table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_chauffeur_expedition
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_chauffeur_expedition
+    description: |
+      id_chauffeur_expedition, a numeric column on the expedition table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_shipping_average_shipment_weight
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(poids)
+    description: |
+      average shipment weight: the mean poids across shipments in a group.
+
+      Bound to expedition.poids: AVG(poids) over the shipments in scope. "Poids greater than 95% of average poids" is a boundary condition against this metric: poids > 0.95 * AVG(poids), not a separate stored threshold.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average shipment weight"
+        }
+  - name: metric_shipping_first_shipment_date
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(date_expedition)
+    description: |
+      first shipment date: the earliest date_expedition among shipments in a group.
+
+      Bound to expedition.date_expedition. "The first expedition of the company" or "the first expedition" resolves to MIN(date_expedition) over all shipments, or over the shipments in scope when the question narrows to one customer, truck, or driver.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "first shipment date"
+        }
+  - name: metric_shipping_heaviest_shipment
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(poids)
+    description: |
+      heaviest shipment: the maximum poids value among shipments in a group.
+
+      Bound to expedition.poids. "The heaviest expedition" or "maximum poids" resolves to MAX(poids), optionally grouped by customer, truck, or destination city if the question names one.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "heaviest shipment"
+        }
+  - name: metric_shipping_shipment_count_by_customer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id_expedition)
+    description: |
+      shipment count by customer: how many shipments, in expedition, belong to one customer.
+
+      Bound to expedition, counting id_expedition grouped by id_client. "The customer with the most shipments" resolves to this metric ordered descending with the top row taken; "the customer with the fewest" takes the bottom row instead.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "dimensions": [
+            "shipping.expedition.id_client"
+          ],
+          "name": "shipment count by customer"
+        }
+  - name: metric_shipping_total_shipment_weight
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUM(poids)
+    description: |
+      total shipment weight: the sum of poids across shipments in a group, for instance one destination city.
+
+      Bound to expedition.poids: SUM(poids) over the shipments in scope, for example every shipment to one city reached by joining expedition to ville. "Poids of greater than 20000 pounds" as a total means this sum exceeds 20000. Comparing the same sum computed for two different groups — for example two destination cities — and taking the difference answers "how many more pounds in total" one group carried than the other.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "total shipment weight"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: vehicule_lourd
+  source: shipping.vehicule_lourd
+  description: |
+    vehicule_lourd is a truck-like table in the shipping schema that is not dependable for analysis.
+
+    This table is not dependable for analysis; do not use it or any of its columns to answer a question. Use camion for truck information instead.
+  fields:
+  - name: id_vehicule
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_vehicule
+    description: |
+      id_vehicule, a numeric column on the vehicule_lourd table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: marque_constructeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: marque_constructeur
+    description: |
+      marque_constructeur, a text column on the vehicule_lourd table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: annee_fabrication
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: annee_fabrication
+    description: |
+      annee_fabrication, a numeric column on the vehicule_lourd table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ville
+  source: shipping.ville
+  description: |
+    ville holds one row per city that shipments can be sent to, recording its name, state, population, and land area.
+
+    Grain: one row per destination city, keyed by id_ville (500 cities in the loaded sample). Note that ville stores its state as a full name (etat = 'Texas', 'New York'), unlike chauffeur and client, which store a two-letter abbreviation ('TX', 'NY') — convert between the two forms rather than comparing them directly. Join to expedition on id_ville (one city can be the destination of many shipments) to see which shipments went there.
+  fields:
+  - name: id_ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_ville
+    description: |
+      The unique identifier for a city, id_ville.
+
+      A numeric id, one per city. Join to expedition.id_ville to find every shipment sent there.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nom_ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_ville
+    description: |
+      The name of a city, nom_ville.
+
+      Free-text city name, for example Boston, Jacksonville, New York, or Chicago. Called "destination city" in business language.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to ville.nom_ville, reached from expedition by joining on id_ville. This is the name a question means by \"destination\" — not the driver's or customer's city, which live on chauffeur.ville and client.ville respectively.\n",
+              "id": "term_shipping_destination_city",
+              "name": "destination city",
+              "summary": "destination city (destination ville, destination cities): the city a shipment was sent to.",
+              "synonyms": [
+                "destination city",
+                "destination ville",
+                "destination cities"
+              ]
+            }
+          ]
+        }
+  - name: etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: etat
+    description: |
+      The state a city is located in, etat.
+
+      The state's full name, for example California, Florida, Virginia, Iowa, or Utah — unlike the two-letter abbreviations used elsewhere in this schema, this column already spells the state out in full.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: population
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: population
+    description: |
+      The population of a city, population.
+
+      A whole-number head count, for example 52,975 or 100,565 in the loaded sample. Used together with superficie to compute population density.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: superficie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: superficie
+    description: |
+      The land area of a city, superficie.
+
+      A number of square miles, for example 1.3 to 97.2 in the loaded sample. Population density is population divided by superficie.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: id_de_ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_de_ville
+    description: |
+      id_de_ville, a numeric column on the ville table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: surface_totale
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: surface_totale
+    description: |
+      surface_totale, a decimal column on the ville table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_de_la_ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_de_la_ville
+    description: |
+      nom_de_la_ville, a text column on the ville table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_shipping_largest_city_area
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(superficie)
+    description: |
+      largest city area: the maximum superficie value among cities in ville.
+
+      Bound to ville.superficie. "The ville with the largest superficie" resolves to MAX(superficie) over all cities, or over a state's cities when the question narrows to one etat.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "largest city area"
+        }
+  - name: metric_shipping_least_populated_city
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(population)
+    description: |
+      least populated city: the minimum population value among cities in ville.
+
+      Bound to ville.population. "The least populated ville" resolves to MIN(population) over all cities, or over a state's cities when the question narrows to one etat.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "least populated city"
+        }
+  - name: metric_shipping_most_populated_city
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(population)
+    description: |
+      most populated city: the maximum population value among cities in ville.
+
+      Bound to ville.population. "The most populated ville" resolves to MAX(population) over all cities, or over a state's cities when the question narrows to one etat.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most populated city"
+        }
+  - name: metric_shipping_population_density
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(superficie, population)
+    description: |
+      population density: a city's land area per resident, superficie divided by population.
+
+      Bound to ville.superficie and ville.population: DIVIDE(superficie, population), land area per capita. This is superficie over population, not the more familiar population-over-area reading — follow this direction when a question asks for "population density" on this schema.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "population density"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_shipping_camion_expedition_9344cb4f
+  from: expedition
+  to: camion
+  from_columns:
+  - id_camion
+  to_columns:
+  - id_camion
+  ai_context:
+    instructions: |
+      Joins camion to expedition on truck id, linking each shipment to the truck that carried it.
+
+      Equates camion.id_camion with expedition.id_camion. One truck can appear on many shipments, so this is a one-to-many join from camion to expedition; a query about a truck's shipments or the driver and customer on those shipments starts here.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between camion and expedition in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_shipping_chauffeur_expedition_9b1cc4be
+  from: expedition
+  to: chauffeur
+  from_columns:
+  - id_chauffeur
+  to_columns:
+  - id_chauffeur
+  ai_context:
+    instructions: |
+      Joins chauffeur to expedition on driver id, linking each shipment to the driver who carried it.
+
+      Equates chauffeur.id_chauffeur with expedition.id_chauffeur. One driver can appear on many shipments, so this is a one-to-many join from chauffeur to expedition; use it to find every shipment a given driver carried.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between chauffeur and expedition in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_shipping_client_expedition_39d0f448
+  from: expedition
+  to: client
+  from_columns:
+  - id_client
+  to_columns:
+  - id_client
+  ai_context:
+    instructions: |
+      Joins client to expedition on customer id, linking each shipment to the customer it was ordered for.
+
+      Equates client.id_client with expedition.id_client. One customer can appear on many shipments, so this is a one-to-many join from client to expedition; use it to find every shipment a given customer ordered, or to bring a customer's name, type, or revenue onto a shipment row.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between client and expedition in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_shipping_expedition_ville_cda37247
+  from: expedition
+  to: ville
+  from_columns:
+  - id_ville
+  to_columns:
+  - id_ville
+  ai_context:
+    instructions: |
+      Joins expedition to ville on city id, linking each shipment to its destination city.
+
+      Equates expedition.id_ville with ville.id_ville. One city can be the destination of many shipments, so this is a many-to-one join from expedition to ville; use it to bring a shipment's destination city name, state, population, or area onto a shipment row.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between expedition and ville in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_5578",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0000",
+          "sql": "SELECT COUNT(\"T2\".\"id_expedition\") FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"nom_client\" = 'S K L Enterprises Inc' AND TO_CHAR(CAST(\"T2\".\"date_expedition\" AS TIMESTAMP), 'YYYY') = '2017'",
+          "summary": "How many shipments were ordered by S K L Enterprises Inc in 2017?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5579",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0001",
+          "sql": "SELECT SUM(\"T2\".\"poids\") FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"nom_client\" = 'S K L Enterprises Inc'",
+          "summary": "What is the total number of pounds being transported for S K L Enterprises Inc?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5580",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0002",
+          "sql": "SELECT COUNT(*) FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T3\" ON \"T3\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" WHERE \"T1\".\"nom_client\" = 'S K L Enterprises Inc' AND \"T3\".\"prenom\" = 'Sue' AND \"T3\".\"nom\" = 'Newell'",
+          "summary": "Among the shipments done by Sue Newell, how many of them are for S K L Enterprises Inc?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5581",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0003",
+          "sql": "SELECT COUNT(\"T1\".\"id_client\") FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"etat\" = 'FL'",
+          "summary": "How many shipments were ordered by a customer in Florida?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5582",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0004",
+          "sql": "SELECT \"T2\".\"id_expedition\" FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"type_client\" = 'retailer'",
+          "summary": "Please list the IDs of all the shipments made by a retailer customer."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5583",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0005",
+          "sql": "SELECT COUNT(\"COUNTCUSID\") FROM (SELECT COUNT(\"T1\".\"id_client\") AS \"COUNTCUSID\" FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE TO_CHAR(CAST(\"T2\".\"date_expedition\" AS TIMESTAMP), 'YYYY') = '2017' AND \"T1\".\"chiffre_affaires_annuel\" > 30000000 GROUP BY \"T1\".\"id_client\" HAVING COUNT(\"T2\".\"id_expedition\") >= 1) AS \"T3\"",
+          "summary": "Among the customers having at least one shipment in 2017, how many of them have an annual revenue of over 30000000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5584",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0006",
+          "sql": "SELECT COUNT(*) FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T2\" ON \"T1\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" WHERE TO_CHAR(CAST(\"T1\".\"date_expedition\" AS TIMESTAMP), 'YYYY') = '2017' AND \"T2\".\"prenom\" = 'Sue' AND \"T2\".\"nom\" = 'Newell'",
+          "summary": "How many shipments in 2017 were done by Sue Newell?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5586",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0007",
+          "sql": "SELECT COUNT(*) FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"ville\" AS \"T2\" ON \"T1\".\"id_ville\" = \"T2\".\"id_ville\" WHERE TO_CHAR(CAST(\"T1\".\"date_expedition\" AS TIMESTAMP), 'YYYY') = '2017' AND \"T2\".\"etat\" = 'New Jersey'",
+          "summary": "Among the shipments in 2017, how many of them have the destination in New Jersey?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5587",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0008",
+          "sql": "SELECT MAX(\"T1\".\"poids\") FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"ville\" AS \"T2\" ON \"T1\".\"id_ville\" = \"T2\".\"id_ville\" WHERE \"T2\".\"nom_ville\" = 'New York'",
+          "summary": "What is the maximum weight being transported to New York during a single shipment?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5588",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0009",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"nom_ville\" = 'New York' THEN \"T1\".\"poids\" ELSE 0 END) - SUM(CASE WHEN \"T2\".\"nom_ville\" = 'Chicago' THEN \"T1\".\"poids\" ELSE 0 END) FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"ville\" AS \"T2\" ON \"T1\".\"id_ville\" = \"T2\".\"id_ville\"",
+          "summary": "How much more pounds in total were transported to New York than to Chicago?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5589",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0010",
+          "sql": "SELECT DISTINCT \"T3\".\"nom_ville\" FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" INNER JOIN \"shipping\".\"ville\" AS \"T3\" ON \"T3\".\"id_ville\" = \"T2\".\"id_ville\" WHERE \"T1\".\"nom_client\" = 'S K L Enterprises Inc'",
+          "summary": "Please list the destination cities of all the shipments ordered by S K L Enterprises Inc."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5590",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0011",
+          "sql": "SELECT AVG(\"T2\".\"poids\") FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"nom_client\" = 'S K L Enterprises Inc'",
+          "summary": "What is the average weight of the goods being transported on a single shipment ordered by S K L Enterprises Inc?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5591",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0012",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"nom_ville\" = 'Jacksonville' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"ville\" AS \"T2\" ON \"T1\".\"id_ville\" = \"T2\".\"id_ville\" WHERE \"T2\".\"etat\" = 'Florida'",
+          "summary": "Among all the shipments to Florida, what is the percentage of the shipment to Jacksonville?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5592",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0013",
+          "sql": "SELECT \"T1\".\"marque\" FROM \"shipping\".\"camion\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_camion\" = \"T2\".\"id_camion\" WHERE \"T2\".\"id_expedition\" = 1045",
+          "summary": "State the headquarter of the truck which completed shipment no.1045."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5593",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0014",
+          "sql": "SELECT COUNT(*) FROM \"shipping\".\"camion\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_camion\" = \"T2\".\"id_camion\" GROUP BY \"T1\".\"annee_modele\" ORDER BY \"T1\".\"annee_modele\" ASC NULLS FIRST LIMIT 1",
+          "summary": "How many shipments were delivered by the oldest truck model?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5594",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0015",
+          "sql": "SELECT \"T1\".\"nom_client\" FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"id_expedition\" = '1275'",
+          "summary": "Who was the customer of shipment no.1275? Give the customer's name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5595",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0016",
+          "sql": "SELECT \"T2\".\"nom_ville\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"ville\" AS \"T2\" ON \"T1\".\"id_ville\" = \"T2\".\"id_ville\" WHERE \"T1\".\"id_expedition\" = '1701'",
+          "summary": "Where was the destination city of shipment no.1701?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5596",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0017",
+          "sql": "SELECT \"T2\".\"prenom\", \"T2\".\"nom\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T2\" ON \"T1\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" WHERE \"T1\".\"id_expedition\" = '1021'",
+          "summary": "Give the name of the driver of shipment no.1021."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5597",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0018",
+          "sql": "SELECT \"T2\".\"prenom\", \"T2\".\"nom\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T2\" ON \"T1\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" WHERE \"T1\".\"date_expedition\" = '2017-11-05'",
+          "summary": "Tell the name of the driver who received the shipment on 2017/11/5."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5598",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0019",
+          "sql": "SELECT \"T2\".\"population\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"ville\" AS \"T2\" ON \"T1\".\"id_ville\" = \"T2\".\"id_ville\" WHERE \"T1\".\"id_expedition\" = '1398'",
+          "summary": "Show the population of the city which was the destination of shipment no.1398."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5599",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0020",
+          "sql": "SELECT MIN(\"T1\".\"date_expedition\") FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"client\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"etat\" = 'SC'",
+          "summary": "Provide the ship date of the first shipment to customers in South Carolina."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5601",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0021",
+          "sql": "SELECT \"T2\".\"superficie\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"ville\" AS \"T2\" ON \"T1\".\"id_ville\" = \"T2\".\"id_ville\" WHERE \"T1\".\"id_expedition\" = '1346'",
+          "summary": "What is the area of the destination city of shipment No.1346?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5602",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0022",
+          "sql": "SELECT \"T1\".\"poids\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"client\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"nom_client\" = 'U-haul Center Of N Syracuse' AND \"T1\".\"date_expedition\" = '2016-09-21'",
+          "summary": "Provide the weight of the shipment to U-haul Center Of N Syracuse on 2016/9/21."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5603",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0023",
+          "sql": "SELECT \"T3\".\"prenom\", \"T3\".\"nom\" FROM \"shipping\".\"camion\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_camion\" = \"T2\".\"id_camion\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T3\" ON \"T3\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" WHERE \"T1\".\"id_camion\" = '3' AND \"T2\".\"date_expedition\" = '2016-09-19'",
+          "summary": "Who was the driver of truck no.3 on 2016/9/19? Tell the full name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5605",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0024",
+          "sql": "SELECT CAST(COUNT(\"T2\".\"id_expedition\") AS REAL) / NULLIF(COUNT(DISTINCT \"T1\".\"id_camion\"), 0) FROM \"shipping\".\"camion\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_camion\" = \"T2\".\"id_camion\" WHERE \"T1\".\"marque\" = 'Kenworth'",
+          "summary": "What is the average number of shipments done by the Kenworth trucks?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5606",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0025",
+          "sql": "SELECT \"T1\".\"poids\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T2\" ON \"T1\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" WHERE \"T2\".\"prenom\" = 'Sue' AND \"T2\".\"nom\" = 'Newell' ORDER BY \"T1\".\"date_expedition\" ASC NULLS FIRST LIMIT 1",
+          "summary": "How many pounds did Sue Newell transport during her first shipment?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5607",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0026",
+          "sql": "SELECT \"T2\".\"nom_client\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"client\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" ORDER BY \"T1\".\"poids\" DESC NULLS LAST LIMIT 1",
+          "summary": "To whom did the company transport its heaviest shipment?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5608",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0027",
+          "sql": "SELECT \"T2\".\"prenom\", \"T2\".\"nom\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T2\" ON \"T1\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" ORDER BY \"T1\".\"date_expedition\" ASC NULLS FIRST LIMIT 1",
+          "summary": "What is the full name of the driver who transported the first shipment of the company?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5609",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0028",
+          "sql": "SELECT COUNT(\"T2\".\"id_expedition\") FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"nom_client\" = 'Olympic Camper Sales Inc'",
+          "summary": "In total, how many shipments were transported to Olympic Camper Sales Inc?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5610",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0029",
+          "sql": "SELECT COUNT(*) FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" INNER JOIN \"shipping\".\"ville\" AS \"T3\" ON \"T3\".\"id_ville\" = \"T2\".\"id_ville\" WHERE \"T3\".\"nom_ville\" = 'New York' AND \"T1\".\"nom_client\" = 'Harry''s Hot Rod Auto & Truck Accessories'",
+          "summary": "How many of the shipments bound for New York City were shipped to Harry's Hot Rod Auto and Truck Accessories?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5618",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0030",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"type_client\" = 'manufacturer' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"shipping\".\"client\" WHERE \"etat\" = 'TX'",
+          "summary": "Determine the percentage of manufacturers who are from Texas among all of Lorenzo's customers."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5621",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0031",
+          "sql": "SELECT \"T1\".\"poids\", \"T2\".\"nom_client\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"client\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" INNER JOIN \"shipping\".\"ville\" AS \"T3\" ON \"T3\".\"id_ville\" = \"T1\".\"id_ville\" WHERE \"T3\".\"nom_ville\" = 'Boston' ORDER BY \"T1\".\"poids\" DESC NULLS LAST LIMIT 1",
+          "summary": "What was the maximum weight of the shipment carried to Boston? Name the customer of that shipment."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5624",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0032",
+          "sql": "SELECT \"T3\".\"prenom\", \"T3\".\"nom\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"ville\" AS \"T2\" ON \"T1\".\"id_ville\" = \"T2\".\"id_ville\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T3\" ON \"T3\".\"id_chauffeur\" = \"T1\".\"id_chauffeur\" WHERE \"T2\".\"nom_ville\" = 'New York' AND \"T1\".\"date_expedition\" LIKE '2016-02%'",
+          "summary": "Identify the full name of the driver who delivered a shipment to the city of New York in February 2016."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5628",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0033",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"poids\" >= 10000 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"client\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"nom_client\" = 'Sunguard Window Tinting & Truck Accessories' AND TO_CHAR(CAST(\"T1\".\"date_expedition\" AS TIMESTAMP), 'YYYY') = '2017'",
+          "summary": "Among all shipments placed by Sunguard Window Tinting & Truck Accessories in 2017, identify the percentage of shipments whose weight exceeded 10,000 pounds."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5629",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0034",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T3\".\"nom_client\" = 'Autoware Inc' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) AS \"per\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T2\" ON \"T1\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" INNER JOIN \"shipping\".\"client\" AS \"T3\" ON \"T3\".\"id_client\" = \"T1\".\"id_client\" WHERE \"T2\".\"prenom\" = 'Sue' AND \"T2\".\"nom\" = 'Newell'",
+          "summary": "Among all shipments delivered by Sue Newel, identify the percentage of shipments that were placed by Autoware Inc."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5632",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0035",
+          "sql": "SELECT \"T2\".\"poids\" FROM \"shipping\".\"camion\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_camion\" = \"T2\".\"id_camion\" WHERE \"marque\" = 'Peterbilt'",
+          "summary": "State the weight of shipments transported by Peterbilt."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5633",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0036",
+          "sql": "SELECT \"T1\".\"annee_modele\" FROM \"shipping\".\"camion\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_camion\" = \"T2\".\"id_camion\" WHERE \"T2\".\"id_expedition\" = '1003'",
+          "summary": "What is the model year of the truck used in shipment id 1003?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5634",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0037",
+          "sql": "SELECT \"T1\".\"marque\" FROM \"shipping\".\"camion\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_camion\" = \"T2\".\"id_camion\" WHERE \"T2\".\"id_expedition\" = '1011'",
+          "summary": "What is the brand of truck used in shipment id 1011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5635",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0038",
+          "sql": "SELECT \"T2\".\"prenom\", \"T2\".\"nom\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T2\" ON \"T1\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" WHERE \"T1\".\"id_expedition\" = 1028",
+          "summary": "What is the first name of the driver who transported shipment id 1028?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5636",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0039",
+          "sql": "SELECT \"T2\".\"etat\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T2\" ON \"T1\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" WHERE \"T1\".\"id_expedition\" = '1055'",
+          "summary": "List out the state of driver who transported the shipment id 1055."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5639",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0040",
+          "sql": "SELECT AVG(\"T1\".\"chiffre_affaires_annuel\") FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"poids\" < 65000",
+          "summary": "What is the average annual revenue of customers who have shipment weight of less than 65000 pounds?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5640",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0041",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"poids\" < 70000 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"type_client\" = 'wholesaler'",
+          "summary": "What is the percentage of wholesaler customers who have shipment weight of not greater than 70000 pounds?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5641",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0042",
+          "sql": "SELECT \"T2\".\"nom\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T2\" ON \"T1\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" WHERE \"T1\".\"id_expedition\" = '1088'",
+          "summary": "What is the last name of driver who transported shipment id 1088?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5643",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0043",
+          "sql": "SELECT \"T1\".\"marque\", \"T1\".\"annee_modele\" FROM \"shipping\".\"camion\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_camion\" = \"T2\".\"id_camion\" WHERE \"T2\".\"id_expedition\" = '1055'",
+          "summary": "What is the brand and model of truck used in shipment id 1055?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5644",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0044",
+          "sql": "SELECT COUNT(\"id_camion\") FROM \"shipping\".\"camion\" WHERE \"annee_modele\" = 2009",
+          "summary": "How many trucks were manufactured in year 2009?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5645",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0045",
+          "sql": "SELECT COUNT(*) FROM \"shipping\".\"client\" WHERE \"type_client\" = 'manufacturer'",
+          "summary": "How many customers are manufacturer?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5648",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0046",
+          "sql": "SELECT \"nom_ville\" FROM \"shipping\".\"ville\" WHERE \"etat\" = 'California' AND \"population\" = (SELECT MAX(\"population\") FROM \"shipping\".\"ville\" WHERE \"etat\" = 'California')",
+          "summary": "What is the most populated city in California?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5653",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0047",
+          "sql": "SELECT \"T1\".\"nom_client\" FROM \"shipping\".\"client\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"date_expedition\" LIKE '2017-02%'",
+          "summary": "List all the name of the customers that received a shipment in February 2017."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5656",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0048",
+          "sql": "SELECT COUNT(*) FROM \"shipping\".\"ville\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_ville\" = \"T2\".\"id_ville\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T3\" ON \"T3\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" WHERE \"T3\".\"prenom\" = 'Zachery' AND \"T3\".\"nom\" = 'Hicks' AND \"T1\".\"nom_ville\" = 'New York' AND TO_CHAR(CAST(\"T2\".\"date_expedition\" AS TIMESTAMP), 'YYYY') = '2016'",
+          "summary": "How many shipments did Zachery Hicks transport goods to New York in the year 2016?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5664",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0049",
+          "sql": "SELECT \"T1\".\"id_expedition\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"ville\" AS \"T2\" ON \"T1\".\"id_ville\" = \"T2\".\"id_ville\" ORDER BY \"T2\".\"superficie\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the ship ID of shipments shipped to the city with the largest area?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5666",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0050",
+          "sql": "SELECT COUNT(*) FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"ville\" AS \"T2\" ON \"T1\".\"id_ville\" = \"T2\".\"id_ville\" WHERE \"T2\".\"nom_ville\" = 'Cicero' AND \"T2\".\"etat\" = 'Illinois' AND \"T1\".\"poids\" BETWEEN 9000 AND 15000",
+          "summary": "Among the shipments shipped to Cicero, Illinois, how many shipments weighed between 9,000 to 15,000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5667",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0051",
+          "sql": "SELECT \"T1\".\"annee_modele\" FROM \"shipping\".\"camion\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_camion\" = \"T2\".\"id_camion\" WHERE \"T2\".\"id_expedition\" = '1233'",
+          "summary": "What model year of truck delivered the ship ID 1233?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5670",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0052",
+          "sql": "SELECT \"T1\".\"annee_modele\" FROM \"shipping\".\"camion\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_camion\" = \"T2\".\"id_camion\" WHERE \"T2\".\"id_expedition\" = '1245'",
+          "summary": "What is the truck's model year used to ship the ship ID 1245?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5672",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0053",
+          "sql": "SELECT \"T2\".\"chiffre_affaires_annuel\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"client\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"id_expedition\" = '1047'",
+          "summary": "Give the annual revenue of the customer of ship ID 1047."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5673",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0054",
+          "sql": "SELECT \"T1\".\"poids\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T2\" ON \"T1\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" WHERE \"T2\".\"prenom\" = 'Andrea' AND \"T2\".\"nom\" = 'Simons' AND \"T1\".\"date_expedition\" = '2016-03-07'",
+          "summary": "What is the weight of the shipment delivered by Andrea Simons on March 7, 2016?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5675",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0055",
+          "sql": "SELECT COUNT(*) FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"client\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"etat\" = 'NY'",
+          "summary": "How many shipments were delivered to a customer from New York?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5676",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0056",
+          "sql": "SELECT \"T2\".\"nom_client\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"client\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"id_expedition\" = '1147'",
+          "summary": "What is the name of the customer of ship ID 1147?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5677",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0057",
+          "sql": "SELECT \"T1\".\"id_expedition\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"ville\" AS \"T2\" ON \"T1\".\"id_ville\" = \"T2\".\"id_ville\" ORDER BY \"T2\".\"population\" DESC NULLS LAST LIMIT 1",
+          "summary": "List the ship ID of shipments shipped to the most populated city."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5679",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0058",
+          "sql": "SELECT \"T1\".\"poids\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"client\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"chiffre_affaires_annuel\" = 39448581",
+          "summary": "List the weight of the customer's shipment with annual revenue of 39448581."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5682",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0059",
+          "sql": "SELECT SUM(CASE WHEN \"T1\".\"annee_modele\" = '2005' THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T1\".\"annee_modele\" = '2006' THEN 1 ELSE 0 END) FROM \"shipping\".\"camion\" AS \"T1\" INNER JOIN \"shipping\".\"expedition\" AS \"T2\" ON \"T1\".\"id_camion\" = \"T2\".\"id_camion\"",
+          "summary": "Calculate the difference between the number of shipments shipped by the truck with the model year 2005 and model year 2006."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5683",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shipping_0060",
+          "sql": "SELECT \"T2\".\"prenom\", \"T2\".\"nom\" FROM \"shipping\".\"expedition\" AS \"T1\" INNER JOIN \"shipping\".\"chauffeur\" AS \"T2\" ON \"T1\".\"id_chauffeur\" = \"T2\".\"id_chauffeur\" WHERE \"T1\".\"poids\" * 100 > (SELECT 95 * AVG(\"poids\") FROM \"shipping\".\"expedition\")",
+          "summary": "List the driver's name of the shipment with a weight greater than 95% of the average weight of all shipments."
+        }
+      ]
+    }

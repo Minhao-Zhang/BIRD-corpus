@@ -1,29 +1,3997 @@
-asset_type: schema
-id: student_loan
+version: 0.2.0.dev0
 name: student_loan
-summary: student_loan tracks conditions relevant to a student loan discharge or deferment
-  decision — disability, unemployment, bankruptcy, enlistment, school absence, and payment-due
-  status.
-body: >
-  Every table keys on ming_cheng, a free-text student identifier such as student295 — there are
-  no numeric surrogate keys anywhere in this schema. ren_wu is the full student roster; can_ji,
-  nan_xing, shi_ye, shen_qing_po_chan, zhu_ce, zhu_ce_ru_xue, zui_chang_que_ke, and wu_xu_zhi_fu
-  each record one condition (disability, being male, unemployment, bankruptcy, enlistment,
-  school enrollment, school absence, and loan payment-due status) by listing the ming_cheng
-  values it applies to; a student's absence from a condition table means that condition does not
-  apply to them. Payment-due status uses a small two-table code pattern: bu_er is a two-row
-  lookup spelling out the literal codes pos and neg, and wu_xu_zhi_fu.bu_er stores one of those
-  codes per student. nan_ren, renwu_xiang, and xiao_er look like copies of nan_xing, ren_wu, and
-  bu_er but are not dependable for analysis.
-rules:
-- Never select, filter, or join on a column from nan_ren, renwu_xiang, or xiao_er — every column
-  in those three tables is unreliable for analysis. Use nan_xing, ren_wu, and bu_er instead.
-- Determine a student's gender from membership in nan_xing.ming_cheng (present means male,
-  absent means female) — there is no table listing female students by name.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  student_loan tracks conditions relevant to a student loan discharge or deferment decision — disability, unemployment, bankruptcy, enlistment, school absence, and payment-due status.
+
+  Every table keys on ming_cheng, a free-text student identifier such as student295 — there are no numeric surrogate keys anywhere in this schema. ren_wu is the full student roster; can_ji, nan_xing, shi_ye, shen_qing_po_chan, zhu_ce, zhu_ce_ru_xue, zui_chang_que_ke, and wu_xu_zhi_fu each record one condition (disability, being male, unemployment, bankruptcy, enlistment, school enrollment, school absence, and loan payment-due status) by listing the ming_cheng values it applies to; a student's absence from a condition table means that condition does not apply to them. Payment-due status uses a small two-table code pattern: bu_er is a two-row lookup spelling out the literal codes pos and neg, and wu_xu_zhi_fu.bu_er stores one of those codes per student. nan_ren, renwu_xiang, and xiao_er look like copies of nan_xing, ren_wu, and bu_er but are not dependable for analysis.
+ai_context:
+  instructions: |-
+    Never select, filter, or join on a column from nan_ren, renwu_xiang, or xiao_er — every column in those three tables is unreliable for analysis. Use nan_xing, ren_wu, and bu_er instead.
+    Determine a student's gender from membership in nan_xing.ming_cheng (present means male, absent means female) — there is no table listing female students by name.
+datasets:
+- name: bu_er
+  source: student_loan.bu_er
+  description: |
+    bu_er is the two-row lookup table spelling out the boolean codes, pos and neg, that other student_loan tables reuse to mark a yes-or-no condition.
+
+    Grain: one row per boolean code — exactly two rows exist. Other tables, most directly wu_xu_zhi_fu.bu_er, store one of these two literal strings directly rather than joining a numeric key back to this table, so treat pos and neg as the fixed vocabulary rather than expecting a surrogate id. Confusable with xiao_er, a similarly two-valued table that is not dependable for analysis.
+  fields:
+  - name: ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng
+    description: |
+      The literal boolean value stored by this lookup row, ming_cheng, either pos or neg.
+
+      Exactly two rows exist, one with ming_cheng equal to pos and one equal to neg. A table that records a yes-or-no condition, such as wu_xu_zhi_fu.bu_er, copies this literal string rather than referencing a surrogate key: pos means the condition holds, neg means it does not.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ming_zi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_zi
+    description: |
+      ming_zi, a text column on the bu_er table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: can_ji
+  source: student_loan.can_ji
+  description: |
+    can_ji lists every student, by can_ji.ming_cheng, who has been recorded as having a qualifying disability.
+
+    Grain: one row per disabled student, keyed by ming_cheng. A student's presence in this table, not a flag column, is what marks them disabled; absence from it means the student is not recorded as disabled. Join to ren_wu on ming_cheng to confirm a disabled student is a recognized person, and to nan_xing, shi_ye, shen_qing_po_chan, zhu_ce, zhu_ce_ru_xue, zui_chang_que_ke, or wu_xu_zhi_fu on ming_cheng to combine disability with gender, employment, bankruptcy, enlistment, enrollment, absence, or payment-due status.
+  fields:
+  - name: ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng
+    description: |
+      The name of a student recorded as having a qualifying disability, ming_cheng.
+
+      Free-text student identifier such as student295 or student870, matching ren_wu.ming_cheng. Join key to every other student_loan table that also carries a ming_cheng column.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xing_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xing_ming
+    description: |
+      xing_ming, a text column on the can_ji table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_student_loan_disabled_student_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(ming_cheng)
+    description: |
+      disabled student count: the number of rows, and so students, recorded in can_ji.
+
+      Computed as COUNT(ming_cheng) over can_ji, optionally grouped by a joined dimension such as nan_xing membership or zhu_ce.ji_gou to compare disabled-student counts across groups; the group with the largest count is the one training questions call the highest or the most, and the smallest is the one they call the least.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "disabled student count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: nan_ren
+  source: student_loan.nan_ren
+  description: |
+    nan_ren records student identifiers but every column in it is unreliable for analysis.
+
+    The table is not dependable: none of its columns correspond to trustworthy business facts, so none of them should be used in a SELECT list, a filter, or a join to answer a question. Use nan_xing instead to determine whether a student is recorded as male.
+  fields:
+  - name: quan_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: quan_ming
+    description: |
+      quan_ming, a text column on the nan_ren table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: nan_xing
+  source: student_loan.nan_xing
+  description: |
+    nan_xing lists every student, by nan_xing.ming_cheng, who is recorded as male.
+
+    Grain: one row per male student, keyed by ming_cheng. There is no separate table of female students: business language derives female as a student, in ren_wu or any condition table, who does not appear here. Confusable with nan_ren, a similarly named table that is not dependable for analysis. Join to ren_wu, can_ji, shi_ye, shen_qing_po_chan, zhu_ce, zhu_ce_ru_xue, zui_chang_que_ke, or wu_xu_zhi_fu on ming_cheng to combine gender with any other recorded condition.
+  fields:
+  - name: ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng
+    description: |
+      The name of a student recorded as male, ming_cheng.
+
+      Free-text student identifier such as student36 or student658, matching ren_wu.ming_cheng. A student whose name does not appear in this column is treated as female.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xing_bie_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xing_bie_ming
+    description: |
+      xing_bie_ming, a text column on the nan_xing table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_student_loan_male_student_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(ming_cheng)
+    description: |
+      male student count: the number of rows, and so students, recorded in nan_xing.
+
+      Computed as COUNT(ming_cheng) over nan_xing, optionally grouped by a joined dimension such as zhu_ce.ji_gou or zhu_ce_ru_xue.xue_xiao to compare male-student counts across groups; the smallest resulting count is what training questions call the least or the fewest.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "male student count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "There is no separate table listing female students. A student counts as male if their ming_cheng appears in nan_xing.ming_cheng; a student counts as female if it does not — typically expressed as a NOT IN filter against nan_xing.ming_cheng from whichever table lists the students in question, such as ren_wu for all students or can_ji, shen_qing_po_chan, shi_ye, zhu_ce, zhu_ce_ru_xue, or zui_chang_que_ke for that condition's students.\n",
+            "id": "term_student_loan_gender",
+            "name": "gender",
+            "summary": "Male and female both describe a student's gender, determined by whether their ming_cheng appears in the nan_xing table of male students.",
+            "synonyms": [
+              "male",
+              "female"
+            ]
+          }
+        ]
+      }
+- name: ren_wu
+  source: student_loan.ren_wu
+  description: |
+    ren_wu is the master roster of every student known to student_loan, one row per ming_cheng.
+
+    Grain: one row per student, keyed by ming_cheng — the same identifier every other table in this schema uses to record a condition about that student. Not every student here appears in every other table: a student only shows up in can_ji, nan_xing, shi_ye, shen_qing_po_chan, zhu_ce, zhu_ce_ru_xue, zui_chang_que_ke, or wu_xu_zhi_fu if that condition applies to them. Confusable with renwu_xiang, a similarly named table that is not dependable for analysis.
+  fields:
+  - name: ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng
+    description: |
+      The name that uniquely identifies a student, ming_cheng.
+
+      Free-text identifier such as student307 or student924, formatted as the word student followed by a number. Primary join key: every other student_loan table that records a condition about a student carries its own ming_cheng column holding this same value.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: renwu_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: renwu_ming
+    description: |
+      renwu_ming, a text column on the ren_wu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: renwu_xiang
+  source: student_loan.renwu_xiang
+  description: |
+    renwu_xiang records student identifiers but every column in it is unreliable for analysis.
+
+    The table is not dependable: none of its columns correspond to trustworthy business facts, so none of them should be used in a SELECT list, a filter, or a join to answer a question. Use ren_wu instead for the roster of students.
+  fields:
+  - name: ming_zi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_zi
+    description: |
+      ming_zi, a text column on the renwu_xiang table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: shen_qing_po_chan
+  source: student_loan.shen_qing_po_chan
+  description: |
+    shen_qing_po_chan lists every student, by shen_qing_po_chan.ming_cheng, who has filed for bankruptcy.
+
+    Grain: one row per student who filed for bankruptcy, keyed by ming_cheng. A student's presence in this table, not a flag column, is what marks them as having filed; absence from it means no bankruptcy filing is recorded. Join to ren_wu on ming_cheng to confirm the student is a recognized person, and to nan_xing, can_ji, shi_ye, zhu_ce, zhu_ce_ru_xue, zui_chang_que_ke, or wu_xu_zhi_fu on ming_cheng to combine a bankruptcy filing with gender, disability, employment, enlistment, enrollment, absence, or payment-due status.
+  fields:
+  - name: ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng
+    description: |
+      The name of a student who has filed for bankruptcy, ming_cheng.
+
+      Free-text student identifier such as student760 or student606, matching ren_wu.ming_cheng.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: shen_qing_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shen_qing_ming
+    description: |
+      shen_qing_ming, a text column on the shen_qing_po_chan table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: shi_ye
+  source: student_loan.shi_ye
+  description: |
+    shi_ye lists every student, by shi_ye.ming_cheng, who is recorded as unemployed.
+
+    Grain: one row per unemployed student, keyed by ming_cheng. A student's presence in this table, not a flag column, is what marks them unemployed; absence from it means employment status is not recorded as unemployed. Join to ren_wu on ming_cheng to confirm the student is a recognized person, and to nan_xing, can_ji, shen_qing_po_chan, zhu_ce, zhu_ce_ru_xue, zui_chang_que_ke, or wu_xu_zhi_fu on ming_cheng to combine unemployment with gender, disability, bankruptcy, enlistment, enrollment, absence, or payment-due status.
+  fields:
+  - name: ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng
+    description: |
+      The name of a student recorded as unemployed, ming_cheng.
+
+      Free-text student identifier such as student140 or student467, matching ren_wu.ming_cheng.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: shi_ye_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shi_ye_ming
+    description: |
+      shi_ye_ming, a text column on the shi_ye table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: wu_xu_zhi_fu
+  source: student_loan.wu_xu_zhi_fu
+  description: |
+    wu_xu_zhi_fu records, by wu_xu_zhi_fu.bu_er, whether each student still owes a loan payment.
+
+    Grain: one row per student, keyed by ming_cheng. bu_er holds one of the two literal codes defined in the bu_er lookup table: pos means the student has a payment due, neg means they do not. Join to ren_wu on ming_cheng to confirm the student is a recognized person, to bu_er on bu_er to spell out the code, and to nan_xing, can_ji, shen_qing_po_chan, shi_ye, zhu_ce, zhu_ce_ru_xue, or zui_chang_que_ke on ming_cheng to combine payment status with any other recorded condition.
+  fields:
+  - name: ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng
+    description: |
+      The name of the student whose payment-due status this row records, ming_cheng.
+
+      Free-text student identifier such as student892 or student337, matching ren_wu.ming_cheng.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bu_er
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bu_er
+    description: |
+      Whether the student named in this row still has a loan payment due, bu_er.
+
+      Literal code from the bu_er lookup table: pos means the student has a payment due, neg means the student does not. Every row in the sample holds one of these two values.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Business language calls wu_xu_zhi_fu.bu_er a student's payment-due status. A value of pos means the student has a payment due (has payment due, with due payments, still has payment due); a value of neg means they do not (no payment due, has no due payments). These are the same two codes defined in the bu_er lookup table.\n",
+              "id": "term_student_loan_payment_due_status",
+              "name": "payment due",
+              "summary": "Payment due, due payment, and no payment due all refer to wu_xu_zhi_fu.bu_er, the code marking whether a student still owes a loan payment.",
+              "synonyms": [
+                "payment due",
+                "due payment",
+                "no payment due"
+              ]
+            }
+          ]
+        }
+  - name: zhi_fu_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhi_fu_ming
+    description: |
+      zhi_fu_ming, a text column on the wu_xu_zhi_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: er_tong
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: er_tong
+    description: |
+      er_tong, a text column on the wu_xu_zhi_fu table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_student_loan_payment_due_share
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: CAST(COUNT(CASE WHEN bu_er = 'pos' THEN 1 END) AS REAL) / COUNT(ming_cheng) * 100
+    description: |
+      payment due share: the percentage of wu_xu_zhi_fu rows whose bu_er code is pos.
+
+      Computed as 100 times the count of rows where bu_er equals pos divided by the total row count, optionally filtered first to a subset of students — for example, only students enlisted in a given ji_gou, or only nan_xing students — by joining on ming_cheng before computing the share.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "payment due share"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: xiao_er
+  source: student_loan.xiao_er
+  description: |
+    xiao_er records a two-valued code but every column in it is unreliable for analysis.
+
+    The table is not dependable: none of its columns correspond to trustworthy business facts, so none of them should be used in a SELECT list, a filter, or a join to answer a question. Use bu_er instead for the boolean code vocabulary.
+  fields:
+  - name: xing_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xing_ming
+    description: |
+      xing_ming, a text column on the xiao_er table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: zhu_ce
+  source: student_loan.zhu_ce
+  description: |
+    zhu_ce records, by zhu_ce.ji_gou, which military or civil-service organization each enlisted student joined.
+
+    Grain: one row per student per organization enlisted in, keyed by ming_cheng and ji_gou together — a student can appear more than once if enlisted in more than one organization. Join to ren_wu on ming_cheng to confirm the student is a recognized person, and to nan_xing, can_ji, shen_qing_po_chan, shi_ye, wu_xu_zhi_fu, zhu_ce_ru_xue, or zui_chang_que_ke on ming_cheng to combine enlistment with any other recorded condition.
+  fields:
+  - name: ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng
+    description: |
+      The name of the enlisted student this row records, ming_cheng.
+
+      Free-text student identifier such as student550 or student844, matching ren_wu.ming_cheng. Not unique in this table: the same value can repeat if a student enlisted in more than one organization.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ji_gou
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ji_gou
+    description: |
+      The military or civil-service organization a student enlisted in, ji_gou.
+
+      One of six literal codes in the sample: air_force, marines, navy, foreign_legion, fire_department, or peace_corps. Filter on the exact lowercase, underscore-joined code.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Business language calls zhu_ce.ji_gou an organization or a department. The column takes one of six literal lowercase, underscore-joined codes: air_force, marines, navy, foreign_legion, fire_department, or peace_corps. Filter on the exact code, not a human-readable label such as \"Air Force\". A student enlisted in more than one organization has more than one zhu_ce row sharing the same ming_cheng; grouping by ming_cheng and filtering HAVING COUNT(ji_gou) > 1 finds those students.\n",
+              "id": "term_student_loan_organization",
+              "name": "enlisted organization",
+              "summary": "Organization and department both refer to zhu_ce.ji_gou, the military or civil-service branch — air force, marines, navy, foreign legion, fire department, or peace corps — a student enlisted in.",
+              "synonyms": [
+                "organization",
+                "department"
+              ]
+            }
+          ]
+        }
+  - name: zhu_ce_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhu_ce_ming
+    description: |
+      zhu_ce_ming, a text column on the zhu_ce table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: dan_wei
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: dan_wei
+    description: |
+      dan_wei, a text column on the zhu_ce table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_student_loan_enlistment_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(ming_cheng)
+    description: |
+      enlistment count: the number of zhu_ce rows recorded for an organization or a student.
+
+      Computed as COUNT(ming_cheng) over zhu_ce, typically grouped by ji_gou to compare enlistment across organizations — the organization with the largest resulting count is the one most students enlisted in — or grouped by ming_cheng and filtered HAVING COUNT(ji_gou) > 1 to find students enlisted in more than one organization.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "enlistment count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: zhu_ce_ru_xue
+  source: student_loan.zhu_ce_ru_xue
+  description: |
+    zhu_ce_ru_xue records, by zhu_ce_ru_xue.xue_xiao and yue_fen, which school each student enrolled in and for how many months.
+
+    Grain: one row per student per enrollment, keyed by ming_cheng, xue_xiao, and yue_fen together — a student can appear more than once across different schools or enrollment periods. Join to ren_wu on ming_cheng to confirm the student is a recognized person, and to nan_xing, can_ji, shen_qing_po_chan, shi_ye, wu_xu_zhi_fu, zhu_ce, or zui_chang_que_ke on ming_cheng to combine enrollment with any other recorded condition.
+  fields:
+  - name: ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng
+    description: |
+      The name of the enrolled student this row records, ming_cheng.
+
+      Free-text student identifier such as student573 or student647, matching ren_wu.ming_cheng. Not unique in this table: the same value can repeat across multiple enrollment rows.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xue_xiao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xue_xiao
+    description: |
+      The school code a student enrolled at, xue_xiao.
+
+      One of six literal lowercase codes in the sample: occ, ucla, uci, smc, ucb, or ucsd — abbreviations for Orange Coast College, UCLA, UC Irvine, Santa Monica College, UC Berkeley, and UC San Diego. Filter on the exact code, not the spelled-out institution name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Business language calls zhu_ce_ru_xue.xue_xiao a school. The column takes one of six literal lowercase codes in the sample: occ (Orange Coast College), ucla (UCLA), uci (UC Irvine), smc (Santa Monica College), ucb (UC Berkeley), or ucsd (UC San Diego). Filter on the exact lowercase code, not the spelled-out institution name.\n",
+              "id": "term_student_loan_school",
+              "name": "school",
+              "summary": "School refers to zhu_ce_ru_xue.xue_xiao, the institution code recorded for a student's enrollment.",
+              "synonyms": [
+                "school"
+              ]
+            }
+          ]
+        }
+  - name: yue_fen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yue_fen
+    description: |
+      The number of months of this enrollment period, yue_fen.
+
+      Whole number of months, 1 to 15 in the sample. Distinct from the yue_fen column on zui_chang_que_ke, which counts months of absence rather than months enrolled.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ru_xue_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ru_xue_ming
+    description: |
+      ru_xue_ming, a text column on the zhu_ce_ru_xue table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: yue_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yue_shu
+    description: |
+      yue_shu, an integer column on the zhu_ce_ru_xue table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: xue_xiao_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xue_xiao_ming
+    description: |
+      xue_xiao_ming, a text column on the zhu_ce_ru_xue table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_student_loan_enrollment_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(ming_cheng)
+    description: |
+      enrollment count: the number of zhu_ce_ru_xue rows recorded for a school or a student.
+
+      Computed as COUNT(ming_cheng) over zhu_ce_ru_xue, typically grouped by xue_xiao to compare enrollment across schools — the school with the largest resulting count is the one training questions call the highest enrollment — or grouped by ming_cheng to count how many enrollment rows a single student has.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "enrollment count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: zui_chang_que_ke
+  source: student_loan.zui_chang_que_ke
+  description: |
+    zui_chang_que_ke records, by zui_chang_que_ke.yue_fen, how many months each student has been absent from school.
+
+    Grain: one row per student, keyed by ming_cheng. A yue_fen of 0 means the student has never been absent. Join to ren_wu on ming_cheng to confirm the student is a recognized person, and to nan_xing, can_ji, shen_qing_po_chan, shi_ye, wu_xu_zhi_fu, zhu_ce, or zhu_ce_ru_xue on ming_cheng to combine absence with any other recorded condition.
+  fields:
+  - name: ming_cheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ming_cheng
+    description: |
+      The name of the student whose absence this row records, ming_cheng.
+
+      Free-text student identifier such as student468 or student278, matching ren_wu.ming_cheng.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: yue_fen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yue_fen
+    description: |
+      The number of months a student has been absent from school, yue_fen.
+
+      Whole number of months, 0 to 9 in the sample; 0 means the student has never been absent. Distinct from the yue_fen column on zhu_ce_ru_xue, which counts months enrolled rather than months absent.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Business language calls zui_chang_que_ke.yue_fen a student's absence, duration, or months absent. Zero means the student has never been absent. Training questions compare this value in every direction — equal to a specific month count, less than a threshold, or more than a threshold — so read the comparison operator and the number from the question rather than assuming a fixed cutoff. Distinct from the yue_fen column on zhu_ce_ru_xue, which counts months of enrollment, not months of absence.\n",
+              "id": "term_student_loan_absence_duration",
+              "name": "absence duration",
+              "summary": "Absence, duration, and being absent all refer to zui_chang_que_ke.yue_fen, the number of months a student has been away from school.",
+              "synonyms": [
+                "absence",
+                "duration",
+                "absent"
+              ]
+            }
+          ]
+        }
+  - name: que_ke_ming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: que_ke_ming
+    description: |
+      que_ke_ming, a text column on the zui_chang_que_ke table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: yue_hao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: yue_hao
+    description: |
+      yue_hao, an integer column on the zui_chang_que_ke table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_student_loan_average_absence_duration
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(yue_fen)
+    description: |
+      average absence duration: the mean number of months recorded in zui_chang_que_ke.yue_fen across students.
+
+      Computed as AVG(yue_fen) over zui_chang_que_ke, optionally filtered first to a subset of students — for example, only can_ji or nan_xing students — by joining on ming_cheng before averaging. A student who has never been absent contributes a 0, not a null, to the average.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average absence duration"
+        }
+  - name: metric_student_loan_longest_absence_duration
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(yue_fen)
+    description: |
+      longest absence duration: the greatest number of months recorded in zui_chang_que_ke.yue_fen among students.
+
+      Computed as MAX(yue_fen) over zui_chang_que_ke, optionally filtered first to a subset of students by joining on ming_cheng. Join back to ren_wu, or to zui_chang_que_ke.ming_cheng directly, to identify which student holds that maximum.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "longest absence duration"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_student_loan_bu_er_wu_xu_zhi_fu_fdcdd1cd
+  from: wu_xu_zhi_fu
+  to: bu_er
+  from_columns:
+  - bu_er
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      Each wu_xu_zhi_fu payment-due row's bu_er code matches one row of the bu_er lookup table, which spells out what pos and neg mean.
+
+      wu_xu_zhi_fu.bu_er stores the literal code pos or neg; bu_er.ming_cheng is the lookup table listing those same two codes. Join to translate a payment-due row's code into its lookup entry — in practice the two sides already agree on the same literal strings, so most queries filter wu_xu_zhi_fu.bu_er directly instead of joining. One lookup code matches every wu_xu_zhi_fu row carrying it, so this join is one bu_er row to many wu_xu_zhi_fu rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between bu_er and wu_xu_zhi_fu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_student_loan_can_ji_nan_xing_5ea58ce9
+  from: can_ji
+  to: nan_xing
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      can_ji and nan_xing share the ming_cheng key, matching a disabled student to whether that same student is recorded as male.
+
+      Both tables key on ming_cheng; join them to find disabled students who are also male, or, with a NOT IN filter against nan_xing.ming_cheng, disabled students who are female. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between can_ji and nan_xing in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_can_ji_ren_wu_9b9da8d4
+  from: can_ji
+  to: ren_wu
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      can_ji and ren_wu share the ming_cheng key, matching a disabled student back to their row in the full student roster.
+
+      ren_wu holds one row per known student; can_ji holds one row per student recorded as disabled, a subset of ren_wu. Join on ming_cheng to confirm a disabled student is a recognized person, or use a NOT IN filter against can_ji.ming_cheng to list students who are not disabled. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between can_ji and ren_wu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_can_ji_shi_ye_0b3ebe02
+  from: can_ji
+  to: shi_ye
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      can_ji and shi_ye share the ming_cheng key, matching a disabled student to whether that same student is also recorded as unemployed.
+
+      Both tables key on ming_cheng; join them to find disabled students who are also unemployed. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between can_ji and shi_ye in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_can_ji_wu_xu_zhi_fu_37829b17
+  from: can_ji
+  to: wu_xu_zhi_fu
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      can_ji and wu_xu_zhi_fu share the ming_cheng key, matching a disabled student to their loan payment-due status.
+
+      Both tables key on ming_cheng; join them to see a disabled student's bu_er payment-due code alongside their disability record. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between can_ji and wu_xu_zhi_fu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_can_ji_zhu_ce_014fd9c9
+  from: zhu_ce
+  to: can_ji
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      can_ji and zhu_ce share the ming_cheng key, matching a disabled student to every organization they enlisted in.
+
+      zhu_ce holds one row per student per organization, so a disabled student who enlisted in more than one organization matches more than one zhu_ce row on ming_cheng. can_ji itself holds each ming_cheng at most once, so this join is one can_ji row to many zhu_ce rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between can_ji and zhu_ce in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_student_loan_can_ji_zhu_ce_ru_xue_b0a45306
+  from: zhu_ce_ru_xue
+  to: can_ji
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      can_ji and zhu_ce_ru_xue share the ming_cheng key, matching a disabled student to every school enrollment they recorded.
+
+      zhu_ce_ru_xue holds one row per student per enrollment, so a disabled student with more than one enrollment matches more than one zhu_ce_ru_xue row on ming_cheng. can_ji itself holds each ming_cheng at most once, so this join is one can_ji row to many zhu_ce_ru_xue rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between can_ji and zhu_ce_ru_xue in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_student_loan_can_ji_zui_chang_que_ke_0d471015
+  from: can_ji
+  to: zui_chang_que_ke
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      can_ji and zui_chang_que_ke share the ming_cheng key, matching a disabled student to their recorded months of school absence.
+
+      Both tables key on ming_cheng; join them to see a disabled student's absence duration alongside their disability record. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between can_ji and zui_chang_que_ke in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_nan_xing_ren_wu_26229b4f
+  from: nan_xing
+  to: ren_wu
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      nan_xing and ren_wu share the ming_cheng key, matching a male student back to their row in the full student roster.
+
+      ren_wu holds one row per known student; nan_xing holds one row per student recorded as male, a subset of ren_wu. Join on ming_cheng to confirm a male student is a recognized person, or use a NOT IN filter against nan_xing.ming_cheng to list students who are female. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between nan_xing and ren_wu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_nan_xing_shi_ye_167618df
+  from: nan_xing
+  to: shi_ye
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      nan_xing and shi_ye share the ming_cheng key, matching a male student to whether that same student is recorded as unemployed.
+
+      Both tables key on ming_cheng; join them to find male students who are also unemployed. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between nan_xing and shi_ye in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_nan_xing_wu_xu_zhi_fu_e9140e1d
+  from: nan_xing
+  to: wu_xu_zhi_fu
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      nan_xing and wu_xu_zhi_fu share the ming_cheng key, matching a male student to their loan payment-due status.
+
+      Both tables key on ming_cheng; join them to see a male student's bu_er payment-due code alongside their gender record. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between nan_xing and wu_xu_zhi_fu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_nan_xing_zhu_ce_922f20e8
+  from: zhu_ce
+  to: nan_xing
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      nan_xing and zhu_ce share the ming_cheng key, matching a male student to every organization they enlisted in.
+
+      zhu_ce holds one row per student per organization, so a male student who enlisted in more than one organization matches more than one zhu_ce row on ming_cheng. nan_xing itself holds each ming_cheng at most once, so this join is one nan_xing row to many zhu_ce rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between nan_xing and zhu_ce in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_student_loan_nan_xing_zhu_ce_ru_xue_9b334d32
+  from: zhu_ce_ru_xue
+  to: nan_xing
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      nan_xing and zhu_ce_ru_xue share the ming_cheng key, matching a male student to every school enrollment they recorded.
+
+      zhu_ce_ru_xue holds one row per student per enrollment, so a male student with more than one enrollment matches more than one zhu_ce_ru_xue row on ming_cheng. nan_xing itself holds each ming_cheng at most once, so this join is one nan_xing row to many zhu_ce_ru_xue rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between nan_xing and zhu_ce_ru_xue in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_student_loan_nan_xing_zui_chang_que_ke_ccd40624
+  from: nan_xing
+  to: zui_chang_que_ke
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      nan_xing and zui_chang_que_ke share the ming_cheng key, matching a male student to their recorded months of school absence.
+
+      Both tables key on ming_cheng; join them to see a male student's absence duration alongside their gender record. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between nan_xing and zui_chang_que_ke in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_ren_wu_shen_qing_po_chan_ccfe433c
+  from: ren_wu
+  to: shen_qing_po_chan
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      ren_wu and shen_qing_po_chan share the ming_cheng key, matching a student in the full roster to whether they filed for bankruptcy.
+
+      ren_wu holds one row per known student; shen_qing_po_chan holds one row per student who filed for bankruptcy, a subset of ren_wu. Join on ming_cheng to add a bankruptcy filing to a student's roster row, or use a NOT IN filter against shen_qing_po_chan.ming_cheng to list students who never filed. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ren_wu and shen_qing_po_chan in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_ren_wu_shi_ye_96b670cc
+  from: ren_wu
+  to: shi_ye
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      ren_wu and shi_ye share the ming_cheng key, matching a student in the full roster to whether they are recorded as unemployed.
+
+      ren_wu holds one row per known student; shi_ye holds one row per unemployed student, a subset of ren_wu. Join on ming_cheng to add unemployment status to a student's roster row, or use a NOT IN filter against shi_ye.ming_cheng to list employed students. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ren_wu and shi_ye in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_ren_wu_wu_xu_zhi_fu_fbb9241d
+  from: ren_wu
+  to: wu_xu_zhi_fu
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      ren_wu and wu_xu_zhi_fu share the ming_cheng key, matching a student in the full roster to their loan payment-due status.
+
+      Both tables key on ming_cheng; join them to add a student's bu_er payment-due code to their roster row. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ren_wu and wu_xu_zhi_fu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_ren_wu_zhu_ce_5d7a6e8f
+  from: zhu_ce
+  to: ren_wu
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      ren_wu and zhu_ce share the ming_cheng key, matching a student in the full roster to every organization they enlisted in.
+
+      zhu_ce holds one row per student per organization, so a student who enlisted in more than one organization matches more than one zhu_ce row on ming_cheng. ren_wu itself holds each ming_cheng at most once, so this join is one ren_wu row to many zhu_ce rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ren_wu and zhu_ce in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_student_loan_ren_wu_zhu_ce_ru_xue_e0831b4e
+  from: zhu_ce_ru_xue
+  to: ren_wu
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      ren_wu and zhu_ce_ru_xue share the ming_cheng key, matching a student in the full roster to every school enrollment they recorded.
+
+      zhu_ce_ru_xue holds one row per student per enrollment, so a student with more than one enrollment matches more than one zhu_ce_ru_xue row on ming_cheng. ren_wu itself holds each ming_cheng at most once, so this join is one ren_wu row to many zhu_ce_ru_xue rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ren_wu and zhu_ce_ru_xue in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_student_loan_ren_wu_zui_chang_que_ke_1fea3b0a
+  from: ren_wu
+  to: zui_chang_que_ke
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      ren_wu and zui_chang_que_ke share the ming_cheng key, matching a student in the full roster to their recorded months of school absence.
+
+      Both tables key on ming_cheng; join them to add a student's absence duration to their roster row. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ren_wu and zui_chang_que_ke in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_shen_qing_po_chan_shi_ye_b5889d4a
+  from: shen_qing_po_chan
+  to: shi_ye
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      shen_qing_po_chan and shi_ye share the ming_cheng key, matching a student who filed for bankruptcy to whether that same student is recorded as unemployed.
+
+      Both tables key on ming_cheng; join them to find students who filed for bankruptcy and are also unemployed. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between shen_qing_po_chan and shi_ye in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_shen_qing_po_chan_wu_xu_zhi_fu_cf00190d
+  from: shen_qing_po_chan
+  to: wu_xu_zhi_fu
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      shen_qing_po_chan and wu_xu_zhi_fu share the ming_cheng key, matching a student who filed for bankruptcy to their loan payment-due status.
+
+      Both tables key on ming_cheng; join them to see a bankruptcy filer's bu_er payment-due code alongside their filing record. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between shen_qing_po_chan and wu_xu_zhi_fu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_shen_qing_po_chan_zhu_ce_f2e2ff14
+  from: zhu_ce
+  to: shen_qing_po_chan
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      shen_qing_po_chan and zhu_ce share the ming_cheng key, matching a student who filed for bankruptcy to every organization they enlisted in.
+
+      zhu_ce holds one row per student per organization, so a bankruptcy filer who enlisted in more than one organization matches more than one zhu_ce row on ming_cheng. shen_qing_po_chan itself holds each ming_cheng at most once, so this join is one shen_qing_po_chan row to many zhu_ce rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between shen_qing_po_chan and zhu_ce in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_student_loan_shen_qing_po_chan_zhu_ce_ru_xue_1967aa95
+  from: zhu_ce_ru_xue
+  to: shen_qing_po_chan
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      shen_qing_po_chan and zhu_ce_ru_xue share the ming_cheng key, matching a student who filed for bankruptcy to every school enrollment they recorded.
+
+      zhu_ce_ru_xue holds one row per student per enrollment, so a bankruptcy filer with more than one enrollment matches more than one zhu_ce_ru_xue row on ming_cheng. shen_qing_po_chan itself holds each ming_cheng at most once, so this join is one shen_qing_po_chan row to many zhu_ce_ru_xue rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between shen_qing_po_chan and zhu_ce_ru_xue in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_student_loan_shen_qing_po_chan_zui_chang_que_ke_6b77eb0f
+  from: shen_qing_po_chan
+  to: zui_chang_que_ke
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      shen_qing_po_chan and zui_chang_que_ke share the ming_cheng key, matching a student who filed for bankruptcy to their recorded months of school absence.
+
+      Both tables key on ming_cheng; join them to see a bankruptcy filer's absence duration alongside their filing record. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between shen_qing_po_chan and zui_chang_que_ke in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_shi_ye_wu_xu_zhi_fu_b6a6d6bf
+  from: shi_ye
+  to: wu_xu_zhi_fu
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      shi_ye and wu_xu_zhi_fu share the ming_cheng key, matching an unemployed student to their loan payment-due status.
+
+      Both tables key on ming_cheng; join them to see an unemployed student's bu_er payment-due code alongside their employment record. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between shi_ye and wu_xu_zhi_fu in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_shi_ye_zhu_ce_16be9233
+  from: zhu_ce
+  to: shi_ye
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      shi_ye and zhu_ce share the ming_cheng key, matching an unemployed student to every organization they enlisted in.
+
+      zhu_ce holds one row per student per organization, so an unemployed student who enlisted in more than one organization matches more than one zhu_ce row on ming_cheng. shi_ye itself holds each ming_cheng at most once, so this join is one shi_ye row to many zhu_ce rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between shi_ye and zhu_ce in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_student_loan_shi_ye_zui_chang_que_ke_1d55e222
+  from: shi_ye
+  to: zui_chang_que_ke
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      shi_ye and zui_chang_que_ke share the ming_cheng key, matching an unemployed student to their recorded months of school absence.
+
+      Both tables key on ming_cheng; join them to see an unemployed student's absence duration alongside their employment record. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between shi_ye and zui_chang_que_ke in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_wu_xu_zhi_fu_zhu_ce_a4f03acd
+  from: zhu_ce
+  to: wu_xu_zhi_fu
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      wu_xu_zhi_fu and zhu_ce share the ming_cheng key, matching a student's loan payment-due status to every organization they enlisted in.
+
+      zhu_ce holds one row per student per organization, so a student who enlisted in more than one organization matches more than one zhu_ce row on ming_cheng. wu_xu_zhi_fu itself holds each ming_cheng at most once, so this join is one wu_xu_zhi_fu row to many zhu_ce rows.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between wu_xu_zhi_fu and zhu_ce in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_student_loan_wu_xu_zhi_fu_zui_chang_que_ke_f1fccb91
+  from: wu_xu_zhi_fu
+  to: zui_chang_que_ke
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      wu_xu_zhi_fu and zui_chang_que_ke share the ming_cheng key, matching a student's loan payment-due status to their recorded months of school absence.
+
+      Both tables key on ming_cheng; join them to see a student's absence duration alongside their bu_er payment-due code. Each ming_cheng appears at most once in either table, so the match is one to one.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between wu_xu_zhi_fu and zui_chang_que_ke in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_student_loan_zhu_ce_ru_xue_zui_chang_que_ke_bfbe8c43
+  from: zhu_ce_ru_xue
+  to: zui_chang_que_ke
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      zhu_ce_ru_xue and zui_chang_que_ke share the ming_cheng key, matching every school enrollment a student recorded to their months of school absence.
+
+      zhu_ce_ru_xue holds one row per student per enrollment, so a student with several enrollment rows matches the same single zui_chang_que_ke row on each one; the match is many zhu_ce_ru_xue rows to one zui_chang_que_ke row.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between zhu_ce_ru_xue and zui_chang_que_ke in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_student_loan_zhu_ce_zui_chang_que_ke_9f5d4dc7
+  from: zhu_ce
+  to: zui_chang_que_ke
+  from_columns:
+  - ming_cheng
+  to_columns:
+  - ming_cheng
+  ai_context:
+    instructions: |
+      zhu_ce and zui_chang_que_ke share the ming_cheng key, matching every organization a student enlisted in to their recorded months of school absence.
+
+      zhu_ce holds one row per student per organization, so a student enlisted in more than one organization matches the same single zui_chang_que_ke row on each one; the match is many zhu_ce rows to one zui_chang_que_ke row.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between zhu_ce and zui_chang_que_ke in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_4369",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0000",
+          "sql": "SELECT MAX(\"yue_fen\") FROM \"student_loan\".\"zui_chang_que_ke\"",
+          "summary": "For the students who have been absent from school for the longest time, how many months have they been absent?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4371",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0001",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"nan_xing\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"yue_fen\" >= 5",
+          "summary": "Among the students that have been absent from school for more than 5 months, how many of them are male?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4373",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0002",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"shen_qing_po_chan\" AS \"T1\" INNER JOIN \"student_loan\".\"zui_chang_que_ke\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"yue_fen\" > 5",
+          "summary": "Among the students that have filed for bankruptcy, how many of them have been absent from school for over 5 months?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4374",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0003",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"zhu_ce\" AS \"T1\" INNER JOIN \"student_loan\".\"wu_xu_zhi_fu\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"ji_gou\" = 'navy' AND \"T2\".\"bu_er\" = 'pos'",
+          "summary": "Among the students from the navy department, how many of them have payment due?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4376",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0004",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"can_ji\" WHERE NOT \"ming_cheng\" IN (SELECT \"ming_cheng\" FROM \"student_loan\".\"nan_xing\")",
+          "summary": "How many female students are disabled?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4381",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0005",
+          "sql": "SELECT \"T2\".\"ji_gou\", COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"can_ji\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" GROUP BY \"T2\".\"ji_gou\" ORDER BY COUNT(\"T1\".\"ming_cheng\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which department has the most disabled students?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4382",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0006",
+          "sql": "SELECT \"ming_cheng\" FROM \"student_loan\".\"shen_qing_po_chan\" WHERE NOT \"ming_cheng\" IN (SELECT \"ming_cheng\" FROM \"student_loan\".\"nan_xing\")",
+          "summary": "Please list all the female students that have filed for bankruptcy."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4383",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0007",
+          "sql": "SELECT CAST(COUNT(\"T2\".\"ming_cheng\") AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"ming_cheng\"), 0) FROM \"student_loan\".\"zhu_ce\" AS \"T1\" LEFT JOIN \"student_loan\".\"nan_xing\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"ji_gou\" = 'navy'",
+          "summary": "What is the percentage of male students in the navy department?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4385",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0008",
+          "sql": "SELECT \"ming_cheng\" FROM \"student_loan\".\"zhu_ce\" WHERE \"ji_gou\" = 'foreign_legion'",
+          "summary": "Name all students enlisted in the foreign legion."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4388",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0009",
+          "sql": "SELECT \"yue_fen\" FROM \"student_loan\".\"zui_chang_que_ke\" WHERE \"ming_cheng\" = 'student217'",
+          "summary": "How many months has student217 been absent?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4390",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0010",
+          "sql": "SELECT \"ji_gou\" FROM \"student_loan\".\"zhu_ce\" WHERE \"ming_cheng\" = 'student285'",
+          "summary": "Which organization did student285 enlist?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4391",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0011",
+          "sql": "SELECT \"T2\".\"ming_cheng\", \"T1\".\"xue_xiao\" FROM \"student_loan\".\"zhu_ce_ru_xue\" AS \"T1\" INNER JOIN \"student_loan\".\"can_ji\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"ming_cheng\" = 'student281'",
+          "summary": "Is student281 disabled and which school is the student enrolled in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4394",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0012",
+          "sql": "SELECT \"T2\".\"ji_gou\", \"T1\".\"ming_cheng\" FROM \"student_loan\".\"wu_xu_zhi_fu\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"bu_er\" = 'pos' LIMIT 5",
+          "summary": "Name 5 students with due payments that are enlisted alongside which organization they were enlisted."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4395",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0013",
+          "sql": "SELECT \"T2\".\"ming_cheng\" FROM \"student_loan\".\"zhu_ce_ru_xue\" AS \"T1\" INNER JOIN \"student_loan\".\"can_ji\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"xue_xiao\" = 'smc'",
+          "summary": "Name all disabled students that are enrolled in SMC."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4397",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0014",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"wu_xu_zhi_fu\" AS \"T1\" INNER JOIN \"student_loan\".\"nan_xing\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"bu_er\" = 'neg'",
+          "summary": "How many male students have no due payments?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4398",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0015",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"ji_gou\" = 'marines' AND \"T1\".\"yue_fen\" = 6",
+          "summary": "Which students that are in the marines have been absent for 6 months?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4401",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0016",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"zhu_ce\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce_ru_xue\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"xue_xiao\" = 'ucsd' AND \"T1\".\"ji_gou\" = 'peace_corps'",
+          "summary": "Count the number of students from UCSD enlisted in the peace corps."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4403",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0017",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"bu_er\" = 'pos' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(SUM(CASE WHEN \"T1\".\"bu_er\" = 'neg' THEN 1 ELSE 0 END), 0) FROM \"student_loan\".\"wu_xu_zhi_fu\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"ji_gou\" = 'foreign_legion'",
+          "summary": "What is the percentage ratio of students who are enlisted in foreign legions that have a due payment?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4404",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0018",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"xue_xiao\" = 'occ' THEN 1.0 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"ming_cheng\"), 0) FROM \"student_loan\".\"zhu_ce_ru_xue\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"ji_gou\" = 'navy'",
+          "summary": "What percentage of students who enlisted in the navy make up the number of students enrolled in OCC?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4405",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0019",
+          "sql": "SELECT \"ming_cheng\" FROM \"student_loan\".\"zui_chang_que_ke\" WHERE \"yue_fen\" = (SELECT MAX(\"yue_fen\") FROM \"student_loan\".\"zui_chang_que_ke\")",
+          "summary": "List out student IDs that have the longest absence duration from school."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4407",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0020",
+          "sql": "SELECT \"ming_cheng\", \"yue_fen\" FROM \"student_loan\".\"zui_chang_que_ke\" WHERE \"yue_fen\" = (SELECT MAX(\"yue_fen\") FROM \"student_loan\".\"zui_chang_que_ke\")",
+          "summary": "What is the longest students absence duration from school?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4408",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0021",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" WHERE \"yue_fen\" = 4",
+          "summary": "How many students were absence for 4 month?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4409",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0022",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"shi_ye\" AS \"T1\" INNER JOIN \"student_loan\".\"shen_qing_po_chan\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\"",
+          "summary": "What is the number of unemployed and bankrupt students?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4411",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0023",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"shi_ye\" AS \"T1\" INNER JOIN \"student_loan\".\"shen_qing_po_chan\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" INNER JOIN \"student_loan\".\"wu_xu_zhi_fu\" AS \"T3\" ON \"T2\".\"ming_cheng\" = \"T3\".\"ming_cheng\" WHERE \"T3\".\"bu_er\" = 'pos'",
+          "summary": "How many unemployed and bankrupt students that have payment dues?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4414",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0024",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"zhu_ce\" WHERE \"ji_gou\" IN ('marines', 'air_force') AND NOT \"ming_cheng\" IN (SELECT \"ming_cheng\" FROM \"student_loan\".\"nan_xing\")",
+          "summary": "How many female students joined a marines and air force organization?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4417",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0025",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"ren_wu\" WHERE NOT \"ming_cheng\" IN (SELECT \"ming_cheng\" FROM \"student_loan\".\"nan_xing\") AND NOT \"ming_cheng\" IN (SELECT \"ming_cheng\" FROM \"student_loan\".\"zhu_ce_ru_xue\")",
+          "summary": "How many female students are not joining any of the organization?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4419",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0026",
+          "sql": "SELECT AVG(\"yue_fen\") FROM \"student_loan\".\"zui_chang_que_ke\"",
+          "summary": "What is the average absence period of a student?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4420",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0027",
+          "sql": "SELECT AVG(\"yue_fen\") FROM \"student_loan\".\"zui_chang_que_ke\" WHERE NOT \"ming_cheng\" IN (SELECT \"ming_cheng\" FROM \"student_loan\".\"shi_ye\")",
+          "summary": "What is the average of absence for an employed students?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4423",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0028",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"zhu_ce\" WHERE \"ji_gou\" = 'fire_department'",
+          "summary": "How many students enlisted in the fire-department?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4425",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0029",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" WHERE \"yue_fen\" > 2",
+          "summary": "How many students have been absent above 2 months?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4426",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0030",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"wu_xu_zhi_fu\" WHERE \"bu_er\" = 'neg'",
+          "summary": "State the number of students do not have payment due."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4427",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0031",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"wu_xu_zhi_fu\" WHERE \"bu_er\" = 'pos'",
+          "summary": "Give the number of students who have payment due."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4428",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0032",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"can_ji\" AS \"T1\" INNER JOIN \"student_loan\".\"zui_chang_que_ke\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"yue_fen\" = 0",
+          "summary": "Mention the name of disabled students who have never been absent from school."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4430",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0033",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"nan_xing\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"ji_gou\" = 'foreign_legion'",
+          "summary": "Count the number of male students who belong to foreign legion."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4431",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0034",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"zhu_ce\" WHERE \"ji_gou\" = 'air_force' AND NOT \"ming_cheng\" IN (SELECT \"ming_cheng\" FROM \"student_loan\".\"nan_xing\")",
+          "summary": "List out the number of female students who enlisted in the air force."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4433",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0035",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"shi_ye\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"ji_gou\" = 'marines'",
+          "summary": "State the unemployed students who enlisted in marines."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4435",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0036",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"yue_fen\" > 5 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"yue_fen\"), 0) FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"shi_ye\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\"",
+          "summary": "What is the percentage of unemployed students who have been absent for 5 months from school?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4436",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0037",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"shi_ye\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" INNER JOIN \"student_loan\".\"can_ji\" AS \"T3\" ON \"T2\".\"ming_cheng\" = \"T3\".\"ming_cheng\" WHERE \"T1\".\"yue_fen\" = 8",
+          "summary": "How many unemployed disabled students have been absent for 8 months from school?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4437",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0038",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"shi_ye\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" ORDER BY \"T1\".\"yue_fen\" DESC NULLS LAST LIMIT 1",
+          "summary": "State name of unemployed students who have the longest duration of absense from school."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4439",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0039",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"can_ji\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"yue_fen\" = 3",
+          "summary": "How many disabled students have been absent for 3 months from school?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4440",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0040",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"shen_qing_po_chan\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"yue_fen\" = 0",
+          "summary": "Mention the name of students who filed for bankruptcy and have never been absent from school."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4442",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0041",
+          "sql": "SELECT CASE WHEN \"T\".\"result\" = 0 THEN 'female' ELSE 'male' END AS \"re\" FROM (SELECT COUNT(\"ming_cheng\") AS \"result\" FROM \"student_loan\".\"nan_xing\" WHERE \"ming_cheng\" = 'studenT1000') AS \"T\"",
+          "summary": "What is the gender of student1000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4444",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0042",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" WHERE \"yue_fen\" > 6",
+          "summary": "How many students have been absents for more than 6 months?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4449",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0043",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"zhu_ce\" AS \"T1\" INNER JOIN \"student_loan\".\"can_ji\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"ji_gou\" = 'marines'",
+          "summary": "Among the students enlisted in marines, how many of them are disabled?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4450",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0044",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"shi_ye\" AS \"T1\" INNER JOIN \"student_loan\".\"wu_xu_zhi_fu\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"bu_er\" = 'pos'",
+          "summary": "How many unemployed students still have payment due?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4452",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0045",
+          "sql": "SELECT \"T\".\"xue_xiao\" FROM (SELECT \"T2\".\"xue_xiao\", COUNT(\"T2\".\"ming_cheng\") AS \"num\" FROM \"student_loan\".\"can_ji\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce_ru_xue\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" GROUP BY \"T2\".\"xue_xiao\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which school has the highest number of disabled students?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4453",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0046",
+          "sql": "SELECT \"T2\".\"ji_gou\" FROM \"student_loan\".\"shen_qing_po_chan\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\"",
+          "summary": "List all the organisations of students who filed for bankcrupcy."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4454",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0047",
+          "sql": "SELECT COUNT(\"T\".\"a\") FROM (SELECT COUNT(DISTINCT \"T1\".\"ming_cheng\") AS \"a\", COUNT(\"T2\".\"ji_gou\") AS \"num\" FROM \"student_loan\".\"nan_xing\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" GROUP BY \"T1\".\"ming_cheng\") AS \"T\" WHERE \"T\".\"num\" > 1",
+          "summary": "How many male students join more than one organization?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4456",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0048",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"zhu_ce_ru_xue\" AS \"T1\" INNER JOIN \"student_loan\".\"zui_chang_que_ke\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"xue_xiao\" = 'smc' AND \"T2\".\"yue_fen\" = 7",
+          "summary": "How many SMC's students that absent for 7 months?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4457",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0049",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"can_ji\" AS \"T1\" INNER JOIN \"student_loan\".\"nan_xing\" AS \"T2\" ON \"T1\".\"ming_cheng\" <> \"T2\".\"ming_cheng\"",
+          "summary": "List all the disabled female students."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4459",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0050",
+          "sql": "SELECT CAST(COUNT(\"T2\".\"ming_cheng\") AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"ming_cheng\"), 0) FROM \"student_loan\".\"zhu_ce\" AS \"T1\" LEFT JOIN \"student_loan\".\"nan_xing\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"ji_gou\" = 'fire_department'",
+          "summary": "Find the percentage of male students enlisted in the fire department."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4460",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0051",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" WHERE \"yue_fen\" = 5",
+          "summary": "How many students has the longest absense from school for 5 months?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4462",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0052",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"zhu_ce_ru_xue\" WHERE \"xue_xiao\" = 'ucla'",
+          "summary": "How many students are enrolled in UCLA school?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4466",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0053",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"nan_xing\" AS \"T1\" INNER JOIN \"student_loan\".\"wu_xu_zhi_fu\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"bu_er\" = 'neg'",
+          "summary": "How many male stuents do not have payment due?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4467",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0054",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"zhu_ce\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce_ru_xue\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"ji_gou\" = 'peace_corps' AND \"T2\".\"xue_xiao\" = 'ucsd'",
+          "summary": "How many students are enlisted in the Peace Corps organization are enrolled in UCSD school?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4468",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0055",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"shi_ye\" AS \"T1\" INNER JOIN \"student_loan\".\"wu_xu_zhi_fu\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"bu_er\" = 'neg'",
+          "summary": "Among the unemployed students, how many of them have no payment due?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4470",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0056",
+          "sql": "SELECT COUNT(\"T2\".\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"shi_ye\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\" WHERE \"T1\".\"yue_fen\" = 0",
+          "summary": "How many unemployed students have never been absent?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4477",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0057",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"can_ji\" AS \"T1\" INNER JOIN \"student_loan\".\"wu_xu_zhi_fu\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\" WHERE \"T2\".\"bu_er\" = 'pos'",
+          "summary": "How many disabled students have payment due?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4478",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0058",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T3\".\"ming_cheng\" IS NULL THEN 1 ELSE 0 END) AS REAL) / NULLIF(COUNT(\"T1\".\"ming_cheng\"), 0) FROM \"student_loan\".\"can_ji\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" LEFT JOIN \"student_loan\".\"nan_xing\" AS \"T3\" ON \"T2\".\"ming_cheng\" = \"T3\".\"ming_cheng\" WHERE \"T2\".\"ji_gou\" = 'foreign_legion'",
+          "summary": "Calculate the average number of female students who are disabled and who joined Foreign Legion organization."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4479",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0059",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"ming_cheng\" IS NULL THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"ming_cheng\"), 0), CAST(SUM(CASE WHEN NOT \"T2\".\"ming_cheng\" IS NULL THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"ming_cheng\"), 0) FROM \"student_loan\".\"zhu_ce\" AS \"T1\" LEFT JOIN \"student_loan\".\"nan_xing\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\" WHERE \"T1\".\"ji_gou\" = 'fire_department'",
+          "summary": "Calculate the ratio in percentage between the average number of female and male students who joined Fire Department organization."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4481",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0060",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"yue_fen\" = 0 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"ming_cheng\"), 0) FROM \"student_loan\".\"zui_chang_que_ke\"",
+          "summary": "Calculate the percentage of students who have never been absent."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4482",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0061",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"bu_er\" = 'pos' THEN 1 ELSE 0 END) AS REAL) / NULLIF(SUM(CASE WHEN \"bu_er\" = 'neg' THEN 1 ELSE 0 END), 0) FROM \"student_loan\".\"wu_xu_zhi_fu\"",
+          "summary": "What is the ratio of students who have payment due and those who do not have payment due?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4483",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0062",
+          "sql": "SELECT \"ming_cheng\", \"xue_xiao\" FROM \"student_loan\".\"zhu_ce_ru_xue\" WHERE \"yue_fen\" = 15",
+          "summary": "Provide the students' names and schools who enrolled for 15 months."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4484",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0063",
+          "sql": "SELECT CAST(COUNT(\"ming_cheng\") AS REAL) * 100 / NULLIF(COUNT(DISTINCT \"ji_gou\"), 0) FROM \"student_loan\".\"zhu_ce\"",
+          "summary": "Calculate the average enlisted students per organization."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4485",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0064",
+          "sql": "SELECT \"xue_xiao\", \"yue_fen\" FROM \"student_loan\".\"zhu_ce_ru_xue\" WHERE \"ming_cheng\" = 'student214'",
+          "summary": "List down the enrolled schools and duration of student214."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4487",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0065",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"can_ji\" AS \"T1\" LEFT JOIN \"student_loan\".\"zui_chang_que_ke\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\" WHERE \"T2\".\"yue_fen\" = 9",
+          "summary": "Among students who have been absent for nine months, how many of them are disabled?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4488",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0066",
+          "sql": "SELECT \"ming_cheng\" FROM \"student_loan\".\"ren_wu\" WHERE NOT \"ming_cheng\" IN (SELECT \"ming_cheng\" FROM \"student_loan\".\"shen_qing_po_chan\")",
+          "summary": "List down the student names who did not file for bankruptcy."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4490",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0067",
+          "sql": "SELECT COUNT(CASE WHEN \"T2\".\"ming_cheng\" IS NULL THEN \"T1\".\"ming_cheng\" END) AS \"number\" FROM \"student_loan\".\"ren_wu\" AS \"T1\" LEFT JOIN \"student_loan\".\"can_ji\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\"",
+          "summary": "Calculate the number of students who are not disabled."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4491",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0068",
+          "sql": "SELECT CASE WHEN \"T2\".\"ming_cheng\" IS NULL THEN 'female' ELSE 'male' END AS \"gen\", \"T1\".\"xue_xiao\" FROM \"student_loan\".\"zhu_ce_ru_xue\" AS \"T1\" LEFT JOIN \"student_loan\".\"nan_xing\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\" WHERE \"T1\".\"ming_cheng\" = 'student995'",
+          "summary": "Define the gender of \"student995\" and his/her enrolled schools."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4492",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0069",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"can_ji\" AS \"T1\" INNER JOIN \"student_loan\".\"shi_ye\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\" LIMIT 5",
+          "summary": "Among the students with disabilities, list any five students' names who are unemployed."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4493",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0070",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"shi_ye\" AS \"T1\" INNER JOIN \"student_loan\".\"shen_qing_po_chan\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\"",
+          "summary": "How many unemployed students filed for bankruptcy?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4499",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0071",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"shen_qing_po_chan\"",
+          "summary": "How many students are filed for bankruptcy?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4500",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0072",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"zhu_ce_ru_xue\" WHERE \"xue_xiao\" = 'smc' AND \"yue_fen\" = 1",
+          "summary": "How many students are enrolled in smc during month 1?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4502",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0073",
+          "sql": "SELECT \"ji_gou\" FROM \"student_loan\".\"zhu_ce\" WHERE \"ming_cheng\" = 'student168'",
+          "summary": "What is the organization enlisted by student168?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4508",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0074",
+          "sql": "SELECT \"T\".\"xue_xiao\", \"num\" FROM (SELECT \"T1\".\"xue_xiao\", COUNT(\"T2\".\"ming_cheng\") AS \"num\" FROM \"student_loan\".\"zhu_ce_ru_xue\" AS \"T1\" LEFT JOIN \"student_loan\".\"shen_qing_po_chan\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\" GROUP BY \"T1\".\"xue_xiao\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which school have the highest student enrollment? How many of those students are filed for bankruptcy?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4509",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0075",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"can_ji\" AS \"T1\" INNER JOIN \"student_loan\".\"shi_ye\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\"",
+          "summary": "How many students is disabled and unemployed at the same time?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4510",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0076",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"zhu_ce\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce_ru_xue\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\" WHERE \"T2\".\"xue_xiao\" = 'occ' AND \"T1\".\"ji_gou\" = 'fire_department'",
+          "summary": "List out students that enrolled in occ school and enlisted in a fire department."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4511",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0077",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"shi_ye\" AS \"T1\" INNER JOIN \"student_loan\".\"can_ji\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\" INNER JOIN \"student_loan\".\"zui_chang_que_ke\" AS \"T3\" ON \"T3\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T3\".\"yue_fen\" = 5",
+          "summary": "Which male students are unemployed, disable and were absent for 5 month?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4512",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0078",
+          "sql": "SELECT \"ming_cheng\" FROM \"student_loan\".\"zhu_ce_ru_xue\" WHERE \"xue_xiao\" IN ('occ', 'ulca') AND NOT \"ming_cheng\" IN (SELECT \"ming_cheng\" FROM \"student_loan\".\"nan_xing\")",
+          "summary": "List out female students that enrolled in occ school and ulca?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4513",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0079",
+          "sql": "SELECT \"T2\".\"xue_xiao\", \"T1\".\"ji_gou\" FROM \"student_loan\".\"zhu_ce\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce_ru_xue\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\" WHERE \"T1\".\"ming_cheng\" = 'student211'",
+          "summary": "What is the school and organization enrolled by student211?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4515",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0080",
+          "sql": "SELECT AVG(\"T2\".\"yue_fen\") AS \"avg\" FROM \"student_loan\".\"shi_ye\" AS \"T1\" INNER JOIN \"student_loan\".\"zui_chang_que_ke\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\" INNER JOIN \"student_loan\".\"nan_xing\" AS \"T3\" ON \"T3\".\"ming_cheng\" = \"T2\".\"ming_cheng\"",
+          "summary": "What is the average absent month for a unemployed male students?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4516",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0081",
+          "sql": "SELECT CAST((SUM(CASE WHEN NOT \"T2\".\"ming_cheng\" IS NULL AND \"T1\".\"yue_fen\" = 0 THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T2\".\"ming_cheng\" IS NULL AND \"T1\".\"yue_fen\" = 0 THEN 1 ELSE 0 END)) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"ming_cheng\"), 0), CASE WHEN SUM(CASE WHEN NOT \"T2\".\"ming_cheng\" IS NULL AND \"T1\".\"yue_fen\" = 0 THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T2\".\"ming_cheng\" IS NULL AND \"T1\".\"yue_fen\" = 0 THEN 1 ELSE 0 END) > 0 THEN 'YES' ELSE 'NO' END AS \"isHigh\" FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" LEFT JOIN \"student_loan\".\"can_ji\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\"",
+          "summary": "What is the percentage difference between the attendence of disabled and non-disable students? Do the disable students show better attendance than non-disable students?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4520",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0082",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"shen_qing_po_chan\" AS \"T1\" INNER JOIN \"student_loan\".\"wu_xu_zhi_fu\" AS \"T2\" ON \"T2\".\"ming_cheng\" = \"T1\".\"ming_cheng\" WHERE \"T2\".\"bu_er\" = 'pos'",
+          "summary": "State the number of students who filed for bankruptcy and have payment due."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4521",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0083",
+          "sql": "SELECT \"bu_er\" FROM \"student_loan\".\"wu_xu_zhi_fu\" WHERE \"ming_cheng\" = 'student124'",
+          "summary": "What is the status of payment of student 124?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4524",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0084",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"wu_xu_zhi_fu\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"yue_fen\" = 5 AND \"T2\".\"bu_er\" = 'neg'",
+          "summary": "State name of students who have been absent for 5 months from school and do not have payment due."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4525",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0085",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"can_ji\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"ji_gou\" = 'marines'",
+          "summary": "List out the number of disabled students who enlisted in marines."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4527",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0086",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"zhu_ce\" AS \"T1\" INNER JOIN \"student_loan\".\"shen_qing_po_chan\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"ji_gou\" = 'navy'",
+          "summary": "List out the number of students who filed for bankruptcy and enlisted in navy."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4528",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0087",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"wu_xu_zhi_fu\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"bu_er\" = 'pos' AND \"T2\".\"ji_gou\" = 'marines'",
+          "summary": "Give the number of students who enlisted in marines and have payment due."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4531",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0088",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" WHERE \"yue_fen\" < 4",
+          "summary": "How many students have been absent less than 4 months?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4533",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0089",
+          "sql": "SELECT AVG(\"T2\".\"yue_fen\") FROM \"student_loan\".\"ren_wu\" AS \"T1\" INNER JOIN \"student_loan\".\"zui_chang_que_ke\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" LEFT JOIN \"student_loan\".\"nan_xing\" AS \"T3\" ON \"T1\".\"ming_cheng\" = \"T3\".\"ming_cheng\" WHERE \"T3\".\"ming_cheng\" IS NULL",
+          "summary": "Calculate the average duration of absense of female students."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4534",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0090",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"ren_wu\" AS \"T1\" INNER JOIN \"student_loan\".\"shen_qing_po_chan\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" LEFT JOIN \"student_loan\".\"nan_xing\" AS \"T3\" ON \"T1\".\"ming_cheng\" = \"T3\".\"ming_cheng\" WHERE \"T3\".\"ming_cheng\" IS NULL",
+          "summary": "State name of female students who filed for bankruptcy."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4535",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0091",
+          "sql": "SELECT \"bu_er\" FROM \"student_loan\".\"wu_xu_zhi_fu\" WHERE \"ming_cheng\" = 'student299'",
+          "summary": "Mention the status of payment of student 299."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4537",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0092",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" WHERE \"yue_fen\" > 1",
+          "summary": "How many students have absent from school?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4542",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0093",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"zhu_ce\" AS \"T1\" INNER JOIN \"student_loan\".\"can_ji\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"ji_gou\" = 'navy'",
+          "summary": "List the names of disabled students enlisted in the navy."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4543",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0094",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"nan_xing\" AS \"T1\" INNER JOIN \"student_loan\".\"wu_xu_zhi_fu\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"bu_er\" = 'pos'",
+          "summary": "Among the male students, list down the names of students with payment due."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4545",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0095",
+          "sql": "SELECT CAST(COUNT(\"T2\".\"ming_cheng\") AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"ming_cheng\"), 0) FROM \"student_loan\".\"ren_wu\" AS \"T1\" LEFT JOIN \"student_loan\".\"nan_xing\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\"",
+          "summary": "Among all students, calculate the percentage of male students."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4548",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0096",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"yue_fen\" = 1 AND \"T2\".\"ji_gou\" = 'air_force'",
+          "summary": "Among students with 1 month of absenses, how many of them are enlisted in the air force department?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4549",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0097",
+          "sql": "SELECT \"T2\".\"ming_cheng\" FROM \"student_loan\".\"shi_ye\" AS \"T1\" INNER JOIN \"student_loan\".\"nan_xing\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" INNER JOIN \"student_loan\".\"can_ji\" AS \"T3\" ON \"T3\".\"ming_cheng\" = \"T2\".\"ming_cheng\"",
+          "summary": "Provide the name of disabled male students that are unemployed."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4550",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0098",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"zhu_ce_ru_xue\" AS \"T1\" INNER JOIN \"student_loan\".\"nan_xing\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"xue_xiao\" = 'occ'",
+          "summary": "How many male students are enrolled at OCC?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4551",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0099",
+          "sql": "SELECT CAST(COUNT(\"T4\".\"ming_cheng\") AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"ming_cheng\"), 0) FROM \"student_loan\".\"zhu_ce\" AS \"T1\" INNER JOIN \"student_loan\".\"ren_wu\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" INNER JOIN \"student_loan\".\"zhu_ce_ru_xue\" AS \"T3\" ON \"T3\".\"ming_cheng\" = \"T2\".\"ming_cheng\" LEFT JOIN \"student_loan\".\"nan_xing\" AS \"T4\" ON \"T2\".\"ming_cheng\" = \"T4\".\"ming_cheng\" WHERE \"T3\".\"xue_xiao\" = 'ucla' AND \"T1\".\"ji_gou\" = 'air_force'",
+          "summary": "Among the students enrolled in UCLA, what is the percentage of male students in the air force department?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4552",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0100",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"xue_xiao\" = 'uci' AND \"T4\".\"ming_cheng\" IS NULL THEN 1 ELSE 0 END) AS REAL) / NULLIF(COUNT(\"T1\".\"ming_cheng\"), 0) FROM \"student_loan\".\"zhu_ce_ru_xue\" AS \"T1\" INNER JOIN \"student_loan\".\"can_ji\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" INNER JOIN \"student_loan\".\"ren_wu\" AS \"T3\" ON \"T1\".\"ming_cheng\" = \"T3\".\"ming_cheng\" LEFT JOIN \"student_loan\".\"nan_xing\" AS \"T4\" ON \"T3\".\"ming_cheng\" = \"T4\".\"ming_cheng\"",
+          "summary": "Calculate the average number of disabled female students enrolled in UCI."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4553",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0101",
+          "sql": "SELECT COUNT(\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" WHERE \"yue_fen\" = 0",
+          "summary": "How many students have never been absent in school?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4554",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0102",
+          "sql": "SELECT \"ming_cheng\" FROM \"student_loan\".\"zhu_ce\" WHERE \"ji_gou\" = 'marines'",
+          "summary": "What are the names of the students who joined the Marines?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4557",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0103",
+          "sql": "SELECT \"ji_gou\" FROM (SELECT \"ji_gou\", COUNT(\"ji_gou\") AS \"num\" FROM \"student_loan\".\"zhu_ce\" GROUP BY \"ji_gou\") AS \"T\" ORDER BY \"T\".\"num\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the organization which most of the students are enlisted in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4559",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0104",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"wu_xu_zhi_fu\" AS \"T1\" INNER JOIN \"student_loan\".\"shi_ye\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"bu_er\" = 'pos'",
+          "summary": "Among the students that have a payment due, how many students are unemployed?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4561",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0105",
+          "sql": "SELECT \"T\".\"ji_gou\" FROM (SELECT \"T2\".\"ji_gou\", COUNT(\"T1\".\"ming_cheng\") AS \"num\" FROM \"student_loan\".\"nan_xing\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" GROUP BY \"T2\".\"ji_gou\") AS \"T\" ORDER BY \"T\".\"num\" NULLS FIRST LIMIT 1",
+          "summary": "Which organization has the least number of male students?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4562",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0106",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"can_ji\" AS \"T1\" INNER JOIN \"student_loan\".\"zui_chang_que_ke\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"yue_fen\" = 0",
+          "summary": "How many disabled students have zero absences?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4564",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0107",
+          "sql": "SELECT \"T1\".\"ming_cheng\" FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"can_ji\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T1\".\"yue_fen\" > 5",
+          "summary": "List the names of the disabled students who were absent from school for more than 5 months."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4565",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0108",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"shen_qing_po_chan\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T2\".\"ji_gou\" = 'marines'",
+          "summary": "How many bankrupt students are there in the Marines?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4567",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0109",
+          "sql": "SELECT \"T1\".\"yue_fen\" FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" ORDER BY \"T1\".\"yue_fen\" DESC NULLS LAST LIMIT 1",
+          "summary": "How many months did a student in the Air Force miss school the most?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4568",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_student_loan_0110",
+          "sql": "SELECT COUNT(\"T1\".\"ming_cheng\") FROM \"student_loan\".\"zui_chang_que_ke\" AS \"T1\" INNER JOIN \"student_loan\".\"shen_qing_po_chan\" AS \"T2\" ON \"T1\".\"ming_cheng\" = \"T2\".\"ming_cheng\" INNER JOIN \"student_loan\".\"zhu_ce\" AS \"T3\" ON \"T3\".\"ming_cheng\" = \"T2\".\"ming_cheng\" WHERE \"T3\".\"ji_gou\" = 'fire_department'",
+          "summary": "Among the students who filed for bankruptcy with an absence in school of no more than 6 months, how many students enlisted for the fire department?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between zhu_ce and zhu_ce_ru_xue in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Both tables can hold more than one row per student — zhu_ce one row per organization, zhu_ce_ru_xue one row per enrollment — so joining on ming_cheng pairs every organization row with every enrollment row for the same student, a many-to-many match.\n",
+          "cardinality": "many_to_many",
+          "id": "join_student_loan_zhu_ce_zhu_ce_ru_xue_acdcc5d8",
+          "left_table": "student_loan.zhu_ce",
+          "on": "student_loan.zhu_ce.ming_cheng = student_loan.zhu_ce_ru_xue.ming_cheng",
+          "right_table": "student_loan.zhu_ce_ru_xue",
+          "summary": "zhu_ce and zhu_ce_ru_xue share the ming_cheng key, matching every organization a student enlisted in to every school enrollment they recorded."
+        }
+      ]
+    }

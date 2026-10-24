@@ -1,28 +1,3201 @@
-asset_type: schema
-id: movie_platform
+version: 0.2.0.dev0
 name: movie_platform
-summary: >-
-  movie_platform tracks Mubi movies and directors, the star ratings and written critiques users
-  leave on them, and the movie lists users curate, for questions about popularity, ratings, and
-  list-following.
-body: >
-  Five tables carry the real data. movies holds one row per film with its director and a
-  popularity count; ratings holds one row per star rating a user gave a movie, with an optional
-  written critique and how many likes and comments that critique drew; lists holds one row per
-  user-curated list of movies, with its follower and comment counts; lists_users and
-  ratings_users each add a per-action snapshot of the acting user's subscription, trial, and
-  payment status at the moment they made that list or that rating. A user's user_id is the
-  thread that ties their lists to their ratings; a movie's movie_id ties it to every rating it
-  received. rating_score runs 1 (the lowest a user can give) to 5 (the highest). Several tables
-  also carry an extra column that looks like a real identifier, count, or timestamp but is not
-  dependable for analysis — see the affected table or column for which ones.
-rules:
-- Do not join on list_key, creator_user_id, list_ref_id, member_user_id, or movie_key. Use
-  list_id, user_id, and movie_id instead — the others are unreliable identifiers.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  movie_platform tracks Mubi movies and directors, the star ratings and written critiques users leave on them, and the movie lists users curate, for questions about popularity, ratings, and list-following.
+
+  Five tables carry the real data. movies holds one row per film with its director and a popularity count; ratings holds one row per star rating a user gave a movie, with an optional written critique and how many likes and comments that critique drew; lists holds one row per user-curated list of movies, with its follower and comment counts; lists_users and ratings_users each add a per-action snapshot of the acting user's subscription, trial, and payment status at the moment they made that list or that rating. A user's user_id is the thread that ties their lists to their ratings; a movie's movie_id ties it to every rating it received. rating_score runs 1 (the lowest a user can give) to 5 (the highest). Several tables also carry an extra column that looks like a real identifier, count, or timestamp but is not dependable for analysis — see the affected table or column for which ones.
+ai_context:
+  instructions: Do not join on list_key, creator_user_id, list_ref_id, member_user_id, or movie_key. Use list_id, user_id, and movie_id instead — the others are unreliable identifiers.
+datasets:
+- name: lists
+  source: movie_platform.lists
+  description: |
+    lists holds one row per movie list a Mubi user has curated, with its title, follower and comment counts, and how many movies it contains.
+
+    Grain: one row per list, keyed by list_id. This is the table to start from for any question about a list's title, size, popularity, or description. It is easily confused with lists_users, which repeats one row per list but carries the creating user's subscription status at the moment they made it rather than facts about the list itself. Join to lists_users on list_id to add that status, and to ratings or ratings_users on user_id to see the same user's ratings.
+  fields:
+  - name: user_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_id
+    description: |
+      The identifier of the Mubi user who created a list, user_id.
+
+      A large numeric user id assigned by Mubi, for example 59354490 or 22336946; not sequential and not reused across users. Join to lists_users.user_id, ratings.user_id, or ratings_users.user_id to bring in the same user's other activity.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: list_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_id
+    description: |
+      The unique identifier for a list, list_id.
+
+      A numeric id, unique per row in this table, for example 1906, 2348, or 3684. Join to lists_users.list_id (also one row per list) to bring in the creating user's status snapshot.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: list_title
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_title
+    description: |
+      The title a user gave a list, list_title.
+
+      Free-text title, for example "Comedy", "George Lucas", or "Best". Titles are not unique: generic names like "Comedy" or "Favourites" recur across many different lists and users.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: list_movie_number
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_movie_number
+    description: |
+      The count of movies a list contains, list_movie_number.
+
+      A non-negative integer, mostly small (single digits to a few dozen) with a long tail of much larger lists; business language sets thresholds against it directly, for example "at least 200 movies" means list_movie_number > 200 and "less than 50 movies" means list_movie_number < 50.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: list_update_timestamp_utc
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_update_timestamp_utc
+    description: |
+      The UTC timestamp when a list was last updated, list_update_timestamp_utc.
+
+      Text timestamp formatted 'YYYY-MM-DD HH:MM:SS', for example '2009-12-17 09:46:56'. The list that has gone longest without a change is the one with the smallest (earliest) value here, i.e. MIN(list_update_timestamp_utc). Always at or after list_creation_timestamp_utc for the same row.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: list_creation_timestamp_utc
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_creation_timestamp_utc
+    description: |
+      The UTC timestamp when a list was first created, list_creation_timestamp_utc.
+
+      Text timestamp formatted 'YYYY-MM-DD HH:MM:SS', for example '2009-12-16 15:00:32'. The oldest list is the smallest value here. lists_users carries the same moment as a date-only column, list_creation_date_utc.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: list_followers
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_followers
+    description: |
+      The number of Mubi users following a list, list_followers.
+
+      A small non-negative integer, for example 0, 2, 1, or 4 in the loaded sample, though larger lists can draw many more. A list "with at least one follower" means list_followers >= 1; the most-followed list is the one with MAX(list_followers).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: list_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_url
+    description: |
+      The web address of a list's page on Mubi, list_url.
+
+      A full URL such as 'http://mubi.com/lists/comedy' or 'http://mubi.com/lists/george-lucas', built from the list's title. Not a business identifier; use list_id or list_title instead when a question is really asking which list, not which page.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: list_comments
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_comments
+    description: |
+      The number of comments left on a list, list_comments.
+
+      A small non-negative integer, for example 0, 1, or 2 in the loaded sample. Distinct from list_description, which is the list's own write-up rather than replies to it.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: list_description
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_description
+    description: |
+      The write-up a user attached to a list, list_description.
+
+      HTML-formatted free text, for example '<p>FUN</p>' or a numbered ranking of films; mostly null (empty for the large majority of lists in the sample). Distinct from list_comments, which counts replies rather than holding the list's own text.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: list_cover_image_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_cover_image_url
+    description: |
+      The web address of a list's cover image, list_cover_image_url.
+
+      A full image URL under assets.mubicdn.net, for example one ending '/image/3339/image-large.jpg?1481126957'. Cosmetic; not useful for filtering or grouping.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: list_first_image_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_first_image_url
+    description: |
+      The web address of the first movie thumbnail shown for a list, list_first_image_url.
+
+      A full image URL under assets.mubicdn.net, similar in form to list_cover_image_url but at a smaller size. Cosmetic; not useful for filtering or grouping.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: list_second_image_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_second_image_url
+    description: |
+      The web address of the second movie thumbnail shown for a list, list_second_image_url.
+
+      A full image URL under assets.mubicdn.net, null for lists with fewer than two movies shown (about three quarters of the loaded sample). Cosmetic; not useful for filtering or grouping.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: list_third_image_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_third_image_url
+    description: |
+      The web address of the third movie thumbnail shown for a list, list_third_image_url.
+
+      A full image URL under assets.mubicdn.net, null for lists with fewer than three movies shown (most of the loaded sample). Cosmetic; not useful for filtering or grouping.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: list_key
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_key
+    description: |
+      list_key, a numeric column on the lists table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: creator_user_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: creator_user_id
+    description: |
+      creator_user_id, a numeric column on the lists table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: list_comment_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_comment_count
+    description: |
+      list_comment_count, a numeric column on the lists table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_movie_platform_average_list_followers
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(list_followers)
+    description: |
+      average list followers: the mean list_followers value across a group of lists, typically all lists made by one user.
+
+      Bound to lists.list_followers: SUM(list_followers) divided by COUNT of the lists in scope. "Average number of followers" for one user's lists means this computed over lists.user_id = that user's id, not over the whole table.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average list followers"
+        }
+  - name: metric_movie_platform_lists_per_user
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(list_id)
+    description: |
+      lists per user: the count of list_id rows created by one user, used to find who posted the most lists.
+
+      Bound to lists.list_id, counted after grouping by user_id. "Posted the most lists" means taking the user with the largest value of this count, i.e. MAX applied to COUNT(list_id) grouped by user_id.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "lists per user"
+        }
+  - name: metric_movie_platform_max_list_followers
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(list_followers)
+    description: |
+      highest list followers: the largest list_followers value in a group of lists, identifying the most-followed list.
+
+      Bound to lists.list_followers. "Highest number of followers" or "most followers" means MAX(list_followers), optionally filtered or grouped, for example by the creating user's user_id.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest list followers"
+        }
+  - name: metric_movie_platform_max_list_movie_number
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(list_movie_number)
+    description: |
+      largest list by movie count: the largest list_movie_number value in a group of lists, identifying the list with the most movies.
+
+      Bound to lists.list_movie_number. "List with the most number of movies" or "list that contained the most number of the movies" means MAX(list_movie_number) over the lists in scope.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "largest list by movie count"
+        }
+  - name: metric_movie_platform_stalest_list_update
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(list_update_timestamp_utc)
+    description: |
+      stalest list update: the smallest list_update_timestamp_utc value in a group of lists, identifying whichever list has gone the longest without a change.
+
+      Bound to lists.list_update_timestamp_utc. "Not been updated for the longest period of time" means MIN(list_update_timestamp_utc) over the lists in scope, the opposite of the most recently updated list.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "stalest list update"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: lists_users
+  source: movie_platform.lists_users
+  description: |
+    lists_users holds one row per list, snapshotting the creating user's subscription, trial, and payment status at the moment they made that list.
+
+    Grain: one row per list, keyed by list_id, matching the grain of lists rather than being one row per distinct user. It is easily confused with lists, which carries the list's own title and counts rather than the creator's account status; use lists for what the list is and this table for who made it and what kind of account they had at the time. Join to lists on list_id (one row per list on both sides) and to ratings_users or ratings on user_id to compare the same user's status when they rated a movie.
+  fields:
+  - name: user_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_id
+    description: |
+      The identifier of the user who created a list, user_id.
+
+      A large numeric user id assigned by Mubi, for example 88063907 or 28506535; the same id space as lists.user_id and ratings.user_id. Join to lists.user_id to bring in that user's other lists, or to ratings.user_id for their ratings.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: list_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_id
+    description: |
+      The identifier of the list this status snapshot belongs to, list_id.
+
+      A numeric id, unique per row in this table, for example 15938 or 4004. Join to lists.list_id (also one row per list) to bring in the list's title, size, and follower count.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: list_update_date_utc
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_update_date_utc
+    description: |
+      The date a list was last updated, list_update_date_utc.
+
+      Text date formatted 'YYYY-MM-DD', for example '2020-04-26'. A date-only counterpart to lists.list_update_timestamp_utc; the most recently updated list is the one with MAX(list_update_date_utc).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: list_creation_date_utc
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_creation_date_utc
+    description: |
+      The date a list was created, list_creation_date_utc.
+
+      Text date formatted 'YYYY-MM-DD', for example '2010-10-19'. A date-only counterpart to lists.list_creation_timestamp_utc; the earliest (first-created) list is the one with MIN(list_creation_date_utc).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: user_trialist
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_trialist
+    description: |
+      Whether the creating user was on a free trial when they made a list, user_trialist.
+
+      1 means the user was a trialist at the moment they created this list, 0 means they were not. "Not a trialist" means user_trialist = 0. Distinct from user_eligible_for_trial, which marks whether they qualified for a trial rather than whether they were on one.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: user_subscriber
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_subscriber
+    description: |
+      Whether the creating user held a subscription when they made a list, user_subscriber.
+
+      1 means the user was a subscriber at the moment they created this list, 0 means they were not. "Was a subscriber" means user_subscriber = 1.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: user_avatar_image_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_avatar_image_url
+    description: |
+      The web address of the creating user's profile picture, user_avatar_image_url.
+
+      A full image URL, either under assets.mubicdn.net/images/avatars or, for accounts linked to Facebook, graph.facebook.com. Cosmetic; not useful for filtering or grouping.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: user_cover_image_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_cover_image_url
+    description: |
+      The web address of the creating user's profile cover image, user_cover_image_url.
+
+      A full image URL under assets.mubicdn.net/images/cover_images, null for most users in the loaded sample. Cosmetic; not useful for filtering or grouping.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: user_eligible_for_trial
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_eligible_for_trial
+    description: |
+      Whether the creating user qualified for a free trial when they made a list, user_eligible_for_trial.
+
+      1 means the user was eligible for a trial at the moment they created this list, 0 means they were not. Distinct from user_trialist, which marks whether they were actually on a trial rather than whether they qualified for one.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: user_has_payment_method
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_has_payment_method
+    description: |
+      Whether the creating user was a paying subscriber when they made a list, user_has_payment_method.
+
+      1 means the user had a payment method on file, i.e. was a paying subscriber, at the moment they created this list; 0 means they did not.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: list_ref_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_ref_id
+    description: |
+      list_ref_id, a numeric column on the lists_users table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: member_user_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: member_user_id
+    description: |
+      member_user_id, a numeric column on the lists_users table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: list_created_at_utc
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: list_created_at_utc
+    description: |
+      list_created_at_utc, a text column on the lists_users table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_movie_platform_earliest_list_creation
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(list_creation_date_utc)
+    description: |
+      earliest list creation: the smallest list_creation_date_utc value in a group of lists, identifying the first list a user created.
+
+      Bound to lists_users.list_creation_date_utc. "Earliest user created a list", "first created list", or "first list created" means MIN(list_creation_date_utc), typically grouped by user_id to find one user's first list.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "earliest list creation"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: movies
+  source: movie_platform.movies
+  description: |
+    movies holds one row per film on Mubi, with its title, release year, director, and how many users love it.
+
+    Grain: one row per film, keyed by movie_id. This is the table to start from for any question about a film's title, release year, director, or popularity. Join to ratings on movie_id (one film to many ratings) to bring in what users scored it and wrote about it.
+  fields:
+  - name: movie_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: movie_id
+    description: |
+      The unique identifier for a movie, movie_id.
+
+      A numeric id, unique per row in this table, for example 214352 or 144532. Join to ratings.movie_id to bring in every rating left on this film.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: movie_title
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: movie_title
+    description: |
+      The title of a movie, movie_title.
+
+      Free-text title, for example "The Years", "Andaz", or "Zoo". Titles are almost always unique in the loaded sample, but treat a title as a convenience lookup rather than a guaranteed key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: movie_release_year
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: movie_release_year
+    description: |
+      The year a movie was released, movie_release_year.
+
+      A four-digit year, spanning roughly 1921 to 2020 in the loaded sample. Decade phrasings translate to a range: "in the 70s" or "between 1970 and 1980" means movie_release_year BETWEEN 1970 AND 1979 (or 1980 if the question's upper bound is inclusive); "the first movie" or "the oldest movie" is the smallest value here.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: movie_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: movie_url
+    description: |
+      The web address of a movie's page on Mubi, movie_url.
+
+      A full URL such as 'http://mubi.com/films/zoo-1988', built from the movie's title. Not a business identifier; use movie_id or movie_title instead when a question is asking which film, not which page.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: movie_title_language
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: movie_title_language
+    description: |
+      The language a movie's title is recorded in, movie_title_language.
+
+      Holds the single value 'en' for every row in this schema; titles are always stored in English regardless of the film's original language. Not useful for filtering, since there is nothing to distinguish.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: movie_popularity
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: movie_popularity
+    description: |
+      The number of Mubi users who have marked a movie as loved, movie_popularity.
+
+      A non-negative integer count, mostly small (0 to a few dozen in the loaded sample) with a long tail of far more popular films; business language sets thresholds well above the sample's own range, for example "popularity of more than 13,000" or "between 400 and 500" both mean direct comparisons against movie_popularity. The film with MAX(movie_popularity) is the most popular.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to movies.movie_popularity. Business language sets thresholds well beyond typical sample values, for example \"popularity of more than 13,000\" or \"between 400 and 500\", both direct comparisons against this column. The most popular film is the one with MAX(movie_popularity).\n",
+              "id": "term_movie_platform_movie_popularity",
+              "name": "movie popularity",
+              "summary": "movie popularity: the count of Mubi users who marked a movie as loved, held in movies.movie_popularity.",
+              "synonyms": [
+                "movie popularity"
+              ]
+            }
+          ]
+        }
+  - name: movie_image_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: movie_image_url
+    description: |
+      The web address of a movie's poster image, movie_image_url.
+
+      A full image URL under images.mubicdn.net, null for roughly two-thirds of the loaded sample. Cosmetic; not useful for filtering or grouping.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: director_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: director_id
+    description: |
+      The identifier of a movie's director, director_id.
+
+      A numeric id stored as text, for example '86055' or '39253'; shared across every film the same director made. Use alongside director_name to identify a director by name rather than by this id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: director_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: director_name
+    description: |
+      The name of a movie's director, director_name.
+
+      Free text, for example "Sara Fgaier", "David Dhawan", or "Tobe Hooper"; a small number of rows list multiple names separated by a comma for co-directed films. The director credited with the most films is the one with the highest COUNT(movie_id) grouped by director_name or director_id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to movies.director_name, paired with the numeric movies.director_id. A handful of co-directed films list more than one name separated by a comma. The director who \"made the most movies\" is the one with the highest COUNT(movie_id) grouped by director_name or director_id.\n",
+              "id": "term_movie_platform_director",
+              "name": "director",
+              "summary": "director: the person credited with making a movie, recorded on the movies table as director_name and director_id.",
+              "synonyms": [
+                "director"
+              ]
+            }
+          ]
+        }
+  - name: director_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: director_url
+    description: |
+      The web address of a director's page on Mubi, director_url.
+
+      A full URL such as 'http://mubi.com/cast/sara-fgaier', built from the director's name. Not a business identifier; use director_id or director_name instead when a question is asking which director, not which page.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: movie_key
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: movie_key
+    description: |
+      movie_key, a numeric column on the movies table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: director_ref_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: director_ref_id
+    description: |
+      director_ref_id, a text column on the movies table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: director_full_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: director_full_name
+    description: |
+      director_full_name, a text column on the movies table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_movie_platform_max_movie_popularity
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(movie_popularity)
+    description: |
+      highest movie popularity: the largest movie_popularity value in a group of movies, identifying the most popular film.
+
+      Bound to movies.movie_popularity. "Highest popularity", "most popularity movie", or "movie with highest popularity" all mean MAX(movie_popularity), optionally filtered or grouped by another column such as movie_release_year.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest movie popularity"
+        }
+  - name: metric_movie_platform_movies_per_director
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(movie_id)
+    description: |
+      movies per director: the count of movie_id rows for one director, used to find who directed the most movies.
+
+      Bound to movies.movie_id, counted after grouping by director_name or director_id. "Director that made the most movies" or "most release films" means taking the director with the largest value of this count, i.e. MAX applied to COUNT(movie_id) grouped by director_id.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "movies per director"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "\"Film\" and \"movie\" are used interchangeably in business language for a row of the movies table. Use movie_id to join to ratings, movie_title for a human-readable name, and director_name or director_id to identify who made it.\n",
+            "id": "term_movie_platform_film",
+            "name": "movie",
+            "summary": "movie (film): a title in the movies table, identified by movie_id and described by movie_title, movie_release_year, and its director.",
+            "synonyms": [
+              "movie",
+              "film"
+            ]
+          }
+        ]
+      }
+- name: ratings
+  source: movie_platform.ratings
+  description: |
+    ratings holds one row per star rating a Mubi user gave a movie, with the account status they had and any written critique they left.
+
+    Grain: one row per rating, keyed by rating_id. This is the table to start from for any question about a rating's score, a critique's likes or comments, or which account made it. It is easily confused with ratings_users, which repeats one row per rating but carries only the rating user's account-status columns rather than the score or critique itself. Join to movies on movie_id (many ratings to one movie) to bring in the film's title and director, and to ratings_users or lists on user_id to see the same user's other activity.
+  fields:
+  - name: movie_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: movie_id
+    description: |
+      The identifier of the movie a rating was left on, movie_id.
+
+      A numeric id matching movies.movie_id, for example 1066 or 1067; repeats once per rating the same film received. Join to movies.movie_id to bring in the film's title and director.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: rating_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rating_id
+    description: |
+      The unique identifier for a rating, rating_id.
+
+      A numeric id, unique per row in this table, for example 15610495 or 10704606.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: rating_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rating_url
+    description: |
+      The web address of a rating's page on Mubi, rating_url.
+
+      A full URL such as 'http://mubi.com/films/pavee-lackeen-the-traveller-girl/ratings/15610495', built from the movie's title and the rating's id. Not a business identifier; use rating_id or movie_id instead when a question is asking which rating, not which page.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: rating_score
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rating_score
+    description: |
+      The star score a user gave a movie, rating_score.
+
+      An integer from 1 (the user's lowest possible score) to 5 (the highest); a higher score tracks a stronger liking for the film. "Rated 1" or "gave it a 1" means rating_score = 1; "best rating" or "rated with the highest score" means rating_score = 5. A small number of rows have no score recorded.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to ratings.rating_score, an integer from 1 to 5 with no half-star or 10-point values. \"Rated 1\", \"gave it a 1\", or \"lower than 3\" means comparisons against rating_score directly; \"rated with the highest score\", \"liked the movie the most\", or \"best rating\" means rating_score = 5. A higher value always means a stronger liking for the film.\n",
+              "id": "term_movie_platform_rating_scale",
+              "name": "rating scale",
+              "summary": "rating scale: ratings.rating_score runs 1 (worst rating) to 5 (best rating), so the best rating is 5 and the worst rating is 1.",
+              "synonyms": [
+                "rating scale",
+                "best rating",
+                "worst rating"
+              ]
+            }
+          ]
+        }
+  - name: rating_timestamp_utc
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rating_timestamp_utc
+    description: |
+      The UTC timestamp when a rating was made, rating_timestamp_utc.
+
+      Text timestamp formatted 'YYYY-MM-DD HH:MM:SS', for example '2017-06-10 12:38:33'. The most recent rating is the one with MAX(rating_timestamp_utc); a month like "rated in April 2020" can be matched with rating_timestamp_utc LIKE '2020-04-%'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: critic
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: critic
+    description: |
+      The written critique a user left when rating a movie, critic.
+
+      Free text, for example "Splendid debut. Whatever happened to Amma Asante?"; null for most ratings in the loaded sample, meaning the user rated the film without writing anything.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: critic_likes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: critic_likes
+    description: |
+      The number of likes a rating's written critique received, critic_likes.
+
+      A small non-negative integer, for example 0, 1, 2, or 4 in the loaded sample; meaningless when critic is null, since there is no critique to like. "Received more than 20 likes" means critic_likes > 20; the most-liked critique is the one with MAX(critic_likes).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: critic_comments
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: critic_comments
+    description: |
+      The number of comments a rating's written critique received, critic_comments.
+
+      A small non-negative integer, for example 0, 1, or 2 in the loaded sample; meaningless when critic is null, since there is no critique to comment on.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: user_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_id
+    description: |
+      The identifier of the user who left a rating, user_id.
+
+      A large numeric user id assigned by Mubi, for example 41579158 or 85981819; the same id space as lists.user_id and lists_users.user_id. Join to lists.user_id to bring in this user's lists, or to ratings_users.user_id for the same user's other rating-time snapshots.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: user_trialist
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_trialist
+    description: |
+      Whether the rating user was on a free trial when they rated a movie, user_trialist.
+
+      1 means the user was a trialist at the moment they made this rating, 0 means they were not. Distinct from user_eligible_for_trial, which marks whether they qualified for a trial rather than whether they were on one.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to ratings.user_trialist; the same flag also appears on lists_users.user_trialist and ratings_users.user_trialist. \"Not a trialist\" means the flag is 0; distinct from user_eligible_for_trial, which marks whether a user qualified for a trial rather than whether they were on one.\n",
+              "id": "term_movie_platform_trialist",
+              "name": "trialist",
+              "summary": "trialist: a user whose user_trialist flag was 1 at the time of the list or rating in question, meaning they were on a free trial then.",
+              "synonyms": [
+                "trialist"
+              ]
+            }
+          ]
+        }
+  - name: user_subscriber
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_subscriber
+    description: |
+      Whether the rating user held a subscription when they rated a movie, user_subscriber.
+
+      1 means the user was a subscriber at the moment they made this rating, 0 means they were not.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to ratings.user_subscriber; the same flag also appears on lists_users.user_subscriber and ratings_users.user_subscriber, each recording the acting user's status at that specific moment rather than one global value for the user. \"Was a subscriber\" means the flag is 1; \"not a subscriber\" means it is 0.\n",
+              "id": "term_movie_platform_subscriber",
+              "name": "subscriber",
+              "summary": "subscriber: a user whose user_subscriber flag was 1 at the time of the list or rating in question, meaning they held a Mubi subscription then.",
+              "synonyms": [
+                "subscriber"
+              ]
+            }
+          ]
+        }
+  - name: user_eligible_for_trial
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_eligible_for_trial
+    description: |
+      Whether the rating user qualified for a free trial when they rated a movie, user_eligible_for_trial.
+
+      1 means the user was eligible for a trial at the moment they made this rating, 0 means they were not. Distinct from user_trialist, which marks whether they were actually on a trial rather than whether they qualified for one.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to ratings.user_eligible_for_trial; the same flag also appears on lists_users.user_eligible_for_trial and ratings_users.user_eligible_for_trial. Distinct from user_trialist, which marks whether a user was actually on a trial rather than whether they qualified for one.\n",
+              "id": "term_movie_platform_eligible_for_trial",
+              "name": "eligible for trial",
+              "summary": "eligible for trial: a user whose user_eligible_for_trial flag was 1 at the time of the list or rating in question, meaning they qualified for a free trial then.",
+              "synonyms": [
+                "eligible for trial"
+              ]
+            }
+          ]
+        }
+  - name: user_has_payment_method
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_has_payment_method
+    description: |
+      Whether the rating user was a paying subscriber when they rated a movie, user_has_payment_method.
+
+      1 means the user had a payment method on file, i.e. was a paying subscriber, at the moment they made this rating; 0 means they did not.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to ratings.user_has_payment_method; the same flag also appears on lists_users.user_has_payment_method and ratings_users.user_has_payment_method, each recording the acting user's status at that specific moment. Distinct from user_subscriber, which marks subscription status rather than whether a payment method was on file.\n",
+              "id": "term_movie_platform_paying_subscriber",
+              "name": "paying subscriber",
+              "summary": "paying subscriber: a user whose user_has_payment_method flag was 1 at the time of the list or rating in question, meaning they had a payment method on file then.",
+              "synonyms": [
+                "paying subscriber"
+              ]
+            }
+          ]
+        }
+  metrics:
+  - name: metric_movie_platform_average_rating_score
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(rating_score)
+    description: |
+      average rating score: the mean rating_score across a group of ratings, typically all ratings tied to one movie or one user.
+
+      Bound to ratings.rating_score: SUM(rating_score) divided by COUNT of the ratings in scope. "Average rating" or "average score" for one film means this computed over ratings.movie_id = that film's movie_id, not over the whole table.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average rating score"
+        }
+  - name: metric_movie_platform_highest_rating_score
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(rating_score)
+    description: |
+      highest rating score: the largest rating_score value in a group of ratings, always at most 5.
+
+      Bound to ratings.rating_score. "Highest rating score" means MAX(rating_score) over the ratings in scope; since rating_score is capped at 5, this is only informative when the group might not contain a perfect score, such as ratings left before a given date.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest rating score"
+        }
+  - name: metric_movie_platform_latest_rating
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(rating_timestamp_utc)
+    description: |
+      most recent rating: the largest rating_timestamp_utc value in a group of ratings, identifying whichever rating was made most recently.
+
+      Bound to ratings.rating_timestamp_utc. "Rated recently" or "the most recent rating" means MAX(rating_timestamp_utc), typically grouped by movie_id or user_id to find the latest rating for one film or by one user.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most recent rating"
+        }
+  - name: metric_movie_platform_lowest_rating_score
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(rating_score)
+    description: |
+      lowest rating score: the smallest rating_score value in a group of ratings, always at least 1.
+
+      Bound to ratings.rating_score. Training language sometimes phrases this as "least ratings", which means MIN(rating_score) over the ratings in scope, not a count of how many ratings exist.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "lowest rating score"
+        }
+  - name: metric_movie_platform_max_critic_likes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(critic_likes)
+    description: |
+      most-liked critique: the largest critic_likes value in a group of ratings, identifying the critique that received the highest amount of likes.
+
+      Bound to ratings.critic_likes. "Critic received the highest amount of likes" or "received the highest number of likes" means MAX(critic_likes), typically joined back to ratings.critic to read the winning critique's text.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most-liked critique"
+        }
+  - name: metric_movie_platform_pct_top_ratings
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: 100.0 * COUNT(CASE WHEN rating_score = 5 THEN 1 END) / COUNT(rating_score)
+    description: |
+      percentage of top ratings: the share of ratings in a group scored 5, the best rating a user can give.
+
+      Bound to ratings.rating_score: count of rows where rating_score = 5, divided by the count of all rated rows in scope, multiplied by 100. Training language phrases this as dividing COUNT(rating_score = 5) by COUNT(rating_score) and scaling the result to a percentage.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "percentage of top ratings"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ratings_users
+  source: movie_platform.ratings_users
+  description: |
+    ratings_users holds one row per rating, repeating the rating user's account status and profile images at the moment they rated that movie.
+
+    Grain: one row per rating, matching the grain of ratings rather than being one row per distinct user. It is easily confused with ratings, which carries the score and written critique rather than the rating user's account status; use ratings for what the rating says and this table for who made it and what kind of account they had at the time. There is no rating_id here, so join to ratings and to lists_users by user_id rather than by a shared rating key.
+  fields:
+  - name: user_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_id
+    description: |
+      The identifier of the user this status snapshot belongs to, user_id.
+
+      A large numeric user id assigned by Mubi, for example 41579158 or 68654088; the same id space as ratings.user_id and lists_users.user_id. Join to ratings.user_id to bring in this user's scores and critiques.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: rating_date_utc
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rating_date_utc
+    description: |
+      The date a rating was made, rating_date_utc.
+
+      Text date formatted 'YYYY-MM-DD', for example '2017-06-10'. A date-only counterpart to ratings.rating_timestamp_utc for the same rating.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: user_trialist
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_trialist
+    description: |
+      Whether the rating user was on a free trial when they rated a movie, user_trialist.
+
+      1 means the user was a trialist at the moment they made this rating, 0 means they were not. Distinct from user_eligible_for_trial, which marks whether they qualified for a trial rather than whether they were on one.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: user_subscriber
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_subscriber
+    description: |
+      Whether the rating user held a subscription when they rated a movie, user_subscriber.
+
+      1 means the user was a subscriber at the moment they made this rating, 0 means they were not.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: user_avatar_image_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_avatar_image_url
+    description: |
+      The web address of the rating user's profile picture, user_avatar_image_url.
+
+      A full image URL, either under assets.mubicdn.net/images/avatars or, for accounts linked to Facebook, graph.facebook.com. Cosmetic; not useful for filtering or grouping.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: user_cover_image_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_cover_image_url
+    description: |
+      The web address of the rating user's profile cover image, user_cover_image_url.
+
+      A full image URL under assets.mubicdn.net/images/cover_images, null for most users in the loaded sample. Cosmetic; not useful for filtering or grouping.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: user_eligible_for_trial
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_eligible_for_trial
+    description: |
+      Whether the rating user qualified for a free trial when they rated a movie, user_eligible_for_trial.
+
+      1 means the user was eligible for a trial at the moment they made this rating, 0 means they were not. Distinct from user_trialist, which marks whether they were actually on a trial rather than whether they qualified for one.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: user_has_payment_method
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: user_has_payment_method
+    description: |
+      Whether the rating user was a paying subscriber when they rated a movie, user_has_payment_method.
+
+      1 means the user had a payment method on file, i.e. was a paying subscriber, at the moment they made this rating; 0 means they did not.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_movie_platform_lists_lists_users_353f6c25
+  from: lists
+  to: lists_users
+  from_columns:
+  - list_id
+  to_columns:
+  - list_id
+  ai_context:
+    instructions: |
+      Match a list in lists to its creator's account-status snapshot in lists_users by list_id.
+
+      Joins lists.list_id to lists_users.list_id. Both tables carry one row per list, so this is one-to-one; use it to add the creating user's subscription, trial, and payment status to a question that is otherwise about the list itself, such as its title or follower count.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between lists and lists_users in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_movie_platform_movies_ratings_e1b8b502
+  from: ratings
+  to: movies
+  from_columns:
+  - movie_id
+  to_columns:
+  - movie_id
+  ai_context:
+    instructions: |
+      Match a movie in movies to every rating it received in ratings by movie_id.
+
+      Joins movies.movie_id to ratings.movie_id. Many rows in ratings can share one movie_id, so this is one-to-many from movies into ratings; use it for any question that needs a film's title, release year, or director alongside its ratings or critiques.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between movies and ratings in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_0",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0000",
+          "sql": "SELECT \"movie_title\" FROM \"movie_platform\".\"movies\" WHERE \"movie_release_year\" = 1945 ORDER BY \"movie_popularity\" DESC NULLS LAST LIMIT 1",
+          "summary": "Name movie titles released in year 1945. Sort the listing by the descending order of movie popularity."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_10",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0001",
+          "sql": "SELECT DISTINCT \"T2\".\"movie_title\", \"T2\".\"movie_popularity\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T1\".\"rating_score\" = 5",
+          "summary": "List all movies with the best rating score. State the movie title and number of Mubi user who loves the movie."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_100",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0002",
+          "sql": "SELECT \"T2\".\"movie_title\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_release_year\" = 2003 AND \"T1\".\"user_id\" = 2941",
+          "summary": "Please list the names of the films released in 2003 among the films scored by user 2941 ."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_101",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0003",
+          "sql": "SELECT COUNT(\"T1\".\"user_id\") FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_title\" = 'Patti Smith: Dream of Life' AND \"T1\".\"user_trialist\" = 0",
+          "summary": "How many users were not trialists when they rated the movie \"Patti Smith: Dream of Life\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_104",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0004",
+          "sql": "SELECT \"T2\".\"list_title\", \"T1\".\"user_avatar_image_url\" FROM \"movie_platform\".\"lists_users\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" WHERE \"T1\".\"user_id\" = 85981819 ORDER BY \"T2\".\"list_creation_timestamp_utc\" NULLS FIRST LIMIT 1",
+          "summary": "What was the title of the first list created by a user 85981819? And please provide the user_avatar_image_url."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_106",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0005",
+          "sql": "SELECT AVG(\"T1\".\"rating_score\") FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_title\" LIKE 'Versailles Rive-Gauche'",
+          "summary": "What is the average score for the movie Versailles Rive-Gauche?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_108",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0006",
+          "sql": "SELECT \"T2\".\"movie_title\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T1\".\"critic_likes\" > 20",
+          "summary": "Please list the names of the movies that received more than 20 likes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_112",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0007",
+          "sql": "SELECT \"movie_release_year\" FROM \"movie_platform\".\"movies\" GROUP BY \"movie_release_year\" ORDER BY COUNT(\"movie_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which year had the most released films?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_113",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0008",
+          "sql": "SELECT \"director_id\" FROM \"movie_platform\".\"movies\" GROUP BY \"director_id\" ORDER BY COUNT(\"movie_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Who is the director that made the most movies? Give the director's id."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_114",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0009",
+          "sql": "SELECT COUNT(\"movie_id\") FROM \"movie_platform\".\"movies\" WHERE \"director_id\" = (SELECT \"director_id\" FROM \"movie_platform\".\"movies\" ORDER BY \"movie_popularity\" DESC NULLS LAST LIMIT 1)",
+          "summary": "How many movies did the director of the highest movie popularity make?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_116",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0010",
+          "sql": "SELECT \"user_id\" FROM \"movie_platform\".\"lists_users\" WHERE \"user_subscriber\" = 0 ORDER BY \"list_creation_date_utc\" NULLS FIRST LIMIT 1",
+          "summary": "Who was the earliest user created a list but didn't get any followers? Give the user ID."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_117",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0011",
+          "sql": "SELECT SUM(\"T1\".\"list_followers\") FROM \"movie_platform\".\"lists\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists_users\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" GROUP BY \"T1\".\"user_id\" ORDER BY COUNT(\"T1\".\"list_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Give the number of followers for the user who posted the most lists."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_118",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0012",
+          "sql": "SELECT SUM(\"T2\".\"list_followers\") FROM \"movie_platform\".\"lists_users\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" WHERE \"T2\".\"list_title\" LIKE 'Non-American Films about World War II'",
+          "summary": "How many followers did the user who posted the list \"Non-American Films about World War II\" have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_119",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0013",
+          "sql": "SELECT COUNT(\"T1\".\"user_id\") FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_title\" = 'Downfall' AND \"T1\".\"rating_score\" = 4",
+          "summary": "What's the number of users gave the movie \"Downfall\" a rating of \"4\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_123",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0014",
+          "sql": "SELECT \"T1\".\"user_avatar_image_url\" FROM \"movie_platform\".\"lists_users\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" WHERE \"T2\".\"list_title\" LIKE 'Vladimir Vladimirovich Nabokov'",
+          "summary": "Show the portrait picture of the user who created the list \"Vladimir Vladimirovich Nabokov\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_124",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0015",
+          "sql": "SELECT \"T1\".\"user_has_payment_method\" FROM \"movie_platform\".\"lists_users\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" WHERE \"T2\".\"list_movie_number\" = (SELECT MAX(\"list_movie_number\") FROM \"movie_platform\".\"lists\")",
+          "summary": "For the user who post the list that contained the most number of the movies, is he/she a paying subscriber when creating that list?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_126",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0016",
+          "sql": "SELECT COUNT(\"T1\".\"critic\") FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_popularity\" = (SELECT MAX(\"movie_popularity\") FROM \"movie_platform\".\"movies\")",
+          "summary": "How many critics were given to the movie that got the most movie popularity number."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_127",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0017",
+          "sql": "SELECT \"T1\".\"user_id\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"rating_score\" = 4 AND \"rating_timestamp_utc\" LIKE '2013-05-04 06:33:32' AND \"T2\".\"movie_title\" LIKE 'Freaks'",
+          "summary": "Who gave a \"4\" rating to the movie \"Freaks\" at 2013/5/4 6:33:32? Give his/her user id."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_13",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0018",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"rating_score\" = 5 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"movie_platform\".\"movies\" AS \"T1\" INNER JOIN \"movie_platform\".\"ratings\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T1\".\"movie_title\" = 'Welcome to the Dollhouse'",
+          "summary": "For movie titled 'Welcome to the Dollhouse', how many percentage of the ratings were rated with highest score."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_130",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0019",
+          "sql": "SELECT \"T2\".\"movie_title\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_popularity\" > 13000 ORDER BY \"T1\".\"rating_score\" NULLS FIRST LIMIT 1",
+          "summary": "From all the movies that got more than 13000 popularity number, which one had the least ratings."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_134",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0020",
+          "sql": "SELECT COUNT(\"T1\".\"rating_score\") FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T1\".\"rating_score\" < 3 AND \"T2\".\"movie_release_year\" = 1995 AND \"T2\".\"movie_popularity\" = (SELECT MAX(\"movie_popularity\") FROM \"movie_platform\".\"movies\" WHERE \"movie_release_year\" = 1995)",
+          "summary": "For all the movies that were released in 1995, how many lower than 3 ratings did the most popularity movie had?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_135",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0021",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"rating_score\" = 5 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"user_id\"), 0) FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_title\" = 'Go Go Tales'",
+          "summary": "What is the percentage of users gave \"5\" to the movie \"Go Go Tales\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_136",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0022",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T3\".\"user_subscriber\" = 1 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" INNER JOIN \"movie_platform\".\"lists_users\" AS \"T3\" ON \"T1\".\"user_id\" = \"T3\".\"user_id\" WHERE \"T2\".\"movie_title\" = 'G.I. Jane'",
+          "summary": "Give the percentage of subscribers who rated who rated the movie \"G.I. Jane\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_14",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0023",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"movie_release_year\" = 2021 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"movie_platform\".\"movies\" AS \"T1\" INNER JOIN \"movie_platform\".\"ratings\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\"",
+          "summary": "What is the percentage of rated movies were released in year 2021?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_140",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0024",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"user_subscriber\" = 1 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"list_id\"), 0) FROM \"movie_platform\".\"lists_users\"",
+          "summary": "What is the percentage of list created by user who was a subscriber when he created the list?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_141",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0025",
+          "sql": "SELECT DISTINCT \"T2\".\"list_id\" FROM \"movie_platform\".\"lists_users\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" WHERE \"T1\".\"user_subscriber\" = 1",
+          "summary": "Name all lists created by a user who was a subcriber when created the list."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_143",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0026",
+          "sql": "SELECT COUNT(\"T1\".\"list_id\") FROM \"movie_platform\".\"lists_users\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" WHERE \"T2\".\"list_followers\" >= 1 AND \"T1\".\"user_subscriber\" = 1",
+          "summary": "Among the lists with at least one follower, how many were created by user who was subscriber when created the list?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_144",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0027",
+          "sql": "SELECT AVG(\"list_followers\") FROM \"movie_platform\".\"lists\" WHERE \"list_movie_number\" > 200",
+          "summary": "For all list titles with at least 200 movies in the list, what is their average number of followers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_145",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0028",
+          "sql": "SELECT DISTINCT \"T2\".\"list_title\" FROM \"movie_platform\".\"lists_users\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" WHERE \"T2\".\"list_movie_number\" < 50 AND \"T1\".\"user_subscriber\" = 1",
+          "summary": "List all the titles created by user who was a subsriber when he created the list and have less than 50 movies in the list."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_147",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0029",
+          "sql": "SELECT \"T1\".\"user_id\", \"T1\".\"user_subscriber\" FROM \"movie_platform\".\"lists_users\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" WHERE \"T2\".\"list_title\" LIKE 'Sound and Vision'",
+          "summary": "Who is the user who created the list titled 'Sound and Vision'? Was he a subcriber when he created the list?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_15",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0030",
+          "sql": "SELECT \"director_name\" FROM \"movie_platform\".\"movies\" WHERE \"movie_title\" = 'Sex, Drink and Bloodshed'",
+          "summary": "Who is the director of the movie Sex, Drink and Bloodshed?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_150",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0031",
+          "sql": "SELECT \"T2\".\"movie_title\", \"T1\".\"rating_timestamp_utc\", \"T1\".\"rating_score\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T1\".\"user_id\" = 39115684",
+          "summary": "List all movies rated by user 39115684. State the title, rating date and rating score."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_151",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0032",
+          "sql": "SELECT COUNT(\"movie_id\") FROM \"movie_platform\".\"movies\" WHERE \"movie_release_year\" BETWEEN '1970' AND '1980' AND \"movie_popularity\" > 11000",
+          "summary": "Between 1970 to 1980, how many movies with a popularity of more than 11,000 were released?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_154",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0033",
+          "sql": "SELECT \"list_title\" FROM \"movie_platform\".\"lists\" WHERE \"list_update_timestamp_utc\" = (SELECT \"list_update_timestamp_utc\" FROM \"movie_platform\".\"lists\" ORDER BY \"list_update_timestamp_utc\" DESC NULLS LAST LIMIT 1)",
+          "summary": "What is the name of the list that was updated most recently?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_157",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0034",
+          "sql": "SELECT \"T2\".\"director_name\", \"T1\".\"rating_score\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_release_year\" BETWEEN 1970 AND 1979 GROUP BY \"T2\".\"director_id\", \"T2\".\"director_name\", \"T1\".\"rating_score\" ORDER BY COUNT(\"T2\".\"movie_id\") DESC LIMIT 1",
+          "summary": "Who is the director that directed the highest number of movies in the 70s? If there are multiple directors with the same amount of movies, list all of their names and indicate the highest rating score that those movies got from the users."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_159",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0035",
+          "sql": "SELECT \"T2\".\"movie_title\", \"T1\".\"rating_url\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" ORDER BY \"T1\".\"critic_likes\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the movie whose critic received the highest amount of likes? Indicate the URL to the rating on Mubi."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_161",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0036",
+          "sql": "SELECT CAST(SUM(\"T4\".\"list_followers\") AS REAL) / NULLIF(COUNT(\"T2\".\"list_id\"), 0) FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists_users\" AS \"T2\" ON \"T1\".\"user_id\" = \"T2\".\"user_id\" INNER JOIN \"movie_platform\".\"movies\" AS \"T3\" ON \"T1\".\"movie_id\" = \"T3\".\"movie_id\" INNER JOIN \"movie_platform\".\"lists\" AS \"T4\" ON \"T2\".\"list_id\" = \"T4\".\"list_id\" WHERE \"T3\".\"movie_title\" LIKE 'Pavee Lackeen: The Traveller Girl' AND \"T1\".\"rating_timestamp_utc\" LIKE '2011-03-27 02:06:34'",
+          "summary": "What is the average number of followers of the lists created by the user who rated the movie \"Pavee Lackeen: The Traveller Girl\" on 3/27/2011 at 2:06:34 AM?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_165",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0037",
+          "sql": "SELECT \"T2\".\"movie_title\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T1\".\"user_id\" = 57756708 ORDER BY \"T1\".\"rating_timestamp_utc\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the movie that was rated recently by user 57756708?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_17",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0038",
+          "sql": "SELECT \"list_url\" FROM \"movie_platform\".\"lists\" WHERE \"list_update_timestamp_utc\" LIKE '2012%' AND \"list_followers\" BETWEEN 1 AND 2 ORDER BY \"list_update_timestamp_utc\" DESC NULLS LAST LIMIT 1",
+          "summary": "What are the URL to the list page on Mubi of the lists with followers between 1-2 and whose last update timestamp was on 2012?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_18",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0039",
+          "sql": "SELECT \"list_id\" FROM \"movie_platform\".\"lists_users\" WHERE \"user_id\" = 85981819 ORDER BY \"list_creation_date_utc\" ASC NULLS FIRST LIMIT 1",
+          "summary": "What is the list ID that was first created by user 85981819?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_19",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0040",
+          "sql": "SELECT COUNT(*) FROM \"movie_platform\".\"ratings\" WHERE \"movie_id\" = 1269 AND \"rating_score\" <= 2 AND \"user_eligible_for_trial\" = 1 AND \"user_has_payment_method\" = 1",
+          "summary": "For movie id 1269, how many users, who was a paying subscriber and was eligible for trial when he rated the movie, gave the movie a rating score of less than or equal to 2?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_21",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0041",
+          "sql": "SELECT \"movie_release_year\", \"director_name\" FROM \"movie_platform\".\"movies\" WHERE NOT \"movie_release_year\" IS NULL ORDER BY \"movie_release_year\" ASC NULLS FIRST LIMIT 1",
+          "summary": "When was the first movie released and who directed it?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_22",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0042",
+          "sql": "SELECT \"user_id\" FROM \"movie_platform\".\"lists_users\" WHERE \"user_subscriber\" = 1 GROUP BY \"user_id\" HAVING CAST(MAX(SUBSTRING(\"list_creation_date_utc\" FROM 1 FOR 4)) AS INT) - CAST(MIN(SUBSTRING(\"list_creation_date_utc\" FROM 1 FOR 4)) AS INT) >= 10",
+          "summary": "What is the user ID of the user, who was a subscriber when he created the list, who created a list for 10 consecutive years? If there are multiple users, indicate each of their user IDs."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_25",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0043",
+          "sql": "SELECT \"T2\".\"movie_release_year\", \"T1\".\"user_id\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T1\".\"movie_id\" = (SELECT \"movie_id\" FROM \"movie_platform\".\"movies\" WHERE \"director_name\" = 'Quentin Tarantino' ORDER BY \"movie_release_year\" ASC NULLS FIRST LIMIT 1 OFFSET 2) AND \"T1\".\"rating_score\" = 4",
+          "summary": "Which year was the third movie directed by Quentin Tarantino released? Indicate the user ids of the user who gave it a rating score of 4."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_27",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0044",
+          "sql": "SELECT AVG(\"T1\".\"rating_score\"), \"T2\".\"director_name\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_title\" = 'When Will I Be Loved' GROUP BY \"T2\".\"director_name\"",
+          "summary": "What is the average rating score of the movie \"When Will I Be Loved\" and who was its director?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_28",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0045",
+          "sql": "SELECT \"T1\".\"list_movie_number\", \"T2\".\"user_has_payment_method\" FROM \"movie_platform\".\"lists\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists_users\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" ORDER BY \"T1\".\"list_movie_number\" DESC NULLS LAST LIMIT 1",
+          "summary": "How many movies were added to the list with the most number of movies? Indicate whether the user was a paying subscriber or not when he created the list."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_29",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0046",
+          "sql": "SELECT \"T2\".\"movie_title\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" ORDER BY \"T1\".\"critic_likes\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the movie whose critic received the highest number of likes related to the critic made by the user rating the movie?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_30",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0047",
+          "sql": "SELECT MAX(\"T2\".\"movie_popularity\"), MIN(\"T1\".\"rating_timestamp_utc\") FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_release_year\" BETWEEN 1920 AND 1929 AND \"T1\".\"rating_score\" = 1 AND \"T1\".\"user_has_payment_method\" = 1",
+          "summary": "How much is the popularity of the movie that has the highest popularity between 1920 to 1929 and when did the movie received its first rating score of 1 from the users who were a paying subscriber when they rated the movie ?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_33",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0048",
+          "sql": "SELECT \"T1\".\"list_followers\", \"T2\".\"user_subscriber\" = 1 FROM \"movie_platform\".\"lists\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists_users\" AS \"T2\" ON \"T1\".\"user_id\" = \"T2\".\"user_id\" AND \"T2\".\"list_id\" = \"T2\".\"list_id\" WHERE \"T2\".\"user_id\" = 4208563 ORDER BY \"T1\".\"list_followers\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among the lists created by user 4208563, which one has the highest number of followers? Indicate how many followers it has and whether the user was a subscriber or not when he created the list."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_35",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0049",
+          "sql": "SELECT COUNT(\"T2\".\"user_id\") FROM \"movie_platform\".\"movies\" AS \"T1\" INNER JOIN \"movie_platform\".\"ratings\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T1\".\"movie_release_year\" = 1924 AND \"T1\".\"director_name\" = 'Erich von Stroheim' AND \"T2\".\"rating_score\" = 5 AND \"T2\".\"user_has_payment_method\" = 1",
+          "summary": "How many users, who were a paying subscriber when they rated the movie, gave the movie that was released in 1924 and directed by Erich von Stroheim a rating score of 5?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_39",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0050",
+          "sql": "SELECT \"T2\".\"rating_url\" FROM \"movie_platform\".\"movies\" AS \"T1\" INNER JOIN \"movie_platform\".\"ratings\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"user_id\" = 22030372 AND \"T2\".\"rating_score\" = 5 AND \"T1\".\"movie_title\" = 'Riff-Raff'",
+          "summary": "What is the URL to the rating on Mubi of the Riff-Raff movie that was given the highest rating score by user 22030372?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_41",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0051",
+          "sql": "SELECT COUNT(\"T2\".\"user_id\") FROM \"movie_platform\".\"movies\" AS \"T1\" INNER JOIN \"movie_platform\".\"ratings\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"user_trialist\" = 0 AND \"T2\".\"rating_score\" <= 2 AND \"T1\".\"movie_title\" = 'The South'",
+          "summary": "How many users, who were not a a trialist when they rated the movie, gave the movie \"The South\" a rating score of not more than 2?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_43",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0052",
+          "sql": "SELECT AVG(\"T2\".\"rating_score\"), \"T1\".\"director_name\" FROM \"movie_platform\".\"movies\" AS \"T1\" INNER JOIN \"movie_platform\".\"ratings\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T1\".\"movie_title\" = 'The Crowd' GROUP BY \"T1\".\"director_name\"",
+          "summary": "What is the average rating score of the movie \"The Crowd\" and who was its director?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_45",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0053",
+          "sql": "SELECT \"T1\".\"movie_title\", MAX(\"T2\".\"rating_score\") FROM \"movie_platform\".\"movies\" AS \"T1\" INNER JOIN \"movie_platform\".\"ratings\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T1\".\"movie_popularity\" BETWEEN 400 AND 500 GROUP BY \"T1\".\"movie_title\"",
+          "summary": "How many movies have a popularity of more than 400 but less than 500? Indicate the name of the movies and the highest rating score each movie has received."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0054",
+          "sql": "SELECT AVG(\"T2\".\"rating_score\") FROM \"movie_platform\".\"movies\" AS \"T1\" INNER JOIN \"movie_platform\".\"ratings\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T1\".\"movie_title\" = 'When Will I Be Loved'",
+          "summary": "What is the average rating for movie titled 'When Will I Be Loved'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_51",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0055",
+          "sql": "SELECT \"list_description\" FROM \"movie_platform\".\"lists\" WHERE \"list_title\" = 'Short and pretty damn sweet'",
+          "summary": "What's the description for the movie list \"Short and pretty damn sweet\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_52",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0056",
+          "sql": "SELECT \"list_url\" FROM \"movie_platform\".\"lists\" WHERE \"list_title\" = 'Short and pretty damn sweet'",
+          "summary": "Where can I find the movie list \"Short and pretty damn sweet\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_54",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0057",
+          "sql": "SELECT COUNT(*) FROM \"movie_platform\".\"lists_users\" WHERE \"user_id\" = 83373278 AND \"user_subscriber\" = 1",
+          "summary": "How many movie lists were created by user 83373278 when he or she was a subscriber?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_58",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0058",
+          "sql": "SELECT COUNT(\"movie_id\") FROM \"movie_platform\".\"movies\" WHERE \"director_name\" = 'Hong Sang-soo'",
+          "summary": "How many movies registered on Mubi are directed by Hong Sang-soo?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_59",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0059",
+          "sql": "SELECT \"T2\".\"user_trialist\" FROM \"movie_platform\".\"lists\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists_users\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" AND \"T1\".\"user_id\" = \"T2\".\"user_id\" WHERE \"T1\".\"list_title\" = '250 Favourite Films'",
+          "summary": "Was the user who created the list \"250 Favourite Films\" a trialist when he or she created the list?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_62",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0060",
+          "sql": "SELECT \"T1\".\"list_description\" FROM \"movie_platform\".\"lists\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists_users\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" AND \"T1\".\"user_id\" = \"T2\".\"user_id\" WHERE \"T1\".\"user_id\" = 85981819 ORDER BY \"T1\".\"list_followers\" DESC NULLS LAST LIMIT 1",
+          "summary": "What's the description of user 85981819's movie list with the most followers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_63",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0061",
+          "sql": "SELECT \"T2\".\"list_update_date_utc\" FROM \"movie_platform\".\"lists\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists_users\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" AND \"T1\".\"user_id\" = \"T2\".\"user_id\" WHERE \"T1\".\"list_title\" = '250 Favourite Films' ORDER BY \"T2\".\"list_update_date_utc\" DESC NULLS LAST LIMIT 1",
+          "summary": "When did the creator of the list \"250 Favourite Films\" last updated a movie list?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_64",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0062",
+          "sql": "SELECT \"T2\".\"user_avatar_image_url\" FROM \"movie_platform\".\"lists\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists_users\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" AND \"T1\".\"user_id\" = \"T2\".\"user_id\" WHERE \"T1\".\"list_title\" = '250 Favourite Films'",
+          "summary": "What's the avatar image of the user who created the movie list \"250 Favourite Films\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_65",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0063",
+          "sql": "SELECT COUNT(\"list_id\") FROM \"movie_platform\".\"lists_users\" WHERE \"user_id\" = (SELECT \"user_id\" FROM \"movie_platform\".\"lists\" WHERE \"list_title\" = '250 Favourite Films')",
+          "summary": "How many more movie lists were created by the user who created the movie list \"250 Favourite Films\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_66",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0064",
+          "sql": "SELECT COUNT(\"T1\".\"user_id\") FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_title\" = 'A Way of Life' AND \"T1\".\"rating_score\" = 5",
+          "summary": "How many users liked the movie \"A Way of Life\" to the highest extent?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_67",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0065",
+          "sql": "SELECT \"T1\".\"critic\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_title\" = 'A Way of Life'",
+          "summary": "Please list all the critics made by the user rating the movie \"A Way of Life\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_68",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0066",
+          "sql": "SELECT COUNT(*) FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_title\" = 'Imitation of Life' AND \"T1\".\"critic_likes\" > 1",
+          "summary": "How many critics of the movie \"Imitation of Life\" got more than 1 like?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_72",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0067",
+          "sql": "SELECT \"T1\".\"user_trialist\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_title\" = 'A Way of Life' AND \"T1\".\"user_id\" = 39115684",
+          "summary": "Was user 39115684 a trialist when he or she rated the movie \"A Way of Life\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_76",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0068",
+          "sql": "SELECT \"T2\".\"movie_title\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T1\".\"user_id\" = 58149469 AND \"T1\".\"critic_likes\" = 1 AND \"T1\".\"critic_comments\" = 2",
+          "summary": "User 58149469's critic on which film got 1 like and 2 comments?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_77",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0069",
+          "sql": "SELECT COUNT(\"T1\".\"user_id\") FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_title\" = 'When Will I Be Loved' AND \"T1\".\"rating_score\" = 1 AND \"T1\".\"user_trialist\" = 1",
+          "summary": "Among the users who are trailists when rating the movie \"When Will I Be Loved\", how many of them have rated \"1\" on the movie?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0070",
+          "sql": "SELECT \"T1\".\"movie_title\" FROM \"movie_platform\".\"movies\" AS \"T1\" INNER JOIN \"movie_platform\".\"ratings\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"user_trialist\" = 1 AND \"T2\".\"rating_timestamp_utc\" LIKE '2020-04%'",
+          "summary": "List all movie title rated in April 2020 from user who was a trialist."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_80",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0071",
+          "sql": "SELECT \"T2\".\"movie_title\" FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" INNER JOIN \"movie_platform\".\"lists\" AS \"T3\" ON \"T3\".\"user_id\" = \"T1\".\"user_id\" WHERE \"T3\".\"list_title\" = '250 Favourite Films'",
+          "summary": "Please list the movies rated by the user who created the movie list \"250 Favourite Films\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_82",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0072",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"rating_score\" = 1 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"movie_platform\".\"ratings\" AS \"T1\" INNER JOIN \"movie_platform\".\"movies\" AS \"T2\" ON \"T1\".\"movie_id\" = \"T2\".\"movie_id\" WHERE \"T2\".\"movie_title\" = 'When Will I Be Loved'",
+          "summary": "What's the percentage of the users who have rated \"1\" on the movie \"When Will I Be Loved\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_85",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0073",
+          "sql": "SELECT COUNT(*) FROM \"movie_platform\".\"movies\" WHERE \"movie_release_year\" = 2007",
+          "summary": "How many films were released in 2007?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_87",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0074",
+          "sql": "SELECT COUNT(\"movie_title\") FROM \"movie_platform\".\"movies\" WHERE \"director_name\" = 'Åke Sandgren'",
+          "summary": "How many films did Åke Sandgren direct?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_90",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0075",
+          "sql": "SELECT \"director_id\" FROM \"movie_platform\".\"movies\" WHERE \"movie_title\" = 'It''s Winter'",
+          "summary": "Please list the id of the director of the movie \"It's Winter\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_97",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0076",
+          "sql": "SELECT \"T1\".\"user_cover_image_url\" FROM \"movie_platform\".\"lists_users\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" WHERE \"T2\".\"list_title\" LIKE 'Georgia related films'",
+          "summary": "What's the cover image of the user who created the movie list 'Georgia related films'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_98",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_movie_platform_0077",
+          "sql": "SELECT SUM(\"T2\".\"list_followers\") FROM \"movie_platform\".\"lists_users\" AS \"T1\" INNER JOIN \"movie_platform\".\"lists\" AS \"T2\" ON \"T1\".\"list_id\" = \"T2\".\"list_id\" WHERE \"T1\".\"user_avatar_image_url\" = 'https://assets.mubicdn.net/images/avatars/74983/images-w150.jpg?1523895214'",
+          "summary": "How many followers does the list created by the user whose user_avatar_image_url is https://assets.mubicdn.net/images/avatars/74983/images-w150.jpg?1523895214 have?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between lists and lists_users in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Joins lists.user_id to lists_users.user_id. A user appears on more than one row in each table when they created more than one list, so this is many-to-many; prefer the list_id join between these two tables when the question is about one specific list, and use this join only when the question is genuinely about a user's lists in general.\n",
+          "cardinality": "many_to_many",
+          "id": "join_movie_platform_lists_lists_users_fa33f6dd",
+          "left_table": "movie_platform.lists",
+          "on": "movie_platform.lists.user_id = movie_platform.lists_users.user_id",
+          "right_table": "movie_platform.lists_users",
+          "summary": "Match every list in lists to every lists_users row for the same creator by user_id."
+        },
+        {
+          "audit": {
+            "evidence": "equality between lists and ratings in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Joins lists.user_id to ratings.user_id. A user can create many lists and leave many ratings, so this is many-to-many; use it for questions that connect a user's list-making activity to their rating activity, such as whether users who follow many lists also rate more movies.\n",
+          "cardinality": "many_to_many",
+          "id": "join_movie_platform_lists_ratings_ba398e2a",
+          "left_table": "movie_platform.lists",
+          "on": "movie_platform.lists.user_id = movie_platform.ratings.user_id",
+          "right_table": "movie_platform.ratings",
+          "summary": "Match a user's lists in lists to the ratings that same user left in ratings by user_id."
+        },
+        {
+          "audit": {
+            "evidence": "equality between lists_users and ratings in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Joins lists_users.user_id to ratings.user_id. A user can appear on many lists_users rows and leave many ratings, so this is many-to-many; use it to compare a user's account status when they made a list against the ratings they left, rather than for a one-list-to-one-rating lookup.\n",
+          "cardinality": "many_to_many",
+          "id": "join_movie_platform_lists_users_ratings_eb3bee7d",
+          "left_table": "movie_platform.lists_users",
+          "on": "movie_platform.lists_users.user_id = movie_platform.ratings.user_id",
+          "right_table": "movie_platform.ratings",
+          "summary": "Match a user's list-creation snapshots in lists_users to the ratings that same user left in ratings by user_id."
+        },
+        {
+          "audit": {
+            "evidence": "equality between lists_users and ratings_users in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Joins lists_users.user_id to ratings_users.user_id. A user can appear on many rows of each table, so this is many-to-many; use it to compare the same user's account status at list-creation time against their status at rating time, since neither table carries a shared list or rating key to line up individual actions one for one.\n",
+          "cardinality": "many_to_many",
+          "id": "join_movie_platform_lists_users_ratings_users_8e5ebe47",
+          "left_table": "movie_platform.lists_users",
+          "on": "movie_platform.lists_users.user_id = movie_platform.ratings_users.user_id",
+          "right_table": "movie_platform.ratings_users",
+          "summary": "Match a user's list-creation snapshots in lists_users to their rating-time snapshots in ratings_users by user_id."
+        },
+        {
+          "audit": {
+            "evidence": "equality between ratings and ratings_users in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Joins ratings.user_id to ratings_users.user_id. Neither table exposes a shared rating key, so a user with many ratings pairs every one of their ratings rows with every one of their ratings_users rows; this is many-to-many, even though the two tables are populated in lockstep one rating at a time. Use it only to bring in account-status columns for a user, not to line up one specific rating with one specific snapshot.\n",
+          "cardinality": "many_to_many",
+          "id": "join_movie_platform_ratings_ratings_users_ca8e0033",
+          "left_table": "movie_platform.ratings",
+          "on": "movie_platform.ratings.user_id = movie_platform.ratings_users.user_id",
+          "right_table": "movie_platform.ratings_users",
+          "summary": "Match a user's ratings in ratings to their rating-time status snapshots in ratings_users by user_id."
+        }
+      ]
+    }

@@ -1,28 +1,2344 @@
-asset_type: schema
-id: food_inspection
+version: 0.2.0.dev0
 name: food_inspection
-summary: >-
-  food_inspection tracks San Francisco food service businesses (eateries), their owners, the
-  health inspections each receives with a numeric score, and the violations found, by risk
-  category.
-body: >
-  Three tables carry the real data: betriebe (one row per business: name, address, owner,
-  certificate and tax numbers), inspektionen (one row per health inspection: date, type, and a
-  1-100 score where 100 means the business met every standard), and verstaesse (one row per
-  violation found: date, risk category, and description). All three key on betrieb_id.
-  betriebsangaben and mangelmeldungen look like a second copy of the business and violation
-  data but are not dependable for analysis; none of their columns should be used to answer a
-  question. City names in betriebe.stadt are spelled inconsistently (SF, S.F., SAN FRANCISCO,
-  San Francisco all occur for the same city), so match city filters loosely rather than by
-  exact string equality alone.
-rules:
-- Answer business, inspection, and violation questions from betriebe, inspektionen, and
-  verstaesse only. Never select, filter, or join on a column from betriebsangaben or
-  mangelmeldungen — every column in those two tables is unreliable for analysis.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  food_inspection tracks San Francisco food service businesses (eateries), their owners, the health inspections each receives with a numeric score, and the violations found, by risk category.
+
+  Three tables carry the real data: betriebe (one row per business: name, address, owner, certificate and tax numbers), inspektionen (one row per health inspection: date, type, and a 1-100 score where 100 means the business met every standard), and verstaesse (one row per violation found: date, risk category, and description). All three key on betrieb_id. betriebsangaben and mangelmeldungen look like a second copy of the business and violation data but are not dependable for analysis; none of their columns should be used to answer a question. City names in betriebe.stadt are spelled inconsistently (SF, S.F., SAN FRANCISCO, San Francisco all occur for the same city), so match city filters loosely rather than by exact string equality alone.
+ai_context:
+  instructions: Answer business, inspection, and violation questions from betriebe, inspektionen, and verstaesse only. Never select, filter, or join on a column from betriebsangaben or mangelmeldungen — every column in those two tables is unreliable for analysis.
+datasets:
+- name: betriebe
+  source: food_inspection.betriebe
+  description: |
+    betriebe holds one row per food service business (eatery), with its name, address, contact and license details, and owner information.
+
+    Grain: one row per business, keyed by betrieb_id. This is the table to start from for any question about a business's identity, address, or owner. Join to inspektionen on betrieb_id (one business, many inspections) to add its inspection history, and to verstaesse on betrieb_id (one business, many violations) to add its violation record.
+  fields:
+  - name: betrieb_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: betrieb_id
+    description: |
+      The unique identifier for a food service business, betrieb_id.
+
+      A numeric id, one value per row in this table. Join to inspektionen.betrieb_id and to verstaesse.betrieb_id to bring in the same business's inspections and violations. Sample values include 1344, 7519, 9582, 28169, and 18047.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: name
+    description: |
+      The name a food service business does business under, name.
+
+      Free text, for example Beanery, EMPIRE MARKET, Dimples, Bloomingdales, or Las Palmeras. Not unique across rows: a chain can appear more than once.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: adresse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse
+    description: |
+      The street address where a business is physically located, adresse.
+
+      Free text street address, for example 1307 09th Ave, 399 EDDY St, or 845 Market St. Pairs with stadt and postleitzahl for the full mailing address, and is distinct from eigentuemer_adresse, which is the owner's address rather than the business's own location.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: stadt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stadt
+    description: |
+      The city where a business is located, stadt.
+
+      Free text city name, most often San Francisco but spelled inconsistently across rows — SF, S.F., SAN FRANCISCO, San Francisco, SF., and lowercase sf all occur for the same city, and about 153 of the sampled rows are null. A small number of rows name a different Bay Area city, such as Hayward or Cameron Park; match all spelling variants when a question filters by city name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "stadt spells the city inconsistently across rows: SF, S.F., SAN FRANCISCO, San Francisco, SF., and lowercase sf all occur for the same city. A question that says \"restaurants in San Francisco\" or \"eateries in SF\" should match every spelling variant of stadt, not just one exact string, or it will silently drop rows that belong to the same city.\n",
+              "id": "term_food_inspection_san_francisco",
+              "name": "San Francisco",
+              "summary": "SF, S.F., and San Francisco are three spellings of the same city recorded in betriebe.stadt for a food service business.",
+              "synonyms": [
+                "san francisco",
+                "sf",
+                "s.f."
+              ]
+            }
+          ]
+        }
+  - name: postleitzahl
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: postleitzahl
+    description: |
+      The postal (zip) code of a business's location, postleitzahl.
+
+      Five-digit code text such as 94122, 94102, 94103, 94110, or 94105, mostly in the 941xx range; about 23 of the sampled rows are null. Distinct from eigentuemer_postleitzahl, the owner's zip code, which can fall outside that range.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: breitengrad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: breitengrad
+    description: |
+      The latitude of a business's location, breitengrad.
+
+      Decimal latitude, roughly 37.7 to 37.8 in the sample; a value of 0.0 marks a missing coordinate, and about 224 of the sampled rows are null. Pairs with laengengrad to form a coordinate; the distance between two businesses is the square root of the sum of the squared differences of their latitudes and longitudes.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: laengengrad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: laengengrad
+    description: |
+      The longitude of a business's location, laengengrad.
+
+      Decimal longitude, roughly -122.5 to -122.4 in the sample; a value of 0.0 marks a missing coordinate, and about 224 of the sampled rows are null, matching breitengrad's nulls. Pairs with breitengrad to form a coordinate for distance calculations between businesses.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: telefonnummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: telefonnummer
+    description: |
+      The phone number of a business, telefonnummer.
+
+      An 11-digit numeric phone number including a leading country code, such as 14155220151 or 14155298857; about 373 of the sampled rows are null.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: steuernummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: steuernummer
+    description: |
+      The tax code assigned to a business, steuernummer.
+
+      A short alphanumeric code such as H24, H07, or H87, drawn from about 28 distinct values in the sample. Not unique per business: several businesses can share the same tax code.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: betriebserlaubnis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: betriebserlaubnis
+    description: |
+      The business certificate number issued to a business, betriebserlaubnis.
+
+      Numeric certificate number, for example 302698, 338258, or 920751, mostly distinct across the businesses in the sample. Called "business certificate" in business language.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: antragsdatum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: antragsdatum
+    description: |
+      The date a business applied to operate, antragsdatum.
+
+      Calendar date ranging from 1975-10-08 to 2016-09-28 in the sample; about 101 of the sampled rows are null. Distinct from inspektionen.datum, which records when an inspection happened rather than when the business applied.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: eigentuemer_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: eigentuemer_name
+    description: |
+      The name of a business's owner, eigentuemer_name.
+
+      Free text owner or company name, for example "Beanery, Inc.", "AL HAJ,MOHAMED", or "Bloomingdales Inc.". Called "owner" in business language; one owner can hold more than one business, so this column repeats across rows.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Business language calls the value in eigentuemer_name the owner, or the owner's name. One owner can hold more than one business, so this term also underlies grouped questions like the owner with the highest number of establishments. A separate set of columns (eigentuemer_stadt, eigentuemer_bundesland, eigentuemer_postleitzahl, eigentuemer_adresse) gives the owner's own city, state, zip, and street address, distinct from the business's own.\n",
+              "id": "term_food_inspection_owner",
+              "name": "owner",
+              "summary": "Owner, owners, and owner's name all refer to eigentuemer_name, the person or company that owns a food service business.",
+              "synonyms": [
+                "owner",
+                "owners",
+                "owner's name"
+              ]
+            }
+          ]
+        }
+  - name: eigentuemer_adresse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: eigentuemer_adresse
+    description: |
+      The street address of a business's owner, eigentuemer_adresse.
+
+      Free text street address, for example "1307 9TH AVE" or "399 EDDY". Often close to but not always identical to the business's own adresse. Pairs with eigentuemer_stadt, eigentuemer_bundesland, and eigentuemer_postleitzahl for the owner's full mailing address.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: eigentuemer_stadt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: eigentuemer_stadt
+    description: |
+      The city where a business's owner is located, eigentuemer_stadt.
+
+      Free text city, for example SF, San Francisco, HILLSBOROUGH, or Millbrae (78 distinct values in the sample); an owner can live outside the business's own city. About 1 of the sampled rows is null.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: eigentuemer_bundesland
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: eigentuemer_bundesland
+    description: |
+      The state where a business's owner is located, eigentuemer_bundesland.
+
+      Two-letter or spelled-out US state, such as CA, SC, NC, or IL, with inconsistent casing (Ca and CA both occur); about 1 of the sampled rows is null. "Owners in California" filters this column to CA case-insensitively.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: eigentuemer_postleitzahl
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: eigentuemer_postleitzahl
+    description: |
+      The postal (zip) code of a business's owner, eigentuemer_postleitzahl.
+
+      Postal code text, mostly 5-digit US codes like 94122 but occasionally a non-US format like "H4P 1N3". Can differ from the business's own postleitzahl since an owner can be based elsewhere.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: betrieb_nummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: betrieb_nummer
+    description: |
+      betrieb_nummer, a numeric column on the betriebe table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: anschrift
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: anschrift
+    description: |
+      anschrift, a text column on the betriebe table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: einreichungsdatum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: einreichungsdatum
+    description: |
+      einreichungsdatum, a date column on the betriebe table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_food_inspection_establishments_per_owner
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(betrieb_id)
+    description: |
+      establishment count per owner: how many betriebe rows share the same eigentuemer_name.
+
+      Computed as COUNT(betrieb_id) from betriebe grouped by eigentuemer_name. Training questions phrase this as "the owner with the highest number of establishments" (the maximum of this count) or "the 5 owners with the highest number of establishments" (the top 5 owners ordered by this count, descending).
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "dimensions": [
+            "eigentuemer_name"
+          ],
+          "name": "establishment count per owner"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "In this corpus, an eatery, an establishment, and a business are the same concept: one row in betriebe, identified by betrieb_id. Training questions use all of these words interchangeably to mean the same food service business, so a question that says \"how many establishments\" or \"eateries in Hayward\" is a question about rows of betriebe.\n",
+            "id": "term_food_inspection_eatery",
+            "name": "eatery",
+            "summary": "Eatery, eateries, establishment, establishments, business, and businesses all refer to a food service business record in betriebe.",
+            "synonyms": [
+              "eatery",
+              "eateries",
+              "establishment",
+              "establishments",
+              "business",
+              "businesses"
+            ]
+          }
+        ]
+      }
+- name: betriebsangaben
+  source: food_inspection.betriebsangaben
+  description: |
+    betriebsangaben records business registration details for food service businesses, but every column in it is unreliable for analysis.
+
+    The table is not dependable: none of its columns correspond to trustworthy business facts, so none of them should be used in a SELECT list, a filter, or a join to answer a question. Use betriebe instead for a business's identity, address, and owner information.
+  fields:
+  - name: id_betrieb
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_betrieb
+    description: |
+      id_betrieb, a numeric column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: betrieb_bezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: betrieb_bezeichnung
+    description: |
+      betrieb_bezeichnung, a text column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: strasse_hausnummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: strasse_hausnummer
+    description: |
+      strasse_hausnummer, a text column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ortsteil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ortsteil
+    description: |
+      ortsteil, a text column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: postleitzahl
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: postleitzahl
+    description: |
+      postleitzahl, a text column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: geokoordinate_breitengrad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geokoordinate_breitengrad
+    description: |
+      geokoordinate_breitengrad, a decimal column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: geokoordinate_laengengrad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: geokoordinate_laengengrad
+    description: |
+      geokoordinate_laengengrad, a decimal column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: kontakt_telefonnummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kontakt_telefonnummer
+    description: |
+      kontakt_telefonnummer, a numeric column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: steuer_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: steuer_id
+    description: |
+      steuer_id, a text column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: genehmigungskennzeichen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: genehmigungskennzeichen
+    description: |
+      genehmigungskennzeichen, a numeric column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: antragsdatum_eingang
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: antragsdatum_eingang
+    description: |
+      antragsdatum_eingang, a column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: inhaber_vorname_nachname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: inhaber_vorname_nachname
+    description: |
+      inhaber_vorname_nachname, a text column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: inhaber_strasse
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: inhaber_strasse
+    description: |
+      inhaber_strasse, a text column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: inhaber_ort
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: inhaber_ort
+    description: |
+      inhaber_ort, a text column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: inhaber_bundesland
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: inhaber_bundesland
+    description: |
+      inhaber_bundesland, a text column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: inhaber_postleitzahl
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: inhaber_postleitzahl
+    description: |
+      inhaber_postleitzahl, a text column on the betriebsangaben table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: inspektionen
+  source: food_inspection.inspektionen
+  description: |
+    inspektionen holds one row per health inspection performed on a business, with its date, type, and numeric score.
+
+    Grain: one row per inspection event. Join to betriebe on betrieb_id for the business's name and address, and to verstaesse on betrieb_id to see the violations recorded for the same business — neither table carries a foreign key tying one inspection to one violation, only to the shared business, so a business with many inspections and many violations produces every pairing between them when the two are joined directly.
+  fields:
+  - name: betrieb_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: betrieb_id
+    description: |
+      The business a row of inspektionen was inspecting, betrieb_id.
+
+      Numeric id matching betriebe.betrieb_id, repeated once per inspection a business receives. Sample values include 961, 1595, 2716, 2934, and 3174.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: bewertung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bewertung
+    description: |
+      The numeric score assigned to a health inspection, bewertung.
+
+      Integer score from 1 to 100, where 100 means the business met every required standard; about 256 of the sampled rows are null (inspections that were not scored, such as a non-inspection site visit). Called "score" in business language; sample values include 100, 96, 94, 90, and 63. A higher bewertung means fewer problems were found.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "bewertung ranges from 1 to 100; 100 is the boundary condition these phrases refer to, meaning the business met every required health and safety standard on that inspection. A business that \"met all required standards for 4 consecutive years\" has four separate inspektionen rows in different years, each with bewertung = 100. Rows where bewertung is null were not scored (for example a non-inspection site visit) and do not count as either passing or failing.\n",
+              "id": "term_food_inspection_perfect_score",
+              "name": "perfect score",
+              "summary": "Perfect score, met all required standards, and met all requirements all describe an inspection where bewertung equals 100.",
+              "synonyms": [
+                "perfect score",
+                "met all required standards",
+                "met all requirements"
+              ]
+            }
+          ]
+        }
+  - name: datum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: datum
+    description: |
+      The date an inspection took place, datum.
+
+      Calendar date ranging from 2013-10-09 to 2016-10-02 in the sample. Used to scope questions to a year (for example year(datum) = 2016) or to an exact day.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: typ
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: typ
+    description: |
+      The kind of inspection performed, typ.
+
+      One of about 9 categories in the sample, including Routine - Unscheduled, Complaint, New Construction, New Ownership, Non-inspection site visit, Structural Inspection, and Reinspection/Followup. "Routine" and "unscheduled" inspections both name the single value 'Routine - Unscheduled'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "The single value 'Routine - Unscheduled' in inspektionen.typ is what both \"routine inspection\" and \"unscheduled inspection\" refer to in business language, whether the question uses one word or both together. Other categories recorded in typ include Complaint, New Construction, New Ownership, Non-inspection site visit, Structural Inspection, and Reinspection/Followup.\n",
+              "id": "term_food_inspection_routine_inspection",
+              "name": "routine inspection",
+              "summary": "Routine inspection and unscheduled inspection both name the same inspektionen.typ category, Routine - Unscheduled.",
+              "synonyms": [
+                "routine inspection",
+                "unscheduled inspection"
+              ]
+            }
+          ]
+        }
+  - name: betrieb_referenznummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: betrieb_referenznummer
+    description: |
+      betrieb_referenznummer, a numeric column on the inspektionen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: inspektionsdatum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: inspektionsdatum
+    description: |
+      inspektionsdatum, a column on the inspektionen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: beurteilung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: beurteilung
+    description: |
+      beurteilung, a numeric column on the inspektionen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_food_inspection_average_score
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(bewertung)
+    description: |
+      average inspection score: the mean bewertung across a business's inspections.
+
+      Computed as AVG(bewertung) over inspektionen, optionally filtered or grouped by business (betrieb_id), inspection type (typ), or year (datum). bewertung is null for inspections that were not scored (for example a non-inspection site visit), and AVG ignores those rows automatically. A comparison like "bewertung greater than 80% of the average" multiplies this metric by 0.8 rather than filtering the average itself. Do not compute this from inspektionen.beurteilung, a column that is not dependable for analysis.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average inspection score"
+        }
+  - name: metric_food_inspection_inspections_per_business
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(betrieb_id)
+    description: |
+      inspection count per business: how many inspektionen rows belong to one betrieb_id.
+
+      Computed as COUNT(betrieb_id) from inspektionen grouped by betrieb_id, optionally filtered by typ or by year(datum). Training questions phrase this as "the highest number of inspektionen" (the maximum of this count) or "eateries' IDs inspected on" a given date, which instead filters datum before counting.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "dimensions": [
+            "betrieb_id"
+          ],
+          "name": "inspection count per business"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: mangelmeldungen
+  source: food_inspection.mangelmeldungen
+  description: |
+    mangelmeldungen records reported food safety violations for food service businesses, but every column in it is unreliable for analysis.
+
+    The table is not dependable: none of its columns correspond to trustworthy violation facts, so none of them should be used in a SELECT list, a filter, or a join to answer a question. Use verstaesse instead for a business's recorded violations.
+  fields:
+  - name: bezugs_betrieb_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bezugs_betrieb_id
+    description: |
+      bezugs_betrieb_id, a numeric column on the mangelmeldungen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: feststellungsdatum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: feststellungsdatum
+    description: |
+      feststellungsdatum, a column on the mangelmeldungen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: verstoss_kategorie_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verstoss_kategorie_id
+    description: |
+      verstoss_kategorie_id, a text column on the mangelmeldungen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: risikostufe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: risikostufe
+    description: |
+      risikostufe, a text column on the mangelmeldungen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: vorfallbeschreibung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: vorfallbeschreibung
+    description: |
+      vorfallbeschreibung, a text column on the mangelmeldungen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: verstaesse
+  source: food_inspection.verstaesse
+  description: |
+    verstaesse holds one row per food safety violation found at a business during an inspection, recording its date, risk category, and description.
+
+    Grain: one row per violation. Join to betriebe on betrieb_id (one business, many violations) to bring in the business's name and address. Join to inspektionen on betrieb_id as well, but note that no column ties one specific inspection to one specific violation, only the shared business — joining inspektionen and verstaesse directly pairs every inspection a business had with every violation it had, so aggregate each side separately before combining them if a question asks for counts. Do not confuse this table with mangelmeldungen, a similarly shaped table whose columns are not dependable for analysis.
+  fields:
+  - name: betrieb_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: betrieb_id
+    description: |
+      The business at which a violation recorded in verstaesse was found, betrieb_id.
+
+      Numeric id matching betriebe.betrieb_id, repeated once per violation a business has. Sample values include 116, 273, 557, 60254, and 2428.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: datum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: datum
+    description: |
+      The date a violation was recorded, datum.
+
+      Calendar date ranging from 2013-10-07 to 2016-10-04 in the sample. Used to scope questions to a year (for example year(datum) = 2016) or to an exact day, such as a violation recorded on 2014-06-12.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: verstoss_typ_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verstoss_typ_id
+    description: |
+      The code identifying the type of violation found, verstoss_typ_id.
+
+      A numeric-looking id stored as text, ranging from 103102 to 103177 in the sample (about 44 distinct values), such as 103105, 103139, or 103161. Each code corresponds to one violation category described in beschreibung; a question naming a specific code (for example "violates 103157") filters this column directly.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: risikokategorie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: risikokategorie
+    description: |
+      The severity level assigned to a violation, risikokategorie.
+
+      One of three values: High Risk, Moderate Risk, or Low Risk. High Risk violations carry more safety and health hazards than Low Risk ones; this severity is independent of the numeric score recorded in inspektionen.bewertung.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "risikokategorie takes exactly three values: High Risk, Moderate Risk, and Low Risk. High Risk violations carry more safety and health hazards than Low Risk ones. A question naming just \"high risk\" or describing \"the highest health and safety hazards\" filters risikokategorie to High Risk; \"low risk\" and \"moderate risk\" filter it to the other two values the same way.\n",
+              "id": "term_food_inspection_risk_category",
+              "name": "risk category",
+              "summary": "Risk category, high risk, moderate risk, and low risk describe the severity recorded in risikokategorie for a violation.",
+              "synonyms": [
+                "risk category",
+                "high risk",
+                "moderate risk",
+                "low risk"
+              ]
+            }
+          ]
+        }
+  - name: beschreibung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: beschreibung
+    description: |
+      The description of the violation found, beschreibung.
+
+      Free text drawn from about 44 standard categories in the sample, such as "Improper cooling methods", "Improper food storage", "Inadequate ventilation or lighting", "Contaminated or adulterated food", and "Unclean or unsanitary food contact surfaces". Pairs with verstoss_typ_id, which gives the same category as a code.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: verstoss_betrieb_nummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verstoss_betrieb_nummer
+    description: |
+      verstoss_betrieb_nummer, a numeric column on the verstaesse table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: verstoss_datum
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verstoss_datum
+    description: |
+      verstoss_datum, a column on the verstaesse table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: verstossbeschreibung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verstossbeschreibung
+    description: |
+      verstossbeschreibung, a text column on the verstaesse table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_food_inspection_violation_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(betrieb_id)
+    description: |
+      violation count per business: how many verstaesse rows belong to one betrieb_id.
+
+      Computed as COUNT(betrieb_id) from verstaesse grouped by betrieb_id, filtered to risikokategorie = 'High Risk' or 'Low Risk' when a question asks for that severity specifically. Training questions phrase this as "5 or more establishments" (this count >= 5), "the most number of verstaesse" (the maximum of this count), or "the highest number of high risk verstaesse" (the maximum of this count restricted to High Risk rows).
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "dimensions": [
+            "betrieb_id"
+          ],
+          "name": "violation count per business"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_food_inspection_betriebe_inspektionen_c99bc91d
+  from: inspektionen
+  to: betriebe
+  from_columns:
+  - betrieb_id
+  to_columns:
+  - betrieb_id
+  ai_context:
+    instructions: |
+      Each betriebe business links to every inspektionen row recorded for the same betrieb_id.
+
+      A business (betriebe) receives many health inspections (inspektionen) over time, each keyed by the shared betrieb_id, so this join brings a business's name, address, and owner alongside every inspection it has had. Use it to answer questions that combine a business's identity with its inspection history, such as an inspection score or type for a named business.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between betriebe and inspektionen in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_food_inspection_betriebe_verstaesse_7f9d0582
+  from: verstaesse
+  to: betriebe
+  from_columns:
+  - betrieb_id
+  to_columns:
+  - betrieb_id
+  ai_context:
+    instructions: |
+      Each betriebe business links to every verstaesse violation recorded for the same betrieb_id.
+
+      A business (betriebe) can have many recorded violations (verstaesse), each keyed by the shared betrieb_id, so this join brings a business's name, address, and owner alongside every violation found there. Use it to answer questions that combine a business's identity with the risk category or description of its violations.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between betriebe and verstaesse in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_8773",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0000",
+          "sql": "SELECT COUNT(\"eigentuemer_bundesland\") FROM \"food_inspection\".\"betriebe\" WHERE \"eigentuemer_bundesland\" = 'CA'",
+          "summary": "How many restaurants' owners are in California?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8774",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0001",
+          "sql": "SELECT COUNT(\"bewertung\") FROM \"food_inspection\".\"inspektionen\" WHERE \"bewertung\" = 100",
+          "summary": "How many restaurants have met all requirements in the inspection?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8775",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0002",
+          "sql": "SELECT COUNT(\"datum\") FROM \"food_inspection\".\"inspektionen\" WHERE TO_CHAR(CAST(\"datum\" AS TIMESTAMP), 'YYYY') = '2016' AND \"typ\" = 'Routine - Unscheduled'",
+          "summary": "Among the inspections carried out in 2016, how many of them are routine?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8776",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0003",
+          "sql": "SELECT DISTINCT \"T2\".\"name\" FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"bewertung\" = 100",
+          "summary": "Please list the names of all the restaurants that have met all requirements in one inspection."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8778",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0004",
+          "sql": "SELECT \"T1\".\"typ\" FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"datum\" = '2014-01-14' AND \"T2\".\"name\" = 'Tiramisu Kitchen'",
+          "summary": "What was the type of inspection Tiramisu Kitchen had on 2014/1/14?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8780",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0005",
+          "sql": "SELECT DISTINCT \"T2\".\"name\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE TO_CHAR(CAST(\"T1\".\"datum\" AS TIMESTAMP), 'YYYY') = '2014' AND \"T1\".\"risikokategorie\" = 'Low Risk'",
+          "summary": "Please list the names of the restaurants that had a low risk violation in inspections in 2014."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8781",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0006",
+          "sql": "SELECT \"T1\".\"beschreibung\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"datum\" = '2014-01-14' AND \"T2\".\"name\" = 'Tiramisu Kitchen' AND \"T1\".\"risikokategorie\" = 'Low Risk'",
+          "summary": "What is the description of the low risk violation of Tiramisu Kitchen on 2014/1/14?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8782",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0007",
+          "sql": "SELECT DISTINCT \"T1\".\"beschreibung\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"risikokategorie\" = 'High Risk' AND \"T2\".\"name\" = 'Tiramisu Kitchen'",
+          "summary": "Please list the descriptions of all the high risk violations of Tiramisu Kitchen."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8784",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0008",
+          "sql": "SELECT COUNT(\"T2\".\"betrieb_id\") FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T2\".\"name\" = 'Tiramisu Kitchen' AND \"T1\".\"typ\" = 'Routine - Unscheduled' AND \"T1\".\"bewertung\" > 70",
+          "summary": "Among the routine inspections of Tiramisu Kitchen, how many of them have a score of over 70?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8786",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0009",
+          "sql": "SELECT COUNT(\"T2\".\"betrieb_id\") FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T2\".\"stadt\" IN ('San Francisco', 'SF', 'S.F.', 'SAN FRANCISCO') AND \"T1\".\"risikokategorie\" = 'High Risk'",
+          "summary": "How many high risk violations do the restaurants in San Francisco have in total?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8787",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0010",
+          "sql": "SELECT \"T2\".\"name\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"risikokategorie\" = 'High Risk' GROUP BY \"T2\".\"name\" ORDER BY COUNT(\"T2\".\"name\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which restaurant has the highest total number of high risk violations?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8788",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0011",
+          "sql": "SELECT AVG(\"T1\".\"bewertung\") FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T2\".\"name\" = 'Tiramisu Kitchen'",
+          "summary": "What is the average scores of Tiramisu Kitchen in all inspections?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8790",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0012",
+          "sql": "SELECT \"betrieb_id\" FROM \"food_inspection\".\"verstaesse\" GROUP BY \"betrieb_id\" ORDER BY COUNT(\"betrieb_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Tell the Id number of the business with the most number of violations."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8794",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0013",
+          "sql": "SELECT \"T1\".\"beschreibung\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T2\".\"name\" = 'Chez Fayala, Inc.' AND \"T1\".\"datum\" = '2016-07-01' AND \"T1\".\"risikokategorie\" = 'Moderate Risk'",
+          "summary": "Give the description of the moderate risk violation which \"Chez Fayala, Inc.\" had on 2016/7/1."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8795",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0014",
+          "sql": "SELECT \"T2\".\"name\" FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"bewertung\" = (SELECT MIN(\"bewertung\") FROM \"food_inspection\".\"inspektionen\" WHERE \"datum\" = '2016-09-26' AND \"typ\" = 'Routine - Unscheduled') AND \"T1\".\"datum\" = '2016-09-26' AND \"T1\".\"typ\" = 'Routine - Unscheduled'",
+          "summary": "Which business had the lowest score for the unscheduled routine inspection on 2016/9/26? Give the name of the business."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8797",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0015",
+          "sql": "SELECT COUNT(\"T1\".\"betrieb_id\") FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T2\".\"name\" = 'Soma Restaurant And Bar' AND \"T1\".\"typ\" = 'Routine - Unscheduled'",
+          "summary": "How many unscheduled routine inspections did \"Soma Restaurant And Bar\" have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8798",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0016",
+          "sql": "SELECT \"T2\".\"adresse\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"risikokategorie\" = 'Low Risk' GROUP BY \"T2\".\"adresse\" ORDER BY COUNT(\"T1\".\"betrieb_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Give the address of the business with the most number of the low risk violations."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8799",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0017",
+          "sql": "SELECT \"T2\".\"name\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"datum\" = (SELECT MIN(\"datum\") FROM \"food_inspection\".\"verstaesse\" WHERE \"risikokategorie\" = 'Low Risk' AND \"beschreibung\" = 'Permit license or inspection report not posted') AND \"T1\".\"risikokategorie\" = 'Low Risk' AND \"T1\".\"beschreibung\" = 'Permit license or inspection report not posted'",
+          "summary": "Which business was the first one to get a low risk violation because of \"Permit license or inspection report not posted\"? Give the name of the business."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8803",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0018",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"risikokategorie\" = 'Moderate Risk' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"betrieb_id\"), 0) FROM \"food_inspection\".\"betriebe\" AS \"T1\" INNER JOIN \"food_inspection\".\"verstaesse\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"name\" = 'Melody Lounge'",
+          "summary": "What percentage of the violations for \"Melody Lounge\" are moderate risks?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8804",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0019",
+          "sql": "SELECT COUNT(\"betrieb_id\") FROM \"food_inspection\".\"betriebe\" WHERE \"stadt\" = 'HAYWARD'",
+          "summary": "How many eateries are located in Hayward?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8805",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0020",
+          "sql": "SELECT COUNT(DISTINCT \"betrieb_id\") FROM \"food_inspection\".\"inspektionen\" WHERE \"bewertung\" < 50",
+          "summary": "How many establishments have an inspection score of no more than 50?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8808",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0021",
+          "sql": "SELECT COUNT(\"T1\".\"eigentuemer_name\") FROM (SELECT \"eigentuemer_name\" FROM \"food_inspection\".\"betriebe\" GROUP BY \"eigentuemer_name\" HAVING COUNT(\"eigentuemer_name\") > 5) AS \"T1\"",
+          "summary": "How many owners have 5 or more establishments?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8809",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0022",
+          "sql": "SELECT DISTINCT \"T2\".\"name\" FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE TO_CHAR(CAST(\"T1\".\"datum\" AS TIMESTAMP), 'YYYY') = '2013' AND \"T1\".\"bewertung\" = 100",
+          "summary": "What are the names of the establishments that met all of the required standards in 2013?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8810",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0023",
+          "sql": "SELECT \"T2\".\"stadt\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE TO_CHAR(CAST(\"T1\".\"datum\" AS TIMESTAMP), 'YYYY') = '2016' AND \"T1\".\"risikokategorie\" = 'High Risk' GROUP BY \"T2\".\"stadt\" ORDER BY COUNT(\"T2\".\"stadt\") DESC NULLS LAST LIMIT 1",
+          "summary": "In 2016, which city has the highest number of establishments with the highest health and safety hazards?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8811",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0024",
+          "sql": "SELECT \"T2\".\"name\" FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"bewertung\" = (SELECT MIN(\"bewertung\") FROM \"food_inspection\".\"inspektionen\")",
+          "summary": "What is the name of the establishment with the lowest inspection score of all time?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8812",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0025",
+          "sql": "SELECT COUNT(\"T1\".\"betrieb_id\") FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T2\".\"name\" = 'Tiramisu Kitchen' AND \"T1\".\"risikokategorie\" = 'High Risk'",
+          "summary": "How many high risks violations did the Tiramisu Kitchen violate?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8814",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0026",
+          "sql": "SELECT \"T2\".\"name\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE TO_CHAR(CAST(\"T1\".\"datum\" AS TIMESTAMP), 'YYYY') = '2013' AND \"T1\".\"beschreibung\" = 'Contaminated or adulterated food'",
+          "summary": "In 2013, what are the names of the establishments with contaminated or adulterated food?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8816",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0027",
+          "sql": "SELECT DISTINCT \"T4\".\"name\" FROM (SELECT \"T3\".\"name\", \"T3\".\"years\", ROW_NUMBER() OVER (PARTITION BY \"T3\".\"name\" ORDER BY \"T3\".\"years\") AS \"rowNumber\" FROM (SELECT DISTINCT \"name\", TO_CHAR(CAST(\"datum\" AS TIMESTAMP), 'YYYY') AS \"years\" FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"bewertung\" = 100) AS \"T3\") AS \"T4\" GROUP BY \"T4\".\"name\", (CAST(\"T4\".\"years\" || '-01-01' AS DATE) - CAST(((\"T4\".\"rowNumber\" - 1) || ' years') AS INTERVAL)) HAVING COUNT(\"T4\".\"years\") = 4",
+          "summary": "What are the names of the establishments that met all the required standards for 4 consecutive years?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8817",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0028",
+          "sql": "SELECT AVG(\"T1\".\"bewertung\") FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE TO_CHAR(CAST(\"T1\".\"datum\" AS TIMESTAMP), 'YYYY') BETWEEN '2014' AND '2016' AND \"T2\".\"eigentuemer_name\" = 'Yiu Tim Chan' AND \"T2\".\"adresse\" = '808 Pacific Ave' AND \"T2\".\"stadt\" = 'San Francisco'",
+          "summary": "Between 2014 to 2016, what is the average inpsection score of the establishment owned by Yiu Tim Chan in 808 Pacific Ave, San Francisco?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8818",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0029",
+          "sql": "SELECT AVG(\"T1\".\"bewertung\") FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" GROUP BY \"T2\".\"eigentuemer_name\" ORDER BY COUNT(\"T2\".\"betrieb_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "What is the average score of the establishments owned by the owner with the highest number of establishments?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8819",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0030",
+          "sql": "SELECT \"T2\".\"name\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE TO_CHAR(CAST(\"T1\".\"datum\" AS TIMESTAMP), 'YYYY') = '2014' AND \"T1\".\"risikokategorie\" = 'Low Risk' GROUP BY \"T2\".\"name\" ORDER BY COUNT(\"T2\".\"betrieb_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the establishment with the highest number of low risk violations in 2014?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8820",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0031",
+          "sql": "SELECT \"T4\".\"eigentuemer_name\" FROM \"food_inspection\".\"verstaesse\" AS \"T3\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T4\" ON \"T3\".\"betrieb_id\" = \"T4\".\"betrieb_id\" INNER JOIN (SELECT \"T2\".\"eigentuemer_name\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" GROUP BY \"T2\".\"eigentuemer_name\" ORDER BY COUNT(\"T1\".\"betrieb_id\") DESC NULLS LAST LIMIT 5) AS \"T5\" ON \"T4\".\"eigentuemer_name\" = \"T5\".\"eigentuemer_name\" WHERE \"T3\".\"risikokategorie\" = 'High Risk' GROUP BY \"T4\".\"eigentuemer_name\" ORDER BY COUNT(\"T3\".\"risikokategorie\") DESC NULLS LAST LIMIT 1",
+          "summary": "Among the top 5 owners with highest number of establishments, which owner has the highest number of high risk violations? Give the name of the owner."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8821",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0032",
+          "sql": "SELECT \"T2\".\"name\", AVG(\"T1\".\"bewertung\") FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" GROUP BY \"T2\".\"name\" ORDER BY COUNT(\"T2\".\"betrieb_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which establishment has the highest number of inspections done? Give the name of the establishment and calculate for its average score per inspection."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8822",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0033",
+          "sql": "SELECT COUNT(DISTINCT \"betrieb_id\") FROM \"food_inspection\".\"inspektionen\" WHERE TO_CHAR(CAST(\"datum\" AS TIMESTAMP), 'YYYY') = '2013' AND \"bewertung\" = (SELECT MAX(\"bewertung\") FROM \"food_inspection\".\"inspektionen\" WHERE TO_CHAR(CAST(\"datum\" AS TIMESTAMP), 'YYYY') = '2013')",
+          "summary": "How many eateries got highest inspection in 2013?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8823",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0034",
+          "sql": "SELECT \"betrieb_id\" FROM \"food_inspection\".\"inspektionen\" WHERE \"typ\" = 'Structural Inspection' AND CAST(\"datum\" AS TEXT) LIKE '2016-02%'",
+          "summary": "List down the eateries' IDs with structural inspection type in February 2016."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8825",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0035",
+          "sql": "SELECT \"betrieb_id\", \"risikokategorie\", \"beschreibung\" FROM \"food_inspection\".\"verstaesse\" WHERE \"verstoss_typ_id\" = '103101'",
+          "summary": "Provide eateries' IDs, risk categories and descriptions with violation ID of 103101."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8826",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0036",
+          "sql": "SELECT \"T1\".\"datum\" FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T2\".\"stadt\" = 'SAN BRUNO' ORDER BY \"T1\".\"bewertung\" DESC NULLS LAST LIMIT 1",
+          "summary": "When did eateries from San Bruno city get highest score in inspection?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8828",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0037",
+          "sql": "SELECT DISTINCT \"T1\".\"verstoss_typ_id\", \"T1\".\"beschreibung\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T2\".\"name\" = 'STARBUCKS' AND \"T1\".\"risikokategorie\" = 'High Risk'",
+          "summary": "Mention the violation type ID and description of high risk category for STARBUCKS."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8829",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0038",
+          "sql": "SELECT \"T1\".\"datum\", \"T1\".\"bewertung\", \"T1\".\"typ\" FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T2\".\"steuernummer\" = 'AA'",
+          "summary": "List the inspection dates, scores and inspection types for the eateries with tax code AA."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8830",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0039",
+          "sql": "SELECT DISTINCT \"T2\".\"betrieb_id\", \"T2\".\"name\", \"T2\".\"adresse\" FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"datum\" = '2016-07-30'",
+          "summary": "Provide eateries' IDs, names and addresses which were inspected on 30th July, 2016."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8831",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0040",
+          "sql": "SELECT \"T1\".\"datum\", \"T1\".\"risikokategorie\", \"T1\".\"beschreibung\", \"T2\".\"name\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T2\".\"eigentuemer_name\" = 'Jade Chocolates LLC'",
+          "summary": "Describe the violation dates, risk categories, descriptions and names of the eateries under Jade Chocolates LLC."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8835",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0041",
+          "sql": "SELECT \"T2\".\"eigentuemer_name\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"risikokategorie\" = 'High Risk' AND \"T1\".\"beschreibung\" = 'Improper cooking time or temperatures'",
+          "summary": "Who were the owners of eateries which had highest health hazard by improper cooking time or temperatures?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8836",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0042",
+          "sql": "SELECT \"T2\".\"name\", \"T2\".\"adresse\" FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"datum\" = '2015-02-02' AND \"T1\".\"typ\" = 'Reinspection/Followup'",
+          "summary": "List the eateries' names and addresses which had reinspection on 2nd February, 2015."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8839",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0043",
+          "sql": "SELECT DISTINCT \"eigentuemer_name\" FROM \"food_inspection\".\"betriebe\" WHERE \"eigentuemer_postleitzahl\" = '94104'",
+          "summary": "List down the owner's name with a zip code 94104."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8840",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0044",
+          "sql": "SELECT COUNT(\"steuernummer\") FROM \"food_inspection\".\"betriebe\" WHERE \"steuernummer\" = 'H25'",
+          "summary": "What is the total number of businesses with a tax code H25?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8843",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0045",
+          "sql": "SELECT DISTINCT \"T2\".\"eigentuemer_name\" FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"bewertung\" = 100",
+          "summary": "List owner's name of businesses with a 100 score."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8847",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0046",
+          "sql": "SELECT DISTINCT \"T3\".\"name\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"inspektionen\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T3\" ON \"T2\".\"betrieb_id\" = \"T3\".\"betrieb_id\" WHERE \"T1\".\"datum\" = '2016-05-27' AND CAST(\"T1\".\"verstoss_typ_id\" AS TEXT) = '103157' AND \"T2\".\"typ\" = 'Routine - Unscheduled'",
+          "summary": "In businesses that violates 103157 on May 27, 2016 , what is the name of the business that has an unscheduled inspection?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8848",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0047",
+          "sql": "SELECT DISTINCT \"T2\".\"eigentuemer_name\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T1\".\"risikokategorie\" = 'High Risk' AND CAST(\"T1\".\"verstoss_typ_id\" AS TEXT) = '103109' AND \"T1\".\"beschreibung\" = 'Unclean or unsanitary food contact surfaces'",
+          "summary": "Who is the owner of the business that has a high risk violation of 103109 and described as unclean or unsanitary food contact surfaces?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8849",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0048",
+          "sql": "SELECT DISTINCT \"T2\".\"name\" FROM \"food_inspection\".\"inspektionen\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE \"T2\".\"eigentuemer_stadt\" = 'Cameron Park' AND \"T1\".\"bewertung\" = 100",
+          "summary": "Among the owners from Cameron Park, what is the business name of the business with a score of 100?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8851",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0049",
+          "sql": "SELECT DISTINCT \"T2\".\"eigentuemer_name\" FROM \"food_inspection\".\"verstaesse\" AS \"T1\" INNER JOIN \"food_inspection\".\"betriebe\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" WHERE CAST(\"T1\".\"verstoss_typ_id\" AS TEXT) = '103156' AND \"T1\".\"datum\" = '2014-06-12'",
+          "summary": "What is the owner's name of the of the business that violates 103156 on June 12, 2014?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8854",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_food_inspection_0050",
+          "sql": "SELECT DISTINCT \"T1\".\"name\", \"T3\".\"risikokategorie\" FROM \"food_inspection\".\"betriebe\" AS \"T1\" INNER JOIN \"food_inspection\".\"inspektionen\" AS \"T2\" ON \"T1\".\"betrieb_id\" = \"T2\".\"betrieb_id\" INNER JOIN \"food_inspection\".\"verstaesse\" AS \"T3\" ON \"T1\".\"betrieb_id\" = \"T3\".\"betrieb_id\" WHERE \"T2\".\"bewertung\" > 0.8 * (SELECT AVG(\"bewertung\") FROM \"food_inspection\".\"inspektionen\")",
+          "summary": "List the business' name and risk category of businesses with a score greater than the 80% of average score of all businesses."
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between inspektionen and verstaesse in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Neither table carries a column tying one specific inspection to one specific violation; both only key on the business's betrieb_id. A business with several inspections and several violations therefore produces the full cross-product of the two when they are joined directly on betrieb_id — count or aggregate inspektionen and verstaesse separately, each joined to betriebe, before combining their results for a question that needs both facts about the same business.\n",
+          "cardinality": "many_to_many",
+          "id": "join_food_inspection_inspektionen_verstaesse_947ea6aa",
+          "left_table": "food_inspection.inspektionen",
+          "on": "food_inspection.inspektionen.betrieb_id = food_inspection.verstaesse.betrieb_id",
+          "right_table": "food_inspection.verstaesse",
+          "summary": "Joining inspektionen inspections to verstaesse violations through the shared betrieb_id pairs every inspection of a business with every violation of that same business."
+        }
+      ]
+    }

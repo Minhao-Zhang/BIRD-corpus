@@ -1,31 +1,2315 @@
-asset_type: schema
-id: shakespeare
+version: 0.2.0.dev0
 name: shakespeare
-summary: >-
-  The shakespeare database holds the full text of Shakespeare's plays, sonnets and poems,
-  organized by work, act and scene, paragraph, and speaking character, for questions about
-  genre, publication date, characters, and dialogue.
-body: >
-  Five dependable tables. obras holds one row per work (title, long title, genre, and the year
-  it was written), the anchor everything else hangs off. capitulos holds one row per
-  act/scene division of a work (its act and scene numbers, a short setting description),
-  joined to obras by obra_id. parrafos holds one row per paragraph of dialogue or stage
-  direction (its text, its position within the chapter, the character speaking it), joined to
-  capitulos by capitulo_id and to personajes by personaje_id. personajes holds one row per
-  character (name, abbreviation, and a short description such as their family relation or
-  role). fragmentos_texto and secciones_obra look like a finer-grained text table and a
-  scene/act table but are not dependable for analysis; use parrafos and capitulos instead.
-rules:
-- Reach a character's dialogue only through parrafos.personaje_id joined to personajes.id;
-  parrafos.personaje_ref and personajes.personaje_id_2 are unreliable and must not be used for
-  this join.
-- Reach a chapter's work only through capitulos.obra_id joined to obras.id; capitulos.id_obra
-  and obras.obra_identificador are unreliable and must not be used for this join.
-- Never select from fragmentos_texto or secciones_obra; use parrafos and capitulos instead.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  The shakespeare database holds the full text of Shakespeare's plays, sonnets and poems, organized by work, act and scene, paragraph, and speaking character, for questions about genre, publication date, characters, and dialogue.
+
+  Five dependable tables. obras holds one row per work (title, long title, genre, and the year it was written), the anchor everything else hangs off. capitulos holds one row per act/scene division of a work (its act and scene numbers, a short setting description), joined to obras by obra_id. parrafos holds one row per paragraph of dialogue or stage direction (its text, its position within the chapter, the character speaking it), joined to capitulos by capitulo_id and to personajes by personaje_id. personajes holds one row per character (name, abbreviation, and a short description such as their family relation or role). fragmentos_texto and secciones_obra look like a finer-grained text table and a scene/act table but are not dependable for analysis; use parrafos and capitulos instead.
+ai_context:
+  instructions: |-
+    Reach a character's dialogue only through parrafos.personaje_id joined to personajes.id; parrafos.personaje_ref and personajes.personaje_id_2 are unreliable and must not be used for this join.
+    Reach a chapter's work only through capitulos.obra_id joined to obras.id; capitulos.id_obra and obras.obra_identificador are unreliable and must not be used for this join.
+    Never select from fragmentos_texto or secciones_obra; use parrafos and capitulos instead.
+datasets:
+- name: capitulos
+  source: shakespeare.capitulos
+  description: |
+    capitulos is shakespeare's chapter table, one row per act/scene division of a work, carrying its act and scene numbers and a short setting description.
+
+    Grain: one row per act/scene division (chapter) of a work, keyed by id and joined to obras.id through obra_id. acto and escena carry the chapter's act and scene numbers; descripcion is a short free-text setting or location for the chapter. parrafos.capitulo_id references this table's id to attach individual lines of dialogue to the chapter they belong to. Easily confused with secciones_obra, a similarly shaped act/scene table that is not dependable for analysis; use capitulos instead. Its own capitulo_id_2, id_obra, and numero_acto columns duplicate id, obra_id, and acto unreliably and must not be used.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the unique identifier for one act/scene division (chapter) of a work.
+
+      Positive integer, unique across every chapter in the database. Referenced by parrafos.capitulo_id to attach a line of dialogue or stage direction to the chapter it belongs to. Do not join through capitulo_id_2, which duplicates id unreliably.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": false,
+          "physical_type": "bigint"
+        }
+  - name: acto
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: acto
+    description: |
+      acto is the act number of the play or work that this chapter belongs to.
+
+      Small integer, from 0 to 5 (sample values 3, 1, 2, 4, 5); 0 marks front matter such as a prologue that precedes Act 1. Called "act" or "act number" in business language. The numero_acto column on this same table duplicates these values unreliably and must not be used.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to capitulos.acto, a small integer from 0 to 5, where 0 marks front matter such as a prologue that precedes Act 1. \"1st act\" or \"the first act\" means acto = 1; \"the 5th act\" means acto = 5. An act can consist of one or more scenes — see the scene term for capitulos.escena.\n",
+              "id": "term_shakespeare_act",
+              "name": "act",
+              "summary": "Act (act number): the major division of a Shakespeare work, numbered within the work and containing one or more scenes.",
+              "synonyms": [
+                "act",
+                "act number"
+              ]
+            }
+          ]
+        }
+  - name: escena
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: escena
+    description: |
+      escena is the scene number within the act for this chapter.
+
+      Integer scene number restarting within each act (sample values 1, 73, 2, 0, 7). Called "scene" or "scene number." A work's number of chapters and scene numbering vary widely by play, so do not assume a fixed maximum across works.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to capitulos.escena, an integer from 0 to 98 that restarts within each act. \"2nd scene\" means escena = 2. The highest escena value recorded for a work or act is its last scene. A work's total scene count varies widely by play, so do not assume a fixed maximum.\n",
+              "id": "term_shakespeare_scene",
+              "name": "scene",
+              "summary": "Scene (scene number): a dramatic part of a Shakespeare chapter at a specific time and place between specific characters, numbered within its act.",
+              "synonyms": [
+                "scene",
+                "scene number"
+              ]
+            }
+          ]
+        }
+  - name: descripcion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: descripcion
+    description: |
+      descripcion is the short setting or stage-heading text recorded for this chapter.
+
+      Free text: a location ("The palace.", "The French camp, near Agincourt:"), a label ("Prologue."), or a placeholder ("---") when no setting was recorded for the chapter. Distinct from personajes.descripcion, which describes a character rather than a scene.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: obra_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: obra_id
+    description: |
+      obra_id is the identifier of the work that this chapter belongs to.
+
+      Positive integer matching obras.id; join capitulos.obra_id to obras.id to reach a chapter's work title, genre, and date. The id_obra column on this same table duplicates these values unreliably and must not be used for this join.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: capitulo_id_2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: capitulo_id_2
+    description: |
+      capitulo_id_2, a numeric column on the capitulos table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_obra
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_obra
+    description: |
+      id_obra, a numeric column on the capitulos table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: numero_acto
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: numero_acto
+    description: |
+      numero_acto, a numeric column on the capitulos table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_shakespeare_scene_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(escena)
+    description: |
+      Scene count: how many scenes a work or act has, counted from capitulos.escena, used to compare works by size.
+
+      COUNT(capitulos.escena), typically grouped by obra_id (scenes in a work) or by obra_id and acto together (scenes in one act of a work). "Has 154 scenes" means COUNT(escena) = 154 for that grouping; "no more than 2 scenes" means COUNT(escena) < 2; "the highest number of scenes" means the grouping with MAX(COUNT(escena)). The highest escena value itself, rather than the count, is that grouping's last scene.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "scene count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: fragmentos_texto
+  source: shakespeare.fragmentos_texto
+  description: |
+    fragmentos_texto is a table on the shakespeare schema whose data is not dependable for analysis.
+
+    Grain: one row per record, keyed by fragmento_id. Every column on this table, including fragmento_id itself, is marked unreliable below and does not correspond to the business facts this database otherwise records. Do not select, filter, or join on fragmentos_texto or any of its columns when answering a question; treat it as excluded from analysis.
+  fields:
+  - name: fragmento_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fragmento_id
+    description: |
+      fragmento_id, a numeric column on the fragmentos_texto table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: orden_parrafo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: orden_parrafo
+    description: |
+      orden_parrafo, a numeric column on the fragmentos_texto table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: contenido
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: contenido
+    description: |
+      contenido, a text column on the fragmentos_texto table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: personaje_referencia
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: personaje_referencia
+    description: |
+      personaje_referencia, a numeric column on the fragmentos_texto table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: capitulo_referencia
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: capitulo_referencia
+    description: |
+      capitulo_referencia, a numeric column on the fragmentos_texto table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: obras
+  source: shakespeare.obras
+  description: |
+    obras is shakespeare's work table, one row per play, sonnet collection, or poem, carrying its title, genre, and the year it was written.
+
+    Grain: one row per work, keyed by id. titulo is the short or abbreviated title used to name a work in conversation; titulo_largo is the fuller published title for the same work. tipo_genero classifies the work as a Comedy, History, Tragedy, Poem, or Sonnet; fecha is the year the work was written. capitulos.obra_id references this table's id to attach a work's acts and scenes. Its own obra_identificador, ano_publicacion, and genero_principal columns duplicate id, fecha, and tipo_genero unreliably and must not be used.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the unique identifier for one of Shakespeare's works.
+
+      Positive integer, one per work (43 works in this database). Referenced by capitulos.obra_id to attach a work's chapters. Do not join through obra_identificador, which duplicates id unreliably.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": false,
+          "physical_type": "bigint"
+        }
+  - name: titulo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titulo
+    description: |
+      titulo is the short or abbreviated title of a work.
+
+      Text, one distinct value per work (sample values Cymbeline, Julius Caesar, Antony and Cleopatra, Much Ado about Nothing). This is the title a play or poem is normally called by. Compare to titulo_largo, the fuller published title for the same work — for example the work titled "Julius Caesar" here carries the long title "The Tragedy of Julius Caesar."
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to obras.titulo (sample values Cymbeline, Julius Caesar, Antony and Cleopatra). \"Have the word Henry in its title\" or \"related to King Henry\" means titulo LIKE '%Henry%'. Compare to titulo_largo, the fuller published title for the same work.\n",
+              "id": "term_shakespeare_short_title",
+              "name": "short title",
+              "summary": "Title (short title, abbreviated title): the short or commonly used name for a Shakespeare work, as distinct from its full published title.",
+              "synonyms": [
+                "title",
+                "short title",
+                "abbreviated title"
+              ]
+            }
+          ]
+        }
+  - name: titulo_largo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titulo_largo
+    description: |
+      titulo_largo is the full published title of a work.
+
+      Text, one distinct value per work (sample values "Cymbeline, King of Britain", "The Tragedy of Julius Caesar", "History of Henry IV, Part I"). Often longer and more descriptive than titulo, though for some works — like "Antony and Cleopatra" — the two are identical.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to obras.titulo_largo (sample values \"Cymbeline, King of Britain\", \"The Tragedy of Julius Caesar\", \"History of Henry VIII\", \"Pericles, Prince of Tyre\", \"Twelfth Night, Or What You Will\"). For some works the long title is identical to the short title (titulo).\n",
+              "id": "term_shakespeare_long_title",
+              "name": "long title",
+              "summary": "Long title (full title): the fuller published title of a Shakespeare work, as distinct from its short title.",
+              "synonyms": [
+                "long title",
+                "full title"
+              ]
+            }
+          ]
+        }
+  - name: fecha
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fecha
+    description: |
+      fecha is the year a work was written.
+
+      Four-digit integer year, from 1589 to 1612 in this database. Called "date," "year," or "when a work was written" in business language; a work is described as written "before" or "from" a given year by comparing fecha directly. The ano_publicacion column on this same table duplicates these values unreliably and must not be used.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to obras.fecha, a four-digit year from 1589 to 1612. \"From 1593 onwards\" means fecha > 1593; \"finished before the year 1602\" means fecha < 1602; \"obras before 1600\" means fecha < 1600; \"work in 1594\" means fecha = 1594. For \"above-average year\" comparisons, see the average year metric, which uses an 89% boundary rather than a plain average.\n",
+              "id": "term_shakespeare_date_written",
+              "name": "date written",
+              "summary": "Date (year, year written): the year a Shakespeare work was written, used to compare and order works chronologically.",
+              "synonyms": [
+                "date",
+                "year",
+                "year written"
+              ]
+            }
+          ]
+        }
+  - name: tipo_genero
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: tipo_genero
+    description: |
+      tipo_genero is the genre classification of a work.
+
+      Text, one of Comedy, History, Tragedy, Poem, or Sonnet. Called "genre" or "genre type" in business language. The genero_principal column on this same table duplicates these values unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to obras.tipo_genero, one of five values: Comedy, History, Tragedy, Poem, or Sonnet. Business phrasing maps loosely onto these: \"comedies\" or \"comedy obras\" means tipo_genero = 'Comedy'; \"history\" means tipo_genero = 'History'; \"tragic scenes,\" \"tragic story,\" and \"tragedies\" all mean tipo_genero = 'Tragedy' even though the phrasing mentions scenes — genre is a property of the whole work, not of an individual chapter or scene; \"poems\" means tipo_genero = 'Poem'.\n",
+              "id": "term_shakespeare_genre",
+              "name": "genre",
+              "summary": "Genre (genre type): the classification of a Shakespeare work as a comedy, history, tragedy, poem, or sonnet.",
+              "synonyms": [
+                "genre",
+                "genre type"
+              ]
+            }
+          ]
+        }
+  - name: obra_identificador
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: obra_identificador
+    description: |
+      obra_identificador, a numeric column on the obras table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ano_publicacion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ano_publicacion
+    description: |
+      ano_publicacion, a numeric column on the obras table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: genero_principal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: genero_principal
+    description: |
+      genero_principal, a text column on the obras table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_shakespeare_average_year
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(fecha)
+    description: |
+      Average year: the mean fecha across Shakespeare's works, used to judge whether a work was written above or below average.
+
+      AVG(obras.fecha) across all works. A work counts as written in an "above-average" year in this schema when its fecha exceeds 89% of this average — fecha > 0.89 * AVG(fecha) — not simply fecha > AVG(fecha); use that 89% boundary for "above-average year" questions.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average year"
+        }
+  - name: metric_shakespeare_earliest_work
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(fecha)
+    description: |
+      Earliest work: the minimum fecha among Shakespeare's works, identifying the first work he wrote.
+
+      MIN(obras.fecha) across all works; join to obras.titulo or titulo_largo to name the work carrying that minimum date. See most recent work for the opposite extreme, MAX(obras.fecha).
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "earliest work"
+        }
+  - name: metric_shakespeare_most_recent_work
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(fecha)
+    description: |
+      Most recent work: the latest year in which any of Shakespeare's works was written, taken as the maximum of fecha across all of them.
+
+      MAX(obras.fecha) across all works; join to obras.titulo or titulo_largo to name the work carrying that maximum date. See earliest work for the opposite extreme, MIN(obras.fecha).
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most recent work"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: parrafos
+  source: shakespeare.parrafos
+  description: |
+    parrafos is shakespeare's paragraph table, one row per line of dialogue or stage direction, carrying its text, its position within a chapter, and the character who speaks it.
+
+    Grain: one row per paragraph of dialogue or stage direction within a chapter, keyed by id. texto is the paragraph's plain text; numero_parrafo is its position within its chapter, and a chapter with more than 150 paragraphs is a long chapter. capitulo_id joins to capitulos.id to locate the paragraph in its act and scene; personaje_id joins to personajes.id to name the character speaking the line (stage directions with no speaker reference this column with a placeholder character such as "All"). Its own capitulo_ref, personaje_ref, and orden_parrafo columns duplicate capitulo_id, personaje_id, and numero_parrafo unreliably and must not be used.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the unique identifier for one paragraph of dialogue or stage direction.
+
+      Positive integer, unique across every paragraph in the database. Used to pick out one specific line of text, for example paragraph id 640171.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": false,
+          "physical_type": "bigint"
+        }
+  - name: numero_parrafo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: numero_parrafo
+    description: |
+      numero_parrafo is the position of a paragraph within its chapter.
+
+      Integer counting a paragraph's order within its chapter, starting near 1 for the first paragraph of a chapter. Called "paragraph number" in business language; a chapter whose paragraph count exceeds 150 is considered a long chapter. The orden_parrafo column on this same table duplicates these values unreliably and must not be used.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to parrafos.numero_parrafo, an integer that counts a paragraph's order within its chapter. A chapter whose paragraph count exceeds 150 is considered a long chapter. See the longest chapter metric for finding the chapter with the most paragraphs.\n",
+              "id": "term_shakespeare_paragraph_number",
+              "name": "paragraph number",
+              "summary": "Paragraph number (number of parrafos): a paragraph's position within its chapter, used to judge how long a chapter is.",
+              "synonyms": [
+                "paragraph number",
+                "number of parrafos"
+              ]
+            }
+          ]
+        }
+  - name: texto
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: texto
+    description: |
+      texto is the plain text of a paragraph of dialogue or stage direction.
+
+      Free text, ranging from a single line of dialogue ("And grant it.") to a bracketed stage direction ("[Exeunt COUNTESS and Gentlemen]"). This is the main content of the paragraph, called "plain text" or "line" in business language.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to parrafos.texto. \"List the parrafos\" or \"show the dialogue\" means selecting texto. Ranges from a single spoken line to a bracketed stage direction such as \"[Exit]\".\n",
+              "id": "term_shakespeare_paragraph_text",
+              "name": "paragraph text",
+              "summary": "Paragraph text (dialogue, line): the plain text of one paragraph of dialogue or stage direction in a Shakespeare work.",
+              "synonyms": [
+                "paragraph text",
+                "dialogue",
+                "line"
+              ]
+            }
+          ]
+        }
+  - name: personaje_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: personaje_id
+    description: |
+      personaje_id is the identifier of the character who speaks or is associated with this paragraph.
+
+      Positive integer matching personajes.id; join parrafos.personaje_id to personajes.id to reach a speaker's name. The personaje_ref column on this same table duplicates these values unreliably and must not be used for this join.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: capitulo_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: capitulo_id
+    description: |
+      capitulo_id is the identifier of the chapter that this paragraph belongs to.
+
+      Positive integer matching capitulos.id; join parrafos.capitulo_id to capitulos.id to reach the act, scene, and work a paragraph belongs to. The capitulo_ref column on this same table duplicates these values unreliably and must not be used for this join.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: capitulo_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: capitulo_ref
+    description: |
+      capitulo_ref, a numeric column on the parrafos table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: personaje_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: personaje_ref
+    description: |
+      personaje_ref, a numeric column on the parrafos table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: orden_parrafo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: orden_parrafo
+    description: |
+      orden_parrafo, a numeric column on the parrafos table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_shakespeare_longest_chapter
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(numero_parrafo)
+    description: |
+      Longest chapter: the chapter with the highest numero_parrafo, the one holding the most paragraphs of dialogue.
+
+      MAX(parrafos.numero_parrafo) grouped by capitulo_id gives a chapter's paragraph count, since numero_parrafo counts a paragraph's position within its chapter. The "longest chapter" or "chapter with the longest number of parrafos" is the capitulo_id with the overall highest of that per-chapter count; a chapter whose count exceeds 150 is a long chapter.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "longest chapter"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: personajes
+  source: shakespeare.personajes
+  description: |
+    personajes is shakespeare's character table, one row per named character across every work, carrying their name, abbreviation, and a short role description.
+
+    Grain: one row per character, keyed by id. nombre_personaje is the character's full name; abreviatura is the shortened form used to label their lines in a script; descripcion is a short phrase describing the character's family relation, occupation, or role (for example "friend to Antonio and Bassiano" or "daughter to Capulet"), left blank when no description was recorded. parrafos.personaje_id references this table's id to attribute a paragraph of dialogue to the character who speaks it. Its own personaje_id_2, abreviacion, and nombre_personaje_completo columns duplicate id, abreviatura, and nombre_personaje unreliably and must not be used.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      id is the unique identifier for one character.
+
+      Positive integer, unique across every character in the database. Referenced by parrafos.personaje_id to attribute a line of dialogue to this character. Do not join through personaje_id_2, which duplicates id unreliably.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": false,
+          "physical_type": "bigint"
+        }
+  - name: nombre_personaje
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_personaje
+    description: |
+      nombre_personaje is the name of a character.
+
+      Text, one distinct value per character (sample values Soldier, Williams, William Page, Woodvile), including generic labels like "All" for a group speaking together and "(stage directions)" for non-speaking entries. Called "character name" or "character" in business language.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to personajes.nombre_personaje. Includes ordinary character names (Shylock, Tybalt, Gratiano) as well as collective or non-speaking labels such as \"All\" and \"(stage directions)\". Compare to abreviatura, the shortened form of the same name used to label a character's lines in a script.\n",
+              "id": "term_shakespeare_character_name",
+              "name": "character name",
+              "summary": "Character name (character, name of the character): the name of a character appearing in a Shakespeare work.",
+              "synonyms": [
+                "character name",
+                "character",
+                "name of the character"
+              ]
+            }
+          ]
+        }
+  - name: abreviatura
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: abreviatura
+    description: |
+      abreviatura is the abbreviated form of a character's name used to label their lines in a script.
+
+      Text, typically an uppercase or shortened version of nombre_personaje (sample values WILLIAMS, WILLIAM PAGE, WOODVILE); can be blank when no abbreviation was recorded. Called "abbreviation" or "abbreviation name" in business language.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to personajes.abreviatura, typically an uppercase or shortened form of nombre_personaje (sample values WILLIAMS, WILLIAM PAGE, WOODVILE), and sometimes blank when no abbreviation was recorded.\n",
+              "id": "term_shakespeare_abbreviation",
+              "name": "abbreviation",
+              "summary": "Abbreviation (abbreviation name): the shortened form of a character's name used to label their lines in a script.",
+              "synonyms": [
+                "abbreviation",
+                "abbreviation name"
+              ]
+            }
+          ]
+        }
+  - name: descripcion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: descripcion
+    description: |
+      descripcion is the short role description recorded for a character.
+
+      Free text describing a character's family relation, occupation, or standing (sample values "soldier in King Henry's army", "a boy, son to Page", "lieutenant of the Tower", "son to Coriolanus"); blank when no description was recorded. Distinct from capitulos.descripcion, which describes a scene rather than a character.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: personaje_id_2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: personaje_id_2
+    description: |
+      personaje_id_2, a numeric column on the personajes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: abreviacion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: abreviacion
+    description: |
+      abreviacion, a text column on the personajes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nombre_personaje_completo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_personaje_completo
+    description: |
+      nombre_personaje_completo, a text column on the personajes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: secciones_obra
+  source: shakespeare.secciones_obra
+  description: |
+    secciones_obra is a table on the shakespeare schema whose data is not dependable for analysis.
+
+    Grain: one row per record, keyed by seccion_id. Every column on this table, including seccion_id itself, is marked unreliable below and does not correspond to the business facts this database otherwise records. Do not select, filter, or join on secciones_obra or any of its columns when answering a question; treat it as excluded from analysis.
+  fields:
+  - name: seccion_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: seccion_id
+    description: |
+      seccion_id, a numeric column on the secciones_obra table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: numero_acto
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: numero_acto
+    description: |
+      numero_acto, a numeric column on the secciones_obra table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: numero_escena
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: numero_escena
+    description: |
+      numero_escena, a numeric column on the secciones_obra table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: resumen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: resumen
+    description: |
+      resumen, a text column on the secciones_obra table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: obra_referencia
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: obra_referencia
+    description: |
+      obra_referencia, a numeric column on the secciones_obra table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_shakespeare_capitulos_obras_ef715de4
+  from: capitulos
+  to: obras
+  from_columns:
+  - obra_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      capitulos.obra_id matches obras.id, attaching a chapter's title, genre, and date to its act/scene division in capitulos.
+
+      Every capitulos row's obra_id matches exactly one obras.id; use this join to show a chapter's work title, long title, genre, or date alongside its act and scene numbers. One work covers many chapters, so aggregate carefully when grouping by work. Do not join through capitulos.id_obra or obras.obra_identificador — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between capitulos and obras in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_shakespeare_capitulos_parrafos_7e7e317e
+  from: parrafos
+  to: capitulos
+  from_columns:
+  - capitulo_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      capitulos.id matches parrafos.capitulo_id, attaching a paragraph of dialogue to the act/scene division it belongs to in capitulos.
+
+      Every parrafos row's capitulo_id matches exactly one capitulos.id; use this join to show a paragraph's act, scene, and setting description alongside its text. One chapter covers many paragraphs, so a chapter with more than 150 matching paragraphs counts as a long chapter. Do not join through parrafos.capitulo_ref or capitulos.capitulo_id_2 — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between capitulos and parrafos in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_shakespeare_parrafos_personajes_95551c18
+  from: parrafos
+  to: personajes
+  from_columns:
+  - personaje_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      parrafos.personaje_id matches personajes.id, attaching a speaker's name to a paragraph of dialogue in parrafos.
+
+      Every parrafos row's personaje_id matches exactly one personajes.id; use this join to show the character name, abbreviation, or role description alongside a line of dialogue. One character speaks many paragraphs, so aggregate carefully when grouping by character. Do not join through parrafos.personaje_ref or personajes.personaje_id_2 — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between parrafos and personajes in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_2953",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0000",
+          "sql": "SELECT COUNT(\"id\") FROM \"shakespeare\".\"obras\" WHERE \"fecha\" < 1602",
+          "summary": "How many of Shakespeare's works were finished before the year 1602?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2954",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0001",
+          "sql": "SELECT COUNT(\"T1\".\"id\") FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T2\".\"acto\" = 1 AND \"T1\".\"titulo\" = 'Twelfth Night'",
+          "summary": "How many scenes are there in Act 1 in Twelfth Night?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2955",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0002",
+          "sql": "SELECT \"T2\".\"descripcion\" FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T1\".\"titulo\" = 'Twelfth Night' AND \"T2\".\"acto\" = 1 AND \"T2\".\"escena\" = 2",
+          "summary": "What is the description of Act 1, Scene 2 in Twelfth Night?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2957",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0003",
+          "sql": "SELECT DISTINCT \"T1\".\"titulo\" FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"capitulo_id\" INNER JOIN \"shakespeare\".\"personajes\" AS \"T4\" ON \"T3\".\"personaje_id\" = \"T4\".\"id\" WHERE \"T4\".\"nombre_personaje\" = 'Lord Abergavenny'",
+          "summary": "Which work is the character Lord Abergavenny from? Please give its short or abbreviated title."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2959",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0004",
+          "sql": "SELECT SUM(\"T3\".\"numero_parrafo\") FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"capitulo_id\" WHERE \"T2\".\"acto\" = 1 AND \"T2\".\"escena\" = 1 AND \"T1\".\"titulo\" = 'Twelfth Night'",
+          "summary": "How many paragraphs are there in Act 1, Scene 1 in Twelfth Night?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2960",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0005",
+          "sql": "SELECT \"T3\".\"texto\" FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"capitulo_id\" WHERE \"T2\".\"acto\" = 1 AND \"T2\".\"escena\" = 1 AND \"T1\".\"titulo\" = 'Twelfth Night'",
+          "summary": "Please list all the paragraphs in Act 1, Scene 1 in Twelfth Night."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2961",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0006",
+          "sql": "SELECT SUM(\"T1\".\"numero_parrafo\") FROM \"shakespeare\".\"parrafos\" AS \"T1\" INNER JOIN \"shakespeare\".\"personajes\" AS \"T2\" ON \"T1\".\"personaje_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_personaje\" = 'Lord Abergavenny'",
+          "summary": "How many paragraphs contain the character Lord Abergavenny?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2963",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0007",
+          "sql": "SELECT COUNT(\"T2\".\"id\") FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T2\".\"descripcion\" = 'OLIVIA’S house.' AND \"T1\".\"titulo\" = 'Twelfth Night'",
+          "summary": "For how many times has the scene \"OLIVIA’S house.\" appeared in Twelfth Night?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2968",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0008",
+          "sql": "SELECT COUNT(\"id\") FROM \"shakespeare\".\"obras\" WHERE \"tipo_genero\" = 'Comedy'",
+          "summary": "How many comedies did Shakespeare create?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2970",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0009",
+          "sql": "SELECT DISTINCT \"abreviatura\" FROM \"shakespeare\".\"personajes\" WHERE \"nombre_personaje\" = 'Earl of Westmoreland'",
+          "summary": "Give the abbreviation name for the character \"Earl of Westmoreland\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2973",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0010",
+          "sql": "SELECT COUNT(DISTINCT \"T3\".\"personaje_id\") FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"capitulo_id\" WHERE \"T1\".\"titulo\" = 'Titus Andronicus'",
+          "summary": "How many characters are there in Titus Andronicus?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2975",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0011",
+          "sql": "SELECT \"T1\".\"descripcion\" FROM \"shakespeare\".\"personajes\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"personaje_id\" WHERE \"T2\".\"id\" = '640171'",
+          "summary": "What is the description for the character mentioned in paragraph No.640171?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2976",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0012",
+          "sql": "SELECT DISTINCT \"T1\".\"titulo\" FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"capitulo_id\" INNER JOIN \"shakespeare\".\"personajes\" AS \"T4\" ON \"T3\".\"personaje_id\" = \"T4\".\"id\" WHERE \"T4\".\"nombre_personaje\" = 'Shylock'",
+          "summary": "Give the title of the work that contains the character \"Shylock\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2982",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0013",
+          "sql": "SELECT SUM(\"T2\".\"numero_parrafo\") FROM \"shakespeare\".\"capitulos\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"capitulo_id\" WHERE \"T1\".\"descripcion\" = 'A Sea-port in Cyprus. An open place near the quay.'",
+          "summary": "How many paragraphs are there in the scene whose description is \"A Sea-port in Cyprus. An open place near the quay.\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2983",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0014",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"tipo_genero\" = 'Tragedy' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"escena\"), 0) FROM \"shakespeare\".\"capitulos\" AS \"T1\" INNER JOIN \"shakespeare\".\"obras\" AS \"T2\" ON \"T1\".\"obra_id\" = \"T2\".\"id\" WHERE \"T2\".\"fecha\" = '1594'",
+          "summary": "What percentage of all scenes are tragic scenes in Shakespeare's work in 1594?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2986",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0015",
+          "sql": "SELECT \"titulo\" FROM \"shakespeare\".\"obras\" WHERE \"fecha\" = (SELECT MIN(\"fecha\") FROM \"shakespeare\".\"obras\")",
+          "summary": "What is the title of the first ever work of William Shakespeare?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2987",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0016",
+          "sql": "SELECT COUNT(\"id\") FROM \"shakespeare\".\"obras\" WHERE \"tipo_genero\" = 'Poem'",
+          "summary": "How many poems did Shakespeare write?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2990",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0017",
+          "sql": "SELECT \"nombre_personaje\" FROM \"shakespeare\".\"personajes\" WHERE \"descripcion\" = 'Daughter to Capulet'",
+          "summary": "Who is the daughter of Capulet?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2991",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0018",
+          "sql": "SELECT \"numero_parrafo\" FROM \"shakespeare\".\"parrafos\" WHERE \"texto\" = 'Ay, surely, mere the truth: I know his lady.'",
+          "summary": "How many paragraphs are there in \"Ay, surely, mere the truth: I know his lady.\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2992",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0019",
+          "sql": "SELECT \"T2\".\"titulo_largo\" FROM \"shakespeare\".\"capitulos\" AS \"T1\" INNER JOIN \"shakespeare\".\"obras\" AS \"T2\" ON \"T1\".\"obra_id\" = \"T2\".\"id\" WHERE \"T1\".\"acto\" = 1 ORDER BY \"T1\".\"escena\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the long title of the work with the highest number of scenes in act 1?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2993",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0020",
+          "sql": "SELECT \"T2\".\"descripcion\" FROM \"shakespeare\".\"parrafos\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"capitulo_id\" = \"T2\".\"id\" ORDER BY \"T1\".\"numero_parrafo\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the description of the chapter with the longest number of paragraphs?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_2994",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0021",
+          "sql": "SELECT \"T2\".\"descripcion\" FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T1\".\"titulo_largo\" = 'Twelfth Night, Or What You Will' AND \"T2\".\"escena\" = 2 AND \"T2\".\"acto\" = 2",
+          "summary": "In \"Twelfth Night, Or What You Will\", what is the description of the chapter in 2nd scene, Act 2?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3000",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0022",
+          "sql": "SELECT \"T1\".\"personaje_id\" FROM \"shakespeare\".\"parrafos\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"capitulo_id\" = \"T2\".\"id\" WHERE \"T1\".\"texto\" = 'His name, I pray you.' AND \"T2\".\"descripcion\" = 'Florence. Without the walls. A tucket afar off.'",
+          "summary": "In \"Florence. Without the walls. A tucket afar off\", what is the id of the character that was mentioned in \"His name, I pray you.\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3001",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0023",
+          "sql": "SELECT COUNT(DISTINCT \"T3\".\"personaje_id\") FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"capitulo_id\" WHERE \"T1\".\"titulo\" = 'Hamlet'",
+          "summary": "How many characters are there in Hamlet?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3002",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0024",
+          "sql": "SELECT SUM(\"T2\".\"escena\") FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T2\".\"acto\" = 5 AND \"T1\".\"titulo_largo\" = 'History of Henry VIII'",
+          "summary": "How many scenes are there in the 5th act of \"History of Henry VIII\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3003",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0025",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"obra_id\") FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T2\".\"acto\" = 1 AND \"T2\".\"escena\" < 2 AND \"T1\".\"tipo_genero\" = 'History'",
+          "summary": "Among the history works written by Shakespeare, how many works whose 1st acts have no more than 2 scenes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3004",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0026",
+          "sql": "SELECT SUM(DISTINCT \"T2\".\"acto\") FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T1\".\"titulo\" = 'Sonnets'",
+          "summary": "How many acts are there in Sonnets?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3005",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0027",
+          "sql": "SELECT \"T2\".\"descripcion\" FROM \"shakespeare\".\"parrafos\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"capitulo_id\" = \"T2\".\"id\" INNER JOIN \"shakespeare\".\"personajes\" AS \"T3\" ON \"T1\".\"personaje_id\" = \"T3\".\"id\" WHERE \"T3\".\"abreviatura\" = '1Play' ORDER BY \"T1\".\"capitulo_id\" NULLS FIRST LIMIT 1",
+          "summary": "What is the description of the chapter where the character whose abrreviated name is 1Play appeared first?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3007",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0028",
+          "sql": "SELECT MAX(\"T2\".\"numero_parrafo\") FROM \"shakespeare\".\"personajes\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"personaje_id\" WHERE \"T1\".\"nombre_personaje\" = 'Sir Richard Ratcliff'",
+          "summary": "How many paragraphs are there in the longest chapter where Sir Richard Ratcliff appeared?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3009",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0029",
+          "sql": "SELECT \"T1\".\"fecha\", \"T1\".\"id\" FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T2\".\"escena\" = 154",
+          "summary": "When did Shakespeare create his work that has 154 scenes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3012",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0030",
+          "sql": "SELECT \"numero_parrafo\" FROM \"shakespeare\".\"parrafos\" WHERE \"texto\" = 'This is Illyria, lady.'",
+          "summary": "What is the paragraph number with plain text \"This is Illyria, lady\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3013",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0031",
+          "sql": "SELECT COUNT(\"numero_parrafo\") FROM \"shakespeare\".\"parrafos\" WHERE \"capitulo_id\" = 18881",
+          "summary": "How many number of paragraphs are there in chapter ID 18881?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3017",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0032",
+          "sql": "SELECT COUNT(\"T2\".\"id\") FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T1\".\"titulo\" = 'Midsummer Night''s Dream'",
+          "summary": "How many chapters are there in \"Midsummer Night's Dream\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3020",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0033",
+          "sql": "SELECT DISTINCT \"T1\".\"titulo_largo\" FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"capitulo_id\" INNER JOIN \"shakespeare\".\"personajes\" AS \"T4\" ON \"T3\".\"personaje_id\" = \"T4\".\"id\" WHERE \"T4\".\"nombre_personaje\" = 'Froth'",
+          "summary": "What is the title which has character named \"Froth\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3021",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0034",
+          "sql": "SELECT COUNT(\"T2\".\"capitulo_id\") FROM \"shakespeare\".\"personajes\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"personaje_id\" WHERE \"T1\".\"nombre_personaje\" = 'First Witch'",
+          "summary": "How many chapters include the character name \"First Witch\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3022",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0035",
+          "sql": "SELECT \"T2\".\"escena\", \"T2\".\"descripcion\" FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T1\".\"titulo_largo\" = 'Pericles, Prince of Tyre' AND \"T2\".\"acto\" = 1",
+          "summary": "List the scenes and descriptions in Act 1 of \" Pericles, Prince of Tyre\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3023",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0036",
+          "sql": "SELECT DISTINCT \"T1\".\"titulo_largo\" FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"capitulo_id\" INNER JOIN \"shakespeare\".\"personajes\" AS \"T4\" ON \"T3\".\"personaje_id\" = \"T4\".\"id\" WHERE \"T4\".\"descripcion\" = 'Servant to Montague'",
+          "summary": "Describe the full title which had the character named Servant to Montague."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3025",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0037",
+          "sql": "SELECT \"T1\".\"nombre_personaje\", \"T2\".\"numero_parrafo\", \"T2\".\"texto\" FROM \"shakespeare\".\"personajes\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"personaje_id\" WHERE \"T1\".\"descripcion\" = 'cousin to the king'",
+          "summary": "Provide the character name, paragraph number, and plain text of \"cousin to the king\" description."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3026",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0038",
+          "sql": "SELECT CAST(SUM(\"T2\".\"escena\") AS REAL) / NULLIF(COUNT(\"T2\".\"acto\"), 0) FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T1\".\"titulo\" = 'Antony and Cleopatra'",
+          "summary": "Calculate average scene per act in Antony and Cleopatra."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3027",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0039",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"titulo\" = 'All''s Well That Ends Well' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T3\".\"id\"), 0) FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"capitulo_id\"",
+          "summary": "Calculate the percentage of paragraphs in all chapters of \"All's Well That Ends Well\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3028",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0040",
+          "sql": "SELECT COUNT(\"id\") FROM \"shakespeare\".\"personajes\" WHERE \"abreviatura\" = 'All'",
+          "summary": "How many \"all\" character names have the \"all\" abbreviation?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3030",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0041",
+          "sql": "SELECT SUM(CASE WHEN \"tipo_genero\" = 'Comedy' THEN 1 ELSE 0 END) - SUM(CASE WHEN \"tipo_genero\" = 'History' THEN 1 ELSE 0 END) FROM \"shakespeare\".\"obras\" WHERE \"fecha\" > 1593",
+          "summary": "From 1593 onwards, what is the difference between the number of comedy works and history works?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3032",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0042",
+          "sql": "SELECT \"id\" FROM \"shakespeare\".\"obras\" WHERE \"titulo\" LIKE '%Henry%'",
+          "summary": "What are the work numbers that are related to King Henry?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3034",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0043",
+          "sql": "SELECT \"T1\".\"nombre_personaje\" FROM \"shakespeare\".\"personajes\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"personaje_id\" WHERE \"T2\".\"numero_parrafo\" = 8 AND \"T2\".\"capitulo_id\" = 18820",
+          "summary": "What is the name of the character that can be found in paragraph 8 of chapter 18820?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3037",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0044",
+          "sql": "SELECT \"T1\".\"descripcion\" FROM \"shakespeare\".\"personajes\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"personaje_id\" WHERE \"T2\".\"numero_parrafo\" = 20",
+          "summary": "Please list all of the character descriptions in paragraph 20."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3038",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0045",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"capitulo_id\") FROM \"shakespeare\".\"personajes\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"personaje_id\" WHERE \"T1\".\"nombre_personaje\" = 'Gratiano' AND \"T1\".\"descripcion\" = 'friend to Antonio and Bassiano'",
+          "summary": "How many chapters have the name Gratiano as a character for \"friend to Antonio and Bassiano\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3040",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0046",
+          "sql": "SELECT DISTINCT \"T1\".\"nombre_personaje\" FROM \"shakespeare\".\"personajes\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"personaje_id\" WHERE \"T2\".\"numero_parrafo\" = 3",
+          "summary": "What are the character names in paragraph 3?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3041",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0047",
+          "sql": "SELECT \"T2\".\"numero_parrafo\" FROM \"shakespeare\".\"personajes\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"personaje_id\" WHERE \"T1\".\"nombre_personaje\" = 'Aedile'",
+          "summary": "Please list all of the paragraphs that have the character name Aedile."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3047",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0048",
+          "sql": "SELECT COUNT(\"id\") FROM \"shakespeare\".\"obras\" WHERE \"titulo\" LIKE '%Henry%'",
+          "summary": "Among the works of Shakespeare, how many of them have the word \"Henry\" on its title?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3048",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0049",
+          "sql": "SELECT \"personaje_id\" FROM \"shakespeare\".\"parrafos\" WHERE \"texto\" = 'O my poor brother! and so perchance may he be.'",
+          "summary": "Give the character's ID of the character that said the paragraph \"O my poor brother! and so perchance may he be.\""
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3049",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0050",
+          "sql": "SELECT \"T2\".\"numero_parrafo\", \"T2\".\"id\" FROM \"shakespeare\".\"personajes\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"personaje_id\" WHERE \"T1\".\"nombre_personaje\" = 'Sir Andrew Aguecheek'",
+          "summary": "List the paragraph number and paragraphs said by the character named \"Sir Andrew Aguecheek\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3050",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0051",
+          "sql": "SELECT \"T1\".\"titulo\", \"T4\".\"nombre_personaje\" FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"capitulo_id\" INNER JOIN \"shakespeare\".\"personajes\" AS \"T4\" ON \"T3\".\"personaje_id\" = \"T4\".\"id\" ORDER BY \"T1\".\"fecha\" DESC NULLS LAST LIMIT 1",
+          "summary": "Give the title and the characters name of the most recent work of Shakespeare."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3052",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0052",
+          "sql": "SELECT \"T1\".\"titulo_largo\" FROM \"shakespeare\".\"obras\" AS \"T1\" RIGHT JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T2\".\"descripcion\" = 'Mytilene. A street before the brothel.'",
+          "summary": "What is the long title of the Shakespeare's work with Act 4 Scene 5 described as \"Mytilene. A street before the brothel.\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3053",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0053",
+          "sql": "SELECT \"T1\".\"nombre_personaje\" FROM \"shakespeare\".\"personajes\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"personaje_id\" WHERE \"T2\".\"texto\" = 'This is Illyria, lady.'",
+          "summary": "Who is the character that said \"This is Illyria, lady.\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3055",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0054",
+          "sql": "SELECT \"T2\".\"descripcion\" FROM \"shakespeare\".\"obras\" AS \"T1\" RIGHT JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" WHERE \"T1\".\"titulo\" = 'Venus and Adonis' ORDER BY \"T2\".\"escena\" DESC NULLS LAST LIMIT 1",
+          "summary": "In the Venus and Adonis, what is the description of the last scene listed?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3057",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0055",
+          "sql": "SELECT \"T2\".\"personaje_id\", \"T1\".\"obra_id\" FROM \"shakespeare\".\"capitulos\" AS \"T1\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"capitulo_id\" WHERE \"T2\".\"texto\" = 'Fear not thou, man, thou shalt lose nothing here.'",
+          "summary": "What is the character and work ID of the text \"Fear not thou, man, thou shalt lose nothing here.\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3059",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0056",
+          "sql": "SELECT DISTINCT \"T2\".\"escena\" FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"capitulo_id\" INNER JOIN \"shakespeare\".\"personajes\" AS \"T4\" ON \"T3\".\"personaje_id\" = \"T4\".\"id\" WHERE \"T1\".\"titulo\" = 'Twelfth Night' AND \"T4\".\"nombre_personaje\" = 'Sir Toby Belch'",
+          "summary": "List the scene numbers involving the character named Sir Toby Belch in the Twelfth Night."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3062",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_shakespeare_0057",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T4\".\"nombre_personaje\" = 'antonio' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"id\"), 0) FROM \"shakespeare\".\"obras\" AS \"T1\" INNER JOIN \"shakespeare\".\"capitulos\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"obra_id\" INNER JOIN \"shakespeare\".\"parrafos\" AS \"T3\" ON \"T2\".\"id\" = \"T3\".\"capitulo_id\" INNER JOIN \"shakespeare\".\"personajes\" AS \"T4\" ON \"T3\".\"personaje_id\" = \"T4\".\"id\" WHERE \"T1\".\"tipo_genero\" = 'Comedy'",
+          "summary": "Among the comedy works of Shakespeare, what is the percentage of his works with a character named \"antonio\"?"
+        }
+      ]
+    }

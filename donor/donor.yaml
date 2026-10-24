@@ -1,29 +1,3265 @@
-asset_type: schema
-id: donor
+version: 0.2.0.dev0
 name: donor
-summary: >-
-  donor tracks DonorsChoose.org classroom funding: donations and donors, the projects and
-  essays teachers post, participating schools, and the resources a project requests, for
-  questions about giving, projects, and schools.
-body: >
-  Four tables carry the data. juan_kuan_biao (donations) holds one row per donation: who gave,
-  how much, by what payment method, and whether it was for an honoree or came through a giving
-  page. luwen_biao (essays) holds one row per project's essay: its title, short description,
-  need statement, and full essay text. xiangmu_biao (projects) holds one row per project: the
-  teacher and school, subject area, poverty and grade level, cost, and funding status.
-  ziyuan_biao (resources) holds one row per requested line item: vendor, item, unit price, and
-  quantity. xiangmu_id is the real project identifier and is what ties all four tables
-  together — a donation and a resource line item both point at the project they belong to, and
-  a project has exactly one essay. luwen_biao also carries a column, xiangmu_bianhao, that looks
-  like a second project identifier but is not; do not confuse the two.
-rules:
-- Join juan_kuan_biao, luwen_biao, xiangmu_biao, and ziyuan_biao on xiangmu_id only. Never
-  join on, filter by, or select luwen_biao.xiangmu_bianhao, luwen_neirong, or xuqiu_miaoshu —
-  all three are unreliable for analysis and must not be used to answer a question.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  donor tracks DonorsChoose.org classroom funding: donations and donors, the projects and essays teachers post, participating schools, and the resources a project requests, for questions about giving, projects, and schools.
+
+  Four tables carry the data. juan_kuan_biao (donations) holds one row per donation: who gave, how much, by what payment method, and whether it was for an honoree or came through a giving page. luwen_biao (essays) holds one row per project's essay: its title, short description, need statement, and full essay text. xiangmu_biao (projects) holds one row per project: the teacher and school, subject area, poverty and grade level, cost, and funding status. ziyuan_biao (resources) holds one row per requested line item: vendor, item, unit price, and quantity. xiangmu_id is the real project identifier and is what ties all four tables together — a donation and a resource line item both point at the project they belong to, and a project has exactly one essay. luwen_biao also carries a column, xiangmu_bianhao, that looks like a second project identifier but is not; do not confuse the two.
+ai_context:
+  instructions: Join juan_kuan_biao, luwen_biao, xiangmu_biao, and ziyuan_biao on xiangmu_id only. Never join on, filter by, or select luwen_biao.xiangmu_bianhao, luwen_neirong, or xuqiu_miaoshu — all three are unreliable for analysis and must not be used to answer a question.
+datasets:
+- name: juan_kuan_biao
+  source: donor.juan_kuan_biao
+  description: |
+    juan_kuan_biao holds one row per donation, recording the donor, the project it went to, the payment method, and the amount given.
+
+    Grain: one row per donation, keyed by juan_kuan_id. This is the table to start from for any question about who gave, how much, when, or by what payment method. Every row names the project it funded through xiangmu_id; join to xiangmu_biao on xiangmu_id for the project's teacher, school, and subject, to luwen_biao on xiangmu_id for the project's essay, and to ziyuan_biao on xiangmu_id for the resources the project requested. Many donations can point at the same project, so juan_kuan_biao is the many side of every one of those joins.
+  fields:
+  - name: juan_kuan_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: juan_kuan_id
+    description: |
+      The unique identifier for a donation, juan_kuan_id.
+
+      An opaque hexadecimal id, one per row in this table (500 distinct in a 500-row sample). Used to look up or count individual donations, for example "donation b39547f29dfc25fb13c6e9e8d940dc43".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xiangmu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiangmu_id
+    description: |
+      The project a donation went to, xiangmu_id.
+
+      Join to xiangmu_biao.xiangmu_id (one project per id), luwen_biao.xiangmu_id (that project's essay), or ziyuan_biao.xiangmu_id (that project's requested resources). Many donation rows can share one xiangmu_id.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: juan_kuanzhe_zhanghao_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: juan_kuanzhe_zhanghao_id
+    description: |
+      The unique account identifier of the donor who made a donation, juan_kuanzhe_zhanghao_id.
+
+      An opaque hexadecimal id, for example 22cbc920c9b5fa08dfb331422f5926b5. Not unique per row: one donor account can appear on many donations. Called "donor id" or "donor account" in business language.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to juan_kuan_biao.juan_kuanzhe_zhanghao_id. An opaque hexadecimal id shared by every donation from the same donor account, for example \"donor 22cbc920c9b5fa08dfb331422f5926b5\" refers to juan_kuanzhe_zhanghao_id = '22cbc920c9b5fa08dfb331422f5926b5'.\n",
+              "id": "term_donor_id",
+              "name": "donor id",
+              "summary": "donor id (donor account id, ID of the donor): the unique account identifier of the person or organization that made a donation.",
+              "synonyms": [
+                "donor id",
+                "donor account id",
+                "ID of the donor"
+              ]
+            }
+          ]
+        }
+  - name: juan_kuanzhe_chengshi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: juan_kuanzhe_chengshi
+    description: |
+      The city the donor reported for a donation, juan_kuanzhe_chengshi.
+
+      Free-text city name such as Peachtree City, Rockville, or Salem; "anonymous" and blank are both valid values when a donor withheld their location. Distinct from xiangmu_biao.xuexiao_chengshi, which is the school's city, not the donor's.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to juan_kuan_biao.juan_kuanzhe_chengshi. \"From New York\" or \"from Texas City\" filters this column to the named city, for example juan_kuanzhe_chengshi = 'New York'. Distinct from a project's school city, which lives on xiangmu_biao.xuexiao_chengshi instead.\n",
+              "id": "term_donor_city",
+              "name": "donor city",
+              "summary": "donor city: the city a donor reported when making a donation, not a school's city.",
+              "synonyms": [
+                "donor city"
+              ]
+            }
+          ]
+        }
+  - name: juan_kuanzhe_zhou
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: juan_kuanzhe_zhou
+    description: |
+      The state the donor reported for a donation, juan_kuanzhe_zhou.
+
+      Usually a two-letter postal code such as GA, MD, IN, NY, or TX, but a few rows spell a state as a code-name pair instead, such as CO-Colorado; match both forms when a question names a state. Blank is a valid value when a donor withheld their location.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to juan_kuan_biao.juan_kuanzhe_zhou. \"The state of Colorado\" or \"from New Jersey\" filters this column, for example juan_kuanzhe_zhou = 'CO-Colorado' or = 'NJ'; some rows spell a state as a two-letter code and others as a code-name pair, so match both forms.\n",
+              "id": "term_donor_state",
+              "name": "donor state",
+              "summary": "donor state (which state): the state a donor reported when making a donation.",
+              "synonyms": [
+                "donor state",
+                "which state"
+              ]
+            }
+          ]
+        }
+  - name: juan_kuanzhe_youbian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: juan_kuanzhe_youbian
+    description: |
+      The postal zip code the donor reported for a donation, juan_kuanzhe_youbian.
+
+      A zip code such as 22205, 20853, or 7079, stored as text so leading zeros survive. "0" and blank are both placeholder values meaning the donor did not report a zip code, not a real location.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: shi_jiaoshi_zhanghao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: shi_jiaoshi_zhanghao
+    description: |
+      Whether the donor's account is also a teacher's account, shi_jiaoshi_zhanghao.
+
+      'f' means the donor is not a teacher; 't' means the donor is a teacher, i.e. the account that gave the donation is the same kind of account that can create a project in xiangmu_biao.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to juan_kuan_biao.shi_jiaoshi_zhanghao. 't' means the donating account is also a teacher's account; 'f' means it is not. \"Donations from teachers\" or \"donors who are teachers\" both filter this column to 't'.\n",
+              "id": "term_donor_teacher",
+              "name": "donor is a teacher",
+              "summary": "donor is a teacher (teachers, donors are teachers, from teachers): whether the account that made a donation is also a teacher's own account.",
+              "synonyms": [
+                "donor is a teacher",
+                "teachers",
+                "donors are teachers",
+                "from teachers"
+              ]
+            }
+          ]
+        }
+  - name: juan_kuan_shijian_cuo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: juan_kuan_shijian_cuo
+    description: |
+      The date and time a donation was made, juan_kuan_shijian_cuo.
+
+      A timestamp with time zone, spanning 2002 to 2013 in the sample. To filter by month, for example donations made in March 2013, compare the first seven characters of the timestamp text to '2013-03'.
+    datatype: DateTimeTz
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "timestamp with time zone"
+        }
+  - name: juan_kuan_dao_xiangmu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: juan_kuan_dao_xiangmu
+    description: |
+      The portion of a donation that went to the project itself, juan_kuan_dao_xiangmu.
+
+      A dollar amount excluding any optional support (tip), ranging from under a dollar to roughly 967 in the sample. juan_kuan_zonghe = juan_kuan_dao_xiangmu + juan_kuan_xuanze_zhichi.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: juan_kuan_xuanze_zhichi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: juan_kuan_xuanze_zhichi
+    description: |
+      The optional support, or tip, amount included in a donation, juan_kuan_xuanze_zhichi.
+
+      A dollar amount a donor chose to add on top of juan_kuan_dao_xiangmu to support DonorsChoose.org itself, ranging from 0.0 to roughly 95 in the sample. Zero means no tip was given. Whether any tip was included at all is recorded separately in juan_kuan_baokuo_xuanze_zhichi.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: juan_kuan_zonghe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: juan_kuan_zonghe
+    description: |
+      The total amount of a donation, juan_kuan_zonghe.
+
+      A dollar amount from about 1.0 to 957 in the sample, equal to juan_kuan_dao_xiangmu plus juan_kuan_xuanze_zhichi. This is the figure to sum or compare for "how much was donated", "largest donation", or "total amount donated" questions, not juan_kuan_dao_xiangmu alone.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: meiyuan_jingjin
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: meiyuan_jingjin
+    description: |
+      The dollar-amount bracket recorded for a donation, meiyuan_jingjin.
+
+      Despite the name, this is not a numeric dollar figure: it is one of three text buckets, under_10, 10_to_100, or 100_and_up, describing the size of the donation. Use juan_kuan_zonghe instead for the actual dollar amount or for summing and comparing amounts.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: juan_kuan_baokuo_xuanze_zhichi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: juan_kuan_baokuo_xuanze_zhichi
+    description: |
+      Whether a donation included any optional support (tip), juan_kuan_baokuo_xuanze_zhichi.
+
+      'f' means no tip was included with the donation; 't' means juan_kuan_xuanze_zhichi is greater than zero for this donation.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zhifu_fangshi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhifu_fangshi
+    description: |
+      The payment method or option used for a donation, zhifu_fangshi.
+
+      One of about 8 values in the sample: creditcard, paypal, amazon, no_cash_received, promo_code_match, almost_home_match, and similar promotional codes. "Paid by PayPal" means zhifu_fangshi = 'paypal'; "paid via credit card" means zhifu_fangshi = 'creditcard'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to juan_kuan_biao.zhifu_fangshi. \"Paid by PayPal\" means zhifu_fangshi = 'paypal'; \"paid via credit card\" means zhifu_fangshi = 'creditcard'. Other values in the sample include amazon, no_cash_received, and promotional codes such as promo_code_match and almost_home_match.\n",
+              "id": "term_payment_method",
+              "name": "payment method",
+              "summary": "payment method (paypal, credit card, card): what payment option a donor used to pay for a donation.",
+              "synonyms": [
+                "payment method",
+                "paypal",
+                "credit card",
+                "card"
+              ]
+            }
+          ]
+        }
+  - name: zhifu_baokuo_zhanghao_xinyong
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhifu_baokuo_zhanghao_xinyong
+    description: |
+      Whether the payment for a donation used credit that was redeemed from the donor's own account, zhifu_baokuo_zhanghao_xinyong.
+
+      'f' means no account credit was redeemed as part of the payment; 't' means part of the donation was paid using the donor's account credit balance.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zhifu_baokuo_huodong_libika
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhifu_baokuo_huodong_libika
+    description: |
+      Whether a donation's payment included a corporate-sponsored campaign gift card, zhifu_baokuo_huodong_libika.
+
+      'f' means no campaign gift card was used; 't' means part of the donation's payment came from a gift card sponsored by a corporate partner running a giving campaign.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to juan_kuan_biao.zhifu_baokuo_huodong_libika. 't' means part of the donation's payment came from a corporate-sponsored campaign gift card; 'f' means it did not. Distinct from zhifu_baokuo_wangluo_goumai_libika, a gift card someone bought online for the donor rather than one sponsored by a corporate partner.\n",
+              "id": "term_campaign_gift_card",
+              "name": "campaign gift card",
+              "summary": "campaign gift card (corporate sponsored gift card, corporate sponsored giftcard): whether a donation's payment included a gift card sponsored by a corporate giving campaign.",
+              "synonyms": [
+                "campaign gift card",
+                "corporate sponsored gift card",
+                "corporate sponsored giftcard"
+              ]
+            }
+          ]
+        }
+  - name: zhifu_baokuo_wangluo_goumai_libika
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhifu_baokuo_wangluo_goumai_libika
+    description: |
+      Whether a donation's payment included a gift card purchased online by another person, zhifu_baokuo_wangluo_goumai_libika.
+
+      'f' means no such gift card was used; 't' means part of the donation was paid with a gift card someone else bought online for the donor, as opposed to a corporate-sponsored one.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zhifu_shi_cujin_pipei
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhifu_shi_cujin_pipei
+    description: |
+      Whether a donation was matched one-to-one by a corporate partner's funds, zhifu_shi_cujin_pipei.
+
+      'f' means the donation was not matched; 't' means a corporate partner contributed an equal amount alongside the donor's own donation.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: jingguo_juan_kuanye
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jingguo_juan_kuanye
+    description: |
+      Whether a donation came through a giving or campaign page, jingguo_juan_kuanye.
+
+      'f' means the donation was made directly on a project's page; 't' means it was made through a separate giving or campaign page, for example one set up for a fundraising drive like "Mustaches for Kids".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to juan_kuan_biao.jingguo_juan_kuanye. 't' means the donation came through a giving or fundraising campaign page, such as one set up for a drive like \"Mustaches for Kids\"; 'f' means it was made directly on the project's own page.\n",
+              "id": "term_giving_page",
+              "name": "via giving page",
+              "summary": "via giving page (given via a giving or campaign page): whether a donation was made through a separate giving or campaign page rather than directly on a project's page.",
+              "synonyms": [
+                "via giving page",
+                "given via a giving or campaign page"
+              ]
+            }
+          ]
+        }
+  - name: wei_rongyuzhe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wei_rongyuzhe
+    description: |
+      Whether a donation was made in honor of someone, wei_rongyuzhe.
+
+      'f' means the donation was not made for an honoree; 't' means the donor designated the donation as being made for an honoree, such as a birthday or memorial gift.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to juan_kuan_biao.wei_rongyuzhe. 't' means the donation was made for an honoree; 'f' means it was not.\n",
+              "id": "term_for_honoree",
+              "name": "for an honoree",
+              "summary": "for an honoree: whether a donation was made in honor of a specific person as a gift.",
+              "synonyms": [
+                "for an honoree"
+              ]
+            }
+          ]
+        }
+  - name: juan_kuan_xiaoxi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: juan_kuan_xiaoxi
+    description: |
+      The free-text comment or message a donor left with a donation, juan_kuan_xiaoxi.
+
+      Optional message text explaining why the donor gave, for example "I donated because I want to support kids in Georgia." Blank when no message was left.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  metrics:
+  - name: metric_donor_count_by_state
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(DISTINCT juan_kuanzhe_zhanghao_id)
+    description: |
+      donor count by state: the number of distinct donor accounts giving from each state, used to find the state with the highest number of donors.
+
+      Bound to juan_kuan_biao.juan_kuanzhe_zhanghao_id, counted distinctly and grouped by juan_kuanzhe_zhou. "The state with the highest number [of donors]" takes the maximum of this grouped count across states.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "donor count by state"
+        }
+  - name: metric_donor_largest_donation
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(juan_kuan_zonghe)
+    description: |
+      largest donation amount: the single biggest donation total in a group of donations.
+
+      Bound to juan_kuan_biao.juan_kuan_zonghe. "Largest donor by amount" and "the highest amount" both take the maximum of this column over the donations in scope, for example over all donations or over donations to one project.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "largest donation amount"
+        }
+  - name: metric_donor_project_funds_collected
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUM(juan_kuan_dao_xiangmu)
+    description: |
+      project funds collected: the sum of donation amounts that went directly to a project, excluding optional support.
+
+      Bound to juan_kuan_biao.juan_kuan_dao_xiangmu, grouped by xiangmu_id. "Amount collected for a project" sums this column over all donations to that project. Compare against a project's zonghe_jiage_buhan_xuanze_zhichi (its cost excluding optional support) to see how much of a project's funding goal has been met.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "project funds collected"
+        }
+  - name: metric_donor_share_meeting_condition
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: 100.0 * COUNT(juan_kuan_id) FILTER (WHERE :condition) / COUNT(juan_kuan_id) FILTER (WHERE :group_filter)
+    description: |
+      donation share meeting a condition: the percentage of donations in a group that satisfy a filter, for a payment method, a month, or another attribute of the donation.
+
+      A ratio of two counts over juan_kuan_biao, multiplied by 100. For example, the percentage of donations made via a giving page divides COUNT(juan_kuan_id WHERE jingguo_juan_kuanye = 't') by COUNT(juan_kuan_id); the percentage paid by credit card in March 2013 divides COUNT(juan_kuan_id WHERE zhifu_fangshi = 'creditcard' AND substr(juan_kuan_shijian_cuo,1,7) = '2013-03') by the count for that same month. Always match the denominator's filter to the group named in the question, not to the whole table.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "donation share meeting a condition"
+        }
+  - name: metric_donor_total_donation_amount
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUM(juan_kuan_zonghe)
+    description: |
+      total donation amount: the sum of donation totals across a group of donations, for one payment method, one project, or the whole table.
+
+      Bound to juan_kuan_biao.juan_kuan_zonghe. "Total amount donated" and "how much was collected" both sum this column over the donations in scope, for example filtering zhifu_fangshi = 'paypal' for PayPal donations, or grouping by xiangmu_id for one project's total. Do not sum juan_kuan_dao_xiangmu instead — that column excludes the optional support portion of each donation.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "total donation amount"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: luwen_biao
+  source: donor.luwen_biao
+  description: |
+    luwen_biao holds one row per project's essay, recording its title, short description, need statement, and full essay text.
+
+    Grain: one row per project, keyed by xiangmu_id — the same identifier used in xiangmu_biao, juan_kuan_biao, and ziyuan_biao. This is the table to start from for a project's title or written pitch; join to xiangmu_biao on xiangmu_id for the teacher, school, and funding details of the same project. Three of this table's columns — xiangmu_bianhao, luwen_neirong, and xuqiu_miaoshu — are not dependable for analysis and must not be used to answer a question or as a join key.
+  fields:
+  - name: xiangmu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiangmu_id
+    description: |
+      The project this essay belongs to, xiangmu_id.
+
+      Join to xiangmu_biao.xiangmu_id (one project per id) for that project's teacher, school, and cost, to juan_kuan_biao.xiangmu_id for its donations, or to ziyuan_biao.xiangmu_id for its requested resources. One row per xiangmu_id in this table.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: jiaoshi_zhanghao_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiaoshi_zhanghao_id
+    description: |
+      The account id of the teacher who wrote a project's essay, jiaoshi_zhanghao_id.
+
+      An opaque hexadecimal id, for example 42d43fa6f37314365d08692e08680973, matching the same teacher's id in xiangmu_biao.jiaoshi_zhanghao_id. One teacher can have written essays for several projects.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: biaoti
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: biaoti
+    description: |
+      The title of a project, biaoti.
+
+      Free-text project name chosen by the teacher, for example "Snap Crackle Circuits", "iMath", or "Lets Share Ideas". Nearly unique in the sample (495 distinct of 500 rows); used to look up a specific project by name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to luwen_biao.biaoti. Free-text project name, for example \"iMath\" or \"We Need a Nook!\"; nearly unique per project, so a quoted project name filters this column to an exact match.\n",
+              "id": "term_project_title",
+              "name": "project title",
+              "summary": "project title (project name, title): the name a teacher gave their project.",
+              "synonyms": [
+                "project title",
+                "project name",
+                "title"
+              ]
+            }
+          ]
+        }
+  - name: jianduanmiaoshu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jianduanmiaoshu
+    description: |
+      The short description a teacher wrote for a project, jianduanmiaoshu.
+
+      A one- or two-sentence summary of the project, for example "My students need one set of quality conga drums." Shorter than xuqiu_shuoming and luwen, and the field most often called "describe" or "description" in business language.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xuqiu_shuoming
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuqiu_shuoming
+    description: |
+      The need statement a teacher wrote for a project, xuqiu_shuoming.
+
+      A short statement of what the classroom needs, phrased close to jianduanmiaoshu but written as its own field, for example "My students need a computer linked microscope and 4 sets of prepared slides." Not the same field as the full essay text in luwen.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: luwen
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: luwen
+    description: |
+      The complete essay a teacher wrote to request funding for a project, luwen.
+
+      The full, multi-paragraph essay text, typically several hundred characters, describing the classroom and the need in the teacher's own words. Longer and more detailed than jianduanmiaoshu or xuqiu_shuoming, which are short summaries of the same request.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xiangmu_bianhao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiangmu_bianhao
+    description: |
+      xiangmu_bianhao, a text column on the luwen_biao table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: luwen_neirong
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: luwen_neirong
+    description: |
+      luwen_neirong, a text column on the luwen_biao table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: xuqiu_miaoshu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuqiu_miaoshu
+    description: |
+      xuqiu_miaoshu, a text column on the luwen_biao table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: xiangmu_biao
+  source: donor.xiangmu_biao
+  description: |
+    xiangmu_biao holds one row per project, recording its teacher, school, subject, cost, funding eligibility, and posting date.
+
+    Grain: one row per project, keyed by xiangmu_id. This is the table to start from for any question about a project's teacher, school, subject, poverty level, grade level, cost, or the promotional matches it qualified for. Join to luwen_biao on xiangmu_id for the project's essay (one row on both sides), to juan_kuan_biao on xiangmu_id for its donations (many donations per project), and to ziyuan_biao on xiangmu_id for its requested resources (many resource lines per project). A project's teacher, xuexiao_id's school, and the resource categories on this table describe the project as a whole; ziyuan_biao.xiangmu_ziyuan_leibie is the type of a specific requested item, which need not match this table's ziyuan_leibie.
+  fields:
+  - name: xiangmu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiangmu_id
+    description: |
+      The unique identifier for a project, xiangmu_id.
+
+      An opaque hexadecimal id, one per row in this table. Referenced from juan_kuan_biao, luwen_biao, and ziyuan_biao to tie a donation, essay, or resource request to this project.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: jiaoshi_zhanghao_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiaoshi_zhanghao_id
+    description: |
+      The account id of the teacher who created a project, jiaoshi_zhanghao_id.
+
+      An opaque hexadecimal id, matching the same teacher's id in luwen_biao.jiaoshi_zhanghao_id. Not unique per row: one teacher can create several projects (456 distinct ids across 500 rows in the sample).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xuexiao_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_id
+    description: |
+      The identifier of the school where a project's teacher works, xuexiao_id.
+
+      An opaque hexadecimal id. Not unique per row: several projects can come from the same school (422 distinct ids across 500 rows in the sample). Distinct from xuexiao_ncesid, the federal statistics id for the same school.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xuexiao_ncesid
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_ncesid
+    description: |
+      The federal National Center for Education Statistics identifier for a project's school, xuexiao_ncesid.
+
+      A numeric-string code such as 063627006187, distinct from this table's own xuexiao_id. Some rows leave it blank when no federal id was on file.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xuexiao_weidu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_weidu
+    description: |
+      The latitude of a project's school, xuexiao_weidu.
+
+      A decimal degree value, from about 21.35 to 61.20 in the sample. Paired with xuexiao_jingdu (longitude) to give the school's coordinates.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "xuexiao_weidu holds the latitude and xuexiao_jingdu holds the longitude of the same school; a question about \"coordinates\" or \"location\" needs both columns together, not either one alone.\n",
+              "id": "term_school_coordinates",
+              "name": "school coordinates",
+              "summary": "school coordinates (latitude, longitude): the geographic location of a project's school as a latitude and longitude pair.",
+              "synonyms": [
+                "school coordinates",
+                "latitude",
+                "longitude"
+              ]
+            }
+          ]
+        }
+  - name: xuexiao_jingdu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_jingdu
+    description: |
+      The longitude of a project's school, xuexiao_jingdu.
+
+      A decimal degree value, from about -103.23 to -98.70 in the sample (all negative, consistent with US locations). Paired with xuexiao_weidu (latitude) to give the school's coordinates.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: xuexiao_chengshi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_chengshi
+    description: |
+      The city where a project's school is located, xuexiao_chengshi.
+
+      Free-text city name such as Selma, Dallas, Colton, Brooklyn, or Los Angeles (298 distinct in the sample). Distinct from juan_kuan_biao.juan_kuanzhe_chengshi, which is the donor's city, not the school's.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xiangmu_biao.xuexiao_chengshi. \"In Brooklyn\" or \"in Chicago\" filters this column, for example xuexiao_chengshi = 'Brooklyn'. Distinct from a donor's own city, which lives on juan_kuan_biao.juan_kuanzhe_chengshi instead.\n",
+              "id": "term_school_city",
+              "name": "school city",
+              "summary": "school city (city): the city where a project's school is located, not a donor's own city.",
+              "synonyms": [
+                "school city",
+                "city"
+              ]
+            }
+          ]
+        }
+  - name: xuexiao_zhou
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_zhou
+    description: |
+      The state where a project's school is located, xuexiao_zhou.
+
+      A two-letter postal code such as CA, TX, OR, NY, or AZ (44 distinct in the sample).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xuexiao_youbian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_youbian
+    description: |
+      The zip code of a project's school, xuexiao_youbian.
+
+      A five-digit US zip code stored as a number, ranging from about 10001 to 99508 in the sample.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: xuexiao_dushiquyuhuaban
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_dushiquyuhuaban
+    description: |
+      The metro classification of a project's school, xuexiao_dushiquyuhuaban.
+
+      One of three values: urban, rural, or suburban. Some rows leave it blank when the school was never classified.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xiangmu_biao.xuexiao_dushiquyuhuaban. \"Urban metro\" means xuexiao_dushiquyuhuaban = 'urban'; \"suburban metro\" means = 'suburban'; the third value is 'rural'. Some rows leave it blank when the school was never classified.\n",
+              "id": "term_school_metro",
+              "name": "school metro type",
+              "summary": "school metro type (urban metro, suburban metro): whether a project's school sits in an urban, suburban, or rural area.",
+              "synonyms": [
+                "school metro type",
+                "urban metro",
+                "suburban metro"
+              ]
+            }
+          ]
+        }
+  - name: xuexiao_xuequ
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_xuequ
+    description: |
+      The school district of a project's school, xuexiao_xuequ.
+
+      Free-text district name such as "Selma Unified Sch District", "New York City Dept Of Ed", or "Memphis City School District" (292 distinct in the sample). "[County run]" is a valid value for districts run directly by a county rather than a named district.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xuexiao_xian
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_xian
+    description: |
+      The county where a project's school is located, xuexiao_xian.
+
+      Free-text county name such as Fresno, Dallas, or "Kings (Brooklyn)" (213 distinct in the sample). A question naming a well-known area such as "Los Angeles County" or "Suffolk County" filters this column on the county name alone, for example 'Los Angeles' or 'Suffolk'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xuexiao_tezhenyuzhang
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_tezhenyuzhang
+    description: |
+      Whether a project's school is a public charter school, xuexiao_tezhenyuzhang.
+
+      'f' means the school is not a charter school; 't' means it is. Every school in this table is public, so this never distinguishes public from private.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xuexiao_xichuanxue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_xichuanxue
+    description: |
+      Whether a project's school is a public magnet school, xuexiao_xichuanxue.
+
+      'f' means the school is not a magnet school; 't' means it is a public magnet school offering a specialized curriculum to attract students across district lines.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xiangmu_biao.xuexiao_xichuanxue. 't' means the school is a public magnet school; 'f' means it is not.\n",
+              "id": "term_magnet_school",
+              "name": "magnet school",
+              "summary": "magnet school (public magnet school): whether a project's school is a public magnet school offering a specialized curriculum.",
+              "synonyms": [
+                "magnet school",
+                "public magnet school"
+              ]
+            }
+          ]
+        }
+  - name: xuexiao_nianman_xiaoxue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_nianman_xiaoxue
+    description: |
+      Whether a project's school runs on a year-round calendar, xuexiao_nianman_xiaoxue.
+
+      'f' means the school follows a traditional school-year calendar; 't' means it runs year-round rather than following the usual summer break.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xuexiao_nlns
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_nlns
+    description: |
+      Whether a project's school is part of the NLNS school network, xuexiao_nlns.
+
+      'f' means the school is not part of this network; 't' means it is. The underlying classification behind this flag is not otherwise documented in this dataset.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xuexiao_kipp
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_kipp
+    description: |
+      Whether a project's school is a KIPP (Knowledge Is Power Program) school, xuexiao_kipp.
+
+      'f' means the school is not part of the KIPP charter network; 't' means it is. Every row in the sample is 'f'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xuexiao_tezhenyuzhang_zhunbeichengxi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xuexiao_tezhenyuzhang_zhunbeichengxi
+    description: |
+      Whether a project's school is a charter "Ready Promise" school, xuexiao_tezhenyuzhang_zhunbeichengxi.
+
+      'f' means the school does not carry this designation; 't' means it does. A narrower flag than the general charter status in xuexiao_tezhenyuzhang.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: jiaoshi_chenghuhu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiaoshi_chenghuhu
+    description: |
+      The title, or prefix, used for a project's teacher, jiaoshi_chenghuhu.
+
+      One of Mr., Mrs., or Ms. in most rows. A value of "Dr." indicates the teacher holds a Ph.D. or other doctoral degree, so "teachers with a Ph.D." filters this column to 'Dr.'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xiangmu_biao.jiaoshi_chenghuhu. Usually Mr., Mrs., or Ms.; a value of \"Dr.\" means the teacher holds a Ph.D. or other doctoral degree, so \"teachers with a Ph.D.\" filters this column to 'Dr.'.\n",
+              "id": "term_teacher_prefix",
+              "name": "teacher prefix",
+              "summary": "teacher prefix (prefix for the teacher): the title used for a project's teacher, and how a Ph.D. is recorded.",
+              "synonyms": [
+                "teacher prefix",
+                "prefix for the teacher"
+              ]
+            }
+          ]
+        }
+  - name: jiaoshi_jiaoyu_meiguo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiaoshi_jiaoyu_meiguo
+    description: |
+      Whether a project's teacher is a Teach For America participant, jiaoshi_jiaoyu_meiguo.
+
+      'f' means the teacher is not part of Teach For America; 't' means they are.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: jiaoshi_neiyue_jiaoxue_huohuozhe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiaoshi_neiyue_jiaoxue_huohuozhe
+    description: |
+      Whether a project's teacher is a New York City Teaching Fellow, jiaoshi_neiyue_jiaoxue_huohuozhe.
+
+      'f' means the teacher is not a New York City Teaching Fellow; 't' means they are, a program for career-changers entering teaching in New York City.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zhuyao_jiaoxue_kemu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhuyao_jiaoxue_kemu
+    description: |
+      The main academic subject a project's materials are intended for, zhuyao_jiaoxue_kemu.
+
+      One of about 25 subjects such as Literature & Writing, Literacy, Social Sciences, Mathematics, or Gym & Fitness. "Literacy subject as primary focus" filters this column to 'Literacy'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xiangmu_biao.zhuyao_jiaoxue_kemu. \"Literacy subject as primary focus\" means zhuyao_jiaoxue_kemu = 'Literacy'. Rolls up into the broader zhuyao_jiaoxue_lingyu subject area, and is distinct from the project's secondary subject in ciyao_jiaoxue_kemu.\n",
+              "id": "term_primary_focus_subject",
+              "name": "primary focus subject",
+              "summary": "primary focus subject (main subject, primary subject): the main academic subject a project's materials are intended for.",
+              "synonyms": [
+                "primary focus subject",
+                "main subject",
+                "primary subject"
+              ]
+            }
+          ]
+        }
+  - name: zhuyao_jiaoxue_lingyu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zhuyao_jiaoxue_lingyu
+    description: |
+      The broad subject area a project's materials are intended for, zhuyao_jiaoxue_lingyu.
+
+      One of 7 broader groupings such as Literacy & Language, History & Civics, Math & Science, Health & Sports, or Applied Learning. Each value in zhuyao_jiaoxue_kemu rolls up into one of these areas.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xiangmu_biao.zhuyao_jiaoxue_lingyu. \"Main subject area\" means zhuyao_jiaoxue_lingyu = 'Literacy & Language'. One of 7 broad groupings such as History & Civics, Math & Science, or Health & Sports; each project's zhuyao_jiaoxue_kemu subject rolls up into one of these.\n",
+              "id": "term_primary_focus_area",
+              "name": "primary focus area",
+              "summary": "primary focus area: the broad subject area a project's materials are intended for, one level up from its primary focus subject.",
+              "synonyms": [
+                "primary focus area"
+              ]
+            }
+          ]
+        }
+  - name: ciyao_jiaoxue_kemu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ciyao_jiaoxue_kemu
+    description: |
+      The secondary academic subject a project's materials are intended for, ciyao_jiaoxue_kemu.
+
+      Drawn from the same roughly 25 subjects as zhuyao_jiaoxue_kemu, but blank on projects that were only submitted with one subject (155 blank of 500 rows in the sample).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ciyao_jiaoxue_lingyu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ciyao_jiaoxue_lingyu
+    description: |
+      The secondary broad subject area a project's materials are intended for, ciyao_jiaoxue_lingyu.
+
+      Drawn from the same 7 areas as zhuyao_jiaoxue_lingyu, and blank whenever ciyao_jiaoxue_kemu is blank.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ziyuan_leibie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ziyuan_leibie
+    description: |
+      The main category of resource a project as a whole requests, ziyuan_leibie.
+
+      One of 5 values: Books, Technology, Supplies, Other, or Visitors. This is a project-level summary category, distinct from ziyuan_biao.xiangmu_ziyuan_leibie, which categorizes each individual resource line item and need not match this column.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: pinkun_dengji
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pinkun_dengji
+    description: |
+      The poverty level of a project's school, pinkun_dengji.
+
+      One of four values, ranked by the share of students on free or reduced lunch: "highest poverty" (65% or more), "high poverty" (40-64%), "moderate poverty" (10-39%), or "low poverty" (0-9%). "65% of the students are on reduced lunch" and "the highest poverty level" both mean pinkun_dengji = 'highest poverty'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xiangmu_biao.pinkun_dengji. Four values ranked by the share of students on free or reduced lunch: \"highest poverty\" (65% or more; \"65% of the students are on reduced lunch\" means pinkun_dengji = 'highest poverty'), \"high poverty\" (40-64%), \"moderate poverty\" (10-39%), and \"low poverty\" (0-9%).\n",
+              "id": "term_poverty_level",
+              "name": "poverty level",
+              "summary": "poverty level (highest poverty, moderate level of poverty): a school's poverty ranking, based on the share of students on free or reduced lunch.",
+              "synonyms": [
+                "poverty level",
+                "highest poverty",
+                "moderate level of poverty"
+              ]
+            }
+          ]
+        }
+  - name: nianjidengji
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nianjidengji
+    description: |
+      The grade level a project's materials are intended for, nianjidengji.
+
+      One of four bands: "Grades PreK-2", "Grades 3-5", "Grades 6-8", or "Grades 9-12". "Teach 3-5 grades" means nianjidengji = 'Grades 3-5'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xiangmu_biao.nianjidengji. One of \"Grades PreK-2\", \"Grades 3-5\", \"Grades 6-8\", or \"Grades 9-12\". \"Teach 3-5 grades\" means nianjidengji = 'Grades 3-5'.\n",
+              "id": "term_grade_level",
+              "name": "grade level",
+              "summary": "grade level (grade): the band of school grades a project's materials are intended for.",
+              "synonyms": [
+                "grade level",
+                "grade"
+              ]
+            }
+          ]
+        }
+  - name: wancheng_laodong_cailiao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wancheng_laodong_cailiao
+    description: |
+      The fulfillment labor and materials cost charged on a project, wancheng_laodong_cailiao.
+
+      A flat dollar fee DonorsChoose.org adds to cover shipping and handling; every row in the sample carries the same value, 30.0. A higher value would mean a higher fulfillment cost, but the sample shows no variation.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: zonghe_jiage_buhan_xuanze_zhichi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zonghe_jiage_buhan_xuanze_zhichi
+    description: |
+      The total cost of a project when the optional support amount is excluded, zonghe_jiage_buhan_xuanze_zhichi.
+
+      The dollar amount needed to fully fund the project, before any optional tip donors add to support DonorsChoose.org, ranging from about 1000 down through the hundreds in the sample. This is the figure meant by "project cost" on its own, without the word "including".
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xiangmu_biao.zonghe_jiage_buhan_xuanze_zhichi. Said on its own, without the word \"including\", \"project cost\" means this column, the total excluding optional support; add zonghe_jiage_baokuo_xuanze_zhichi minus this column for the optional tip built into the project's listed price.\n",
+              "id": "term_project_cost",
+              "name": "project cost",
+              "summary": "project cost: the total dollar amount needed to fully fund a project, before any optional support is added.",
+              "synonyms": [
+                "project cost"
+              ]
+            }
+          ]
+        }
+  - name: zonghe_jiage_baokuo_xuanze_zhichi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zonghe_jiage_baokuo_xuanze_zhichi
+    description: |
+      The total cost of a project when the optional support amount is included, zonghe_jiage_baokuo_xuanze_zhichi.
+
+      zonghe_jiage_buhan_xuanze_zhichi plus the optional tip built into the project's listed price; the difference between the two columns is the tip amount. "Total price including optional support" and questions about the "highest" such price both refer to this column, not zonghe_jiage_buhan_xuanze_zhichi.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: jiedao_xuesheng_shu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jiedao_xuesheng_shu
+    description: |
+      The number of students a project is expected to reach once funded, jiedao_xuesheng_shu.
+
+      A whole-number headcount, observed from 5 to 850 in a 500-row sample. "320 students will be impacted", "affect more than 30 students", and "impact at least 600 students" all filter or compare against this column.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xiangmu_biao.jiedao_xuesheng_shu. \"320 students will be impacted\" means jiedao_xuesheng_shu = 320; \"affect more than 30 students\" means jiedao_xuesheng_shu > 30; \"impact at least 600 students\" means jiedao_xuesheng_shu >= 600.\n",
+              "id": "term_students_reached",
+              "name": "students reached",
+              "summary": "students reached (students impacted, how many students): the number of students a project is expected to reach once funded.",
+              "synonyms": [
+                "students reached",
+                "students impacted",
+                "how many students"
+              ]
+            }
+          ]
+        }
+  - name: zige_shuangbeifa_pipeizhu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zige_shuangbeifa_pipeizhu
+    description: |
+      Whether a project was eligible for the "Double Your Impact Match" offer, zige_shuangbeifa_pipeizhu.
+
+      'f' means the project was not eligible; 't' means a corporate partner, whose logo appears on the project, offered to match a donation at 50% (for example Starbucks or Disney).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zige_jihuhuijia_pipeizhu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zige_jihuhuijia_pipeizhu
+    description: |
+      Whether a project was eligible for the "Almost Home Match" offer, zige_jihuhuijia_pipeizhu.
+
+      'f' means the project was not eligible; 't' means it qualified for a $100 boost from a corporate partner. Every row in the sample is 'f'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: fakuai_riqi
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fakuai_riqi
+    description: |
+      The date a project went live on the site, fakuai_riqi.
+
+      A calendar date, for example 2014-05-12. "When a project went live" and "date posted" both refer to this column. Only 6 distinct dates appear in the sample, all in a narrow window in early-to-mid 2014.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to xiangmu_biao.fakuai_riqi. A calendar date such as 2014-05-12, marking when the project first appeared on the site for donors to fund.\n",
+              "id": "term_date_posted",
+              "name": "date posted",
+              "summary": "date posted (when project went live): the calendar date a project went live on the site.",
+              "synonyms": [
+                "date posted",
+                "when project went live"
+              ]
+            }
+          ]
+        }
+  metrics:
+  - name: metric_donor_project_optional_support_amount
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUBTRACT(zonghe_jiage_baokuo_xuanze_zhichi, zonghe_jiage_buhan_xuanze_zhichi)
+    description: |
+      project optional support amount: the portion of a project's listed price that is optional support, on top of its base cost.
+
+      Bound to xiangmu_biao.zonghe_jiage_baokuo_xuanze_zhichi minus xiangmu_biao.zonghe_jiage_buhan_xuanze_zhichi, for one project. "Highest optional tip" takes the maximum of this difference across projects.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "project optional support amount"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ziyuan_biao
+  source: donor.ziyuan_biao
+  description: |
+    ziyuan_biao holds one row per resource line item a project requested, recording the vendor, item, unit price, and quantity.
+
+    Grain: one row per requested resource line, keyed by ziyuan_id; a single project can request several lines, so this table is the many side of its join back to a project. Join to xiangmu_biao on xiangmu_id for the project's teacher, school, and cost, and to luwen_biao on xiangmu_id for that project's essay. This table's xiangmu_ziyuan_leibie categorizes one requested item; it is distinct from xiangmu_biao.ziyuan_leibie, the project's own overall resource category, and the two need not agree.
+  fields:
+  - name: ziyuan_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ziyuan_id
+    description: |
+      The unique identifier for a requested resource line, ziyuan_id.
+
+      An opaque hexadecimal id, one per row in this table (500 distinct in a 500-row sample).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: xiangmu_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiangmu_id
+    description: |
+      The project that requested a resource, xiangmu_id.
+
+      Join to xiangmu_biao.xiangmu_id (one project per id) or luwen_biao.xiangmu_id (that project's essay). Many resource rows can share one xiangmu_id, since a project typically requests several items.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: gongying_shangid
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: gongying_shangid
+    description: |
+      The identifier of the vendor supplying a resource, gongying_shangid.
+
+      A numeric id shared by every line item bought from the same vendor. Blank on rows where no vendor was recorded.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: gongying_shangmingcheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: gongying_shangmingcheng
+    description: |
+      The name of the vendor supplying a resource, gongying_shangmingcheng.
+
+      Free-text vendor name, one of about 25 in the sample, such as Amazon, "Lakeshore Learning Materials", "Sax Arts & Crafts", "Woodwind and Brasswind", or "Best Buy for Business". Blank whenever gongying_shangid is blank.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to ziyuan_biao.gongying_shangmingcheng. Free-text vendor name such as Amazon, \"Lakeshore Learning Materials\", or \"Sax Arts & Crafts\". \"From Sax Arts & Crafts\" filters this column to that exact vendor name.\n",
+              "id": "term_vendor_name",
+              "name": "vendor name",
+              "summary": "vendor name (vendor): the company that supplied a project's requested resource.",
+              "synonyms": [
+                "vendor name",
+                "vendor"
+              ]
+            }
+          ]
+        }
+  - name: xiangmu_ziyuan_leibie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: xiangmu_ziyuan_leibie
+    description: |
+      The category of a single requested resource line, xiangmu_ziyuan_leibie.
+
+      One of 5 values: Technology, Supplies, Other, Books, or Trips. Answers "type of resource" or "resource type" questions about one line item; distinct from xiangmu_biao.ziyuan_leibie, which categorizes the project as a whole.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to ziyuan_biao.xiangmu_ziyuan_leibie. One of 5 values: Technology, Supplies, Other, Books, or Trips. Categorizes a single requested line item, not the whole project; a project's own overall category lives on xiangmu_biao.ziyuan_leibie instead.\n",
+              "id": "term_resource_type",
+              "name": "resource type",
+              "summary": "resource type (type of resource, resource type available): the category of one requested item, one of a fixed, short list of resource categories.",
+              "synonyms": [
+                "resource type",
+                "type of resource",
+                "resource type available"
+              ]
+            }
+          ]
+        }
+  - name: wupin_mingcheng
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wupin_mingcheng
+    description: |
+      The name of a requested item, wupin_mingcheng.
+
+      Free-text product name, for example "iPod nano 4th Gen 8GB (Black)", "Sony bloggie MHS-FS1 - camcorder", or "VX748 - Best-Buy Jumbo Crayons - 12-Color Box" (462 distinct in the sample). Blank whenever wupin_bianhao is blank.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to ziyuan_biao.wupin_mingcheng. Free-text product name, for example \"iPod nano 4th Gen 8GB (Black)\" or \"TT992 - Refill Pack for Safety Name Tags\"; a quoted item name filters this column to an exact match.\n",
+              "id": "term_resource_name",
+              "name": "resource item name",
+              "summary": "resource item name (names of the resources): the product name of a requested resource line item.",
+              "synonyms": [
+                "resource item name",
+                "names of the resources"
+              ]
+            }
+          ]
+        }
+  - name: wupin_bianhao
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wupin_bianhao
+    description: |
+      The vendor's item or SKU number for a requested item, wupin_bianhao.
+
+      Free-text catalog code such as VX748, LA138, or BB11216668, unique to the vendor's own numbering rather than to this database. Blank on rows without a recorded vendor.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: wupin_danwei_jiage
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wupin_danwei_jiage
+    description: |
+      The unit price of a requested item, wupin_danwei_jiage.
+
+      A dollar amount per unit, from about 0.62 to 99.5 in the sample. Multiply by wupin_shuliang for the line's total cost.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: wupin_shuliang
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: wupin_shuliang
+    description: |
+      The quantity of a requested item, wupin_shuliang.
+
+      A whole-number count, observed from 1 to 60 in a 500-row sample (typically small, 1 to 8). "The project with the highest quantity" compares this column across rows.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  metrics:
+  - name: metric_donor_highest_resource_quantity
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(wupin_shuliang)
+    description: |
+      highest resource quantity: the largest requested quantity of a single item across resource line items.
+
+      Bound to ziyuan_biao.wupin_shuliang. "The project with the highest quantity" takes the maximum of this column across resource lines, optionally joined to xiangmu_biao on xiangmu_id to name the project that requested it.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest resource quantity"
+        }
+  - name: metric_donor_resource_count_by_project
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(ziyuan_id)
+    description: |
+      resource line count by project: the number of resource line items a project or its school requested, used to find the project or school that requested the most.
+
+      Bound to ziyuan_biao.ziyuan_id, counted and grouped by xiangmu_id. To get a total per school rather than per project, join to xiangmu_biao on xiangmu_id first and group by xuexiao_id instead. "Highest amount of resources" takes the maximum of this grouped count.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "resource line count by project"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_donor_juan_kuan_biao_luwen_biao_8606c388
+  from: juan_kuan_biao
+  to: luwen_biao
+  from_columns:
+  - xiangmu_id
+  to_columns:
+  - xiangmu_id
+  ai_context:
+    instructions: |
+      Match a donation in juan_kuan_biao to the essay of the project it funded in luwen_biao by project id.
+
+      Joins juan_kuan_biao.xiangmu_id to luwen_biao.xiangmu_id. Many donations can point at the same project while luwen_biao carries one row per project, so this is many-to-one from juan_kuan_biao into luwen_biao; use it to bring a project's title or essay into a question that is otherwise about donations.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between juan_kuan_biao and luwen_biao in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_donor_juan_kuan_biao_xiangmu_biao_974efcf5
+  from: juan_kuan_biao
+  to: xiangmu_biao
+  from_columns:
+  - xiangmu_id
+  to_columns:
+  - xiangmu_id
+  ai_context:
+    instructions: |
+      Match a donation in juan_kuan_biao to the project it funded in xiangmu_biao by project id.
+
+      Joins juan_kuan_biao.xiangmu_id to xiangmu_biao.xiangmu_id. Many donations can point at the same project while xiangmu_biao carries one row per project, so this is many-to-one from juan_kuan_biao into xiangmu_biao; use it whenever a question about donations also names a project's teacher, school, subject, or cost.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between juan_kuan_biao and xiangmu_biao in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_donor_luwen_biao_xiangmu_biao_a5890ff8
+  from: luwen_biao
+  to: xiangmu_biao
+  from_columns:
+  - xiangmu_id
+  to_columns:
+  - xiangmu_id
+  ai_context:
+    instructions: |
+      Match a project's essay in luwen_biao to the same project's details in xiangmu_biao by project id.
+
+      Joins luwen_biao.xiangmu_id to xiangmu_biao.xiangmu_id. Each project has exactly one essay row and one project row, so this is one-to-one; use it to combine a project's title or essay text with its teacher, school, subject, or cost.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between luwen_biao and xiangmu_biao in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_donor_luwen_biao_ziyuan_biao_6d7a715f
+  from: ziyuan_biao
+  to: luwen_biao
+  from_columns:
+  - xiangmu_id
+  to_columns:
+  - xiangmu_id
+  ai_context:
+    instructions: |
+      Match a project's essay in luwen_biao to the resources it requested in ziyuan_biao by project id.
+
+      Joins luwen_biao.xiangmu_id to ziyuan_biao.xiangmu_id. Each project has one essay row but can request several resource lines, so this is one-to-many from luwen_biao into ziyuan_biao; use it to bring vendor, item, price, or quantity into a question that is otherwise about a project's essay.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between luwen_biao and ziyuan_biao in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_donor_xiangmu_biao_ziyuan_biao_f41dce75
+  from: ziyuan_biao
+  to: xiangmu_biao
+  from_columns:
+  - xiangmu_id
+  to_columns:
+  - xiangmu_id
+  ai_context:
+    instructions: |
+      Match a project in xiangmu_biao to the resources it requested in ziyuan_biao by project id.
+
+      Joins xiangmu_biao.xiangmu_id to ziyuan_biao.xiangmu_id. Each project has one project row but can request several resource lines, so this is one-to-many from xiangmu_biao into ziyuan_biao; use it whenever a question about a project's teacher, school, or cost also asks about vendors, items, prices, or quantities.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between xiangmu_biao and ziyuan_biao in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_3152",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0000",
+          "sql": "SELECT \"T1\".\"biaoti\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T2\".\"pinkun_dengji\" LIKE 'highest%'",
+          "summary": "Name the project titles meant for school whereby 65% of the students are on reduced lunch."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3153",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0001",
+          "sql": "SELECT \"T2\".\"zhuyao_jiaoxue_kemu\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" = 'Toot Your Flute!'",
+          "summary": "For project titled 'Toot Your Flute!', what is the main subject of the project materials intended for? Name the other projects with the similar focus."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3155",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0002",
+          "sql": "SELECT \"T1\".\"biaoti\", \"T2\".\"zonghe_jiage_buhan_xuanze_zhichi\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T2\".\"jiedao_xuesheng_shu\" = 320",
+          "summary": "What is the project in which 320 students will be impacted if the project is funded? Name the project and state the project cost."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3156",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0003",
+          "sql": "SELECT \"T2\".\"juan_kuan_xiaoxi\", \"T1\".\"biaoti\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T2\".\"juan_kuanzhe_chengshi\" = 'Texas City'",
+          "summary": "For all donors from Texas City, list their donation message and name of the project they donated to."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3157",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0004",
+          "sql": "SELECT \"T1\".\"gongying_shangmingcheng\", \"T1\".\"wupin_mingcheng\", \"T1\".\"wupin_danwei_jiage\" FROM \"donor\".\"ziyuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" INNER JOIN \"donor\".\"luwen_biao\" AS \"T3\" ON \"T2\".\"xiangmu_id\" = \"T3\".\"xiangmu_id\" WHERE \"T3\".\"biaoti\" = 'Lights, Camera, Action!'",
+          "summary": "Name the vendors who provide resources for project 'Lights, Camera, Action!'. List all the item names and unit price for each."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3158",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0005",
+          "sql": "SELECT SUM(\"T2\".\"juan_kuan_dao_xiangmu\") FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" = 'Whistle While We Work!'",
+          "summary": "How much donations have been collected for project 'Whistle While We Work!'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3159",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0006",
+          "sql": "SELECT \"T1\".\"biaoti\", \"T1\".\"jianduanmiaoshu\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T2\".\"jiaoshi_neiyue_jiaoxue_huohuozhe\" = 't'",
+          "summary": "Name and describe all projects created by New York teachers."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3160",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0007",
+          "sql": "SELECT DISTINCT \"T2\".\"biaoti\", \"T1\".\"zonghe_jiage_buhan_xuanze_zhichi\" FROM \"donor\".\"xiangmu_biao\" AS \"T1\" INNER JOIN \"donor\".\"luwen_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"jiedao_xuesheng_shu\" >= 600 AND \"T1\".\"pinkun_dengji\" LIKE 'moderate poverty'",
+          "summary": "If funded, which are the projects that could impact at least 600 students for a school with moderate level of poverty? Name the projects and state the project cost."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3163",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0008",
+          "sql": "SELECT COUNT(\"pinkun_dengji\") FROM \"donor\".\"xiangmu_biao\" WHERE \"xuexiao_xuequ\" = 'West New York School District' AND \"pinkun_dengji\" = 'highest poverty'",
+          "summary": "How many schools in the West New York School District have the highest poverty level?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3164",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0009",
+          "sql": "SELECT COUNT(\"juan_kuan_id\") FROM \"donor\".\"juan_kuan_biao\" WHERE \"shi_jiaoshi_zhanghao\" = 't' AND \"juan_kuanzhe_zhou\" = 'CO'",
+          "summary": "How many donations from teachers were done in the state of Colorado?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3165",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0010",
+          "sql": "SELECT \"xiangmu_id\" FROM \"donor\".\"xiangmu_biao\" ORDER BY \"zonghe_jiage_baokuo_xuanze_zhichi\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which project have the highest total price including optional support? Indicate the project id."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3166",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0011",
+          "sql": "SELECT DISTINCT \"juan_kuanzhe_zhou\" FROM \"donor\".\"juan_kuan_biao\" WHERE \"wei_rongyuzhe\" = 't' AND \"zhifu_baokuo_huodong_libika\" = 't' AND \"zhifu_fangshi\" = 'paypal' AND \"juan_kuanzhe_zhou\" = (SELECT \"juan_kuanzhe_zhou\" FROM \"donor\".\"juan_kuan_biao\" GROUP BY \"juan_kuanzhe_zhou\" ORDER BY SUM(\"juan_kuan_zonghe\") DESC NULLS LAST LIMIT 1)",
+          "summary": "Which state have the highest number of PayPal donations for an honoree whose portion of a donation included corporate sponsored giftcard?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3167",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0012",
+          "sql": "SELECT \"juan_kuan_id\", \"juan_kuan_zonghe\" FROM \"donor\".\"juan_kuan_biao\" ORDER BY \"juan_kuan_zonghe\" DESC NULLS LAST LIMIT 1",
+          "summary": "Who is the largest donor by amount? Give the donation id and the total amount of the donation."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3168",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0013",
+          "sql": "SELECT \"T1\".\"xiangmu_id\", \"T1\".\"wupin_mingcheng\" FROM \"donor\".\"ziyuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" ORDER BY \"T2\".\"zonghe_jiage_baokuo_xuanze_zhichi\" - \"T2\".\"zonghe_jiage_buhan_xuanze_zhichi\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the id of the project that has the highest optional tip? Indicate the names of the resources that were requested."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3175",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0014",
+          "sql": "SELECT DISTINCT \"T1\".\"gongying_shangmingcheng\" FROM \"donor\".\"ziyuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"luwen_biao\" AS \"T3\" ON \"T1\".\"xiangmu_id\" = \"T3\".\"xiangmu_id\" WHERE \"T3\".\"biaoti\" = 'iMath'",
+          "summary": "What is the name of the vendor that supplies resources to the project \"iMath\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3176",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0015",
+          "sql": "SELECT \"T2\".\"fakuai_riqi\", \"T2\".\"nianjidengji\" FROM \"donor\".\"ziyuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" ORDER BY \"T1\".\"wupin_shuliang\" DESC NULLS LAST LIMIT 1",
+          "summary": "When was the project with the highest quantity went live on the site? Indicate the grade level for which the project materials are intended."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3182",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0016",
+          "sql": "SELECT \"T2\".\"xuexiao_id\" FROM \"donor\".\"ziyuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"gongying_shangmingcheng\" LIKE 'Amazon' GROUP BY \"T2\".\"xuexiao_id\" ORDER BY COUNT(\"T1\".\"gongying_shangmingcheng\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which school requested the highest amount of resources from Amazon? State the school's ID."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3184",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0017",
+          "sql": "SELECT \"T2\".\"jiaoshi_chenghuhu\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" LIKE 'Reading About Other Cultures'",
+          "summary": "What is the prefix for the teacher who handled the 'Reading About Other Cultures' project?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3185",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0018",
+          "sql": "SELECT \"T2\".\"jiedao_xuesheng_shu\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" LIKE 'Fit Firsties!'",
+          "summary": "How many students will be impacted for the Fit Firsties! Project?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3186",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0019",
+          "sql": "SELECT \"T1\".\"biaoti\", \"T3\".\"juan_kuanzhe_zhanghao_id\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T3\" ON \"T2\".\"xiangmu_id\" = \"T3\".\"xiangmu_id\" WHERE \"T2\".\"xuexiao_chengshi\" LIKE 'Chicago'",
+          "summary": "List the title of all projects located in Chicago along with the ID of the donor."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3188",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0020",
+          "sql": "SELECT DISTINCT \"T1\".\"gongying_shangmingcheng\" FROM \"donor\".\"ziyuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T2\".\"zhuyao_jiaoxue_kemu\" LIKE 'Literacy'",
+          "summary": "State the name of vendor that supplies book resources to all school with literacy subject as their primary focus."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3190",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0021",
+          "sql": "SELECT COUNT(\"juan_kuan_id\") FROM \"donor\".\"juan_kuan_biao\" WHERE \"shi_jiaoshi_zhanghao\" = 't' AND \"juan_kuanzhe_chengshi\" = 'New York'",
+          "summary": "Among all the donors from New York, how many of them are teachers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3191",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0022",
+          "sql": "SELECT COUNT(\"juan_kuan_id\") FROM \"donor\".\"juan_kuan_biao\" WHERE \"wei_rongyuzhe\" = 't' AND \"juan_kuanzhe_zhou\" = 'NJ'",
+          "summary": "How many donors from New Jersey have made a donation for an honoree?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3208",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0023",
+          "sql": "SELECT DISTINCT \"juan_kuanzhe_chengshi\" FROM \"donor\".\"juan_kuan_biao\" WHERE \"juan_kuanzhe_zhanghao_id\" = '22cbc920c9b5fa08dfb331422f5926b5'",
+          "summary": "To which city did donor “22cbc920c9b5fa08dfb331422f5926b5” donate?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3209",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0024",
+          "sql": "SELECT DISTINCT \"shi_jiaoshi_zhanghao\" FROM \"donor\".\"juan_kuan_biao\" WHERE \"juan_kuanzhe_zhanghao_id\" = '22cbc920c9b5fa08dfb331422f5926b5'",
+          "summary": "Is donor “22cbc920c9b5fa08dfb331422f5926b5” a teacher?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3210",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0025",
+          "sql": "SELECT CASE WHEN \"jiaoshi_chenghuhu\" = 'Dr.' THEN 'Yes' ELSE 'NO' END FROM \"donor\".\"xiangmu_biao\" WHERE \"jiaoshi_zhanghao_id\" = '42d43fa6f37314365d08692e08680973'",
+          "summary": "Have the teacher \"42d43fa6f37314365d08692e08680973\" acquired P.h.D or doctor degree?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3211",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0026",
+          "sql": "SELECT \"jiaoshi_neiyue_jiaoxue_huohuozhe\" AS \"end\" FROM \"donor\".\"xiangmu_biao\" WHERE \"jiaoshi_zhanghao_id\" = '42d43fa6f37314365d08692e08680973'",
+          "summary": "Is teacher \"42d43fa6f37314365d08692e08680973\" a New York teacher?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3212",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0027",
+          "sql": "SELECT \"T2\".\"biaoti\" FROM \"donor\".\"xiangmu_biao\" AS \"T1\" INNER JOIN \"donor\".\"luwen_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"xuexiao_chengshi\" LIKE 'Abington'",
+          "summary": "Please list the titles of projects by which schools in Abington was donated."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3213",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0028",
+          "sql": "SELECT \"T1\".\"wupin_mingcheng\" FROM \"donor\".\"ziyuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T2\".\"jiaoshi_zhanghao_id\" = '822b7b8768c17456fdce78b65abcc18e'",
+          "summary": "Please list the resource names of project that teacher \"822b7b8768c17456fdce78b65abcc18e\" created."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3215",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0029",
+          "sql": "SELECT DISTINCT \"T1\".\"xiangmu_ziyuan_leibie\" FROM \"donor\".\"ziyuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T3\" ON \"T2\".\"xiangmu_id\" = \"T3\".\"xiangmu_id\" WHERE \"T3\".\"juan_kuan_id\" LIKE 'b39547f29dfc25fb13c6e9e8d940dc43'",
+          "summary": "Please provide the type of resource that donation \"b39547f29dfc25fb13c6e9e8d940dc43\" contain."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3219",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0030",
+          "sql": "SELECT \"T2\".\"jianduanmiaoshu\" FROM \"donor\".\"xiangmu_biao\" AS \"T1\" INNER JOIN \"donor\".\"luwen_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"xuexiao_id\" = '301c9bf0a45d159d162b65a93fddd74e'",
+          "summary": "What is the short description of the project that gives donation to school “301c9bf0a45d159d162b65a93fddd74e”?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3220",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0031",
+          "sql": "SELECT \"T1\".\"xuexiao_chengshi\" FROM \"donor\".\"xiangmu_biao\" AS \"T1\" INNER JOIN \"donor\".\"luwen_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T2\".\"biaoti\" LIKE 'iMath'",
+          "summary": "Which city does the school that project \"iMath\" donated to in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3225",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0032",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"jiedao_xuesheng_shu\" > 30 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"xiangmu_id\"), 0) FROM \"donor\".\"xiangmu_biao\" AS \"T1\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T2\".\"shi_jiaoshi_zhanghao\" = 't'",
+          "summary": "Among the projects whose donators are teachers, what is the percentage of projects that affected more than 30 students?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3226",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0033",
+          "sql": "SELECT COUNT(\"xuexiao_id\") FROM \"donor\".\"xiangmu_biao\" WHERE \"xuexiao_chengshi\" = 'Bethlehem' AND \"xuexiao_dushiquyuhuaban\" = 'suburban'",
+          "summary": "How many schools which have suburban metro are there in Bethlehem?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3228",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0034",
+          "sql": "SELECT COUNT(\"xuexiao_id\") FROM \"donor\".\"xiangmu_biao\" WHERE \"xuexiao_xian\" = 'New York (Manhattan)' AND \"xuexiao_xichuanxue\" = 't'",
+          "summary": "State the number of public magnet schools in New York Manhattan."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3231",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0035",
+          "sql": "SELECT COUNT(\"xiangmu_id\") FROM \"donor\".\"xiangmu_biao\" WHERE \"xuexiao_xuequ\" = 'Boston Public School District' AND \"nianjidengji\" = 'Grades 3-5'",
+          "summary": "What is the total number of projects that was created by the teachers that teach 3-5 grades in Boston Public School District?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3232",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0036",
+          "sql": "SELECT \"T2\".\"xuexiao_chengshi\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" = 'ABC Read'",
+          "summary": "For the teacher who wrote the project 'ABC Read', which city was he/she in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3233",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0037",
+          "sql": "SELECT \"T2\".\"jiaoshi_chenghuhu\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" LIKE 'Creating Memories and Inspiring Dreams%'",
+          "summary": "What is the teacher prefix for the teacher who wrote the project 'Creating Memories and Inspiring Dreams'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3234",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0038",
+          "sql": "SELECT \"T2\".\"shi_jiaoshi_zhanghao\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" LIKE 'Calculate, Financial Security For Tomorrow Starts Today! '",
+          "summary": "Is the donor of the project 'Calculate, Financial Security For Tomorrow Starts Today! ' a teacher?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3236",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0039",
+          "sql": "SELECT SUM(\"T2\".\"juan_kuan_zonghe\") FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" LIKE 'A Rug For Reaching Readers'",
+          "summary": "How many number of donations did the project 'A Rug For Reaching Readers' get?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3238",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0040",
+          "sql": "SELECT \"T2\".\"juan_kuan_xuanze_zhichi\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" LIKE 'Armenian Genocide'",
+          "summary": "What was the donation optional support amount for the project 'Armenian Genocide'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3240",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0041",
+          "sql": "SELECT \"T2\".\"juan_kuan_baokuo_xuanze_zhichi\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" LIKE 'I Can''t See It...Can You Help Me???'",
+          "summary": "Did the project 'I Can't See It...Can You Help Me???' get the tip for the donation?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3242",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0042",
+          "sql": "SELECT \"T2\".\"xuexiao_id\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" LIKE 'Virtual Aquarium Needs Help!'",
+          "summary": "Show the school id for the project 'Virtual Aquarium Needs Help!'."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3245",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0043",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"zhifu_fangshi\" LIKE 'creditcard' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"juan_kuan_id\"), 0) FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" LIKE 'Bringing Drama to Life'",
+          "summary": "For the all donations to the project 'Bringing Drama to Life', what is the percentage of the donation is paid by credit card?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3246",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0044",
+          "sql": "SELECT \"jianduanmiaoshu\" FROM \"donor\".\"luwen_biao\" WHERE \"biaoti\" = 'Future Einsteins Of America'",
+          "summary": "What is the short description for the title Future Einsteins Of America?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3249",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0045",
+          "sql": "SELECT DISTINCT \"gongying_shangmingcheng\" FROM \"donor\".\"ziyuan_biao\" WHERE \"wupin_mingcheng\" = 'Classroom Keepers Management Center'",
+          "summary": "Name the vendors that sell the item Classroom Keepers Management Center."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3250",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0046",
+          "sql": "SELECT DISTINCT \"xiangmu_ziyuan_leibie\" FROM \"donor\".\"ziyuan_biao\" WHERE \"gongying_shangmingcheng\" = 'Sax Arts & Crafts'",
+          "summary": "List the resource types available at Sax Arts & Crafts."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3252",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0047",
+          "sql": "SELECT \"T1\".\"xuexiao_xuequ\" FROM \"donor\".\"xiangmu_biao\" AS \"T1\" INNER JOIN \"donor\".\"luwen_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T2\".\"biaoti\" LIKE 'Future Einsteins Of America'",
+          "summary": "Which school district was Future Einsteins Of America project located at?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3253",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0048",
+          "sql": "SELECT \"T3\".\"zhifu_fangshi\" FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T3\" ON \"T2\".\"xiangmu_id\" = \"T3\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" = 'Needed Resource Materials For My Students'",
+          "summary": "What payment method was used for Needed Resource Materials For My Students?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3254",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0049",
+          "sql": "SELECT COUNT(\"T1\".\"xiangmu_id\") FROM \"donor\".\"juan_kuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"zhifu_fangshi\" = 'creditcard' AND \"T2\".\"xuexiao_xuequ\" = 'Memphis City School District'",
+          "summary": "How many donations were paid via credit card to Memphis City School District?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3260",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0050",
+          "sql": "SELECT \"T1\".\"fakuai_riqi\" FROM \"donor\".\"xiangmu_biao\" AS \"T1\" INNER JOIN \"donor\".\"luwen_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T2\".\"biaoti\" LIKE 'Lets Share Ideas'",
+          "summary": "What date did the project with he 'Lets Share Ideas essay' went live?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3267",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0051",
+          "sql": "SELECT COUNT(\"xuexiao_id\") FROM \"donor\".\"xiangmu_biao\" WHERE \"jiaoshi_chenghuhu\" = 'Dr.' AND \"xuexiao_xian\" = 'Suffolk'",
+          "summary": "How many schools in Suffolk County have Ph.D. teachers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3273",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0052",
+          "sql": "SELECT \"xuexiao_chengshi\" FROM \"donor\".\"xiangmu_biao\" WHERE \"xuexiao_dushiquyuhuaban\" = 'suburban' AND \"xuexiao_xian\" = 'Los Angeles'",
+          "summary": "In which cities are Los Angeles County Suburban Metro Schools located?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3277",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0053",
+          "sql": "SELECT \"zhifu_fangshi\", CAST(COUNT(\"juan_kuan_id\") AS REAL) * 100 / 51090 FROM \"donor\".\"juan_kuan_biao\" WHERE CAST(\"juan_kuan_shijian_cuo\" AS TEXT) LIKE '2013-03%' GROUP BY \"zhifu_fangshi\"",
+          "summary": "What is the percentage of payment methods of donations made in March 2013?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3279",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0054",
+          "sql": "SELECT COUNT(\"T2\".\"xuexiao_id\") FROM \"donor\".\"ziyuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T3\" ON \"T2\".\"xiangmu_id\" = \"T3\".\"xiangmu_id\" WHERE \"T2\".\"xuexiao_chengshi\" = 'Brooklyn' AND \"T2\".\"xuexiao_dushiquyuhuaban\" = 'urban' AND \"T3\".\"wei_rongyuzhe\" = 't' AND \"T1\".\"wupin_mingcheng\" = 'TT992 - Refill Pack for Safety Name Tags'",
+          "summary": "How many schools in Brooklyn with urban metro and donations for an honoree have requested TT992 - Refill Pack for Safety Name Tags as a resource?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3293",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0055",
+          "sql": "SELECT \"T1\".\"fakuai_riqi\" FROM \"donor\".\"xiangmu_biao\" AS \"T1\" INNER JOIN \"donor\".\"luwen_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T2\".\"biaoti\" LIKE 'Photojournalists Want to Exhibit Their Best Works'",
+          "summary": "When did the project \"Photojournalists Want to Exhibit Their Best Works\" go live?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3296",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0056",
+          "sql": "SELECT SUM(\"T3\".\"juan_kuan_zonghe\") FROM \"donor\".\"luwen_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" INNER JOIN \"donor\".\"juan_kuan_biao\" AS \"T3\" ON \"T2\".\"xiangmu_id\" = \"T3\".\"xiangmu_id\" WHERE \"T1\".\"biaoti\" = 'Look, Look, We Need a Nook!'",
+          "summary": "How many donations does the project \"Look, Look, We Need a Nook!\" have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3297",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0057",
+          "sql": "SELECT DISTINCT \"T2\".\"pinkun_dengji\" FROM \"donor\".\"juan_kuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"juan_kuanzhe_youbian\" = '7079'",
+          "summary": "List the poverty level of all the schools that received donations with the zip code \"7079\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3299",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0058",
+          "sql": "SELECT \"T2\".\"xuexiao_youbian\", \"T1\".\"wupin_mingcheng\" FROM \"donor\".\"ziyuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"gongying_shangmingcheng\" = 'Sax Arts & Crafts'",
+          "summary": "List all the items from \"Sax Arts & Crafts\" and the zip code of the schools that received them."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3303",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0059",
+          "sql": "SELECT \"T1\".\"nianjidengji\" FROM \"donor\".\"xiangmu_biao\" AS \"T1\" INNER JOIN \"donor\".\"luwen_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T2\".\"biaoti\" LIKE 'Too Close for Comfort'",
+          "summary": "For what grade was the project \"Too Close for Comfort\" for?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3304",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0060",
+          "sql": "SELECT SUM(\"T2\".\"jiedao_xuesheng_shu\") FROM \"donor\".\"juan_kuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"juan_kuanzhe_youbian\" = '22205'",
+          "summary": "What is the total number of students impacted by the projects with a donation from a donor with zip code \"22205\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3305",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_donor_0061",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"jingguo_juan_kuanye\" = 't' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"juan_kuan_zonghe\"), 0), (SELECT \"T2\".\"zhuyao_jiaoxue_lingyu\" FROM \"donor\".\"juan_kuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\" WHERE \"T1\".\"jingguo_juan_kuanye\" = 't' GROUP BY \"T2\".\"zhuyao_jiaoxue_lingyu\" ORDER BY SUM(\"T1\".\"juan_kuan_zonghe\") DESC NULLS LAST LIMIT 1) AS \"result\" FROM \"donor\".\"juan_kuan_biao\" AS \"T1\" INNER JOIN \"donor\".\"xiangmu_biao\" AS \"T2\" ON \"T1\".\"xiangmu_id\" = \"T2\".\"xiangmu_id\"",
+          "summary": "What percentage of donations are given via a giving or campaign page? List the primary area of those donations."
+        }
+      ]
+    }

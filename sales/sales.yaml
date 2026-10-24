@@ -1,32 +1,2016 @@
-asset_type: schema
-id: sales
+version: 0.2.0.dev0
 name: sales
-summary: "The sales database records a bicycle retailer's product catalog and prices, its
-  customer and employee directories, and the individual sales transactions -- quantity,
-  product, customer, and salesperson -- that make up total revenue."
-body: >
-  kunden and mitarbeiter each hold one row per customer and per employee; verkaeufe holds one
-  row per sale and is the fact table that references both of them plus produkte, the product
-  catalog. A sale's monetary value is never stored directly: it is always menge (the quantity
-  sold) multiplied by produkte.preis.
+description: |
+  The sales database records a bicycle retailer's product catalog and prices, its customer and employee directories, and the individual sales transactions -- quantity, product, customer, and salesperson -- that make up total revenue.
 
-  Several columns and two whole tables in this schema look like alternate sources for the
-  same facts but are not dependable: kunden_nr, rufname, and familienname duplicate kunden's
-  own kundenid, vorname, and nachname; mitarbeiter_nr, mitarbeiter_rufname, and
-  mitarbeiter_familienname duplicate mitarbeiter's own identifying columns; produkt_nr,
-  bezeichnung, and verkaufspreis duplicate produkte's own identifying columns and price; and
-  the kunden_stammdaten and artikel_katalog tables are not dependable at all. None of these
-  should be read, filtered on, or joined on.
-rules:
-  - Compute a sale's monetary value as verkaeufe.menge multiplied by produkte.preis; never
-    substitute produkte.verkaufspreis or any value from artikel_katalog.
-  - Join customers, employees, and products to verkaeufe using kundenid, verkaeuferid against
-    mitarbeiterid, and produktid; never join using kunden_nr, mitarbeiter_nr, produkt_nr, or
-    any column on kunden_stammdaten or artikel_katalog.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+  kunden and mitarbeiter each hold one row per customer and per employee; verkaeufe holds one row per sale and is the fact table that references both of them plus produkte, the product catalog. A sale's monetary value is never stored directly: it is always menge (the quantity sold) multiplied by produkte.preis.
+  Several columns and two whole tables in this schema look like alternate sources for the same facts but are not dependable: kunden_nr, rufname, and familienname duplicate kunden's own kundenid, vorname, and nachname; mitarbeiter_nr, mitarbeiter_rufname, and mitarbeiter_familienname duplicate mitarbeiter's own identifying columns; produkt_nr, bezeichnung, and verkaufspreis duplicate produkte's own identifying columns and price; and the kunden_stammdaten and artikel_katalog tables are not dependable at all. None of these should be read, filtered on, or joined on.
+ai_context:
+  instructions: |-
+    Compute a sale's monetary value as verkaeufe.menge multiplied by produkte.preis; never substitute produkte.verkaufspreis or any value from artikel_katalog.
+    Join customers, employees, and products to verkaeufe using kundenid, verkaeuferid against mitarbeiterid, and produktid; never join using kunden_nr, mitarbeiter_nr, produkt_nr, or any column on kunden_stammdaten or artikel_katalog.
+datasets:
+- name: artikel_katalog
+  source: sales.artikel_katalog
+  description: |
+    artikel_katalog is a table in the sales schema.
+
+    This table is not dependable for analysis. Do not use it, or any of its columns, to answer questions.
+  fields:
+  - name: artikelnummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: artikelnummer
+    description: |
+      artikelnummer, a numeric column on the artikel_katalog table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bezeichnung
+    description: |
+      bezeichnung, a text column on the artikel_katalog table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: verkaufspreis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verkaufspreis
+    description: |
+      verkaufspreis, a numeric column on the artikel_katalog table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: kunden
+  source: sales.kunden
+  description: |
+    The kunden table holds the retailer's customer directory, one row per customer, in the sales schema.
+
+    One row per customer. kundenid is the primary identifier and is the column verkaeufe.kundenid joins to when attributing a sale to its buyer. vorname and nachname, with the optional zweiter_initial, hold the customer's given, middle, and family names.
+    This table also carries kunden_nr, rufname, and familienname, which look like duplicates of kundenid, vorname, and nachname but are not dependable and must not be used. kunden_stammdaten looks like an alternate source of customer data but is not dependable either -- use kunden for every customer question.
+  fields:
+  - name: kundenid
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kundenid
+    description: |
+      kundenid is the unique numeric identifier for a customer, used to link a customer to their sales.
+
+      Integer primary key of kunden, one distinct value per customer. This is the column verkaeufe.kundenid references; do not substitute kunden_nr, which is a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: vorname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: vorname
+    description: |
+      vorname holds a customer's first name.
+
+      Text, one value per customer, for example Kevin, Mallory, Xavier, Linda, or Misty (314 distinct in a 500-row sample). This is the reliable first-name column; rufname on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zweiter_initial
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zweiter_initial
+    description: |
+      zweiter_initial holds a customer's middle initial.
+
+      A single letter, for example R, V, A, C, or S; null for customers without a recorded middle name (191 nulls of 500 sampled). Used together with vorname and nachname to render a customer's full name.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nachname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nachname
+    description: |
+      nachname holds a customer's last name.
+
+      Text surname, for example Butler, Diaz, or Williams (210 distinct in a 500-row sample). This is the reliable last-name column; familienname on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: kunden_nr
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kunden_nr
+    description: |
+      kunden_nr, a numeric column on the kunden table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must not be used to join to other tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: rufname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rufname
+    description: |
+      rufname, a text column on the kunden table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: familienname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: familienname
+    description: |
+      familienname, a text column on the kunden table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_sales_most_common_middle_initial
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(COUNT(zweiter_initial))
+    description: |
+      Most common middle initial: the middle-initial value that appears most frequently, found by counting rows per value and taking the largest count.
+
+      Group kunden by zweiter_initial, count rows per group, and take the group with the largest count -- equivalently, ORDER BY COUNT(*) DESC LIMIT 1. The same pattern applies to mitarbeiter.zweiter_initial when the question is about employees rather than customers. Exclude null middle initials before counting.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most common middle initial"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "When a question asks \"who\" a customer is, or for the customer's name, concatenate kunden.vorname, kunden.zweiter_initial, and kunden.nachname in that order, skipping a null middle initial -- no single stored full-name column exists. Do not substitute kunden.rufname or kunden.familienname, which are separate, unreliable columns on the same table.\n",
+            "id": "term_sales_customer_full_name",
+            "name": "customer name",
+            "summary": "Customer name (name of the customer): a customer full name, combining the vorname, zweiter_initial, and nachname columns of kunden.",
+            "synonyms": [
+              "name of the customer"
+            ]
+          }
+        ]
+      }
+- name: kunden_stammdaten
+  source: sales.kunden_stammdaten
+  description: |
+    kunden_stammdaten is a table in the sales schema.
+
+    This table is not dependable for analysis. Do not use it, or any of its columns, to answer questions.
+  fields:
+  - name: kunden_nummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kunden_nummer
+    description: |
+      kunden_nummer, a numeric column on the kunden_stammdaten table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: rufname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rufname
+    description: |
+      rufname, a text column on the kunden_stammdaten table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: zweiter_buchstabe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zweiter_buchstabe
+    description: |
+      zweiter_buchstabe, a text column on the kunden_stammdaten table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: familienname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: familienname
+    description: |
+      familienname, a text column on the kunden_stammdaten table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: mitarbeiter
+  source: sales.mitarbeiter
+  description: |
+    The mitarbeiter table holds the retailer's employee roster, one row per salesperson, in the sales schema.
+
+    One row per employee. mitarbeiterid is the primary identifier and is the column verkaeufe.verkaeuferid joins to when attributing a sale to the employee who made it. vorname and nachname, with the optional zweiter_initial, hold the employee's given, middle, and family names.
+    This table also carries mitarbeiter_nr, mitarbeiter_rufname, and mitarbeiter_familienname, which look like duplicates of mitarbeiterid, vorname, and nachname but are not dependable and must not be used.
+  fields:
+  - name: mitarbeiterid
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mitarbeiterid
+    description: |
+      mitarbeiterid is the unique numeric identifier for an employee, used to link a salesperson to the sales they made.
+
+      Integer primary key of mitarbeiter; only 22 employees exist in the sample. This is the column verkaeufe.verkaeuferid references; do not substitute mitarbeiter_nr, which is a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: vorname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: vorname
+    description: |
+      vorname holds an employee's first name.
+
+      Text, one value per employee, for example Anne, Abraham, or Michel (22 distinct values). This is the reliable first-name column; mitarbeiter_rufname on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: zweiter_initial
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zweiter_initial
+    description: |
+      zweiter_initial holds an employee's middle initial.
+
+      A single lowercase letter, for example i, e, u, t, or m; recorded for every employee in the sample (11 distinct values).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nachname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nachname
+    description: |
+      nachname holds an employee's last name.
+
+      Text surname, for example Ringer, Bennet, or DeFrance (21 distinct values). This is the reliable last-name column; mitarbeiter_familienname on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: mitarbeiter_nr
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mitarbeiter_nr
+    description: |
+      mitarbeiter_nr, a numeric column on the mitarbeiter table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must not be used to join to other tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: mitarbeiter_rufname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mitarbeiter_rufname
+    description: |
+      mitarbeiter_rufname, a text column on the mitarbeiter table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: mitarbeiter_familienname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mitarbeiter_familienname
+    description: |
+      mitarbeiter_familienname, a text column on the mitarbeiter table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "verkaeufe.verkaeuferid identifies the employee, or \"salesperson\", who made a sale, but no name is stored on verkaeufe. Join to mitarbeiter and concatenate vorname, zweiter_initial, and nachname in that order, skipping a null middle initial. Do not substitute mitarbeiter_rufname or mitarbeiter_familienname, which are separate, unreliable columns on the same table.\n",
+            "id": "term_sales_employee_full_name",
+            "name": "employee name",
+            "summary": "Employee name (name of the sales person, full name of employee): an employee full name, combining the vorname, zweiter_initial, and nachname columns of mitarbeiter.",
+            "synonyms": [
+              "name of the sales person",
+              "full name of employee"
+            ]
+          }
+        ]
+      }
+- name: produkte
+  source: sales.produkte
+  description: |
+    The produkte table is the retailer's product catalog, one row per bicycle or cycling-equipment item, in the sales schema.
+
+    One row per product. produktid is the primary identifier and is the column verkaeufe.produktid joins to when attributing a sale to the product sold. name holds the product's title and preis its unit price; a preis of zero marks a free product or gift, not a data error.
+    This table also carries produkt_nr, bezeichnung, and verkaufspreis, which look like duplicates of produktid, name, and preis but are not dependable and must not be used, including for computing a sale's total value.
+  fields:
+  - name: produktid
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: produktid
+    description: |
+      produktid is the unique numeric identifier for a product, used to link a product to the sales that included it.
+
+      Integer primary key of produkte, one row per product (500 products in the catalog). This is the column verkaeufe.produktid references; do not substitute produkt_nr, which is a separate, unreliable column on this same table.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: name
+    description: |
+      name holds a product's title.
+
+      Text product name, for example 'Road-250 Black, 48', 'Touring Rim', or 'Bearing Ball'; some names encode a colour and frame size, so 'HL Mountain Frame - Black, 42' and 'HL Mountain Frame - Silver, 42' are two variants of one frame. This is the reliable product-name column; bezeichnung on this same table is a separate, unreliable copy and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Determine the best seller by grouping verkaeufe by produktid, joined to produkte.name, and comparing SUM(menge) across the products or name variants in question -- the one with the higher total is the best-selling one, the other is not. \"Best selling colour\" compares two product-name variants that differ only by their colour suffix, for example asking whether the silver or black variant of a frame sold more.\n",
+              "id": "term_sales_best_seller",
+              "name": "best seller",
+              "summary": "Best seller (best-selling, best selling colour): the product, or product colour variant, with the higher total quantity sold.",
+              "synonyms": [
+                "best-selling",
+                "best selling colour"
+              ]
+            },
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "produkte.name often encodes a base model followed by a dash and a colour or size suffix, so one frame or model can appear many times with different variants. Match a whole family with name LIKE 'prefix%', and compare specific variants -- such as two colours of the same frame -- by their total quantity sold to answer \"which type\" or \"best selling colour\" questions.\n",
+              "id": "term_sales_product_name_variant",
+              "name": "product name variant",
+              "summary": "Product name variant (product types): the colour or size suffix a product's name carries after a dash, distinguishing otherwise-identical product lines.",
+              "synonyms": [
+                "product types"
+              ]
+            }
+          ]
+        }
+  - name: preis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: preis
+    description: |
+      preis holds a product's unit price.
+
+      Decimal unit price, for example 0.0, 0.8, 2.4, or 189.6. A preis of 0.0 marks a free product or gift, not missing data. Multiply by verkaeufe.menge to get a sale's line-item value. This is the reliable price column; verkaufspreis on this same table is a separate, unreliable copy and must not be used, including for revenue calculations.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "A product or sale is a \"free gift\" when produkte.preis equals 0; this represents products given away rather than sold, not missing or erroneous data. To find them, filter preis = 0. To exclude them from a pricing or revenue question -- \"excluding free gifts\" -- filter preis <> 0 (or preis > 0).\n",
+              "id": "term_sales_free_product",
+              "name": "free product",
+              "summary": "Free product (free gifts, freebies, gifts): a product or sale line item priced at zero, given away at no charge rather than sold.",
+              "synonyms": [
+                "free gifts",
+                "freebies",
+                "gifts"
+              ]
+            },
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "produkte.preis is a product's unit price, also called \"cost\" in business language. Filters such as \"costs 10 and below\", \"priced from 1000 to 2000\", or \"price greater than 100\" are literal range or threshold filters on this column: preis <= 10, preis BETWEEN 1000 AND 2000, preis > 100. A preis of 0 marks a free product or gift, not missing data. Use preis, not verkaufspreis, which is a separate, unreliable column on produkte.\n",
+              "id": "term_sales_price",
+              "name": "price",
+              "summary": "Price (cost): a product's unit price, held in produkte.preis and used to filter or rank products by how much they cost.",
+              "synonyms": [
+                "price",
+                "cost"
+              ]
+            }
+          ]
+        }
+  - name: verkaufspreis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verkaufspreis
+    description: |
+      verkaufspreis, a numeric column on the produkte table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: produkt_nr
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: produkt_nr
+    description: |
+      produkt_nr, a numeric column on the produkte table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key -- it must not be used to join to other tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bezeichnung
+    description: |
+      bezeichnung, a text column on the produkte table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_sales_highest_price
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(preis)
+    description: |
+      Highest price: the maximum unit price among products, identifying the most expensive product or the top-priced items.
+
+      MAX(preis) over produkte. Also phrased as "most expensive product", or for a ranked list, "top N products by price" using ORDER BY preis DESC LIMIT N. Use preis, not verkaufspreis, which is a separate, unreliable column.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest price"
+        }
+  - name: metric_sales_lowest_price
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(preis)
+    description: |
+      Lowest price: the minimum unit price among products, identifying the least expensive product.
+
+      MIN(preis) over produkte. Also phrased as "least expensive product". A preis of 0 marks a free product or gift rather than an error, so it can legitimately be the minimum. Use preis, not verkaufspreis, which is a separate, unreliable column.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "lowest price"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: verkaeufe
+  source: sales.verkaeufe
+  description: |
+    The verkaeufe table records the retailer's individual sales transactions, one row per line-item sale, in the sales schema.
+
+    One row per sale: it names the customer (kundenid), the employee who made the sale (verkaeuferid), the product sold (produktid), and the quantity (menge). verkaufid is the transaction's own identifier.
+    Multiply menge by produkte.preis to get a sale's total value; do not use produkte.verkaufspreis for that calculation. verkaeuferid joins to mitarbeiter.mitarbeiterid, not to kunden -- the customer and employee identifier spaces are separate even though both are plain integers.
+  fields:
+  - name: verkaufid
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verkaufid
+    description: |
+      verkaufid is the unique numeric identifier for a single sales transaction.
+
+      Integer primary key of verkaeufe, one value per sale row. Used to count or reference individual sales, for example when a question asks for sales with an id in a given range.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: verkaeuferid
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: verkaeuferid
+    description: |
+      verkaeuferid records which employee made a sale.
+
+      Integer, joins to mitarbeiter.mitarbeiterid to identify the salesperson (22 distinct employees in the sample). Despite the resemblance to kundenid, it is not a customer identifier.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: kundenid
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kundenid
+    description: |
+      kundenid records which customer a sale belongs to.
+
+      Integer, joins to kunden.kundenid to identify the buyer (73 distinct customers among 500 sampled sales, so repeat customers are common). Do not confuse with verkaeuferid, which identifies the employee instead.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: produktid
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: produktid
+    description: |
+      produktid records which product was sold in a sale.
+
+      Integer, joins to produkte.produktid to identify the product (71 distinct products among 500 sampled sales). Combine with produkte.preis to compute the sale's value.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: menge
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: menge
+    description: |
+      menge holds the quantity of product units sold in a sale.
+
+      Integer trading quantity, ranging from small orders to bulk sales (sample values from 10 to 983). Multiply by produkte.preis for a sale's total price; also called "units" or "trading quantity" in business language.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "verkaeufe.menge counts the units traded in one sale row, also called \"units\" or \"trading quantity\" in business language. Filters such as \"quantity lower than 25\", \"quantity ranges from 400 to 500\", or \"over 20,000 quantities\" are literal range or threshold filters on this column: menge < 25, menge BETWEEN 400 AND 500, menge > 20000.\n",
+              "id": "term_sales_quantity",
+              "name": "quantity",
+              "summary": "Quantity (units, trading quantity): the number of product units moved in a sale, held in verkaeufe.menge.",
+              "synonyms": [
+                "units",
+                "trading quantity"
+              ]
+            }
+          ]
+        }
+  metrics:
+  - name: metric_sales_average_quantity
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(menge)
+    description: |
+      Average quantity: the mean quantity sold per sale, used as a boundary for identifying below- or above-average orders.
+
+      Computed as AVG(menge) over the sales in question. "Below the average quantity" means menge is less than this value, and "above the average quantity" means greater than it; express this as a comparison against a subquery computing AVG(menge), not as a literal number.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average quantity"
+        }
+  - name: metric_sales_total_quantity_sold
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUM(menge)
+    description: |
+      Total quantity sold: the summed number of units moved across sales, optionally grouped by product, customer, or employee to find who moved the most.
+
+      SUM(menge) over verkaeufe, ungrouped for an overall total or grouped by produktid, kundenid, or verkaeuferid to answer "purchased the most" or "highest total amount of quantity" questions -- those mean the group with MAX(SUM(menge)) after grouping, not a single row's menge. A plain "highest quantity" with no grouping mentioned instead means MAX(menge) on individual sale rows.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "total quantity sold"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_sales_kunden_verkaeufe_63cf7b3f
+  from: verkaeufe
+  to: kunden
+  from_columns:
+  - kundenid
+  to_columns:
+  - kundenid
+  ai_context:
+    instructions: |
+      Joins kunden to verkaeufe on kundenid, attributing each sale to the customer who bought it.
+
+      kunden.kundenid is the customer's primary key; verkaeufe.kundenid records which customer made each sale. One customer can appear in many sales rows (73 distinct customers among 500 sampled sales), so join kunden to verkaeufe as one-to-many. Do not join using kunden_nr, which is a separate, unreliable column.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between kunden and verkaeufe in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_sales_mitarbeiter_verkaeufe_9facc4cb
+  from: verkaeufe
+  to: mitarbeiter
+  from_columns:
+  - verkaeuferid
+  to_columns:
+  - mitarbeiterid
+  ai_context:
+    instructions: |
+      Joins mitarbeiter to verkaeufe on mitarbeiterid equals verkaeuferid, attributing each sale to the employee who made it.
+
+      mitarbeiter.mitarbeiterid is the employee's primary key; verkaeufe.verkaeuferid records which employee made each sale, despite the two columns having different names. One employee can appear in many sales rows (22 employees across 500 sampled sales). Do not join using mitarbeiter_nr, which is a separate, unreliable column.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between mitarbeiter and verkaeufe in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_sales_produkte_verkaeufe_f4a22a8b
+  from: verkaeufe
+  to: produkte
+  from_columns:
+  - produktid
+  to_columns:
+  - produktid
+  ai_context:
+    instructions: |
+      Joins produkte to verkaeufe on produktid, attributing each sale to the product that was sold.
+
+      produkte.produktid is the product's primary key; verkaeufe.produktid records which product was included in each sale. One product can appear in many sales rows (71 distinct products among 500 sampled sales). Multiply verkaeufe.menge by produkte.preis to get a sale's value; do not join using produkt_nr, which is a separate, unreliable column.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between produkte and verkaeufe in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+metrics:
+- name: metric_sales_total_sales_value
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(menge * preis)
+  description: |
+    Total sales value: the summed monetary value of sales, computed as quantity times unit price across sale rows.
+
+    Computed by multiplying each sale's menge (quantity) by its product's preis (unit price, joined from produkte) and summing across the sales in question -- verkaeufe has no stored total-price column. Also phrased as "total price", "total cost", "total amount of sales", or "overall total price" in business language. Use produkte.preis, not produkte.verkaufspreis, in the multiplication.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "sales.verkaeufe",
+        "name": "total sales value"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_5363",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0000",
+          "sql": "SELECT COUNT(\"verkaufid\") FROM \"sales\".\"verkaeufe\" WHERE \"kundenid\" = 80",
+          "summary": "How many sales ids are there for customer id 80?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5364",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0001",
+          "sql": "SELECT SUM(\"menge\") FROM \"sales\".\"verkaeufe\" WHERE \"verkaufid\" BETWEEN 1 AND 10",
+          "summary": "Count the total quantity for sales from id 1 to 10."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5365",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0002",
+          "sql": "SELECT AVG(\"menge\") FROM \"sales\".\"verkaeufe\" WHERE \"verkaufid\" BETWEEN 20 AND 30",
+          "summary": "Calculate the average quantity per sales from sales id 20 to 30."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5366",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0003",
+          "sql": "SELECT DISTINCT \"produktid\" FROM \"sales\".\"verkaeufe\" WHERE \"menge\" = (SELECT MAX(\"menge\") FROM \"sales\".\"verkaeufe\")",
+          "summary": "List down the product id for products with the highest quantity."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5368",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0004",
+          "sql": "SELECT \"name\" FROM \"sales\".\"produkte\" WHERE \"preis\" = 0",
+          "summary": "List down product names of free gifts."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5369",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0005",
+          "sql": "SELECT \"name\" FROM \"sales\".\"produkte\" WHERE \"produktid\" BETWEEN 1 AND 10",
+          "summary": "List down the product name for products from id 1 to 10."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5372",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0006",
+          "sql": "SELECT COUNT(\"T1\".\"verkaufid\") FROM \"sales\".\"verkaeufe\" AS \"T1\" INNER JOIN \"sales\".\"produkte\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T2\".\"name\" = 'Flat Washer 8'",
+          "summary": "Calculate the total sales ids that were sales of Flat Washer 8."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5374",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0007",
+          "sql": "SELECT \"T1\".\"vorname\" FROM \"sales\".\"kunden\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"kundenid\" = \"T2\".\"kundenid\" INNER JOIN \"sales\".\"produkte\" AS \"T3\" ON \"T2\".\"produktid\" = \"T3\".\"produktid\" WHERE \"T2\".\"produktid\" = 1",
+          "summary": "List down the first name of customers who placed order for product id 1."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5376",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0008",
+          "sql": "SELECT DISTINCT \"T1\".\"produktid\" FROM \"sales\".\"verkaeufe\" AS \"T1\" INNER JOIN \"sales\".\"kunden\" AS \"T2\" ON \"T1\".\"kundenid\" = \"T2\".\"kundenid\" WHERE \"T2\".\"vorname\" = 'Abby'",
+          "summary": "List down product ids that were purchased by customers called Abby."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5377",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0009",
+          "sql": "SELECT DISTINCT \"T2\".\"produktid\" FROM \"sales\".\"mitarbeiter\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"mitarbeiterid\" = \"T2\".\"verkaeuferid\" WHERE \"T1\".\"vorname\" = 'Meander'",
+          "summary": "Write down all of the product ids that were placed by Meander."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5378",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0010",
+          "sql": "SELECT \"T1\".\"nachname\" FROM \"sales\".\"mitarbeiter\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"mitarbeiterid\" = \"T2\".\"verkaeuferid\" WHERE \"T2\".\"verkaufid\" = 100",
+          "summary": "What is the last name of sales person for sales id 100?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5379",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0011",
+          "sql": "SELECT DISTINCT \"T3\".\"vorname\" FROM \"sales\".\"kunden\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"kundenid\" = \"T2\".\"kundenid\" INNER JOIN \"sales\".\"mitarbeiter\" AS \"T3\" ON \"T2\".\"verkaeuferid\" = \"T3\".\"mitarbeiterid\" WHERE \"T1\".\"vorname\" = 'Abigail'",
+          "summary": "What is the first name of employee who handled sales for customer called Abigail?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5383",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0012",
+          "sql": "SELECT \"T1\".\"preis\" FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T2\".\"kundenid\" BETWEEN 1 AND 100 ORDER BY \"T1\".\"preis\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among customers with IDs from 1 to 100, what is the highest price of products they purchased?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5385",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0013",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"vorname\" = 'Morningstar' THEN 1 ELSE 0 END) + SUM(CASE WHEN \"T2\".\"vorname\" = 'Heather' THEN 1 ELSE 0 END) + SUM(CASE WHEN \"T2\".\"vorname\" = 'Dean' THEN 1 ELSE 0 END) AS \"num\" FROM \"sales\".\"verkaeufe\" AS \"T1\" INNER JOIN \"sales\".\"mitarbeiter\" AS \"T2\" ON \"T1\".\"verkaeuferid\" = \"T2\".\"mitarbeiterid\"",
+          "summary": "Sum up the number sales ids handled by employees called Morningstar, Heather and Dean."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5391",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0014",
+          "sql": "SELECT \"produktid\" FROM \"sales\".\"produkte\" ORDER BY \"preis\" DESC NULLS LAST LIMIT 5",
+          "summary": "List the product ID of the top five products, by descending order, in terms of price."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5392",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0015",
+          "sql": "SELECT COUNT(\"produktid\") FROM \"sales\".\"produkte\" WHERE \"preis\" = 0",
+          "summary": "Among the products, how many of them are freebies?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5393",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0016",
+          "sql": "SELECT DISTINCT \"T1\".\"name\" FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T2\".\"menge\" > 950",
+          "summary": "Write down the name of products whose sale quantity is more than 950."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5394",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0017",
+          "sql": "SELECT DISTINCT \"T2\".\"vorname\", \"T2\".\"zweiter_initial\", \"T2\".\"nachname\" FROM \"sales\".\"verkaeufe\" AS \"T1\" INNER JOIN \"sales\".\"mitarbeiter\" AS \"T2\" ON \"T1\".\"verkaeuferid\" = \"T2\".\"mitarbeiterid\" WHERE \"T1\".\"menge\" = 1000",
+          "summary": "What is the full name of employee who sold 1000 units?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5395",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0018",
+          "sql": "SELECT \"T3\".\"name\", \"T2\".\"menge\" FROM \"sales\".\"kunden\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"kundenid\" = \"T2\".\"kundenid\" INNER JOIN \"sales\".\"produkte\" AS \"T3\" ON \"T2\".\"produktid\" = \"T3\".\"produktid\" WHERE \"T2\".\"verkaufid\" BETWEEN 1 AND 10",
+          "summary": "Tally the product name and quantity of the first ten sales."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5397",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0019",
+          "sql": "SELECT CASE WHEN SUM(CASE WHEN \"T1\".\"name\" = 'HL Mountain Frame - Silver, 42' THEN \"T2\".\"verkaufid\" ELSE 0 END) - SUM(CASE WHEN \"T1\".\"name\" = 'HL Mountain Frame - Black, 42' THEN \"T2\".\"verkaufid\" ELSE 0 END) > 0 THEN 'Silver' ELSE 'Black' END FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\"",
+          "summary": "What is the best selling colour for HL Mountain Frame, 42?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5399",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0020",
+          "sql": "SELECT COUNT(\"T1\".\"verkaufid\") FROM \"sales\".\"verkaeufe\" AS \"T1\" INNER JOIN \"sales\".\"mitarbeiter\" AS \"T2\" ON \"T1\".\"verkaeuferid\" = \"T2\".\"mitarbeiterid\" WHERE \"T2\".\"vorname\" = 'Michel' AND \"T2\".\"zweiter_initial\" = 'e' AND \"T2\".\"nachname\" = 'DeFrance'",
+          "summary": "Calculate the total number of sales closed by Michel E. DeFrance?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5402",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0021",
+          "sql": "SELECT DISTINCT \"T3\".\"vorname\", \"T3\".\"zweiter_initial\", \"T3\".\"nachname\" FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" INNER JOIN \"sales\".\"mitarbeiter\" AS \"T3\" ON \"T2\".\"verkaeuferid\" = \"T3\".\"mitarbeiterid\" INNER JOIN \"sales\".\"kunden\" AS \"T4\" ON \"T2\".\"kundenid\" = \"T4\".\"kundenid\" WHERE \"T4\".\"zweiter_initial\" = 'A' AND \"T4\".\"nachname\" = 'White' AND \"T1\".\"name\" = 'Road-250 Black, 48' AND \"T4\".\"vorname\" = 'Elizabeth'",
+          "summary": "Name the sales person who helped Elizabeth A. White to purchase Road-250 Black, 48."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5406",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0022",
+          "sql": "SELECT DISTINCT \"T1\".\"vorname\", \"T1\".\"zweiter_initial\", \"T1\".\"nachname\" FROM \"sales\".\"kunden\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"kundenid\" = \"T2\".\"kundenid\" INNER JOIN \"sales\".\"produkte\" AS \"T3\" ON \"T2\".\"produktid\" = \"T3\".\"produktid\" WHERE \"T3\".\"name\" = 'Touring Rim' AND \"T3\".\"preis\" = 0",
+          "summary": "Name the customers who received 'Touring Rim' as a free gift."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5407",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0023",
+          "sql": "SELECT COUNT(\"kundenid\") FROM \"sales\".\"verkaeufe\" GROUP BY \"verkaeuferid\"",
+          "summary": "Find the number of customers handled by each of the sales people."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5408",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0024",
+          "sql": "SELECT COUNT(\"mitarbeiterid\") FROM \"sales\".\"mitarbeiter\"",
+          "summary": "How many sales people are handling all the customers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5409",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0025",
+          "sql": "SELECT \"vorname\", \"zweiter_initial\", \"nachname\" FROM \"sales\".\"mitarbeiter\" WHERE \"mitarbeiterid\" = 7",
+          "summary": "Identify the name of the sales person with employee ID 7."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5410",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0026",
+          "sql": "SELECT \"name\" FROM \"sales\".\"produkte\" WHERE \"preis\" IN ((SELECT MAX(\"preis\") FROM \"sales\".\"produkte\"), (SELECT MIN(\"preis\") FROM \"sales\".\"produkte\"))",
+          "summary": "Name the most expensive and the least expensive products available, excluding free gifts."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5411",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0027",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T3\".\"vorname\" = 'Albert' AND \"T3\".\"zweiter_initial\" = 'I' AND \"T3\".\"nachname\" = 'Ringer' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"kundenid\"), 0) FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" INNER JOIN \"sales\".\"mitarbeiter\" AS \"T3\" ON \"T2\".\"verkaeuferid\" = \"T3\".\"mitarbeiterid\" WHERE \"T1\".\"name\" = 'ML Bottom Bracket'",
+          "summary": "Among all the customers who have purchased ML Bottom Bracket, identify the percentage of sales by Albert I. Ringer?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5412",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0028",
+          "sql": "SELECT COUNT(\"kundenid\") FROM \"sales\".\"kunden\" WHERE \"vorname\" = 'Abigail'",
+          "summary": "How many customers have the first name Abigail?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5417",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0029",
+          "sql": "SELECT DISTINCT \"T1\".\"vorname\" FROM \"sales\".\"mitarbeiter\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"mitarbeiterid\" = \"T2\".\"verkaeuferid\" WHERE \"T2\".\"menge\" > 500",
+          "summary": "List the first names of employees with trading quantity for more than 500."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5418",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0030",
+          "sql": "SELECT \"T1\".\"vorname\" FROM \"sales\".\"kunden\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"kundenid\" = \"T2\".\"kundenid\" WHERE \"T2\".\"verkaeuferid\" = 1",
+          "summary": "List the first names of customers who have purchased products from sale person id 1."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5419",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0031",
+          "sql": "SELECT SUM(\"T2\".\"menge\") FROM \"sales\".\"kunden\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"kundenid\" = \"T2\".\"kundenid\" INNER JOIN \"sales\".\"mitarbeiter\" AS \"T3\" ON \"T2\".\"verkaeuferid\" = \"T3\".\"mitarbeiterid\" WHERE \"T2\".\"verkaeuferid\" = 1 AND \"T1\".\"vorname\" = 'Aaron' AND \"T1\".\"nachname\" = 'Alexander' AND \"T3\".\"vorname\" = 'Abraham'",
+          "summary": "Calculate the total trading quantity of Abraham sold to Aaron Alexander."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5422",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0032",
+          "sql": "SELECT \"T2\".\"verkaufid\" FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T1\".\"name\" LIKE 'Hex Nut%' AND \"T1\".\"preis\" > 100",
+          "summary": "Please provide sales ID for products named Hex Nut with a price greater than 100."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5423",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0033",
+          "sql": "SELECT DISTINCT \"T2\".\"kundenid\" FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T1\".\"preis\" BETWEEN 1000 AND 2000",
+          "summary": "Identify customer IDs who bought products priced from 1000 to 2000."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5424",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0034",
+          "sql": "SELECT SUM(\"T2\".\"menge\") FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T1\".\"preis\" = 0",
+          "summary": "Calculate the total quantity of products that are gifts."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5426",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0035",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"name\" = 'Blade' THEN \"T2\".\"menge\" ELSE 0 END) AS REAL) * 100 / NULLIF(SUM(\"T2\".\"menge\"), 0) FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\"",
+          "summary": "Calculate the percentage of sold blades in the total number of transactions."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5427",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0036",
+          "sql": "SELECT COUNT(\"nachname\") FROM \"sales\".\"mitarbeiter\" WHERE \"nachname\" = 'Ringer'",
+          "summary": "How many of the employees have the last name \"Ringer\" ?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5428",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0037",
+          "sql": "SELECT COUNT(\"produktid\") FROM \"sales\".\"produkte\" WHERE \"produktid\" < 15 AND \"preis\" <= 10",
+          "summary": "Among the products with product ID lower than 15, how many of them costs 10 and below?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5429",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0038",
+          "sql": "SELECT DISTINCT \"T1\".\"name\" FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" INNER JOIN \"sales\".\"kunden\" AS \"T3\" ON \"T2\".\"kundenid\" = \"T3\".\"kundenid\" WHERE \"T3\".\"vorname\" = 'Aaron' AND \"T3\".\"nachname\" = 'Alexander'",
+          "summary": "Give the product's name brought by Aaron Alexander."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5430",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0039",
+          "sql": "SELECT \"T1\".\"produktid\", \"T1\".\"name\" FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T2\".\"menge\" BETWEEN 400 AND 500 ORDER BY \"T1\".\"preis\" DESC NULLS LAST LIMIT 1",
+          "summary": "Give the product ID and name of the product with the highest prices among the quantity ranges from 400 to 500."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5432",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0040",
+          "sql": "SELECT \"T2\".\"kundenid\", \"T2\".\"verkaufid\" FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T1\".\"preis\" BETWEEN 100 AND 150 AND \"T2\".\"menge\" < 25",
+          "summary": "Among the products that have price ranges from 100 to 150, what is the customer ID and sales ID of the product with a quantity lower than 25?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5434",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0041",
+          "sql": "SELECT COUNT(\"T1\".\"produktid\") FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T2\".\"menge\" = 60 AND \"T1\".\"preis\" <= 500",
+          "summary": "In sales with a quantity of 60, how many of them have a price not greater than 500?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5437",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0042",
+          "sql": "SELECT DISTINCT \"T2\".\"preis\", \"T1\".\"menge\" FROM \"sales\".\"verkaeufe\" AS \"T1\" INNER JOIN \"sales\".\"produkte\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T2\".\"name\" = 'Seat Tube'",
+          "summary": "What is the price and quantity of the product named Seat Tube?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5440",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0043",
+          "sql": "SELECT \"T2\".\"vorname\", \"T2\".\"nachname\" FROM \"sales\".\"verkaeufe\" AS \"T1\" INNER JOIN \"sales\".\"kunden\" AS \"T2\" ON \"T1\".\"kundenid\" = \"T2\".\"kundenid\" WHERE \"T1\".\"menge\" = 403 AND \"T1\".\"verkaufid\" BETWEEN 30 AND 40",
+          "summary": "In sales ID between 30 and 40, who is the customer that bought a total quantity of 403?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5443",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0044",
+          "sql": "SELECT \"name\" FROM \"sales\".\"produkte\" WHERE \"preis\" = (SELECT MAX(\"preis\") FROM \"sales\".\"produkte\")",
+          "summary": "What is the name of the most expensive product?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5444",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0045",
+          "sql": "SELECT COUNT(\"kundenid\") FROM \"sales\".\"kunden\" WHERE \"vorname\" = 'Madison'",
+          "summary": "How many customers are named Madison?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5445",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0046",
+          "sql": "SELECT COUNT(\"produktid\") FROM \"sales\".\"produkte\" WHERE \"name\" LIKE '%HL Touring Frame%'",
+          "summary": "How many types of \"HL Touring Frames\" are there?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5452",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0047",
+          "sql": "SELECT SUM(\"T2\".\"menge\") FROM \"sales\".\"mitarbeiter\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"mitarbeiterid\" = \"T2\".\"verkaeuferid\" INNER JOIN \"sales\".\"produkte\" AS \"T3\" ON \"T2\".\"produktid\" = \"T3\".\"produktid\" WHERE \"T1\".\"vorname\" = 'Stearns' AND \"T1\".\"nachname\" = 'MacFeather' AND \"T3\".\"name\" = 'Mountain-100 Silver, 38'",
+          "summary": "How many \"Mountain-100 Silver, 38\" were sold by Stearns MacFeather?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5455",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0048",
+          "sql": "SELECT \"T1\".\"name\" FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T1\".\"name\" LIKE 'Mountain-500 Black%' GROUP BY \"T2\".\"menge\", \"T1\".\"name\" ORDER BY SUM(\"T2\".\"menge\") DESC NULLS LAST LIMIT 1",
+          "summary": "Among the \"Mountain-500 Black\" product types, which type was purchased the most?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5456",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0049",
+          "sql": "SELECT COUNT(\"T2\".\"verkaeuferid\") FROM \"sales\".\"produkte\" AS \"T1\" INNER JOIN \"sales\".\"verkaeufe\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T1\".\"name\" = 'ML Road Frame-W - Yellow, 40'",
+          "summary": "How many employees sold \"ML Road Frame-W - Yellow, 40\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5458",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0050",
+          "sql": "SELECT COUNT(*) FROM (SELECT SUM(\"menge\") FROM \"sales\".\"verkaeufe\" WHERE \"produktid\" IN (SELECT \"produktid\" FROM \"sales\".\"produkte\" WHERE \"name\" = 'Touring-2000 Blue, 50') GROUP BY \"menge\", \"verkaeuferid\" HAVING SUM(\"menge\") > 20000)",
+          "summary": "How many employees sold over 20,000 quantities of \"Touring-2000 Blue, 50\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5462",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0051",
+          "sql": "SELECT \"zweiter_initial\" FROM \"sales\".\"mitarbeiter\" GROUP BY \"zweiter_initial\" ORDER BY COUNT(\"zweiter_initial\") DESC NULLS LAST LIMIT 1",
+          "summary": "Among the employee names, what is the most common middle initial?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_5469",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_sales_0052",
+          "sql": "SELECT DISTINCT \"T2\".\"name\" FROM \"sales\".\"verkaeufe\" AS \"T1\" INNER JOIN \"sales\".\"produkte\" AS \"T2\" ON \"T1\".\"produktid\" = \"T2\".\"produktid\" WHERE \"T1\".\"menge\" < (SELECT AVG(\"menge\") FROM \"sales\".\"verkaeufe\")",
+          "summary": "Find and list the products that sold below the average quantity."
+        }
+      ]
+    }

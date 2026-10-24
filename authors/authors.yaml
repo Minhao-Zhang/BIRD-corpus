@@ -1,33 +1,2410 @@
-asset_type: schema
-id: authors
+version: 0.2.0.dev0
 name: authors
-summary: >-
-  The authors database records research papers, the authors and affiliations credited on each,
-  and the conference or journal that published them, for questions about authorship,
-  co-authorship, topics, and publication year or venue.
-body: >
-  Five tables carry the real data: Author (one row per author: name, affiliation), Conference
-  and Journal (one row each per publication venue: abbreviated and full name, homepage), Paper
-  (one row per paper: title, year, keyword topics, and a ConferenceId/JournalId pointing at its
-  venue), and PaperAuthor (one row per paper-author credit, bridging Paper and Author, with the
-  author's name and affiliation exactly as printed on that paper — which can differ from the
-  Author table's own values for the same person). A paper with Year = 0 and both ConferenceId
-  = 0 and JournalId = 0 is a preprint that was never formally published; a nonzero ConferenceId
-  or JournalId marks which kind of venue it appeared in, never both. periodical and
-  symposium_series look like Journal- and Conference-adjacent tables but are not dependable for
-  analysis; every column on both is unreliable.
-rules:
-- Answer authors questions from Author, Conference, Journal, Paper, and PaperAuthor only. Never
-  select, filter, or join on a column from periodical or symposium_series — every column in
-  those two tables is unreliable for analysis.
-- Join Paper to Conference on ConferenceId and to Journal on JournalId; a paper with both equal
-  to 0 is a preprint, not published at either venue.
-- Never join on author_identifier, conference_identifier, or journal_identifier — use Author.Id,
-  Conference.Id, and Journal.Id instead.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  The authors database records research papers, the authors and affiliations credited on each, and the conference or journal that published them, for questions about authorship, co-authorship, topics, and publication year or venue.
+
+  Five tables carry the real data: Author (one row per author: name, affiliation), Conference and Journal (one row each per publication venue: abbreviated and full name, homepage), Paper (one row per paper: title, year, keyword topics, and a ConferenceId/JournalId pointing at its venue), and PaperAuthor (one row per paper-author credit, bridging Paper and Author, with the author's name and affiliation exactly as printed on that paper — which can differ from the Author table's own values for the same person). A paper with Year = 0 and both ConferenceId = 0 and JournalId = 0 is a preprint that was never formally published; a nonzero ConferenceId or JournalId marks which kind of venue it appeared in, never both. periodical and symposium_series look like Journal- and Conference-adjacent tables but are not dependable for analysis; every column on both is unreliable.
+ai_context:
+  instructions: |-
+    Answer authors questions from Author, Conference, Journal, Paper, and PaperAuthor only. Never select, filter, or join on a column from periodical or symposium_series — every column in those two tables is unreliable for analysis.
+    Join Paper to Conference on ConferenceId and to Journal on JournalId; a paper with both equal to 0 is a preprint, not published at either venue.
+    Never join on author_identifier, conference_identifier, or journal_identifier — use Author.Id, Conference.Id, and Journal.Id instead.
+datasets:
+- name: Author
+  source: authors.Author
+  description: |
+    Author holds one row per person credited as a paper author, with a canonical name and affiliation.
+
+    Grain: one row per author, keyed by Id. Records a person's canonical name and the organization they are affiliated with, independent of any single paper. Distinct from PaperAuthor, which has one row per (paper, author) credit and carries the name and affiliation exactly as printed on that paper — those can differ in spelling or currency from this table's own Name and Affiliation for the same person. Join to PaperAuthor on Id = AuthorId (one author maps to many paper credits) to reach every paper an author wrote, then to Paper for the paper's own facts. author_identifier, institution_affiliation, and full_name sit on this table but are not dependable for analysis.
+  fields:
+  - name: Id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Id
+    description: |
+      The unique identifier for an author, Id.
+
+      Numeric primary key of Author; unique per row in the loaded sample (500 distinct ids, ranging into the high hundred-thousands and not contiguous). Join to PaperAuthor.AuthorId to find every paper credited to this author.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: Name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Name
+    description: |
+      An author's personal name, Name.
+
+      Free-text name as this table canonically records the person, for example J. Baba, H. Beke, S. Botcherby, N. Woo, or C. Im (16 of 500 sampled rows are null). Contrast with PaperAuthor.Name, which records the name exactly as printed on one paper and may differ in form for the same person.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: Affiliation
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Affiliation
+    description: |
+      The organization an author is affiliated with, Affiliation.
+
+      Free-text organization name, for example University of Oxford, Microsoft, Sapient Corporation, or Arizona State University; blank or null when the author has no recorded affiliation (475 of 500 sampled rows). Contrast with PaperAuthor.Affiliation, which records the affiliation exactly as printed on one specific paper and can differ from this table's value for the same person.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "\"With affiliation\" means Author.Affiliation IS NOT NULL; \"without affiliation\" and \"unaffiliated\" mean it IS NULL. The same distinction applies to PaperAuthor.Affiliation for the affiliation printed on one specific paper, which can be null there even when Author.Affiliation for the same person is not, or vice versa.\n",
+              "id": "term_authors_affiliation_status",
+              "name": "affiliation status",
+              "summary": "affiliation status (with affiliation, without affiliation, unaffiliated): whether an author's Affiliation value is present or null.",
+              "synonyms": [
+                "with affiliation",
+                "without affiliation",
+                "unaffiliated"
+              ]
+            }
+          ]
+        }
+  - name: author_identifier
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: author_identifier
+    description: |
+      author_identifier, a numeric column on the Author table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: institution_affiliation
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: institution_affiliation
+    description: |
+      institution_affiliation, a text column on the Author table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: full_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: full_name
+    description: |
+      full_name, a text column on the Author table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: Conference
+  source: authors.Conference
+  description: |
+    Conference holds one row per academic conference, with its abbreviated and full name plus a homepage.
+
+    Grain: one row per conference, keyed by Id. ShortName carries a conventional abbreviation (for example IDA, CSL, or FSE) and FullName the spelled-out title; either can be blank when a conference has no recorded short form. Join to Paper on Id = ConferenceId (one conference to many papers) to reach every paper published there; a Paper row with ConferenceId = 0 was not published at a conference. conference_identifier, long_name, and website_url sit on this table but are not dependable for analysis.
+  fields:
+  - name: Id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Id
+    description: |
+      The unique identifier for a conference, Id.
+
+      Numeric primary key of Conference (sample ids range roughly from the tens to the thousands, not contiguous). Join to Paper.ConferenceId to find every paper published at this conference; Paper.ConferenceId = 0 means the paper is not a conference paper.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ShortName
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ShortName
+    description: |
+      The abbreviated name of a conference, ShortName.
+
+      Short-form label such as IDA, CSL, FSE, or FCCM; blank for conferences with no recorded abbreviation. Use FullName instead when a question names the conference in full.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: FullName
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: FullName
+    description: |
+      The full spelled-out name of a conference, FullName.
+
+      Full conference title, for example Intelligent Data Analysis, Computer Science Logic, Fast Software Encryption, or International Conference on Database Theory. Business language calls this the conference's name; match it exactly, or with a LIKE prefix or substring pattern such as 'International Conference on Artificial Intelligence%' or '%computing%' when a question quotes only part of the title.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: HomePage
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: HomePage
+    description: |
+      The homepage URL of a conference, HomePage.
+
+      A web address, for example http://www.ida2011.org or http://fse2011.mat.dtu.dk/; blank when none is recorded.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: conference_identifier
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: conference_identifier
+    description: |
+      conference_identifier, a numeric column on the Conference table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: long_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: long_name
+    description: |
+      long_name, a text column on the Conference table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: website_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: website_url
+    description: |
+      website_url, a text column on the Conference table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: Journal
+  source: authors.Journal
+  description: |
+    Journal holds one row per academic journal, with its abbreviated and full name plus a homepage.
+
+    Grain: one row per journal, keyed by Id. ShortName carries a conventional abbreviation (for example ZOOL SCI or J CHEM PHYS) and FullName the spelled-out title; either can be blank when a journal has no recorded short form. Join to Paper on Id = JournalId (one journal to many papers) to reach every paper published in it; a Paper row with JournalId = 0 was not published in a journal. journal_identifier, journal_name_full, and homepage_url sit on this table but are not dependable for analysis.
+  fields:
+  - name: Id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Id
+    description: |
+      The unique identifier for a journal, Id.
+
+      Numeric primary key of Journal (sample ids range roughly from single digits to the tens of thousands, not contiguous). Join to Paper.JournalId to find every paper published in this journal.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ShortName
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ShortName
+    description: |
+      The abbreviated name of a journal, ShortName.
+
+      Short-form label such as ZOOL SCI, ACTA MICROSC, J CHEM PHYS, or ADVAN THER; blank for journals with no recorded abbreviation. Use FullName instead when a question names the journal in full.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: FullName
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: FullName
+    description: |
+      The full spelled-out name of a journal, FullName.
+
+      Full journal title, for example Zootaxa, ACM Sigbed Review, Robotersysteme, or Neoplasia. Business language calls this the journal's name; match it exactly, or with a LIKE substring pattern such as '%computing%', when a question quotes only part of the title.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: HomePage
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: HomePage
+    description: |
+      The homepage URL of a journal, HomePage.
+
+      A web address, for example http://portal.acm.org/sigweb/newsletter or http://www.iop.org/Journals/PM; blank when none is recorded.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: journal_identifier
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: journal_identifier
+    description: |
+      journal_identifier, a numeric column on the Journal table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: journal_name_full
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: journal_name_full
+    description: |
+      journal_name_full, a text column on the Journal table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: homepage_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: homepage_url
+    description: |
+      homepage_url, a text column on the Journal table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: Paper
+  source: authors.Paper
+  description: |
+    Paper holds one row per research paper, with its title, publication year, keyword topics, and the conference or journal it appeared in.
+
+    Grain: one row per paper, keyed by Id. A paper is a preprint that was never formally published when Year = 0 and, correspondingly, both ConferenceId = 0 and JournalId = 0; a nonzero ConferenceId marks a conference paper and a nonzero JournalId a journal article, and a paper carries at most one of the two. Join to Conference on ConferenceId = Id and to Journal on JournalId = Id to reach the publication venue, and to PaperAuthor on Id = PaperId (one paper to many rows) to reach every credited author. Easily confused with PaperAuthor, which is the paper-author bridge, not the paper's own record.
+  fields:
+  - name: Id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Id
+    description: |
+      The unique identifier for a paper, Id.
+
+      Numeric primary key of Paper; the sample runs low and dense (1, 2, 3, ...), unlike the larger, non-contiguous ids used elsewhere in this schema. Join to PaperAuthor.PaperId to find every author credited on this paper.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: Title
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Title
+    description: |
+      The title of a paper, Title.
+
+      Free-text title, for example "FIBER: A Generalized Framework for Auto-tuning Software" or "Stitching videos streamed by mobile phones in real-time" (41 of 500 sampled rows are null). Business language calls this the paper's name; match it exactly when a question quotes the full title.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: Year
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Year
+    description: |
+      The year a paper was published, Year.
+
+      Four-digit year, for example 2009, 2007, or 1963; 0 marks a paper that is a preprint or was never published (commonly phrased "preprinted", "not published", or excluded by filtering Year != 0). Range filters are common, for example Year BETWEEN 2008 AND 2011 for "published from 2008 to 2011".
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "A Paper row is a preprint when Year = 0 and, at the same time, ConferenceId = 0 and JournalId = 0 — the three conditions hold together, since ConferenceId = 0 combined with a nonzero JournalId just marks a journal-published paper, not a preprint. Business phrasings seen in practice include \"preprinted but not published\", \"preprinted or not published\", and the positive filter Year != 0 for papers that were formally published somewhere.\n",
+              "id": "term_authors_preprint",
+              "name": "preprint",
+              "summary": "preprint (also called unpublished, not published, or preprinted): a paper with no venue and no publication year recorded.",
+              "synonyms": [
+                "preprint",
+                "unpublished",
+                "not published",
+                "preprinted"
+              ]
+            }
+          ]
+        }
+  - name: ConferenceId
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ConferenceId
+    description: |
+      The conference a paper was published at, ConferenceId.
+
+      Foreign key to Conference.Id; 0 means the paper was not published at a conference. Combined with JournalId = 0, ConferenceId = 0 marks a preprint or otherwise unpublished paper.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: JournalId
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: JournalId
+    description: |
+      The journal a paper was published in, JournalId.
+
+      Foreign key to Journal.Id; 0 means the paper was not published in a journal, and some gold queries additionally exclude -1 as a defensive "valid journal id" check even though the loaded sample's minimum value is 0. Combined with ConferenceId = 0, JournalId = 0 marks a preprint or otherwise unpublished paper; ConferenceId != 0 with JournalId = 0 marks a conference paper that was never also journal-published.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Some gold queries filter to JournalId != 0 AND JournalId != -1 before treating a paper as journal-published, even though the loaded sample's minimum JournalId is 0 and no row carries -1. Reproduce both conditions rather than only excluding 0, so the query matches the intended boundary exactly.\n",
+              "id": "term_authors_valid_journal_id",
+              "name": "valid journal id",
+              "summary": "valid journal id: a JournalId that is neither 0, meaning no journal, nor the defensively excluded value negative one.",
+              "synonyms": [
+                "valid journal id"
+              ]
+            }
+          ]
+        }
+  - name: Keyword
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Keyword
+    description: |
+      The keyword or topic tags of a paper, Keyword.
+
+      Free-text list of topical phrases, for example "mobile video capturing|real-time|video stitching" or "Nonlocal diffusion; Convection-diffusion; Asymptotic behaviour", delimited inconsistently by pipes or semicolons (392 of 500 sampled rows are null). Business language calls this the paper's topic or subject; similar keyword values represent similar research fields.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  metrics:
+  - name: metric_authors_paper_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(Id)
+    description: |
+      paper count: the total number of papers, counted from Paper.Id.
+
+      COUNT(Id) over Paper, optionally after filtering or joining, gives the total number of papers in scope — for example COUNT(Id) with a Year filter for papers published in a given year, or COUNT(Paper.Id) after joining to Conference or Journal for papers at one venue. An average number of papers divides this count by the number of distinct group values, such as DIVIDE(COUNT(Paper.Id), COUNT(DISTINCT AuthorId)) after joining Paper to PaperAuthor.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "paper count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: PaperAuthor
+  source: authors.PaperAuthor
+  description: |
+    PaperAuthor holds one row per author credited on a paper, linking Paper to Author.
+
+    Grain: one row per (paper, author) credit, so a paper with three authors has three rows here. Bridges Paper (join on PaperId = Id) and Author (join on AuthorId = Id); a paper can have more than one author, and co-authorship between two authors is derived by finding pairs of PaperAuthor rows that share a PaperId. Name and Affiliation on this table are recorded exactly as printed on that specific paper and can differ from the same person's Name and Affiliation on the Author table.
+  fields:
+  - name: PaperId
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: PaperId
+    description: |
+      The paper an author credit belongs to, PaperId.
+
+      Foreign key to Paper.Id. Join to Paper on PaperId = Id to reach the paper's title, year, and venue.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: AuthorId
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AuthorId
+    description: |
+      The author credited on a paper, AuthorId.
+
+      Foreign key to Author.Id. Join to Author on AuthorId = Id to reach the author's canonical name and affiliation; two PaperAuthor rows sharing a PaperId identify co-authors of the same paper.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "There is no dedicated co-authorship table. Two authors are co-authors of a paper when two PaperAuthor rows share the same PaperId but carry different AuthorId values; derive the pairing by self-joining PaperAuthor to itself on PaperId. Distinct from PaperAuthor.Name, which is the printed name for a single credit, not a relationship between two people.\n",
+              "id": "term_authors_coauthorship",
+              "name": "co-authorship",
+              "summary": "co-authorship (also written coauthor, co-author, or joint authorship): two authors credited on the same paper.",
+              "synonyms": [
+                "co-authorship",
+                "coauthor",
+                "co-author",
+                "joint authorship"
+              ]
+            }
+          ]
+        }
+  - name: Name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Name
+    description: |
+      An author's name as printed on a specific paper, Name.
+
+      Free-text name exactly as it appeared on the paper, for example ADAM G. JONES, Kazuo Iwama, or Gudmundur Jokulsson; can differ in spelling, case, or form from the same person's Name on the Author table. Business phrasings like "written by X" or "papers of X" filter this column, sometimes with a LIKE pattern such as "%Jun du%" for an approximate spelling.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: Affiliation
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: Affiliation
+    description: |
+      An author's affiliation as printed on a specific paper, Affiliation.
+
+      Free-text organization exactly as it appeared on the paper, for example "Kyushu University 812 Fukuoka Japan 812 Fukuoka Japan" or Nanjing University; blank or null when none was printed (336 of 500 sampled rows). Can differ from the same person's Affiliation on the Author table, and multiple affiliations are sometimes packed into one value separated by "|".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  metrics:
+  - name: metric_authors_papers_per_author
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(PaperId)
+    description: |
+      papers per author: the number of papers credited to one author, from PaperAuthor grouped by AuthorId.
+
+      Group PaperAuthor by AuthorId and take COUNT(PaperId) to get one author's paper count. The author who published the most papers is the AuthorId with the largest such grouped count (ORDER BY COUNT(PaperId) DESC LIMIT 1), not the row with the largest raw JournalId or Year, and not MAX applied directly to an ungrouped column. A fixed-denominator average, when a question divides total papers by a stated number of authors, is this same numerator divided by that number rather than by COUNT(DISTINCT AuthorId).
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "papers per author"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: periodical
+  source: authors.periodical
+  description: |
+    periodical is a table on the authors schema whose data is not dependable for analysis.
+
+    Grain: one row per record, keyed by periodical_id. Every column on this table, including periodical_id itself, is marked unreliable below and does not correspond to the business facts this database otherwise records. Do not select, filter, or join on periodical or any of its columns when answering a question; treat it as excluded from analysis.
+  fields:
+  - name: periodical_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: periodical_id
+    description: |
+      periodical_id, a numeric column on the periodical table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: abbreviation
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: abbreviation
+    description: |
+      abbreviation, a text column on the periodical table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: full_title
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: full_title
+    description: |
+      full_title, a text column on the periodical table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: homepage_url
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: homepage_url
+    description: |
+      homepage_url, a text column on the periodical table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: symposium_series
+  source: authors.symposium_series
+  description: |
+    symposium_series is a table on the authors schema whose data is not dependable for analysis.
+
+    Grain: one row per record, keyed by symposium_id. Every column on this table, including symposium_id itself, is marked unreliable below and does not correspond to the business facts this database otherwise records. Do not select, filter, or join on symposium_series or any of its columns when answering a question; treat it as excluded from analysis.
+  fields:
+  - name: symposium_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: symposium_id
+    description: |
+      symposium_id, a numeric column on the symposium_series table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: short_code
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: short_code
+    description: |
+      short_code, a text column on the symposium_series table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: official_name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: official_name
+    description: |
+      official_name, a text column on the symposium_series table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: website_link
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: website_link
+    description: |
+      website_link, a text column on the symposium_series table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_authors_Author_PaperAuthor_1413c3db
+  from: PaperAuthor
+  to: Author
+  from_columns:
+  - AuthorId
+  to_columns:
+  - Id
+  ai_context:
+    instructions: |
+      Author joins to PaperAuthor on Id = AuthorId to reach every paper an author is credited on.
+
+      One Author row can match many PaperAuthor rows, since a prolific author is credited on many papers. Use this join to move from an author's canonical Name and Affiliation to the papers they wrote, then join PaperAuthor to Paper on PaperId to reach each paper's own title, year, and venue. PaperAuthor.Name and PaperAuthor.Affiliation record the credit exactly as printed on that paper and can differ from Author's own values for the same person; do not confuse the two tables' columns of the same name.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between Author and PaperAuthor in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_authors_Conference_Paper_6e8f7906
+  from: Paper
+  to: Conference
+  from_columns:
+  - ConferenceId
+  to_columns:
+  - Id
+  ai_context:
+    instructions: |
+      Conference joins to Paper on Id = ConferenceId to reach every paper published at that conference.
+
+      One Conference row can match many Paper rows, since a conference hosts many papers over time. Use this join to move from a conference's ShortName or FullName to the papers it published. Paper.ConferenceId = 0 means the paper was not published at any conference, so those rows never match a real Conference row here; a paper matches at most one conference, never both a conference and a journal.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between Conference and Paper in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_authors_Journal_Paper_e1ad4b1d
+  from: Paper
+  to: Journal
+  from_columns:
+  - JournalId
+  to_columns:
+  - Id
+  ai_context:
+    instructions: |
+      Journal joins to Paper on Id = JournalId to reach every paper published in that journal.
+
+      One Journal row can match many Paper rows, since a journal publishes many papers over time. Use this join to move from a journal's ShortName or FullName to the papers it published. Paper.JournalId = 0 means the paper was not published in any journal, so those rows never match a real Journal row here; a paper matches at most one journal, never both a journal and a conference.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between Journal and Paper in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_authors_Paper_PaperAuthor_d5e8a8f3
+  from: PaperAuthor
+  to: Paper
+  from_columns:
+  - PaperId
+  to_columns:
+  - Id
+  ai_context:
+    instructions: |
+      Paper joins to PaperAuthor on Id = PaperId to reach every author credited on that paper.
+
+      One Paper row can match many PaperAuthor rows, since a paper can list more than one author. Use this join to move from a paper's title, year, and venue to its credited authors, then join PaperAuthor to Author on AuthorId to reach each author's canonical Name and Affiliation. Co-authorship between two people is derived by finding two PaperAuthor rows that share a PaperId; this join alone does not compute that pairing.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between Paper and PaperAuthor in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_3508",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0000",
+          "sql": "SELECT COUNT(\"Id\") FROM \"authors\".\"Author\" WHERE \"Affiliation\" = 'University of California Berkeley'",
+          "summary": "How many authors are affiliated with University of California Berkeley?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3509",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0001",
+          "sql": "SELECT \"Keyword\" FROM \"authors\".\"Paper\" WHERE \"Title\" = 'Stitching videos streamed by mobile phones in real-time'",
+          "summary": "What is the paper \"Stitching videos streamed by mobile phones in real-time\" about?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3511",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0002",
+          "sql": "SELECT COUNT(\"T2\".\"Id\") FROM \"authors\".\"Journal\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"JournalId\" WHERE \"T1\".\"FullName\" = 'Concepts in Magnetic Resonance Part A'",
+          "summary": "How many papers were published in the journal \"Concepts in Magnetic Resonance Part A\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3513",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0003",
+          "sql": "SELECT COUNT(\"T2\".\"Id\") FROM \"authors\".\"Journal\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"JournalId\" WHERE \"T2\".\"Year\" = 2011 AND \"T1\".\"FullName\" = 'Molecular Brain'",
+          "summary": "Among the papers published in the journal \"Molecular Brain\", how many of them were published in the year 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3514",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0004",
+          "sql": "SELECT COUNT(\"T2\".\"Id\") FROM \"authors\".\"Journal\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"JournalId\" WHERE \"T2\".\"Year\" = 2011 AND \"T1\".\"ShortName\" = 'Mol Brain'",
+          "summary": "How many papers were published in 2011 in the journal whose short name is \"Mol Brain\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3517",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0005",
+          "sql": "SELECT COUNT(\"T1\".\"AuthorId\") FROM \"authors\".\"PaperAuthor\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"PaperId\" = \"T2\".\"Id\" WHERE \"T1\".\"Affiliation\" = 'University of Tokyo' AND \"T2\".\"Title\" = 'FIBER: A Generalized Framework for Auto-tuning Software'",
+          "summary": "Among the authors of the paper \"Stitching videos streamed by mobile phones in real-time\", how many of them are affiliated with Cairo Microsoft Innovation Lab?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3519",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0006",
+          "sql": "SELECT \"T1\".\"Name\" FROM \"authors\".\"PaperAuthor\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"PaperId\" = \"T2\".\"Id\" WHERE \"T2\".\"Title\" = 'Incremental Extraction of Keyterms for Classifying Multilingual Documents in the Web' AND \"T1\".\"Affiliation\" = 'National Taiwan University Department of Computer Science and Information Engineering Taiwan'",
+          "summary": "Which author of the paper \"Incremental Extraction of Keyterms for Classifying Multilingual Documents in the Web\" is affiliated with National Taiwan University Department of Computer Science and Information Engineering Taiwan?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3520",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0007",
+          "sql": "SELECT \"T2\".\"Title\" FROM \"authors\".\"PaperAuthor\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"PaperId\" = \"T2\".\"Id\" WHERE \"T1\".\"Name\" = 'Thomas Wiegand' AND \"T2\".\"Year\" = 1995",
+          "summary": "What is the title of the paper published in 1995 and whose author included Thomas Wiegand?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3521",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0008",
+          "sql": "SELECT COUNT(\"T2\".\"Title\") FROM \"authors\".\"PaperAuthor\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"PaperId\" = \"T2\".\"Id\" WHERE \"T1\".\"Name\" = 'Thomas Wiegand' AND \"T2\".\"Year\" = 1995",
+          "summary": "How many papers whose authors include Thomas Wiegand were published in 1995?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3522",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0009",
+          "sql": "SELECT CAST(COUNT(\"T2\".\"Id\") AS REAL) / NULLIF(COUNT(DISTINCT \"T2\".\"Year\"), 0) FROM \"authors\".\"Journal\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"JournalId\" WHERE \"T1\".\"FullName\" = 'Molecular Brain' AND \"T2\".\"Year\" BETWEEN 2008 AND 2011",
+          "summary": "What is the average number of papers published in the journal \"Molecular Brain\" every year from 2008 to 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3525",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0010",
+          "sql": "SELECT \"PaperId\", \"AuthorId\" FROM \"authors\".\"PaperAuthor\" WHERE \"Affiliation\" LIKE 'Cairo Microsoft Innovation Lab%'",
+          "summary": "Enumerate the paper and author ID of authors with affiliation with Cairo Microsoft Innovation Lab."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3527",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0011",
+          "sql": "SELECT \"AuthorId\" FROM \"authors\".\"PaperAuthor\" WHERE \"Name\" = 'Peter'",
+          "summary": "List down the author ID of authors with a name of \"Peter\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3528",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0012",
+          "sql": "SELECT \"Title\", \"ShortName\" FROM (SELECT DISTINCT ON (\"T1\".\"Title\", \"T2\".\"ShortName\") \"T1\".\"Title\", \"T2\".\"ShortName\", \"T1\".\"Id\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\" WHERE \"T1\".\"ConferenceId\" BETWEEN 160 AND 170 ORDER BY \"T1\".\"Title\", \"T2\".\"ShortName\", \"T1\".\"Id\") AS \"s\" ORDER BY \"Id\"",
+          "summary": "List the title of papers with a conference ID from 160 to 170, include their conference short name."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3530",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0013",
+          "sql": "SELECT \"T1\".\"Title\", \"T3\".\"ShortName\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" INNER JOIN \"authors\".\"Conference\" AS \"T3\" ON \"T1\".\"ConferenceId\" = \"T3\".\"Id\" WHERE \"T1\".\"Year\" = 1999 AND \"T2\".\"Name\" LIKE 'Philip%'",
+          "summary": "In year 1999, list the titles and conference's short name of paper authored by someone named \"Philip\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3532",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0014",
+          "sql": "SELECT DISTINCT \"T2\".\"Title\" FROM \"authors\".\"PaperAuthor\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"PaperId\" = \"T2\".\"Id\" WHERE \"T1\".\"Affiliation\" = 'Department of Network Science, Graduate School of Information Systems, The University of Electro-Communications' AND \"T2\".\"Year\" = 2003",
+          "summary": "What is the title of the paper published in 2003 by an author with affiliation with Department of Network Science, Graduate School of Information Systems, The University of Electro-Communications?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3543",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0015",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"Affiliation\" IS NULL THEN 1 ELSE 0 END) AS REAL) / NULLIF(COUNT(*), 0) FROM \"authors\".\"Author\"",
+          "summary": "What is the ratio of author with affiliation and without affiliation?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3544",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0016",
+          "sql": "SELECT \"Name\", \"Id\" FROM \"authors\".\"Author\" WHERE \"Affiliation\" = 'University of Oulu'",
+          "summary": "Write down the author's name and IDs who are affiliated with Univeristiy of Oulu."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3548",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0017",
+          "sql": "SELECT \"T2\".\"Id\", \"T2\".\"Year\", \"T2\".\"Keyword\" FROM \"authors\".\"PaperAuthor\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"PaperId\" = \"T2\".\"Id\" WHERE \"T1\".\"AuthorId\" < 1000 AND \"T1\".\"Affiliation\" = 'Zurich, ETH'",
+          "summary": "Among author ID of under 1000, who published the paper in affiliation with Zurich, ETH, provide paper ID, year and keyword if any."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3552",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0018",
+          "sql": "SELECT \"T2\".\"Title\", \"T2\".\"Year\", \"T2\".\"Keyword\" FROM \"authors\".\"PaperAuthor\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"PaperId\" = \"T2\".\"Id\" WHERE \"T1\".\"AuthorId\" = 661002 AND \"T1\".\"Affiliation\" = 'Scientific Computing and Imaging Institute, University of Utah, UT 84112, USA'",
+          "summary": "Name the title, year and keyword of the paper which were written by the author ID of 661002 with the affiliation of \"Scientific Computing and Imaging Institute, University of Utah, UT 84112, USA\" organization."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3553",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0019",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"Year\" = 2000 THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T2\".\"Year\" = 2010 THEN 1 ELSE 0 END) AS \"DIFF\" FROM \"authors\".\"Journal\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"JournalId\" WHERE \"T1\".\"ShortName\" = 'IWC'",
+          "summary": "Calculate the differences of the paper number with the journal name of IWC in 2000 and 2010."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3554",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0020",
+          "sql": "SELECT \"T2\".\"JournalId\", \"T1\".\"ShortName\", \"T1\".\"FullName\" FROM \"authors\".\"Journal\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"JournalId\" WHERE \"T2\".\"Year\" = 2013 AND \"T2\".\"JournalId\" <> 0 AND \"T2\".\"JournalId\" <> -1 GROUP BY \"T2\".\"JournalId\", \"T1\".\"ShortName\", \"T1\".\"FullName\" ORDER BY MIN(\"T2\".\"Id\") LIMIT 4",
+          "summary": "Provide any four valid Journal ID along with short name and full name of the papers which were made in 2013."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3556",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0021",
+          "sql": "SELECT COUNT(\"Id\") FROM \"authors\".\"Paper\" WHERE \"Year\" = 0",
+          "summary": "How many of the papers are preprinted or not published?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3557",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0022",
+          "sql": "SELECT \"T2\".\"FullName\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\" WHERE \"T1\".\"Title\" = 'The Dissimilarity Representation as a Tool for Three-Way Data Classification: A 2D Measure'",
+          "summary": "State the full name of conference for paper \"The Dissimilarity Representation as a Tool for Three-Way Data Classification: A 2D Measure\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3559",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0023",
+          "sql": "SELECT \"T2\".\"Name\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" WHERE \"T1\".\"Id\" > 100 AND \"T1\".\"Id\" < 106",
+          "summary": "Write down the name of authors for paper with id from 101 to 105."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3567",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0024",
+          "sql": "SELECT COUNT(\"Id\") FROM \"authors\".\"Paper\" WHERE \"Year\" BETWEEN '1990' AND '2000' AND \"ConferenceId\" = 0 AND \"JournalId\" = 0",
+          "summary": "How many papers were preprinted between the years 1990 and 2000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3568",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0025",
+          "sql": "SELECT \"Name\" FROM \"authors\".\"Author\" WHERE \"Affiliation\" = 'Birkbeck University of London'",
+          "summary": "List the names of all authors affiliated with Birkbeck University of London."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3569",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0026",
+          "sql": "SELECT \"ShortName\" FROM \"authors\".\"Conference\" WHERE \"FullName\" LIKE 'International Symposium%'",
+          "summary": "List the short name of all conferences whose full name begins with International Symposium."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3571",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0027",
+          "sql": "SELECT \"T2\".\"Name\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" WHERE \"T1\".\"Year\" = 0",
+          "summary": "List author name for articles that are preprinted but not published."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3573",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0028",
+          "sql": "SELECT \"T2\".\"FullName\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\" WHERE \"T1\".\"ConferenceId\" <> 0 AND \"T1\".\"JournalId\" = 0 AND \"T1\".\"Year\" <> 0",
+          "summary": "Identify by conference full name all papers in which a journal was not published but a conference."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3578",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0029",
+          "sql": "SELECT \"T1\".\"Name\" FROM \"authors\".\"PaperAuthor\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"PaperId\" = \"T2\".\"Id\" WHERE \"T2\".\"Title\" = 'Particle identification using the time-over-threshold method in the ATLAS Transition Radiation Tracker'",
+          "summary": "What is the name of the co-authors of the paper titled 'Particle identification using the time-over-threshold method in the ATLAS Transition Radiation Tracker'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3579",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0030",
+          "sql": "SELECT COUNT(\"T1\".\"Id\") AS \"PAPER\", COUNT(DISTINCT \"T1\".\"Year\") AS \"YEARS\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\" WHERE \"T1\".\"Year\" <> 0 AND \"T2\".\"FullName\" = 'International Conference on Database Theory'",
+          "summary": "In how many papers and in what years was the International Conference on Database Theory published?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3580",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0031",
+          "sql": "SELECT \"T2\".\"FullName\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Journal\" AS \"T2\" ON \"T1\".\"JournalId\" = \"T2\".\"Id\" WHERE \"T1\".\"Keyword\" = 'Sustainability'",
+          "summary": "What is the full name of the journals that are published in the database papers whose topic is Sustainability?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3585",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0032",
+          "sql": "SELECT \"Keyword\", \"Year\" FROM \"authors\".\"Paper\" WHERE \"Title\" = 'A Formal Approach to Service Component Architecture'",
+          "summary": "What was the topic of the article \"A Formal Approach to Service Component Architecture\" and when was it published?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3587",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0033",
+          "sql": "SELECT \"T2\".\"Name\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" WHERE \"T1\".\"Title\" = 'Hypermethylation of the <I>TPEF/HPP1</I> Gene in Primary and Metastatic Colorectal Cancers'",
+          "summary": "Please list the names of the authors of the paper \"Hypermethylation of the <I>TPEF/HPP1</I> Gene in Primary and Metastatic Colorectal Cancers\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3589",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0034",
+          "sql": "SELECT COUNT(\"T1\".\"JournalId\") FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Journal\" AS \"T2\" ON \"T1\".\"JournalId\" = \"T2\".\"Id\" WHERE \"T2\".\"FullName\" = 'Iet Software/iee Proceedings - Software'",
+          "summary": "How many papers were in the journal \"Iet Software/iee Proceedings - Software\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3590",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0035",
+          "sql": "SELECT \"T2\".\"FullName\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\" WHERE \"T1\".\"Id\" = 5",
+          "summary": "What is the full name of the conference where paper number 5 was published?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3592",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0036",
+          "sql": "SELECT \"T1\".\"Title\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" WHERE \"T2\".\"Name\" = 'Cheng Huang' AND \"T2\".\"Affiliation\" = 'Microsoft'",
+          "summary": "What is the title of the paper that was written by Cheng Huang and affiliated with Microsoft?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3594",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0037",
+          "sql": "SELECT \"T3\".\"FullName\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" INNER JOIN \"authors\".\"Journal\" AS \"T3\" ON \"T1\".\"JournalId\" = \"T3\".\"Id\" WHERE \"T2\".\"Name\" = 'Andrew Cain'",
+          "summary": "What are the three journals that the papers written by Andrew Cain were published in? Please provide your answer with the full name of each journal."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3595",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0038",
+          "sql": "SELECT DISTINCT \"T2\".\"Affiliation\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" WHERE \"T1\".\"Title\" = 'FIBER: A Generalized Framework for Auto-tuning Software'",
+          "summary": "Please list all of the associations that the authors of the paper \"FIBER: A Generalized Framework for Auto-tuning Software\" are affiliated with."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3597",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0039",
+          "sql": "SELECT \"T2\".\"ShortName\", \"T2\".\"FullName\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Journal\" AS \"T2\" ON \"T1\".\"JournalId\" = \"T2\".\"Id\" WHERE \"T1\".\"Keyword\" ILIKE '%Materials%'",
+          "summary": "What is the journal's short and full names that feature papers on the \"Materials\" topic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3598",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0040",
+          "sql": "SELECT \"Name\" FROM \"authors\".\"Author\" WHERE \"Affiliation\" = 'University of Oxford' ORDER BY \"Name\" ASC NULLS FIRST",
+          "summary": "List the names of authors affiliated with the University of Oxford in alphabetical order."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3599",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0041",
+          "sql": "SELECT \"ShortName\", \"HomePage\" FROM \"authors\".\"Conference\" WHERE \"FullName\" LIKE 'International Conference on Artificial Intelligence%'",
+          "summary": "List the short name and home page URL of all the international conferences on artificial intelligence."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3600",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0042",
+          "sql": "SELECT \"Title\" FROM \"authors\".\"Paper\" WHERE \"Year\" = 1996 ORDER BY \"Id\"",
+          "summary": "Find the names of papers which are published in the year 1996."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3601",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0043",
+          "sql": "SELECT \"T1\".\"Title\", \"T2\".\"Name\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" INNER JOIN \"authors\".\"Journal\" AS \"T3\" ON \"T1\".\"JournalId\" = \"T3\".\"Id\" WHERE \"T3\".\"FullName\" = 'Neoplasia' AND \"T1\".\"Year\" = 2007",
+          "summary": "List the title and author's name of papers published in the 2007 Neoplasia journal."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3604",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0044",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"FullName\" = 'International Congress Series' THEN 1 ELSE 0 END) AS REAL) / COUNT(\"T1\".\"Id\") AS \"Div1\", \"T1\".\"Year\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Journal\" AS \"T2\" ON \"T1\".\"JournalId\" = \"T2\".\"Id\" GROUP BY \"T1\".\"Year\" HAVING CAST(SUM(CASE WHEN \"T2\".\"FullName\" = 'International Congress Series' THEN 1 ELSE 0 END) AS REAL) / COUNT(\"T1\".\"Id\") <> 0",
+          "summary": "What is the average number of papers published in the World Computer Congress each year?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3605",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0045",
+          "sql": "SELECT DISTINCT \"T2\".\"Name\", \"T1\".\"Title\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" WHERE \"T1\".\"ConferenceId\" = 0 AND \"T1\".\"JournalId\" = 0 AND \"T1\".\"Year\" = 1997 AND \"T1\".\"Title\" <> ''",
+          "summary": "Give the Title and author's name of the books that were preprint in 1997."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3607",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0046",
+          "sql": "SELECT COUNT(\"Name\") FROM \"authors\".\"Author\" WHERE \"Affiliation\" = 'Otterbein University'",
+          "summary": "How many authors is affiliated to the organization \"Otterbein University\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3612",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0047",
+          "sql": "SELECT \"T1\".\"Title\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" WHERE \"T2\".\"Name\" = 'Jianli Hua'",
+          "summary": "List all the title of the paper that Jianli Hua published."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3613",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0048",
+          "sql": "SELECT \"T2\".\"Name\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" WHERE \"T1\".\"Title\" = 'Testing timed automata'",
+          "summary": "Who authored the paper titled \"Testing timed automata \"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3619",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0049",
+          "sql": "SELECT \"T1\".\"Title\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\" WHERE \"T2\".\"HomePage\" = 'http://www.irma-international.org/'",
+          "summary": "List all the paper that were under the conference homepage URL \"http://www.irma-international.org/\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3620",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0050",
+          "sql": "SELECT CAST(COUNT(\"T1\".\"Id\") AS REAL) / NULLIF(COUNT(DISTINCT \"T1\".\"Year\"), 0) FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\" WHERE \"T2\".\"FullName\" = 'Information and Knowledge Engineering' AND \"T1\".\"Year\" >= 2002 AND \"T1\".\"Year\" <= 2010",
+          "summary": "Calculate the total average number of papers published from 2002 to 2010 under the conference \"Information and Knowledge Engineering\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3622",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0051",
+          "sql": "SELECT \"ShortName\" FROM \"authors\".\"Journal\" WHERE \"FullName\" = 'Software - Concepts and Tools / Structured Programming'",
+          "summary": "What is the short name for \"Software - Concepts and Tools / Structured Programming\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3624",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0052",
+          "sql": "SELECT COUNT(\"T2\".\"Id\") FROM \"authors\".\"Journal\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"JournalId\" WHERE \"T1\".\"FullName\" = 'IEEE Transactions on Nuclear Science' AND \"T2\".\"Year\" = 1999",
+          "summary": "Give the number of papers that were published on \"IEEE Transactions on Nuclear Science\" in 1999."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3625",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0053",
+          "sql": "SELECT \"T2\".\"Title\" FROM \"authors\".\"Journal\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"JournalId\" WHERE \"T1\".\"FullName\" = 'IEEE Transactions on Pattern Analysis and Machine Intelligence' AND \"T2\".\"Year\" = 2011 AND \"T2\".\"Title\" <> ''",
+          "summary": "What was the name of the paper that was published on \"IEEE Transactions on Pattern Analysis and Machine Intelligence\" in 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3629",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0054",
+          "sql": "SELECT COUNT(\"T1\".\"Id\") FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\" WHERE \"T2\".\"FullName\" = 'International Symposium on Software Testing and Analysis'",
+          "summary": "Tell the number of papers that were presented at \"International Symposium on Software Testing and Analysis\" conference."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3631",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0055",
+          "sql": "SELECT COUNT(\"T2\".\"AuthorId\") FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" WHERE \"T1\".\"Title\" = 'An Improved Active Suspension Model for Attitude Control of Electric Vehicles'",
+          "summary": "How many authors finished the paper \"An Improved Active Suspension Model for Attitude Control of Electric Vehicles\" together?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3633",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0056",
+          "sql": "SELECT COUNT(\"T1\".\"Id\") FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\" WHERE \"T2\".\"ShortName\" = 'ECSQARU' AND \"T1\".\"Year\" = '2003'",
+          "summary": "How many papers were presented at 'ECSQARU' in 2003?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3634",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0057",
+          "sql": "SELECT \"T1\".\"Keyword\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\" WHERE \"T2\".\"FullName\" = 'International Radar Symposium' AND \"T1\".\"Year\" = 2012",
+          "summary": "Show the keywords of the paper that was presented at \"International Radar Symposium\" in 2012."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3635",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0058",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"FullName\" = 'International Conference on Thermoelectrics' THEN 1 ELSE 0 END) AS REAL) / NULLIF(SUM(CASE WHEN \"T2\".\"FullName\" = 'International Conference on Wireless Networks, Communications and Mobile Computing' THEN 1 ELSE 0 END), 0) FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\"",
+          "summary": "How many times more for the papers that were presented at the \"International Conference on Thermoelectrics\" conference than \"International Conference on Wireless Networks, Communications and Mobile Computing“ conference?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3640",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0059",
+          "sql": "SELECT COUNT(\"ShortName\") FROM \"authors\".\"Journal\" WHERE \"ShortName\" = ''",
+          "summary": "How many journals don’t have a short name?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3644",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0060",
+          "sql": "SELECT \"T2\".\"Title\" FROM \"authors\".\"PaperAuthor\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"PaperId\" = \"T2\".\"Id\" WHERE \"T1\".\"Name\" = 'Karin Rengefors'",
+          "summary": "List all of the papers written by the author \"Karin Rengefors.\""
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3645",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0061",
+          "sql": "SELECT COUNT(\"T2\".\"Id\") FROM \"authors\".\"Conference\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"ConferenceId\" WHERE \"T1\".\"FullName\" = 'Virtual Reality, IEEE Annual International Symposium' AND \"T2\".\"Year\" = 2012",
+          "summary": "How many papers were published by the \"Virtual Reality, IEEE Annual International Symposium\" conference in 2012?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3650",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0062",
+          "sql": "SELECT \"T2\".\"Year\" FROM \"authors\".\"Conference\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"ConferenceId\" WHERE \"T1\".\"FullName\" = 'Internet, Multimedia Systems and Applications' GROUP BY \"T2\".\"Year\" ORDER BY COUNT(\"T2\".\"Id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which year did the \"Internet, Multimedia Systems and Applications\" conference publish the most papers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3651",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0063",
+          "sql": "SELECT DISTINCT \"T1\".\"Name\" FROM \"authors\".\"PaperAuthor\" AS \"T1\" INNER JOIN \"authors\".\"Author\" AS \"T2\" ON \"T1\".\"AuthorId\" = \"T2\".\"Id\" WHERE \"T2\".\"Name\" = 'Randall Davis' AND \"T1\".\"Name\" <> 'Randall Davis'",
+          "summary": "What are the different ways the name of the author, Randall Davis, is written on their papers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3652",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0064",
+          "sql": "SELECT DISTINCT \"T2\".\"FullName\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\" WHERE \"T1\".\"Year\" = 2008",
+          "summary": "List all of the conferences where a paper was published in 2008."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3653",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0065",
+          "sql": "SELECT \"T2\".\"HomePage\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Journal\" AS \"T2\" ON \"T1\".\"JournalId\" = \"T2\".\"Id\" GROUP BY \"T1\".\"JournalId\", \"T2\".\"HomePage\" ORDER BY COUNT(\"T1\".\"JournalId\") DESC LIMIT 1",
+          "summary": "What is the homepage URL for the journal that published the most papers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3654",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0066",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"Keyword\" = 'cancer' THEN 1 ELSE 0 END) AS REAL) / COUNT(\"T1\".\"Id\"), (ARRAY_AGG(\"T2\".\"Name\" ORDER BY \"T2\".\"PaperId\", \"T2\".\"AuthorId\"))[1], (ARRAY_AGG(\"T2\".\"Affiliation\" ORDER BY \"T2\".\"PaperId\", \"T2\".\"AuthorId\"))[1] FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\"",
+          "summary": "What is the proportion of the papers that have the keyword \"cancer\"? Please provide a list of authors and their affiliations."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3655",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0067",
+          "sql": "SELECT \"Name\" FROM \"authors\".\"Author\" WHERE \"Id\" = 1722",
+          "summary": "What is the name of author with the ID of 1722?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3657",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0068",
+          "sql": "SELECT \"Name\" FROM \"authors\".\"Author\" WHERE \"Affiliation\" = 'University of Illinois Chicago'",
+          "summary": "List the name of the author that affiliated with University of Illinois Chicago?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3658",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0069",
+          "sql": "SELECT SUM(CASE WHEN \"Year\" = 2005 THEN 1 ELSE 0 END), SUM(CASE WHEN \"Year\" = 2005 THEN 1 ELSE 0 END) - SUM(CASE WHEN \"Year\" = 2004 THEN 1 ELSE 0 END) AS \"diff\" FROM \"authors\".\"Paper\"",
+          "summary": "How many papers were published in 2005. Calculate the difference between the number of paper published in 2005 and the number of paper published in the previous year."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3659",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0070",
+          "sql": "SELECT \"T2\".\"Title\" FROM \"authors\".\"Journal\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"JournalId\" WHERE \"T1\".\"FullName\" = 'Ibm Journal of Research and Development'",
+          "summary": "State the title of papers published in the Ibm Journal of Research and Development."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3660",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0071",
+          "sql": "SELECT \"T2\".\"Name\", \"T2\".\"Affiliation\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"PaperId\" WHERE \"T1\".\"Title\" = 'Education, democracy and growth'",
+          "summary": "State the name and affiliation of author for the 'Education, democracy and growth' paper?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3662",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0072",
+          "sql": "SELECT \"T2\".\"FullName\" FROM \"authors\".\"Paper\" AS \"T1\" INNER JOIN \"authors\".\"Conference\" AS \"T2\" ON \"T1\".\"ConferenceId\" = \"T2\".\"Id\" WHERE \"T1\".\"Title\" = 'A context-based navigation paradigm for accessing Web data'",
+          "summary": "Where was the 'A context-based navigation paradigm for accessing Web data' paper published? State the name of the conference."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3667",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0073",
+          "sql": "SELECT \"Name\" FROM \"authors\".\"Author\" WHERE \"Affiliation\" = 'ABB Electrical Machines'",
+          "summary": "Provide the name of the author who is affiliated with the organization named 'ABB Electrical Machines'."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3668",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0074",
+          "sql": "SELECT COUNT(\"T2\".\"JournalId\") FROM \"authors\".\"Journal\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"JournalId\" WHERE \"T1\".\"FullName\" = 'Academic Medicine' AND \"T2\".\"Year\" BETWEEN 2005 AND 2010",
+          "summary": "Provide the number of publications published in the journal named 'Academic Medicine' between 2005 and 2010."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3671",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0075",
+          "sql": "SELECT CAST(COUNT(\"T2\".\"JournalId\") AS REAL) / NULLIF(COUNT(DISTINCT \"T2\".\"Year\"), 0) FROM \"authors\".\"Journal\" AS \"T1\" INNER JOIN \"authors\".\"Paper\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"JournalId\" WHERE \"T1\".\"FullName\" = 'Information Sciences'",
+          "summary": "Provide the average number of papers that are published in the journal named 'Information Sciences' annually."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3674",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0076",
+          "sql": "SELECT COUNT(\"Name\") FROM \"authors\".\"Author\" WHERE \"Affiliation\" = 'Arizona State University'",
+          "summary": "Indicate the number of authors affiliated with the organization named 'Arizona State University'."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_3680",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_authors_0077",
+          "sql": "SELECT \"T1\".\"Name\", \"T3\".\"Keyword\" FROM \"authors\".\"Author\" AS \"T1\" INNER JOIN \"authors\".\"PaperAuthor\" AS \"T2\" ON \"T1\".\"Id\" = \"T2\".\"AuthorId\" INNER JOIN \"authors\".\"Paper\" AS \"T3\" ON \"T2\".\"PaperId\" = \"T3\".\"Id\" WHERE \"T2\".\"PaperId\" = 5",
+          "summary": "Mention the name of author for paper id 5 and state the keyword of this page."
+        }
+      ]
+    }

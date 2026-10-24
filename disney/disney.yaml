@@ -1,33 +1,2575 @@
-asset_type: schema
-id: disney
+version: 0.2.0.dev0
 name: disney
-summary: >-
-  The disney database catalogs Walt Disney movies — director, voice cast, hero and villain
-  characters, genre, MPAA rating, release date, and box-office gross — plus the company's total
-  yearly revenue by business segment.
-body: >
-  Two unrelated subject areas share this schema. Four tables — actores_voz, director,
-  peliculas_recaudacion_total, and personajes — describe individual Disney movies: their
-  director, voice cast, hero and villain characters, an associated song, genre, MPAA rating,
-  release date, and box-office gross, all tied together by matching the movie's title as free
-  text rather than a shared numeric id. The fifth real table, ingresos, is unrelated: one row
-  per fiscal year giving the Walt Disney Company's total revenue split across its Studio
-  Entertainment, Consumer Products, Disney Interactive, Parks and Resorts, and Media Networks
-  business segments. doblaje_personajes and peliculas_financieras are not dependable and should
-  not be used for either subject area.
-rules:
-- Join movies across actores_voz, director, peliculas_recaudacion_total, and personajes on their
-  exact movie-title text (pelicula, nombre, titulo_pelicula) — there is no numeric id, and
-  titulo_original, titulo_pelicula_voz, nombre_completo, and titulo_largometraje are unreliable
-  copies that must not be used for this.
-- Never select, filter, or join on doblaje_personajes, peliculas_financieras, or any column
-  marked unreliable.
-- ingresos gives the Walt Disney Company's total yearly revenue by business segment and has no
-  movie-title column, so it does not join to the other tables in this schema.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  The disney database catalogs Walt Disney movies — director, voice cast, hero and villain characters, genre, MPAA rating, release date, and box-office gross — plus the company's total yearly revenue by business segment.
+
+  Two unrelated subject areas share this schema. Four tables — actores_voz, director, peliculas_recaudacion_total, and personajes — describe individual Disney movies: their director, voice cast, hero and villain characters, an associated song, genre, MPAA rating, release date, and box-office gross, all tied together by matching the movie's title as free text rather than a shared numeric id. The fifth real table, ingresos, is unrelated: one row per fiscal year giving the Walt Disney Company's total revenue split across its Studio Entertainment, Consumer Products, Disney Interactive, Parks and Resorts, and Media Networks business segments. doblaje_personajes and peliculas_financieras are not dependable and should not be used for either subject area.
+ai_context:
+  instructions: |-
+    Join movies across actores_voz, director, peliculas_recaudacion_total, and personajes on their exact movie-title text (pelicula, nombre, titulo_pelicula) — there is no numeric id, and titulo_original, titulo_pelicula_voz, nombre_completo, and titulo_largometraje are unreliable copies that must not be used for this.
+    Never select, filter, or join on doblaje_personajes, peliculas_financieras, or any column marked unreliable.
+    ingresos gives the Walt Disney Company's total yearly revenue by business segment and has no movie-title column, so it does not join to the other tables in this schema.
+datasets:
+- name: actores_voz
+  source: disney.actores_voz
+  description: |
+    actores_voz lists the voice cast of Disney movies, one row per character-to-actor casting credit.
+
+    Grain: one row per voice-cast credit — a Disney movie, a character in it, and the actor who voiced that character. Easily confused with doblaje_personajes, a separate dubbing-cast table that is not dependable and must not be used in its place. Connects to director, peliculas_recaudacion_total, and personajes by matching pelicula against their movie-title columns as exact text; also connects to personajes by matching personaje against heroe or villano when the cast character is that movie's hero or villain. rol_personaje, titulo_pelicula_voz, and interprete_voz on this table are unreliable copies of personaje, pelicula, and actor_voz and must not be used.
+  fields:
+  - name: personaje
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: personaje
+    description: |
+      personaje names the character a voice actor was cast to play.
+
+      Free text (sample values: Nana, Pua, Terk, Quackerjack, Fiddler Pig), up to 500 distinct values recorded here. Matches personajes.heroe or personajes.villano exactly when this character is that movie's hero or villain; most rows have no match there because most cast characters are neither. The rol_personaje column on this same table duplicates it unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: actor_voz
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: actor_voz
+    description: |
+      actor_voz is the performer credited with voicing a character in a Disney movie.
+
+      Free text performer name (sample values: Rosie O'Donnell, Michael Bell, Mary Moder, Vicki Lawrence), sometimes recorded as None when no voice actor is known. Frank Welker and Sterling Holloway are two performers named directly in business questions about this column. The interprete_voz column on this same table duplicates it unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "actores_voz.actor_voz names the performer who voiced the character in personaje for a given movie (pelicula). Frank Welker and Sterling Holloway are performers named directly in business questions about this column. Do not use interprete_voz, an unreliable copy of this column.\n",
+              "id": "term_disney_voice_actor",
+              "name": "voice actor",
+              "summary": "Voice actor (voiced by, who voiced, which actor voices): the performer credited with voicing a Disney character, recorded in actor_voz.",
+              "synonyms": [
+                "voice actor",
+                "voiced by",
+                "who voiced",
+                "which actor voices"
+              ]
+            }
+          ]
+        }
+  - name: pelicula
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pelicula
+    description: |
+      pelicula holds the title of the Disney movie a voice-cast credit belongs to.
+
+      Free text movie title (sample values: Peter Pan, Moana, Tarzan, Darkwing Duck, Three Little Pigs). Matched as exact text against director.nombre, peliculas_recaudacion_total.titulo_pelicula, and personajes.titulo_pelicula since this schema has no shared numeric id across its movie tables. The titulo_pelicula_voz column on this same table duplicates it unreliably and must not be used for that matching.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: rol_personaje
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: rol_personaje
+    description: |
+      rol_personaje, a text column on the actores_voz table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: titulo_pelicula_voz
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titulo_pelicula_voz
+    description: |
+      titulo_pelicula_voz, a text column on the actores_voz table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: interprete_voz
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: interprete_voz
+    description: |
+      interprete_voz, a text column on the actores_voz table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: director
+  source: disney.director
+  description: |
+    director records who directed each Disney movie, one row per movie-director pairing.
+
+    Grain: one row per movie, naming its director; a director with many movies appears on multiple rows (29 distinct directors across the table's 56 movies — more rows for the same director means a more productive director). nombre is the movie title, matched as exact text against actores_voz.pelicula, peliculas_recaudacion_total.titulo_pelicula, and personajes.titulo_pelicula — this schema has no numeric movie id. nombre_completo and director_principal on this table duplicate nombre and director unreliably and must not be used.
+  fields:
+  - name: nombre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre
+    description: |
+      nombre is the title of the Disney movie a director credit belongs to.
+
+      Free text movie title (sample values: The Black Cauldron, Brother Bear, Zootopia, The Princess and the Frog, The Fox and the Hound), one per row. Matched as exact text against actores_voz.pelicula, peliculas_recaudacion_total.titulo_pelicula, and personajes.titulo_pelicula since there is no shared numeric id. The nombre_completo column on this same table duplicates it unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: director
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: director
+    description: |
+      director names the person who directed the movie on this row.
+
+      Free text name (sample values: Ted Berman, Robert Walker, Byron Howard, Ron Clements, Art Stevens); one person can direct many movies, so this column has fewer distinct values (29) than there are rows (56). Wolfgang Reitherman, Ben Sharpsteen, Chris Buck, Jack Kinney, Roger Allers, Will Finn, and Gary Trousdale are examples named directly in business questions. The director_principal column on this same table duplicates it unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "The director column on the director table names the person who directed the movie in nombre; one director can direct several movies, so more matching rows means a more productive director. Specific director names such as Wolfgang Reitherman, Ben Sharpsteen, Ron Clements, Chris Buck, Jack Kinney, Roger Allers, Will Finn, and Gary Trousdale are literal values of this column. Do not use director_principal, an unreliable copy of this column.\n",
+              "id": "term_disney_director",
+              "name": "director",
+              "summary": "Director (directed by, who directed): the person credited with directing a Disney movie, recorded in the director column of the director table.",
+              "synonyms": [
+                "director",
+                "directed by",
+                "who directed"
+              ]
+            }
+          ]
+        }
+  - name: nombre_completo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_completo
+    description: |
+      nombre_completo, a text column on the director table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: director_principal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: director_principal
+    description: |
+      director_principal, a text column on this schema's movie-credits table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: doblaje_personajes
+  source: disney.doblaje_personajes
+  description: |
+    doblaje_personajes is a table in the disney schema that is not dependable and should not be used to answer questions.
+
+    This table is not dependable: its values do not correspond to the business facts the disney schema otherwise records, and it must not be used in a SELECT list, a filter, or a join for any question about Disney movies, characters, or voice casting. Use actores_voz and personajes instead for casting and character questions.
+  fields:
+  - name: nombre_personaje
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_personaje
+    description: |
+      nombre_personaje, a text column on the doblaje_personajes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: actor_doblaje
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: actor_doblaje
+    description: |
+      actor_doblaje, a text column on the doblaje_personajes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: titulo_pelicula_relacionada
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titulo_pelicula_relacionada
+    description: |
+      titulo_pelicula_relacionada, a text column on the doblaje_personajes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ingresos
+  source: disney.ingresos
+  description: |
+    ingresos gives the Walt Disney Company's total yearly revenue broken out by business segment.
+
+    Grain: one row per fiscal year (anio), spanning 1991 to 2016, giving total company revenue (total) split across five business segments: entretenimiento_estudio (Studio Entertainment), productos_consumidor_disney (Consumer Products), disney_interactivo (Disney Interactive), parques_resorts_disney (Parks and Resorts), and redes_medios_disney (Media Networks). Unrelated to the other tables in this schema — it has no movie-title column and does not join to actores_voz, director, peliculas_recaudacion_total, or personajes. productos_licenciados_disney, ingresos_disney_interactivos, and redes_sociales_disney on this table are unreliable copies of productos_consumidor_disney, disney_interactivo, and redes_medios_disney and must not be used.
+  fields:
+  - name: anio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: anio
+    description: |
+      anio is the fiscal year a row of company-wide revenue covers.
+
+      Integer year (sample values 1992, 1997, 2013, 2012, 2005), one distinct value per row, spanning 1991 to 2016.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: entretenimiento_estudio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: entretenimiento_estudio
+    description: |
+      entretenimiento_estudio is the Walt Disney Company's Studio Entertainment segment revenue for the year.
+
+      Decimal figure in millions of dollars (sample values 3115.0, 6981.0, 5979.0, 5825.0, 7587.0), null for one year in the table.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: productos_consumidor_disney
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: productos_consumidor_disney
+    description: |
+      productos_consumidor_disney is the Walt Disney Company's Consumer Products segment revenue for the year.
+
+      Decimal figure in millions of dollars (sample values 1081.0, 3782.0, 3555.0, 3252.0, 2127.0), null for two years in the table. The productos_licenciados_disney column on this same table duplicates it unreliably and must not be used.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: disney_interactivo
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: disney_interactivo
+    description: |
+      disney_interactivo is the Walt Disney Company's Disney Interactive segment revenue for the year.
+
+      Integer figure in millions of dollars (sample values 174, 1064, 845, 1299, 260), null for fourteen years in the table — this segment did not exist for the whole period covered. The ingresos_disney_interactivos column on this same table duplicates it unreliably and must not be used.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: parques_resorts_disney
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: parques_resorts_disney
+    description: |
+      parques_resorts_disney is the Walt Disney Company's Parks and Resorts segment revenue for the year.
+
+      Decimal figure in millions of dollars (sample values 3306.0, 5014.0, 14087.0, 12920.0, 9023.0), one value per year in the table.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: redes_medios_disney
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: redes_medios_disney
+    description: |
+      redes_medios_disney is the Walt Disney Company's Media Networks segment revenue for the year.
+
+      Numeric amount stored as text (sample values 6522, 20356, 19436, 13207, 21152), in millions of dollars, null for three years in the table. The redes_sociales_disney column on this same table duplicates it unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: total
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: total
+    description: |
+      total is the Walt Disney Company's total revenue across all segments for the year.
+
+      Integer figure in millions of dollars (sample values 7502, 22473, 45041, 42278, 31944), one value per year in the table, the sum of the year's segment figures.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: productos_licenciados_disney
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: productos_licenciados_disney
+    description: |
+      productos_licenciados_disney, a decimal column on the ingresos table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ingresos_disney_interactivos
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ingresos_disney_interactivos
+    description: |
+      ingresos_disney_interactivos, an integer column on the ingresos table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: redes_sociales_disney
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: redes_sociales_disney
+    description: |
+      redes_sociales_disney, a text column on the ingresos table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: peliculas_financieras
+  source: disney.peliculas_financieras
+  description: |
+    peliculas_financieras is a table in the disney schema that is not dependable and should not be used to answer questions.
+
+    This table is not dependable: its values do not correspond to the business facts the disney schema otherwise records, and it must not be used in a SELECT list, a filter, or a join for any question about Disney movies or box-office figures. Use peliculas_recaudacion_total instead for movie gross, genre, and rating questions.
+  fields:
+  - name: titulo_original
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titulo_original
+    description: |
+      titulo_original, a text column on the peliculas_financieras table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: fecha_lanzamiento
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fecha_lanzamiento
+    description: |
+      fecha_lanzamiento, a text column on the peliculas_financieras table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: categoria_genero
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: categoria_genero
+    description: |
+      categoria_genero, a text column on the peliculas_financieras table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: clasificacion_edad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: clasificacion_edad
+    description: |
+      clasificacion_edad, a text column on the peliculas_financieras table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ingresos_brutos
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ingresos_brutos
+    description: |
+      ingresos_brutos, a text column on the peliculas_financieras table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ingresos_ajustados_inflacion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ingresos_ajustados_inflacion
+    description: |
+      ingresos_ajustados_inflacion, a text column on the peliculas_financieras table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: peliculas_recaudacion_total
+  source: disney.peliculas_recaudacion_total
+  description: |
+    peliculas_recaudacion_total records each Disney movie's box-office gross, genre, MPAA rating, and release date.
+
+    Grain: one row per movie release — its title, genre, MPAA rating, release date, and both nominal and inflation-adjusted box-office gross. Matches actores_voz.pelicula, director.nombre, and personajes.titulo_pelicula on titulo_pelicula as exact text; there is no shared numeric id across these tables. titulo_original, clasificacion_edad, and categoria_genero on this table are unreliable copies of titulo_pelicula, clasificacion_mpaa, and genero and must not be used, and titulo_original must not be used as a join key.
+  fields:
+  - name: titulo_pelicula
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titulo_pelicula
+    description: |
+      titulo_pelicula is the title of the Disney movie a box-office record describes.
+
+      Free text movie title (sample values: Amy, Cars, The Avengers, Evita, Aspen Extreme), matched as exact text against actores_voz.pelicula, director.nombre, and personajes.titulo_pelicula. The titulo_original column on this same table duplicates it unreliably and must not be used for that matching.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "The Disney movie's title, spelled identically as free text across actores_voz.pelicula, director.nombre, peliculas_recaudacion_total.titulo_pelicula, and personajes.titulo_pelicula — there is no shared numeric movie id in this schema, so joining any two of these tables requires an exact text match on the title. Do not use titulo_original, titulo_pelicula_voz, titulo_largometraje, or nombre_completo for this: all four are unreliable copies of a movie title column and must not be used to identify or join movies.\n",
+              "id": "term_disney_movie_title",
+              "name": "movie title",
+              "summary": "Movie title (movies, titulo_pelicula, titles): the name that identifies a Disney movie, spelled consistently across pelicula, nombre, and titulo_pelicula in this schema's tables.",
+              "synonyms": [
+                "movie",
+                "movies",
+                "pelicula",
+                "titulo_pelicula",
+                "title",
+                "titles"
+              ]
+            }
+          ]
+        }
+  - name: fecha_estreno
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fecha_estreno
+    description: |
+      fecha_estreno is the release date of the movie on this row.
+
+      Free text date, month-name day, year (sample values Mar 20, 1981; Jun 9, 2006; May 4, 2012; Dec 25, 1996; Jan 22, 1993) rather than a date type; year comparisons need a substring taken from the tail of the string, not a native date function.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "fecha_estreno stores the release date as free text like \"Mar 20, 1981,\" so \"released in 2016,\" \"released between 1990 and 2015,\" or \"released in the 1970s\" require extracting the trailing four (or two) characters of the string rather than reading a native date or year column — for example substr(fecha_estreno, length(fecha_estreno) - 3, length(fecha_estreno)) for a four-digit year. The personajes table's fecha_estreno column uses a different format (\"2-Jul-86\") and needs its own parsing logic; do not assume the two columns share a format.\n",
+              "id": "term_disney_release_year",
+              "name": "release year",
+              "summary": "Release year (year of release, released in): the four-digit year embedded in fecha_estreno's free-text release date, extracted by substring rather than stored as its own column.",
+              "synonyms": [
+                "release year",
+                "year of release",
+                "released in"
+              ]
+            }
+          ]
+        }
+  - name: genero
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: genero
+    description: |
+      genero is the genre of the movie on this row.
+
+      Text category, sometimes blank (sample values Drama, Comedy, Action, Musical, Romantic Comedy; other values in this table include Adventure, Horror, Western, and Thriller/Suspense), 13 distinct values seen. The categoria_genero column on this same table duplicates it unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: clasificacion_mpaa
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: clasificacion_mpaa
+    description: |
+      clasificacion_mpaa is the Motion Picture Association of America rating assigned to the movie.
+
+      One of G, PG, PG-13, R, or blank (sample values blank, G, PG-13, PG, R). G is general audience; PG is parental guidance suggested; PG-13 warns that some material may be unsuitable for children under 13; R restricts admission for anyone under 17 without a parent or adult guardian. A blank value means the movie can only be shown with theatre-management permission; any other rating means it can be shown without that permission. The clasificacion_edad column on this same table duplicates it unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "peliculas_recaudacion_total.clasificacion_mpaa holds one of G (general audience), PG (parental guidance suggested), PG-13 (parents strongly cautioned, some material may be unsuitable for children under 13), R (restricted — no one under 17 admitted without a parent or adult guardian), or a blank value. PG and PG-13 movies need to be seen with parental accompaniment; a blank value means the movie can only be shown with theatre-management permission, and any other rating means it can be shown without that permission. Do not use clasificacion_edad, an unreliable copy of this column.\n",
+              "id": "term_disney_mpaa_rating",
+              "name": "MPAA rating",
+              "summary": "MPAA rating (Motion Picture Association of America rating, clasificacion_mpaa): the content rating assigned to a Disney movie — G, PG, PG-13, or R.",
+              "synonyms": [
+                "MPAA rating",
+                "Motion Picture Association of America rating",
+                "clasificacion_mpaa"
+              ]
+            }
+          ]
+        }
+  - name: recaudacion_total
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: recaudacion_total
+    description: |
+      recaudacion_total is the movie's total box-office gross, not adjusted for inflation.
+
+      Currency-formatted text (sample values $0, $244,082,982, $623,279,547, $50,047,179, $7,843,388); a higher figure indicates a more popular movie. Compare against recaudacion_ajustada_inflacion, which restates this same gross in current-value dollars.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: recaudacion_ajustada_inflacion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: recaudacion_ajustada_inflacion
+    description: |
+      recaudacion_ajustada_inflacion is the movie's box-office gross restated in current, inflation-adjusted dollars.
+
+      Currency-formatted text (sample values $0, $314,140,384, $660,081,224, $92,077,628, $15,970,955). Dividing this figure by recaudacion_total gives the estimated inflation multiplier since the movie's release; this column, not recaudacion_total, is what "current gross" means in this schema.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: titulo_original
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titulo_original
+    description: |
+      titulo_original, a text column on the peliculas_recaudacion_total table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: clasificacion_edad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: clasificacion_edad
+    description: |
+      clasificacion_edad, a text column on the peliculas_recaudacion_total table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: categoria_genero
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: categoria_genero
+    description: |
+      categoria_genero, a text column on the peliculas_recaudacion_total table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_disney_highest_grossing_movie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(recaudacion_total)
+    description: |
+      Highest grossing movie: the Disney movie with the maximum recaudacion_total, its box-office gross before inflation adjustment.
+
+      MAX(recaudacion_total) over peliculas_recaudacion_total, paired with titulo_pelicula to name the movie. "Most popular movie" and "the highest total gross" both refer to this same maximum. Use recaudacion_total, not recaudacion_ajustada_inflacion, unless the question explicitly asks about inflation-adjusted or "current" gross — that is a separate metric (metric_disney_highest_grossing_movie_adjusted).
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest grossing movie"
+        }
+  - name: metric_disney_highest_grossing_movie_adjusted
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(recaudacion_ajustada_inflacion)
+    description: |
+      Highest grossing movie, inflation adjusted: the Disney movie with the maximum recaudacion_ajustada_inflacion, its current-dollar box-office gross.
+
+      MAX(recaudacion_ajustada_inflacion) over peliculas_recaudacion_total, paired with titulo_pelicula to name the movie. Also referred to as the "more successful" movie or the movie with the highest current gross. Distinct from metric_disney_highest_grossing_movie, which uses the unadjusted recaudacion_total.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest grossing movie, inflation adjusted"
+        }
+  - name: metric_disney_inflation_rate
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(recaudacion_ajustada_inflacion, recaudacion_total)
+    description: |
+      Estimated inflation rate: recaudacion_ajustada_inflacion divided by recaudacion_total, the multiplier between a movie's current-dollar and original box-office gross.
+
+      DIVIDE(recaudacion_ajustada_inflacion, recaudacion_total) per movie in peliculas_recaudacion_total. A movie with recaudacion_total of $0 makes this ratio undefined, so guard the denominator before dividing. This ratio, not either column alone, is what "estimated inflation rate" means for this schema.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "estimated inflation rate"
+        }
+  - name: metric_disney_lowest_grossing_movie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(recaudacion_total)
+    description: |
+      Lowest grossing movie: the Disney movie with the minimum recaudacion_total, its box-office gross before inflation adjustment.
+
+      MIN(recaudacion_total) over peliculas_recaudacion_total, paired with titulo_pelicula to name the movie. Several movies in this table show a value of $0, which counts as the minimum unless the question implies excluding movies that never opened theatrically.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "lowest grossing movie"
+        }
+  - name: metric_disney_most_recent_movie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(fecha_estreno)
+    description: |
+      Most recent movie: the Disney movie with the latest fecha_estreno release date.
+
+      MAX(fecha_estreno) over peliculas_recaudacion_total is unreliable taken literally, because fecha_estreno is free text like "Mar 20, 1981" and does not sort chronologically as a string. Extract the year (see the release-year term) and compare numerically, or parse the full date, before taking the maximum, rather than relying on a plain string MAX.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most recent movie"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: personajes
+  source: disney.personajes
+  description: |
+    personajes lists each Disney movie's hero, villain, and associated song.
+
+    Grain: one row per movie (56 rows), naming its hero (heroe), villain (villano), and an associated song (cancion), plus the movie's title and release date. Matches actores_voz (by pelicula, or by personaje against heroe or villano), director.nombre, and peliculas_recaudacion_total.titulo_pelicula on titulo_pelicula as exact text — there is no shared numeric id. protagonista_principal, titulo_largometraje, and antagonista_principal on this table are unreliable copies of heroe, titulo_pelicula, and villano and must not be used, none of them as a join key.
+  fields:
+  - name: titulo_pelicula
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titulo_pelicula
+    description: |
+      titulo_pelicula is the title of the Disney movie a row of character and song data describes.
+
+      Free text movie title (sample values The Great Mouse Detective, The Many Adventures of Winnie the Pooh, Dinosaur, Pinocchio, Brother Bear), one per row, matched as exact text against actores_voz.pelicula, director.nombre, and peliculas_recaudacion_total.titulo_pelicula. The titulo_largometraje column on this same table duplicates it unreliably and must not be used for that matching.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: fecha_estreno
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fecha_estreno
+    description: |
+      fecha_estreno is the release date of the movie on this row.
+
+      Free text date in day-month-year form (sample values 2-Jul-86, 11-Mar-77, 19-May-00, 7-Feb-40, 1-Nov-03), a different format from the fecha_estreno column on peliculas_recaudacion_total.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: heroe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: heroe
+    description: |
+      heroe is the main character of the movie on this row.
+
+      Free text character name (sample values Basil, Winnie the Pooh, Aladar, Pinocchio, Kenai), null for 4 of 56 rows. Matches actores_voz.personaje when that voice-cast row is for this character. The protagonista_principal column on this same table duplicates it unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "personajes.heroe names a movie's main character or protagonist — for example Donald Duck, Elsa, or Robin Hood. A voice-cast row in actores_voz matches this when actores_voz.personaje equals this value. Do not use protagonista_principal, an unreliable copy of this column.\n",
+              "id": "term_disney_main_character",
+              "name": "main character",
+              "summary": "Main character (hero, protagonist): the movie's central character, recorded in the heroe column of the personajes table.",
+              "synonyms": [
+                "hero",
+                "main character",
+                "protagonist"
+              ]
+            }
+          ]
+        }
+  - name: villano
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: villano
+    description: |
+      villano is the villain of the movie on this row.
+
+      Free text character name (sample values Professor Ratigan, Kron, Stromboli, Denahi, Chernabog), null for 10 of 56 rows — not every movie in this table has a recorded villain. Matches actores_voz.personaje when that voice-cast row is for this character. The antagonista_principal column on this same table duplicates it unreliably and must not be used.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "personajes.villano names a movie's antagonist — for example Turbo — and is null for movies with no recorded villain in this table. A voice-cast row in actores_voz matches this when actores_voz.personaje equals this value. Do not use antagonista_principal, an unreliable copy of this column.\n",
+              "id": "term_disney_villain",
+              "name": "villain",
+              "summary": "Villain (villano): the antagonist of a Disney movie, recorded in the villano column of the personajes table.",
+              "synonyms": [
+                "villain",
+                "villano"
+              ]
+            }
+          ]
+        }
+  - name: cancion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cancion
+    description: |
+      cancion is a song associated with the movie on this row.
+
+      Free text song title (sample values The World's Greatest Criminal Mind, Winnie the Pooh, When You Wish upon a Star, Look Through My Eyes, I'm Still Here), null for 9 of 56 rows when no song is recorded.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: protagonista_principal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: protagonista_principal
+    description: |
+      protagonista_principal, a text column on the personajes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: titulo_largometraje
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titulo_largometraje
+    description: |
+      titulo_largometraje, a text column on the personajes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: antagonista_principal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: antagonista_principal
+    description: |
+      antagonista_principal, a text column on the personajes table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_disney_actores_voz_director_a2ff0f71
+  from: actores_voz
+  to: director
+  from_columns:
+  - pelicula
+  to_columns:
+  - nombre
+  ai_context:
+    instructions: |
+      actores_voz.pelicula matches director.nombre, attaching a movie's director to its voice-cast rows in actores_voz.
+
+      Every actores_voz row's movie title (pelicula) is matched as exact text against a director.nombre value to find who directed that movie; many actores_voz rows (one per cast credit) can match the same director row. Do not join through nombre_completo or director_principal — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between actores_voz and director in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_disney_actores_voz_peliculas_recaudacion_total_d209198a
+  from: actores_voz
+  to: peliculas_recaudacion_total
+  from_columns:
+  - pelicula
+  to_columns:
+  - titulo_pelicula
+  ai_context:
+    instructions: |
+      actores_voz.pelicula matches peliculas_recaudacion_total.titulo_pelicula, attaching box-office figures to a movie's voice-cast rows in actores_voz.
+
+      Every actores_voz row's movie title (pelicula) is matched as exact text against a peliculas_recaudacion_total.titulo_pelicula value to bring in that movie's genre, MPAA rating, release date, and gross; many actores_voz rows (one per cast credit) can match the same peliculas_recaudacion_total row. Do not join through titulo_pelicula_voz or titulo_original — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between actores_voz and peliculas_recaudacion_total in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_disney_actores_voz_personajes_10cb0509
+  from: actores_voz
+  to: personajes
+  from_columns:
+  - personaje
+  to_columns:
+  - heroe
+  ai_context:
+    instructions: |
+      actores_voz.personaje matches personajes.heroe, identifying which voice-cast row played a movie's main character in personajes.
+
+      Matches a cast character (personaje) in actores_voz against the hero (heroe) recorded for a movie in personajes — use this to find who voiced the main character. Most actores_voz rows have no match here, because most cast characters are not the hero. Do not join through rol_personaje or protagonista_principal — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between actores_voz and personajes in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_disney_actores_voz_personajes_d9625f07
+  from: actores_voz
+  to: personajes
+  from_columns:
+  - personaje
+  to_columns:
+  - villano
+  ai_context:
+    instructions: |
+      actores_voz.personaje matches personajes.villano, identifying which voice-cast row played a movie's villain in personajes.
+
+      Matches a cast character (personaje) in actores_voz against the villain (villano) recorded for a movie in personajes — use this to find who voiced the villain. Most actores_voz rows have no match here, because most cast characters are not the villain, and some movies in personajes have no recorded villain at all. Do not join through rol_personaje or antagonista_principal — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between actores_voz and personajes in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_disney_actores_voz_personajes_f237dbb6
+  from: actores_voz
+  to: personajes
+  from_columns:
+  - pelicula
+  to_columns:
+  - titulo_pelicula
+  ai_context:
+    instructions: |
+      actores_voz.pelicula matches personajes.titulo_pelicula, attaching a movie's hero, villain, and song to its voice-cast rows in actores_voz.
+
+      Every actores_voz row's movie title (pelicula) is matched as exact text against a personajes.titulo_pelicula value to bring in that movie's hero, villain, and associated song; many actores_voz rows (one per cast credit) can match the same personajes row. Do not join through titulo_pelicula_voz or titulo_largometraje — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between actores_voz and personajes in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_disney_director_peliculas_recaudacion_total_cf448c08
+  from: director
+  to: peliculas_recaudacion_total
+  from_columns:
+  - nombre
+  to_columns:
+  - titulo_pelicula
+  ai_context:
+    instructions: |
+      director.nombre matches peliculas_recaudacion_total.titulo_pelicula, pairing a movie's director with its box-office record.
+
+      Matches a movie title on director (nombre) as exact text against peliculas_recaudacion_total.titulo_pelicula — both tables carry one row per movie, so this join brings a director's name alongside that movie's genre, rating, and gross. Do not join through nombre_completo, director_principal, or titulo_original — all are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between director and peliculas_recaudacion_total in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_disney_director_personajes_37a486ef
+  from: director
+  to: personajes
+  from_columns:
+  - nombre
+  to_columns:
+  - titulo_pelicula
+  ai_context:
+    instructions: |
+      director.nombre matches personajes.titulo_pelicula, pairing a movie's director with its hero, villain, and song.
+
+      Matches a movie title on director (nombre) as exact text against personajes.titulo_pelicula — both tables carry one row per movie, so this join brings a director's name alongside that movie's hero, villain, and associated song. Do not join through nombre_completo, director_principal, or titulo_largometraje — all are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between director and personajes in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_disney_peliculas_recaudacion_total_personajes_48eae900
+  from: peliculas_recaudacion_total
+  to: personajes
+  from_columns:
+  - titulo_pelicula
+  to_columns:
+  - titulo_pelicula
+  ai_context:
+    instructions: |
+      peliculas_recaudacion_total.titulo_pelicula matches personajes.titulo_pelicula, pairing a movie's box-office record with its hero, villain, and song.
+
+      Matches a movie title on peliculas_recaudacion_total as exact text against personajes.titulo_pelicula — both tables carry one row per movie, so this join brings genre, MPAA rating, and gross alongside that movie's hero, villain, and associated song. Do not join through titulo_original or titulo_largometraje — both are unreliable.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between peliculas_recaudacion_total and personajes in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_4621",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0000",
+          "sql": "SELECT SUM(CASE WHEN \"anio\" = 1998 THEN \"total\" ELSE 0 END) - SUM(CASE WHEN \"anio\" = 1997 THEN \"total\" ELSE 0 END) FROM \"disney\".\"ingresos\"",
+          "summary": "How much more total box office gross did the Walt Disney Company have in revenue in 1998 than in 1997?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4623",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0001",
+          "sql": "SELECT \"director\" FROM \"disney\".\"director\" WHERE \"nombre\" = 'Pinocchio'",
+          "summary": "Who is the director of the movie Pinocchio?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4625",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0002",
+          "sql": "SELECT COUNT(\"titulo_pelicula\") FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE SUBSTRING(\"fecha_estreno\" FROM POSITION('-' IN \"fecha_estreno\") + 1 FOR 3) = 'Dec' AND \"T2\".\"director\" = 'Wolfgang Reitherman'",
+          "summary": "Among the movies directed by Wolfgang Reitherman, how many of them were released in December?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4626",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0003",
+          "sql": "SELECT \"T2\".\"director\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE \"T1\".\"cancion\" = 'Once Upon a Dream'",
+          "summary": "The song \"Once Upon a Dream\" is associated with the movie directed by whom?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4628",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0004",
+          "sql": "SELECT \"T2\".\"fecha_estreno\" FROM \"disney\".\"actores_voz\" AS \"T1\" INNER JOIN \"disney\".\"personajes\" AS \"T2\" ON \"T1\".\"pelicula\" = \"T2\".\"titulo_pelicula\" WHERE \"T1\".\"actor_voz\" = 'Alan Tudyk'",
+          "summary": "Please list the release dates of all the movies in which Alan Tudyk is a voice actor."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4630",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0005",
+          "sql": "SELECT COUNT(\"T3\".\"nombre\") FROM (SELECT \"T2\".\"nombre\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE \"T2\".\"director\" = 'Wolfgang Reitherman' AND \"T1\".\"genero\" = 'Comedy' GROUP BY \"T2\".\"nombre\") AS \"T3\"",
+          "summary": "Among the movies directed by Wolfgang Reitherman, how many of them are Comedies?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4632",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0006",
+          "sql": "SELECT \"T1\".\"titulo_pelicula\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE \"T1\".\"clasificacion_mpaa\" = 'G' AND \"T2\".\"director\" = 'Wolfgang Reitherman'",
+          "summary": "Please list the movies directed by Wolfgang Reitherman that can be watched by the general audience."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4634",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0007",
+          "sql": "SELECT \"T2\".\"genero\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"peliculas_recaudacion_total\" AS \"T2\" ON \"T2\".\"titulo_pelicula\" = \"T1\".\"titulo_pelicula\" WHERE \"T1\".\"villano\" = 'Commander Rourke'",
+          "summary": "What is the genre of the movie whose villain is Commander Rourke?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4636",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0008",
+          "sql": "SELECT \"titulo_pelicula\" FROM \"disney\".\"personajes\" WHERE \"heroe\" = 'Robin Hood'",
+          "summary": "Which movie is the character Robin Hood in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4637",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0009",
+          "sql": "SELECT \"titulo_pelicula\" FROM \"disney\".\"personajes\" WHERE \"cancion\" = 'I Thought I Lost You'",
+          "summary": "Give the name of the movie which the song \"I Thought I Lost You\" is associated with."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4639",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0010",
+          "sql": "SELECT \"T1\".\"heroe\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"peliculas_recaudacion_total\" AS \"T2\" ON \"T2\".\"titulo_pelicula\" = \"T1\".\"titulo_pelicula\" WHERE \"T2\".\"recaudacion_total\" = '$222,527,828'",
+          "summary": "Who is the hero character of the movie whose total gross was $222,527,828?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4640",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0011",
+          "sql": "SELECT \"T2\".\"cancion\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"personajes\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"titulo_pelicula\" WHERE CAST(SUBSTRING(\"T1\".\"fecha_estreno\" FROM POSITION(', ' IN \"T1\".\"fecha_estreno\") + 1) AS INT) BETWEEN 1970 AND 1979 ORDER BY CAST(REPLACE(SUBSTRING(\"T1\".\"recaudacion_total\" FROM 2), ',', '') AS REAL) DESC NULLS LAST LIMIT 1",
+          "summary": "Which song is associated with the most popular Disney movie in 1970s?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4641",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0012",
+          "sql": "SELECT \"T1\".\"heroe\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T2\".\"nombre\" = \"T1\".\"titulo_pelicula\" WHERE \"T2\".\"director\" = 'Will Finn'",
+          "summary": "Who is the hero character of the Disney movie directed by Will Finn?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4642",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0013",
+          "sql": "SELECT \"T2\".\"actor_voz\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"actores_voz\" AS \"T2\" ON \"T2\".\"pelicula\" = \"T1\".\"titulo_pelicula\" WHERE \"T1\".\"titulo_pelicula\" = 'The Little Mermaid' AND \"T2\".\"personaje\" = \"T1\".\"heroe\"",
+          "summary": "Who is the voice actor of the hero character from the movie The Little Mermaid?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4643",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0014",
+          "sql": "SELECT \"T1\".\"director\" FROM \"disney\".\"director\" AS \"T1\" INNER JOIN \"disney\".\"actores_voz\" AS \"T2\" ON \"T2\".\"pelicula\" = \"T1\".\"nombre\" WHERE \"T2\".\"personaje\" = 'Aunt Sarah' AND \"T2\".\"actor_voz\" = 'Verna Felton'",
+          "summary": "Give the name of the director of the movie in which Verna Felton was the voice actor for its character \"Aunt Sarah\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4644",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0015",
+          "sql": "SELECT \"T1\".\"fecha_estreno\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"actores_voz\" AS \"T2\" ON \"T2\".\"pelicula\" = \"T1\".\"titulo_pelicula\" WHERE \"T2\".\"personaje\" = 'Hyacinth Hippo' AND \"T2\".\"actor_voz\" = 'Tress MacNeille'",
+          "summary": "For the movie in which Tress MacNeille was the voice actor for its character \"Hyacinth Hippo\", what was the release date of that movie?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4645",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0016",
+          "sql": "SELECT \"T1\".\"director\" FROM \"disney\".\"director\" AS \"T1\" INNER JOIN \"disney\".\"peliculas_recaudacion_total\" AS \"T2\" ON \"T2\".\"titulo_pelicula\" = \"T1\".\"nombre\" WHERE \"T2\".\"genero\" = 'Adventure' AND \"T2\".\"fecha_estreno\" = 'Mar 30, 2007'",
+          "summary": "Who is the director of the adventure movie which was released on 2007/3/30?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4646",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0017",
+          "sql": "SELECT \"T1\".\"titulo_pelicula\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE \"T2\".\"director\" = 'Wolfgang Reitherman' ORDER BY CAST(REPLACE(SUBSTRING(\"recaudacion_ajustada_inflacion\" FROM 2), ',', '') AS REAL) DESC NULLS LAST LIMIT 1",
+          "summary": "Wolfgang Reitherman has directed several Disney movies, which one has the highest grossing after accounting for inflation?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4647",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0018",
+          "sql": "SELECT \"T1\".\"heroe\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"peliculas_recaudacion_total\" AS \"T2\" ON \"T2\".\"titulo_pelicula\" = \"T1\".\"titulo_pelicula\" WHERE \"T2\".\"genero\" = 'Adventure' AND \"T1\".\"fecha_estreno\" = '4-Mar-16'",
+          "summary": "Who is the hero character of the adventure movie which was released on 2016/3/4?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4649",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0019",
+          "sql": "SELECT COUNT(\"nombre\") FROM \"disney\".\"director\" WHERE \"director\" = 'Wolfgang Reitherman'",
+          "summary": "How many movies did Wolfgang Reitherman direct?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4651",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0020",
+          "sql": "SELECT COUNT(\"titulo_pelicula\") FROM \"disney\".\"peliculas_recaudacion_total\" WHERE \"clasificacion_mpaa\" = 'R' AND \"genero\" = 'Horror' AND CAST(SUBSTRING(\"fecha_estreno\" FROM POSITION(', ' IN \"fecha_estreno\") + 1) AS INT) BETWEEN 1990 AND 2015",
+          "summary": "How many restricted horror movies were released between 1/1/1990 to 12/31/2015?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4653",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0021",
+          "sql": "SELECT \"T1\".\"recaudacion_total\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"personajes\" AS \"T2\" ON \"T2\".\"titulo_pelicula\" = \"T1\".\"titulo_pelicula\" WHERE \"T2\".\"cancion\" = 'Little Wonders'",
+          "summary": "How much is the total gross of the movie with a song titled \"Little Wonders\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4654",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0022",
+          "sql": "SELECT \"T1\".\"clasificacion_mpaa\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"personajes\" AS \"T2\" ON \"T2\".\"titulo_pelicula\" = \"T1\".\"titulo_pelicula\" WHERE \"T2\".\"villano\" = 'Turbo'",
+          "summary": "What is the Motion Picture Association of America rating for the movie featuring a villain named Turbo?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4655",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0023",
+          "sql": "SELECT COUNT(\"T\".\"pelicula\") FROM (SELECT \"T1\".\"pelicula\" FROM \"disney\".\"actores_voz\" AS \"T1\" INNER JOIN \"disney\".\"peliculas_recaudacion_total\" AS \"T2\" ON \"T1\".\"pelicula\" = \"T2\".\"titulo_pelicula\" WHERE \"clasificacion_mpaa\" = 'PG' AND \"actor_voz\" = 'Bill Thompson' GROUP BY \"T1\".\"pelicula\") AS \"T\"",
+          "summary": "How many movies for mature audiences or parental guidance suggested did Bill Thompson work as a voice actor?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4659",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0024",
+          "sql": "SELECT \"T2\".\"actor_voz\" FROM \"disney\".\"director\" AS \"T1\" INNER JOIN \"disney\".\"actores_voz\" AS \"T2\" ON TRUE INNER JOIN \"disney\".\"peliculas_recaudacion_total\" AS \"T3\" ON \"T1\".\"nombre\" = \"T2\".\"pelicula\" AND \"T2\".\"pelicula\" = \"T3\".\"titulo_pelicula\" WHERE \"T1\".\"director\" = 'Ben Sharpsteen' AND \"T3\".\"fecha_estreno\" = 'Feb 9, 1940' AND \"T2\".\"actor_voz\" <> 'None' GROUP BY \"T2\".\"actor_voz\"",
+          "summary": "List all the voice actors in the movie directed by Ben Sharpsteen which was released on February 9, 1940."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4660",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0025",
+          "sql": "SELECT COUNT(*) FROM \"disney\".\"director\" AS \"T1\" INNER JOIN \"disney\".\"peliculas_recaudacion_total\" AS \"T2\" ON \"T1\".\"nombre\" = \"T2\".\"titulo_pelicula\" WHERE \"T1\".\"director\" = 'Ron Clements' AND \"T2\".\"clasificacion_mpaa\" = 'PG' AND \"T2\".\"genero\" = 'Adventure'",
+          "summary": "How many PG adventure movies did Ron Clements direct?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4661",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0026",
+          "sql": "SELECT COUNT(\"titulo_pelicula\") FROM \"disney\".\"peliculas_recaudacion_total\" WHERE \"genero\" = 'Horror'",
+          "summary": "How many horror movies are there?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4662",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0027",
+          "sql": "SELECT \"villano\" FROM \"disney\".\"personajes\" WHERE \"titulo_pelicula\" = 'The Great Mouse Detective'",
+          "summary": "Who is the villain in the movie \"The Great Mouse Detective\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4668",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0028",
+          "sql": "SELECT \"T2\".\"director\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" AND CAST(SUBSTRING(\"fecha_estreno\" FROM POSITION(', ' IN \"fecha_estreno\") + 1) AS INT) BETWEEN 1990 AND 2000 GROUP BY \"T2\".\"director\"",
+          "summary": "Provide a list of directors from the 1990s."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4669",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0029",
+          "sql": "SELECT \"T1\".\"actor_voz\" FROM \"disney\".\"actores_voz\" AS \"T1\" INNER JOIN \"disney\".\"personajes\" AS \"T2\" ON \"T2\".\"titulo_pelicula\" = \"T1\".\"pelicula\" WHERE \"T2\".\"titulo_pelicula\" = 'The Rescuers' AND \"T1\".\"personaje\" = \"T2\".\"villano\"",
+          "summary": "Who voiced the villain in \"The Rescuers\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4670",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0030",
+          "sql": "SELECT \"T1\".\"nombre\", \"T2\".\"actor_voz\" FROM \"disney\".\"director\" AS \"T1\" INNER JOIN \"disney\".\"actores_voz\" AS \"T2\" ON \"T1\".\"nombre\" = \"T2\".\"pelicula\" WHERE \"T1\".\"director\" = 'Wolfgang Reitherman'",
+          "summary": "List all of Wolfgang Reitherman's movies and their voice actors."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4671",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0031",
+          "sql": "SELECT DISTINCT \"T2\".\"personaje\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"actores_voz\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"pelicula\" WHERE \"T1\".\"clasificacion_mpaa\" = 'PG'",
+          "summary": "What are the characters in the PG movies?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4673",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0032",
+          "sql": "SELECT \"T2\".\"director\", COUNT(DISTINCT \"T1\".\"actor_voz\") FROM \"disney\".\"actores_voz\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"pelicula\" = \"T2\".\"nombre\" GROUP BY \"T2\".\"director\" ORDER BY COUNT(DISTINCT \"T1\".\"actor_voz\") DESC NULLS LAST LIMIT 1",
+          "summary": "Who directed the movie with the most voice actors?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4674",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0033",
+          "sql": "SELECT \"T2\".\"actor_voz\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"actores_voz\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"pelicula\" WHERE \"T1\".\"fecha_estreno\" = 'Nov 24, 2010'",
+          "summary": "Who are the voice actors in the movie that came out on 11/24/2010?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4675",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0034",
+          "sql": "SELECT \"T2\".\"director\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE NOT \"T1\".\"cancion\" IS NULL GROUP BY \"T2\".\"director\"",
+          "summary": "List the directors of movies that feature a song."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4677",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0035",
+          "sql": "SELECT \"T2\".\"titulo_pelicula\" FROM \"disney\".\"director\" AS \"T1\" INNER JOIN \"disney\".\"peliculas_recaudacion_total\" AS \"T2\" ON \"T1\".\"nombre\" = \"T2\".\"titulo_pelicula\" WHERE \"T1\".\"director\" = 'Ron Clements' ORDER BY CAST(REPLACE(TRIM('$' FROM \"T2\".\"recaudacion_total\"), ',', '') AS REAL) DESC NULLS LAST LIMIT 1",
+          "summary": "Which of the movies directed by Ron Clements has the highest total gross?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4680",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0036",
+          "sql": "SELECT \"titulo_pelicula\", \"genero\" FROM \"disney\".\"peliculas_recaudacion_total\" WHERE SUBSTRING(\"fecha_estreno\" FROM LENGTH(\"fecha_estreno\") - 3 FOR LENGTH(\"fecha_estreno\")) = '2016'",
+          "summary": "List the movies and genres released in 2016."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4682",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0037",
+          "sql": "SELECT \"nombre\" FROM \"disney\".\"director\" WHERE \"director\" = 'Jack Kinney'",
+          "summary": "List the movie titles directed by Jack Kinney."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4684",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0038",
+          "sql": "SELECT \"titulo_pelicula\", \"fecha_estreno\" FROM \"disney\".\"peliculas_recaudacion_total\" WHERE \"clasificacion_mpaa\" = 'PG-13' AND \"genero\" = 'Romantic Comedy'",
+          "summary": "List the PG-13 romantic comedy movie titles and their release dates."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4687",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0039",
+          "sql": "SELECT \"T1\".\"titulo_pelicula\", \"T2\".\"heroe\", \"T2\".\"cancion\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"personajes\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"titulo_pelicula\" INNER JOIN \"disney\".\"director\" AS \"T3\" ON \"T1\".\"titulo_pelicula\" = \"T3\".\"nombre\" WHERE \"T3\".\"director\" = 'Wolfgang Reitherman' AND SUBSTRING(\"T1\".\"fecha_estreno\" FROM LENGTH(\"T1\".\"fecha_estreno\") - 3 FOR LENGTH(\"T1\".\"fecha_estreno\")) = '1977'",
+          "summary": "Provide the titles, main characters, and associated songs of the movies directed by Wolfgang Reitherman in 1977."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4688",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0040",
+          "sql": "SELECT \"T1\".\"titulo_pelicula\", \"T2\".\"director\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE \"T1\".\"heroe\" = 'Donald Duck'",
+          "summary": "Which movies had the main character named Donald Duck and who directed them?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4689",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0041",
+          "sql": "SELECT \"T1\".\"heroe\", \"T2\".\"director\", \"T1\".\"fecha_estreno\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE \"T1\".\"titulo_pelicula\" = 'Mulan'",
+          "summary": "Describe the hero, director, and the release date of Mulan."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4692",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0042",
+          "sql": "SELECT \"T1\".\"titulo_pelicula\", \"T1\".\"recaudacion_total\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"actores_voz\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"pelicula\" WHERE \"T2\".\"actor_voz\" = 'Frank Welker' AND CAST(REPLACE(TRIM('$' FROM \"T1\".\"recaudacion_ajustada_inflacion\"), ',', '') AS REAL) * 1.0 / NULLIF(CAST(REPLACE(TRIM('$' FROM \"T1\".\"recaudacion_total\"), ',', '') AS REAL), 0) * 1.0 < 2",
+          "summary": "Among Frank Welker's voice-acted movies, list the movie titles and the total gross when the estimated inflation rate was less than 2."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4693",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0043",
+          "sql": "SELECT \"T2\".\"director\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" ORDER BY CAST(REPLACE(TRIM('$' FROM \"T1\".\"recaudacion_total\"), ',', '') AS REAL) DESC NULLS LAST LIMIT 1",
+          "summary": "Who directed the most popular movie?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4699",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0044",
+          "sql": "SELECT \"actor_voz\" FROM \"disney\".\"actores_voz\" WHERE \"pelicula\" = 'Hercules' AND \"personaje\" = 'Calliope'",
+          "summary": "Name the voice actor of the character Calliope in the movie Hercules."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4704",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0045",
+          "sql": "SELECT COUNT(\"titulo_pelicula\") FROM \"disney\".\"personajes\" WHERE SUBSTRING(\"fecha_estreno\" FROM LENGTH(\"fecha_estreno\") - 1 FOR LENGTH(\"fecha_estreno\")) BETWEEN '37' AND '50'",
+          "summary": "How many movies were released between 1937 and 1950?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4706",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0046",
+          "sql": "SELECT \"T1\".\"fecha_estreno\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE \"T2\".\"director\" = 'Roger Allers' AND \"T1\".\"titulo_pelicula\" = 'The Lion King'",
+          "summary": "Indicate the release date of the film The Lion King directed by Roger Allers."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4708",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0047",
+          "sql": "SELECT \"T1\".\"titulo_pelicula\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE \"T2\".\"director\" = 'Wolfgang Reitherman' AND \"T1\".\"villano\" IS NULL",
+          "summary": "Which movies of director Wolfgang Reitherman do not have villain?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4709",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0048",
+          "sql": "SELECT \"T1\".\"titulo_pelicula\" FROM \"disney\".\"personajes\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE \"T2\".\"director\" = 'Jack Kinney' AND SUBSTRING(\"T1\".\"fecha_estreno\" FROM LENGTH(\"T1\".\"fecha_estreno\") - 1 FOR LENGTH(\"T1\".\"fecha_estreno\")) < '47'",
+          "summary": "List the titles of movies directed by Jack Kinney that were released before 1947."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4711",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0049",
+          "sql": "SELECT \"T2\".\"cancion\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"personajes\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"titulo_pelicula\" ORDER BY CAST(REPLACE(TRIM('$' FROM \"T1\".\"recaudacion_total\"), ',', '') AS REAL) DESC NULLS LAST LIMIT 1",
+          "summary": "Which movie's song title has the highest total gross?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4713",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0050",
+          "sql": "SELECT \"T2\".\"heroe\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"personajes\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"titulo_pelicula\" WHERE \"T1\".\"genero\" = 'Comedy'",
+          "summary": "List all the main characters of the movie that are comedy genre."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4714",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0051",
+          "sql": "SELECT \"T2\".\"heroe\", \"T1\".\"actor_voz\" FROM \"disney\".\"actores_voz\" AS \"T1\" INNER JOIN \"disney\".\"personajes\" AS \"T2\" ON \"T1\".\"pelicula\" = \"T2\".\"titulo_pelicula\" INNER JOIN \"disney\".\"director\" AS \"T3\" ON \"T3\".\"nombre\" = \"T2\".\"titulo_pelicula\" WHERE \"T3\".\"director\" = 'Wolfgang Reitherman'",
+          "summary": "Provide the names of voice actors for the characters of films directed by Wolfgang Reitherman."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4716",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0052",
+          "sql": "SELECT \"T1\".\"actor_voz\", \"T3\".\"director\" FROM \"disney\".\"actores_voz\" AS \"T1\" INNER JOIN \"disney\".\"personajes\" AS \"T2\" ON \"T1\".\"pelicula\" = \"T2\".\"titulo_pelicula\" INNER JOIN \"disney\".\"director\" AS \"T3\" ON \"T2\".\"titulo_pelicula\" = \"T3\".\"nombre\" WHERE \"T2\".\"heroe\" = 'Elsa'",
+          "summary": "The main character Elsa is voiced by which actor and who is the director of the movie?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4719",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0053",
+          "sql": "SELECT \"titulo_pelicula\" FROM \"disney\".\"personajes\" ORDER BY SUBSTRING(\"fecha_estreno\" FROM LENGTH(\"fecha_estreno\") - 1 FOR LENGTH(\"fecha_estreno\")) ASC NULLS FIRST LIMIT 1",
+          "summary": "Name the first movie released by Disney."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4720",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0054",
+          "sql": "SELECT COUNT(\"titulo_pelicula\") FROM \"disney\".\"personajes\" WHERE SUBSTRING(\"fecha_estreno\" FROM LENGTH(\"fecha_estreno\") - 1 FOR LENGTH(\"fecha_estreno\")) BETWEEN '10' AND '16'",
+          "summary": "How many movies were released by Disney between 2010 and 2016?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4721",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0055",
+          "sql": "SELECT \"villano\" FROM \"disney\".\"personajes\" ORDER BY SUBSTRING(\"fecha_estreno\" FROM LENGTH(\"fecha_estreno\") - 1 FOR LENGTH(\"fecha_estreno\")) DESC NULLS LAST LIMIT 1",
+          "summary": "Who was the first ever Disney villain?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4722",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0056",
+          "sql": "SELECT \"titulo_pelicula\" FROM \"disney\".\"peliculas_recaudacion_total\" WHERE \"genero\" = 'Action' ORDER BY CAST(REPLACE(TRIM('$' FROM \"recaudacion_total\"), ',', '') AS REAL) DESC NULLS LAST LIMIT 1",
+          "summary": "What is Disney's highest grossing action movie?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4723",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0057",
+          "sql": "SELECT \"actor_voz\" FROM \"disney\".\"actores_voz\" WHERE \"personaje\" = 'Akela'",
+          "summary": "Which actor voices Akela from The Jungle Book?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4726",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0058",
+          "sql": "SELECT \"T2\".\"director\" FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" ORDER BY CAST(REPLACE(TRIM('$' FROM \"T1\".\"recaudacion_total\"), ',', '') AS REAL) ASC NULLS FIRST LIMIT 1",
+          "summary": "Name the director of Disney's lowest grossing movie."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4727",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0059",
+          "sql": "SELECT SUM(\"parques_resorts_disney\") / SUM(\"total\") * 100 FROM \"disney\".\"ingresos\" WHERE \"anio\" = 2010",
+          "summary": "Find out what proportion of total revenue Walt Disney Parks and Resorts received in 2010."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4732",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0060",
+          "sql": "SELECT \"T1\".\"titulo_pelicula\", MAX(\"T1\".\"fecha_estreno\"), MAX(\"T1\".\"recaudacion_ajustada_inflacion\") FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE \"T2\".\"director\" = 'Chris Buck' GROUP BY \"T1\".\"titulo_pelicula\" ORDER BY MAX(\"T1\".\"fecha_estreno\") DESC LIMIT 1",
+          "summary": "Name the most recent movie directed by Chris Buck. Which of his movies was more successful in terms of grossing? Use the current gross for comparison."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4735",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_disney_0061",
+          "sql": "SELECT CAST(COUNT(CASE WHEN CAST(REPLACE(TRIM('$' FROM \"T1\".\"recaudacion_total\"), ',', '') AS REAL) > 100000000 THEN \"T1\".\"titulo_pelicula\" ELSE NULL END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"titulo_pelicula\"), 0) FROM \"disney\".\"peliculas_recaudacion_total\" AS \"T1\" INNER JOIN \"disney\".\"director\" AS \"T2\" ON \"T1\".\"titulo_pelicula\" = \"T2\".\"nombre\" WHERE \"T2\".\"director\" = 'Gary Trousdale'",
+          "summary": "Among all Disney movies directed by Gary Trousdale, determine the percentage that earned over USD100m based on actual grossing."
+        }
+      ]
+    }

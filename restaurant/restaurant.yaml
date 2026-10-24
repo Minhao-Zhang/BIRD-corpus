@@ -1,26 +1,1870 @@
-asset_type: schema
-id: restaurant
+version: 0.2.0.dev0
 name: restaurant
-summary: >-
-  The restaurant schema tracks California restaurants, their name, cuisine or food type, and
-  customer rating, plus the county and region for the city each restaurant sits in, for
-  questions about location, cuisine, rating, or address.
-body: >
-  Three tables carry the real data: allgemeine_informationen (one row per restaurant: name,
-  food type, city, rating), standort (one row per restaurant: street number, street name,
-  city), and geografisch (one row per city: county and region). A restaurant's city appears in
-  all three tables as stadt, and 'unknown' is a valid placeholder value in geografisch's county
-  and region columns when a city was never classified. betrieb_informationen and
-  restaurant_adresse look like restaurant and address tables but are not dependable for
-  analysis; none of their columns should be used to answer a question.
-rules:
-- Answer restaurant questions from allgemeine_informationen, standort, and geografisch only.
-  Never select, filter, or join on a column from betrieb_informationen or restaurant_adresse —
-  every column in those two tables is unreliable for analysis.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  The restaurant schema tracks California restaurants, their name, cuisine or food type, and customer rating, plus the county and region for the city each restaurant sits in, for questions about location, cuisine, rating, or address.
+
+  Three tables carry the real data: allgemeine_informationen (one row per restaurant: name, food type, city, rating), standort (one row per restaurant: street number, street name, city), and geografisch (one row per city: county and region). A restaurant's city appears in all three tables as stadt, and 'unknown' is a valid placeholder value in geografisch's county and region columns when a city was never classified. betrieb_informationen and restaurant_adresse look like restaurant and address tables but are not dependable for analysis; none of their columns should be used to answer a question.
+ai_context:
+  instructions: Answer restaurant questions from allgemeine_informationen, standort, and geografisch only. Never select, filter, or join on a column from betrieb_informationen or restaurant_adresse — every column in those two tables is unreliable for analysis.
+datasets:
+- name: allgemeine_informationen
+  source: restaurant.allgemeine_informationen
+  description: |
+    allgemeine_informationen holds one row per restaurant, recording its name, food type, city, and customer review rating.
+
+    Grain: one row per restaurant, keyed by restaurant_id. This is the table to start from for any question about a restaurant's identity, cuisine, or rating. It is easily confused with betrieb_informationen, a table of restaurant-like records that looks similar but is not dependable for analysis; use this table instead. Join to standort on restaurant_id (one row per restaurant on both sides) to add a restaurant's street address, and to geografisch on stadt (many restaurants share a city) to add its county and region.
+  fields:
+  - name: restaurant_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: restaurant_id
+    description: |
+      The unique identifier for a restaurant, restaurant_id.
+
+      A numeric id, unique per row in this table (the loaded sample has no repeats). Join to standort.restaurant_id to bring in the same restaurant's street address.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: bezeichnung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bezeichnung
+    description: |
+      The name of a restaurant, bezeichnung.
+
+      Free-text restaurant name, for example nations, lee's cafe, chef wang, pastavino, or thai bai. Called "restaurant name" or "diner name" in business language. Not unique: a chain such as Baskin Robbins can have more than one row.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to allgemeine_informationen.bezeichnung, free text like nations, lee's cafe, or chef wang. Not unique: a chain like Baskin Robbins can appear on more than one row.\n",
+              "id": "term_restaurant_name",
+              "name": "restaurant name",
+              "summary": "restaurant name (diner name): the name a restaurant does business under.",
+              "synonyms": [
+                "restaurant name",
+                "diner name"
+              ]
+            }
+          ]
+        }
+  - name: speisen_typ
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: speisen_typ
+    description: |
+      The food type or cuisine served at a restaurant, speisen_typ.
+
+      One of roughly 56 cuisine or category labels in the sample, such as chinese, italian, thai, cafe, burgers, or bar; a few values like "24 hour diner" describe a dining format rather than a cuisine. One entry is misspelled "ameraican" instead of "american" — when a question asks about American food, check both spellings.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to allgemeine_informationen.speisen_typ. Values include ordinary cuisines like chinese, mexican, indian, or greek, as well as dining formats like bar, cafe, chicken, or \"24 hour diner\". One entry is misspelled \"ameraican\" instead of \"american\" — match both spellings when a question asks about American food.\n",
+              "id": "term_restaurant_food_type",
+              "name": "food type",
+              "summary": "food type (cuisine, type of food): the kind of cuisine or dining format a restaurant serves.",
+              "synonyms": [
+                "food type",
+                "cuisine",
+                "type of food"
+              ]
+            }
+          ]
+        }
+  - name: stadt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stadt
+    description: |
+      The city where a restaurant is located, stadt.
+
+      Lowercase city name, for example fairfield, oakland, san ramon, danville, or san jose (89 distinct in the sample). Join to geografisch.stadt for the restaurant's county and region, and expect it to match standort.stadt for the same restaurant.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: bewertung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bewertung
+    description: |
+      A restaurant's customer review rating, bewertung.
+
+      Decimal rating from 0.0 to 5.0 (the sample spans about 1.5 to 4.4). A higher rating tracks a more popular, more highly regarded restaurant. Common phrasings: "more than 4 star" or "scored over 4" means bewertung > 4; not having "obtained a minimum of 3" means bewertung < 3.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to allgemeine_informationen.bewertung, a decimal from 0.0 to 5.0. Common boundary phrasings from business language: \"more than 4 star\" or \"scored over 4\" means bewertung > 4; not having \"obtained a minimum of 3\" means bewertung < 3. A higher value tracks a more popular, more highly regarded restaurant; there is no separate popularity column to join to.\n",
+              "id": "term_restaurant_rating",
+              "name": "restaurant rating",
+              "summary": "rating (review, score, popularity): a customer review score for a restaurant, positively linked to how popular the restaurant is.",
+              "synonyms": [
+                "rating",
+                "review",
+                "score",
+                "popularity"
+              ]
+            }
+          ]
+        }
+  - name: stadtname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stadtname
+    description: |
+      stadtname, a text column on the allgemeine_informationen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: lokal_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: lokal_id
+    description: |
+      lokal_id, a numeric column on the allgemeine_informationen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: gerichtstyp
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: gerichtstyp
+    description: |
+      gerichtstyp, a text column on the allgemeine_informationen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_restaurant_average_rating
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(SUM(bewertung), COUNT(restaurant_id))
+    description: |
+      average restaurant rating: the mean bewertung value across restaurants in a group like a county or region.
+
+      Bound to allgemeine_informationen.bewertung: SUM(bewertung) divided by COUNT(restaurant_id) over the restaurants in scope, for example one county reached by joining allgemeine_informationen to geografisch on stadt and filtering geografisch.landkreis. "Above-average" or "below-average" compares one restaurant's bewertung to this metric computed over the same group, not over the whole table.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average restaurant rating"
+        }
+  - name: metric_restaurant_count_by_city
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(restaurant_id)
+    description: |
+      restaurant count by city: how many restaurants, or branches of one chain, share a city.
+
+      Bound to allgemeine_informationen, counting restaurant_id grouped by stadt. "The highest number of branches" and, when a question is about cities, "the highest number" resolve to this metric ordered descending with the top row taken. Grouping the same COUNT(restaurant_id) by bezeichnung instead of stadt answers how many locations one restaurant chain has.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "dimensions": [
+            "restaurant.allgemeine_informationen.stadt"
+          ],
+          "name": "restaurant count by city"
+        }
+  - name: metric_restaurant_highest_rating
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(bewertung)
+    description: |
+      highest restaurant rating: the maximum bewertung value among restaurants in a group.
+
+      Bound to allgemeine_informationen.bewertung. Business phrasings "the highest bewertung", "the most popular", and "the top N most popular restaurants" (ordering by bewertung descending and taking the top N rows) all resolve to MAX(bewertung), optionally grouped by city, county, or region if the question names one.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest restaurant rating"
+        }
+  - name: metric_restaurant_lowest_rating
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(bewertung)
+    description: |
+      lowest restaurant rating: the minimum bewertung value among restaurants in a group.
+
+      Bound to allgemeine_informationen.bewertung. The business phrasing "unpopular" resolves to MIN(bewertung), the opposite of the highest-rating metric, optionally grouped by city, county, or region if the question names one.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "lowest restaurant rating"
+        }
+  - name: metric_restaurant_most_common_food_type
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(restaurant_id) GROUP BY speisen_typ ORDER BY COUNT(restaurant_id) DESC LIMIT 1
+    description: |
+      most common food type: the speisen_typ value with the highest restaurant count in a group.
+
+      Bound to allgemeine_informationen.speisen_typ: group restaurants by speisen_typ, count them, and take the value with the largest count. There is no single aggregate for this in SQL, so it is written as COUNT(restaurant_id) grouped by speisen_typ, ordered by that count descending, keeping only the top row. "The most common type of food" is this metric, optionally scoped to one city or county first.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "most common food type"
+        }
+  - name: metric_restaurant_share_meeting_condition
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: 100.0 * COUNT(restaurant_id) FILTER (WHERE :condition) / COUNT(restaurant_id) FILTER (WHERE :group_filter)
+    description: |
+      restaurant share meeting a condition: the percentage of restaurants in a group that satisfy a filter.
+
+      A ratio of two counts over allgemeine_informationen, optionally joined to geografisch or standort to reach the grouping or filter columns, multiplied by 100. For example, the percentage of bay area restaurants rated above 4 divides COUNT(restaurant_id WHERE region = 'bay area' AND bewertung > 4) by COUNT(restaurant_id WHERE region = 'bay area'); the percentage of mexican restaurants in Monterey county divides COUNT(restaurant_id WHERE speisen_typ = 'mexican' AND landkreis = 'monterey county') by COUNT(restaurant_id WHERE landkreis = 'monterey county'). Always match the denominator's filter to the group named in the question, not to the whole table.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "restaurant share meeting a condition"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: betrieb_informationen
+  source: restaurant.betrieb_informationen
+  description: |
+    betrieb_informationen is a table of restaurant-like records that is not dependable for analysis.
+
+    Every column in betrieb_informationen is unreliable and does not correspond to the business facts of an actual restaurant. Do not use this table, or any of its columns, to answer a question. Use allgemeine_informationen for a restaurant's identity, food type, and rating, standort for its street address, and geografisch for its county and region.
+  fields:
+  - name: lokal_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: lokal_id
+    description: |
+      lokal_id, a numeric column on the betrieb_informationen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: name
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: name
+    description: |
+      name, a text column on the betrieb_informationen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: kuechenrichtung
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kuechenrichtung
+    description: |
+      kuechenrichtung, a text column on the betrieb_informationen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ort
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ort
+    description: |
+      ort, a text column on the betrieb_informationen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: bewertungswert
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: bewertungswert
+    description: |
+      bewertungswert, a numeric column on the betrieb_informationen table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: geografisch
+  source: restaurant.geografisch
+  description: |
+    geografisch maps each city that a restaurant sits in to its county and region.
+
+    Grain: one row per city (168 distinct cities in the loaded sample). Use this table whenever a question names a county or a region rather than a city — allgemeine_informationen.stadt and standort.stadt hold the same city values, but the county and region live only here. Join to either of those tables on stadt; because many restaurants share a city, that join is many-to-one from a restaurant table into geografisch. 'unknown' appears as a placeholder in the county and region columns when a city's county or region was never identified.
+  fields:
+  - name: stadt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stadt
+    description: |
+      The city name that a county and region are recorded for, stadt.
+
+      One row per city in this table (168 distinct in the loaded sample); joins to allgemeine_informationen.stadt and standort.stadt to bring in a restaurant's county and region. Lowercase text, for example san carlos, san jose, watsonville, hercules, or alameda.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: landkreis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: landkreis
+    description: |
+      The county that a city belongs to, landkreis.
+
+      Text value ending in "county", for example san mateo county, santa clara county, or yolo county (20 distinct in the sample). 'unknown' is used when the county was never identified for that city.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: region
+    description: |
+      The named geographic region a city falls in, region.
+
+      One of nine broad labels in the loaded sample, such as bay area, monterey, sacramento area, or napa valley, plus 'unknown' when a city's region was never identified. Coarser than landkreis (county): several counties can share one region.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ortschaft
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ortschaft
+    description: |
+      ortschaft, a text column on the geografisch table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: kreisname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: kreisname
+    description: |
+      kreisname, a text column on the geografisch table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: regionname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: regionname
+    description: |
+      regionname, a text column on the geografisch table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: restaurant_adresse
+  source: restaurant.restaurant_adresse
+  description: |
+    restaurant_adresse is a table of address-like records that is not dependable for analysis.
+
+    Every column in restaurant_adresse is unreliable and does not correspond to the business facts of an actual restaurant address. Do not use this table, or any of its columns, to answer a question. Use standort for a restaurant's street number, street name, and city.
+  fields:
+  - name: lokal_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: lokal_id
+    description: |
+      lokal_id, a numeric column on the restaurant_adresse table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: haus_nr
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: haus_nr
+    description: |
+      haus_nr, a numeric column on the restaurant_adresse table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: strassenname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: strassenname
+    description: |
+      strassenname, a text column on the restaurant_adresse table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: ort
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ort
+    description: |
+      ort, a text column on the restaurant_adresse table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: standort
+  source: restaurant.standort
+  description: |
+    standort records each restaurant's street address — its street number, street name, and city.
+
+    Grain: one row per restaurant, keyed by restaurant_id, matching allgemeine_informationen. It is easily confused with restaurant_adresse, a table of address-like records that looks similar but is not dependable for analysis; use standort instead. Join to allgemeine_informationen on restaurant_id (one row per restaurant on both sides) to add the restaurant's name, food type, and rating, and to geografisch on stadt to add its county and region.
+  fields:
+  - name: restaurant_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: restaurant_id
+    description: |
+      The restaurant this street address belongs to, restaurant_id.
+
+      Matches allgemeine_informationen.restaurant_id one row per restaurant; join on this column to combine a restaurant's identity and rating with its street address.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: hausnummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: hausnummer
+    description: |
+      The street number of a restaurant's address, hausnummer.
+
+      Integer street number, for example 105, 9, or 2128 (about 80 of 500 sample rows are null). Called "street number" in business language. Pair with stra_enname for the street portion of the address.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: stra_enname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stra_enname
+    description: |
+      The street name of a restaurant's address, stra_enname.
+
+      Free text street name, for example "chestnut st", "walnut ave", or "drive" (about 61 of 500 sample rows are null; some values are just the road type, like "way" or "drive"). Called "street" or "street name" in business language. Combine with hausnummer and stadt for the restaurant's full address.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: stadt
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stadt
+    description: |
+      The city of a restaurant's street address, stadt.
+
+      Lowercase city name expected to match allgemeine_informationen.stadt for the same restaurant (about 60 of 500 sample rows are null). Join to geografisch.stadt for the restaurant's county and region.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: stadtteil
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: stadtteil
+    description: |
+      stadtteil, a text column on the standort table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: restaurant_nummer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: restaurant_nummer
+    description: |
+      restaurant_nummer, a numeric column on the standort table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: strassenname
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: strassenname
+    description: |
+      strassenname, a text column on the standort table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "The full street address of a restaurant combines standort.hausnummer (street number), standort.stra_enname (street name), and standort.stadt (city) — all three columns live on the standort table, one row per restaurant. \"Restaurant address\" sometimes refers only to the street number and street name, without the city; check whether the question also names a city or county before dropping it.\n",
+            "id": "term_restaurant_full_address",
+            "name": "full address",
+            "summary": "full address (restaurant address, address): the combination of a restaurant street number, street name, and city.",
+            "synonyms": [
+              "full address",
+              "restaurant address",
+              "address"
+            ]
+          }
+        ]
+      }
+relationships:
+- name: join_restaurant_allgemeine_informationen_geografisch_0a233c87
+  from: allgemeine_informationen
+  to: geografisch
+  from_columns:
+  - stadt
+  to_columns:
+  - stadt
+  ai_context:
+    instructions: |
+      Match a restaurant in allgemeine_informationen to its county and region in geografisch by city name.
+
+      Joins allgemeine_informationen.stadt to geografisch.stadt. Many restaurants share a city, so this is many-to-one from allgemeine_informationen into geografisch; use it whenever a question names a county or a region instead of a city.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between allgemeine_informationen and geografisch in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_restaurant_allgemeine_informationen_standort_6d8263a5
+  from: allgemeine_informationen
+  to: standort
+  from_columns:
+  - restaurant_id
+  to_columns:
+  - restaurant_id
+  ai_context:
+    instructions: |
+      Match a restaurant in allgemeine_informationen to its street address in standort by restaurant_id.
+
+      Joins allgemeine_informationen.restaurant_id to standort.restaurant_id. Each restaurant has one row on either side, so this is the standard one-to-one join for combining a restaurant's name, food type, and rating with its street number and street name.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between allgemeine_informationen and standort in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+- name: join_restaurant_geografisch_standort_b24ac7cb
+  from: standort
+  to: geografisch
+  from_columns:
+  - stadt
+  to_columns:
+  - stadt
+  ai_context:
+    instructions: |
+      Match a restaurant's address in standort to its county and region in geografisch by city name.
+
+      Joins geografisch.stadt to standort.stadt. geografisch holds one row per city and standort holds many rows per city, so this is one-to-many from geografisch into standort; use it to add a county or region to a question that is otherwise about a restaurant's street address.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between geografisch and standort in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_1670",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0000",
+          "sql": "SELECT COUNT(\"restaurant_id\") FROM \"restaurant\".\"allgemeine_informationen\" WHERE \"bewertung\" < 3",
+          "summary": "How many restaurants have not obtained a minimum of 3 in their reviews?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1674",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0001",
+          "sql": "SELECT DISTINCT \"landkreis\" FROM \"restaurant\".\"geografisch\" WHERE \"region\" <> 'bay area'",
+          "summary": "What counties are not in the Bay Area Region?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1675",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0002",
+          "sql": "SELECT \"stadt\" FROM \"restaurant\".\"geografisch\" WHERE \"region\" = 'northern california'",
+          "summary": "List all cities in the Northern California Region."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1679",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0003",
+          "sql": "SELECT \"T1\".\"speisen_typ\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"standort\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" WHERE \"T2\".\"stra_enname\" = 'adeline st' AND \"T2\".\"stadt\" = 'berkeley'",
+          "summary": "What type of food is there in the restaurants on Adeline Street in Berkeley city?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1681",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0004",
+          "sql": "SELECT DISTINCT \"T2\".\"landkreis\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"geografisch\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T1\".\"bezeichnung\" = 'a & w root beer'",
+          "summary": "In which counties are there A&W Root Beer Restaurants?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1682",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0005",
+          "sql": "SELECT \"T1\".\"stra_enname\", \"T1\".\"hausnummer\" FROM \"restaurant\".\"standort\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" WHERE \"T2\".\"bezeichnung\" = 'adelitas taqueria'",
+          "summary": "Indicate street and number of the Adelitas Taqueria Restaurants."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1685",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0006",
+          "sql": "SELECT DISTINCT \"T2\".\"landkreis\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"geografisch\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T1\".\"bezeichnung\" <> 'bakers square restaurant & pie shop'",
+          "summary": "List all counties where there is no Bakers Square Restaurant & Pie Shop."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1687",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0007",
+          "sql": "SELECT \"T1\".\"bewertung\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"standort\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" WHERE \"T2\".\"stra_enname\" = 'atlantic ave'",
+          "summary": "What is the rating of each restaurant reviews on Atlantic Ave?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1688",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0008",
+          "sql": "SELECT \"T1\".\"restaurant_id\" FROM \"restaurant\".\"standort\" AS \"T1\" INNER JOIN \"restaurant\".\"geografisch\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T2\".\"landkreis\" = 'contra costa county'",
+          "summary": "Identify all restaurants in Contra Costa County by id."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1689",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0009",
+          "sql": "SELECT \"T1\".\"restaurant_id\", \"T1\".\"bezeichnung\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"geografisch\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T2\".\"landkreis\" = 'yolo county'",
+          "summary": "Identify all the restaurants in Yolo County by their label."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1690",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0010",
+          "sql": "SELECT \"T1\".\"bezeichnung\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"standort\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" WHERE \"T2\".\"stra_enname\" = 'drive' AND \"T1\".\"speisen_typ\" <> 'american' AND \"T2\".\"stadt\" = 'san rafael'",
+          "summary": "What restaurant on Drive Street in San Rafael doesn't serve American food?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1693",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0011",
+          "sql": "SELECT \"T1\".\"stra_enname\" FROM \"restaurant\".\"standort\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" INNER JOIN \"restaurant\".\"geografisch\" AS \"T3\" ON \"T2\".\"stadt\" = \"T3\".\"stadt\" WHERE \"T2\".\"bezeichnung\" = 'good heavens' AND \"T3\".\"landkreis\" = 'tuolumne county'",
+          "summary": "On what street in Tuolumne County is Good Heavens restaurant located?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1694",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0012",
+          "sql": "SELECT DISTINCT \"T1\".\"hausnummer\" FROM \"restaurant\".\"standort\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" WHERE \"T2\".\"bezeichnung\" = 'aux delices vietnamese restaurant'",
+          "summary": "Indicate the street numbers where Aux Delices Vietnamese Restaurant are located."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1695",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0013",
+          "sql": "SELECT \"T1\".\"restaurant_id\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"geografisch\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T2\".\"landkreis\" = 'marin county'",
+          "summary": "Identify all the restaurants in Marin County by their id."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1698",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0014",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"speisen_typ\" = 'mexican' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"restaurant_id\"), 0) FROM \"restaurant\".\"geografisch\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T1\".\"landkreis\" = 'monterey county'",
+          "summary": "What percentage of restaurants in Monterey County have Mexican food?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1699",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0015",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"stra_enname\" = '11th st' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"restaurant_id\"), 0) FROM \"restaurant\".\"standort\" AS \"T1\" INNER JOIN \"restaurant\".\"geografisch\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T2\".\"landkreis\" = 'alameda county'",
+          "summary": "What percentage of streets named 11th Street are in Alameda County?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1702",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0016",
+          "sql": "SELECT \"bezeichnung\" FROM \"restaurant\".\"allgemeine_informationen\" WHERE \"speisen_typ\" = '24 hour diner'",
+          "summary": "What does the one and only 24-hour diner's name?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1703",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0017",
+          "sql": "SELECT \"stadt\" FROM \"restaurant\".\"geografisch\" WHERE \"landkreis\" = 'unknown' AND \"region\" = 'unknown' LIMIT 5",
+          "summary": "Please list any five cities that have an unidentified county and region."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1707",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0018",
+          "sql": "SELECT COUNT(\"restaurant_id\") FROM \"restaurant\".\"allgemeine_informationen\" WHERE \"speisen_typ\" = 'american' AND \"stadt\" = 'carmel' AND \"bewertung\" = (SELECT MIN(\"bewertung\") FROM \"restaurant\".\"allgemeine_informationen\" WHERE \"speisen_typ\" = 'american' AND \"stadt\" = 'carmel')",
+          "summary": "How many American food restaurants are unpopular in Carmel?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1715",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0019",
+          "sql": "SELECT \"T1\".\"landkreis\", \"T1\".\"region\", \"T2\".\"bezeichnung\" FROM \"restaurant\".\"geografisch\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T2\".\"bezeichnung\" = 'plearn-thai cuisine'",
+          "summary": "What is the county and region of Plearn-Thai Cuisine restaurant?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1716",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0020",
+          "sql": "SELECT \"T2\".\"bezeichnung\" FROM \"restaurant\".\"geografisch\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T1\".\"region\" = 'lake tahoe' AND \"T1\".\"landkreis\" = 'el dorado county'",
+          "summary": "What is the name of the restaurant that is located in El Dorado County, Lake Tahoe region?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1719",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0021",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T2\".\"bewertung\" > 4 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T2\".\"restaurant_id\"), 0) FROM \"restaurant\".\"geografisch\" AS \"T1\" RIGHT JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T1\".\"region\" = 'bay area'",
+          "summary": "What is the percentage of restaurants in the Bay Area region that scored over 4 for the review rating?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1720",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0022",
+          "sql": "SELECT \"stadt\" FROM \"restaurant\".\"geografisch\" WHERE \"landkreis\" = 'san mateo county'",
+          "summary": "List every city in San Mateo County."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1721",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0023",
+          "sql": "SELECT COUNT(\"restaurant_id\") AS \"cnt\" FROM \"restaurant\".\"allgemeine_informationen\" WHERE \"bewertung\" > 4",
+          "summary": "How many restaurants have more than 4 star reviews?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1723",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0024",
+          "sql": "SELECT \"bezeichnung\" FROM \"restaurant\".\"allgemeine_informationen\" WHERE \"speisen_typ\" = 'chicken' ORDER BY \"bewertung\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which chicken restaurant has the highest review?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1725",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0025",
+          "sql": "SELECT COUNT(\"restaurant_id\") FROM \"restaurant\".\"standort\" WHERE \"stra_enname\" = 'irving'",
+          "summary": "How many restaurants are on Irving Street?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1726",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0026",
+          "sql": "SELECT \"T1\".\"bezeichnung\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"geografisch\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T2\".\"landkreis\" = 'marin county'",
+          "summary": "Provide a list of restaurants from Marin county."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1729",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0027",
+          "sql": "SELECT DISTINCT \"T1\".\"region\" FROM \"restaurant\".\"geografisch\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T2\".\"speisen_typ\" = 'greek'",
+          "summary": "What are the regions with Greek restaurants?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1730",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0028",
+          "sql": "SELECT \"T2\".\"stra_enname\" FROM \"restaurant\".\"geografisch\" AS \"T1\" INNER JOIN \"restaurant\".\"standort\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T1\".\"region\" = 'unknown'",
+          "summary": "List all of the restaurant addresses from an unknown region."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1735",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0029",
+          "sql": "SELECT \"T2\".\"landkreis\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"geografisch\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T1\".\"bezeichnung\" = 'sankee'",
+          "summary": "What is the county of the Sankee restaurant?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1742",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0030",
+          "sql": "SELECT COUNT(\"stadt\") FROM \"restaurant\".\"geografisch\" WHERE \"region\" = 'bay area'",
+          "summary": "How many cities are located in the Bay Area?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1751",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0031",
+          "sql": "SELECT \"stadt\" FROM \"restaurant\".\"geografisch\" WHERE \"landkreis\" = 'unknown'",
+          "summary": "List down the cities with unknown country."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1752",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0032",
+          "sql": "SELECT \"stadt\" FROM \"restaurant\".\"geografisch\" WHERE \"region\" = 'bay area' AND \"landkreis\" = 'santa clara county'",
+          "summary": "What is the city located in Bay Area of Santa Clara?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1753",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0033",
+          "sql": "SELECT \"restaurant_id\" FROM \"restaurant\".\"standort\" WHERE \"stadt\" = 'sunnyvale'",
+          "summary": "List down the restaurant ID of restaurants located in Sunnyvale."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1754",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0034",
+          "sql": "SELECT COUNT(\"stadt\") FROM \"restaurant\".\"standort\" WHERE \"stra_enname\" = 'railroad' AND \"hausnummer\" < 1000",
+          "summary": "Among the restaurants on street number below 1000, how many of them are in Railroad St.?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1756",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0035",
+          "sql": "SELECT \"T2\".\"bewertung\" FROM \"restaurant\".\"standort\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" WHERE \"T2\".\"stadt\" = 'santa cruz' AND \"T1\".\"stra_enname\" = 'ocean st'",
+          "summary": "Give the review of the restaurant located in Ocean St., Santa Cruz."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1760",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0036",
+          "sql": "SELECT \"T2\".\"bewertung\", \"T2\".\"bezeichnung\" FROM \"restaurant\".\"standort\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" WHERE \"T2\".\"stadt\" = 'hayward' AND \"T1\".\"stra_enname\" = 'mission blvd'",
+          "summary": "List the review and label of the restaurants in Mission Blvd., Hayward."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1761",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0037",
+          "sql": "SELECT COUNT(\"T1\".\"restaurant_id\") FROM \"restaurant\".\"standort\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" WHERE \"T1\".\"stra_enname\" = 'castro st' AND \"T1\".\"stadt\" = 'mountain view' AND \"T2\".\"speisen_typ\" = 'indian' AND \"T2\".\"bezeichnung\" LIKE '%cookhouse%'",
+          "summary": "Among all indian restaurants in Castro St., Mountainview, how many of them is about cookhouse in their label?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1762",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0038",
+          "sql": "SELECT COUNT(\"T1\".\"restaurant_id\") FROM \"restaurant\".\"standort\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" WHERE \"T2\".\"bewertung\" = 2 AND \"T1\".\"hausnummer\" < 500",
+          "summary": "In restaurants with a review of 2, how many restaurants have a street number below 500?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1765",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0039",
+          "sql": "SELECT \"T2\".\"stadt\", \"T1\".\"hausnummer\", \"T1\".\"stra_enname\" FROM \"restaurant\".\"standort\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" WHERE \"T2\".\"bezeichnung\" = 'sanuki restaurant'",
+          "summary": "What is the full address of the restaurant named \"Sanuki Restaurant\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1771",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0040",
+          "sql": "SELECT COUNT(DISTINCT \"stadt\") FROM \"restaurant\".\"geografisch\" WHERE \"region\" = 'monterey'",
+          "summary": "How many cities are there in Monterey?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1774",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0041",
+          "sql": "SELECT COUNT(\"restaurant_id\") FROM \"restaurant\".\"standort\" WHERE \"stadt\" = 'concord'",
+          "summary": "How many restaurants can you find in Concord?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1775",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0042",
+          "sql": "SELECT \"T2\".\"region\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"geografisch\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" ORDER BY \"T1\".\"bewertung\" DESC NULLS LAST LIMIT 4",
+          "summary": "In which region can you find the top 4 most popular restaurants?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1776",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0043",
+          "sql": "SELECT COUNT(\"T1\".\"restaurant_id\") FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"standort\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" WHERE \"T1\".\"stadt\" = 'livermore' AND \"T1\".\"speisen_typ\" = 'chinese' AND \"T2\".\"stra_enname\" = '1st st'",
+          "summary": "How many Chinese restaurants are there on 1st st, Livermore?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1777",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0044",
+          "sql": "SELECT COUNT(\"T1\".\"stadt\") FROM \"restaurant\".\"geografisch\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T2\".\"speisen_typ\" = 'indian' AND \"T1\".\"region\" = 'los angeles area'",
+          "summary": "How many Indian restaurants are there in the Los Angeles area?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1778",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0045",
+          "sql": "SELECT \"T2\".\"speisen_typ\" FROM \"restaurant\".\"geografisch\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T1\".\"region\" = 'bay area' GROUP BY \"T2\".\"speisen_typ\" ORDER BY COUNT(\"T2\".\"speisen_typ\") DESC NULLS LAST LIMIT 1",
+          "summary": "In the Bay Area, what is the most common type of food served by restaurants?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1780",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0046",
+          "sql": "SELECT \"T2\".\"region\" AS \"num\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"geografisch\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T1\".\"bezeichnung\" = 'baskin robbins' GROUP BY \"T2\".\"region\" ORDER BY COUNT(\"T1\".\"stadt\") DESC NULLS LAST LIMIT 1",
+          "summary": "In which region can you find the highest number of Baskin Robbins restaurants?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1782",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0047",
+          "sql": "SELECT COUNT(\"T2\".\"speisen_typ\") FROM \"restaurant\".\"geografisch\" AS \"T1\" INNER JOIN \"restaurant\".\"allgemeine_informationen\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" WHERE \"T1\".\"region\" = 'yosemite and mono lake area'",
+          "summary": "How many types of restaurants are there in the Yosemite and Mono Lake area?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1783",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0048",
+          "sql": "SELECT \"T2\".\"stra_enname\", \"T2\".\"hausnummer\", \"T2\".\"stadt\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"standort\" AS \"T2\" ON \"T1\".\"restaurant_id\" = \"T2\".\"restaurant_id\" ORDER BY \"T1\".\"bewertung\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the full address of the most popular restaurant among the diners?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1784",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0049",
+          "sql": "SELECT \"T2\".\"landkreis\" FROM \"restaurant\".\"allgemeine_informationen\" AS \"T1\" INNER JOIN \"restaurant\".\"geografisch\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" GROUP BY \"T2\".\"landkreis\" ORDER BY COUNT(\"T1\".\"bezeichnung\") DESC NULLS LAST LIMIT 1",
+          "summary": "In which counties can you find the restaurant with the highest number of branches?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_1785",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_restaurant_0050",
+          "sql": "SELECT \"T1\".\"region\" FROM \"restaurant\".\"geografisch\" AS \"T1\" INNER JOIN \"restaurant\".\"standort\" AS \"T2\" ON \"T1\".\"stadt\" = \"T2\".\"stadt\" GROUP BY \"T1\".\"region\" ORDER BY COUNT(\"T2\".\"restaurant_id\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which region has the highest number of restaurants?"
+        }
+      ]
+    }

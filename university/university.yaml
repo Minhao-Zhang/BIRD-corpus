@@ -1,39 +1,3087 @@
-asset_type: schema
-id: university
+version: 0.2.0.dev0
 name: university
-summary: >-
-  The university schema ranks universities worldwide by ranking system and criterion, and
-  tracks each university's country, yearly enrollment, international and female student
-  shares, and student-staff ratio.
-body: >
-  Two chains carry the real data. On the ranking side: sistema_ranking (one row per ranking
-  system, such as the Times Higher Education World University Ranking, the Shanghai Ranking,
-  and the Center for World University Rankings) joins to criterio_ranking (one row per named
-  criterion under a system, such as Teaching, Alumni, or Publications Rank), which joins to
-  ranking_universidad_anio (one row per university, criterion, and year, carrying the
-  puntuacion score). On the institution side: pais (one row per country) joins to universidad
-  (one row per university, with its country), which joins to universidad_anio (one row per
-  university per year, carrying enrollment, the international and female student percentages,
-  and the student-staff ratio). catalogo_sistemas_ranking and historial_ranking_universidades
-  resemble a ranking-system list and a ranking history table but are not dependable for
-  analysis. Most real tables also carry an id_-prefixed twin of their own key or of a
-  neighbour's key (for example id_pais, id_universidad, id_criterio, id_sistema, id_sistema_rk,
-  id_criterio_ranking, id_universidad_ranking, id_pais_universidad); none of those is
-  maintained as a foreign key.
-rules:
-- Compute enrollment, gender share, international share, and student-staff ratio only from
-  universidad_anio, and ranking scores only from ranking_universidad_anio. Never answer a
-  ranking or enrollment question from catalogo_sistemas_ranking or historial_ranking_universidades
-  — every column in both tables is unreliable for analysis.
-- Join pais to universidad, universidad to universidad_anio, and sistema_ranking through
-  criterio_ranking to ranking_universidad_anio only on the plain key columns named in the join
-  assets. Never join on an id_-prefixed column such as id_pais, id_universidad, id_criterio,
-  id_sistema, id_sistema_rk, id_criterio_ranking, id_universidad_ranking, or
-  id_pais_universidad — none of them is a maintained foreign key.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  The university schema ranks universities worldwide by ranking system and criterion, and tracks each university's country, yearly enrollment, international and female student shares, and student-staff ratio.
+
+  Two chains carry the real data. On the ranking side: sistema_ranking (one row per ranking system, such as the Times Higher Education World University Ranking, the Shanghai Ranking, and the Center for World University Rankings) joins to criterio_ranking (one row per named criterion under a system, such as Teaching, Alumni, or Publications Rank), which joins to ranking_universidad_anio (one row per university, criterion, and year, carrying the puntuacion score). On the institution side: pais (one row per country) joins to universidad (one row per university, with its country), which joins to universidad_anio (one row per university per year, carrying enrollment, the international and female student percentages, and the student-staff ratio). catalogo_sistemas_ranking and historial_ranking_universidades resemble a ranking-system list and a ranking history table but are not dependable for analysis. Most real tables also carry an id_-prefixed twin of their own key or of a neighbour's key (for example id_pais, id_universidad, id_criterio, id_sistema, id_sistema_rk, id_criterio_ranking, id_universidad_ranking, id_pais_universidad); none of those is maintained as a foreign key.
+ai_context:
+  instructions: |-
+    Compute enrollment, gender share, international share, and student-staff ratio only from universidad_anio, and ranking scores only from ranking_universidad_anio. Never answer a ranking or enrollment question from catalogo_sistemas_ranking or historial_ranking_universidades — every column in both tables is unreliable for analysis.
+    Join pais to universidad, universidad to universidad_anio, and sistema_ranking through criterio_ranking to ranking_universidad_anio only on the plain key columns named in the join assets. Never join on an id_-prefixed column such as id_pais, id_universidad, id_criterio, id_sistema, id_sistema_rk, id_criterio_ranking, id_universidad_ranking, or id_pais_universidad — none of them is a maintained foreign key.
+datasets:
+- name: catalogo_sistemas_ranking
+  source: university.catalogo_sistemas_ranking
+  description: |
+    catalogo_sistemas_ranking is a system-name lookup table that is not dependable for analysis.
+
+    This table resembles a lookup of ranking systems, with a system id and a system name, but its rows and values are not dependable and should not be used to answer questions. Use sistema_ranking instead for the list of ranking systems and its join to criterio_ranking. Every column in this table is unreliable for analysis.
+  fields:
+  - name: sistema_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sistema_id
+    description: |
+      sistema_id, a numeric column on the catalogo_sistemas_ranking table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nombre_del_sistema
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_del_sistema
+    description: |
+      nombre_del_sistema, a text column on the catalogo_sistemas_ranking table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: criterio_ranking
+  source: university.criterio_ranking
+  description: |
+    criterio_ranking holds one row per named criterion scored under a university ranking system.
+
+    Grain: one row per criterion, keyed by id; 21 rows span the three ranking systems. This is the table to start from for any question naming a ranking criterion. Join to sistema_ranking on sistema_ranking_id = id (many criteria per system) to bring in the ranking system name, and to ranking_universidad_anio on id = criterio_ranking_id (one criterion has many scored university-year rows) to bring in the scores themselves. id_criterio, id_sistema, and descripcion_criterio look like a row id, a system reference, and a criterion name but are unreliable and should not be used in a query.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The unique identifier for a ranking criterion, id.
+
+      A numeric id, unique per row in this table (1 through 21). Join to ranking_universidad_anio.criterio_ranking_id to bring in the scores recorded under this criterion.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: sistema_ranking_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sistema_ranking_id
+    description: |
+      The ranking system a criterion belongs to, sistema_ranking_id.
+
+      Foreign key to sistema_ranking.id (values 1 through 3). Join to sistema_ranking to resolve this to the ranking system's name.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nombre_criterio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_criterio
+    description: |
+      The name of a ranking criterion, nombre_criterio.
+
+      Free-text criterion label, for example "Alumni", "Award", "Citations Rank", "Publications Rank", "Quality of Education Rank", "Teaching", or "Total Shanghai" (21 distinct values in the sample). Called "ranking criteria", "which criteria", or "names of the criteria" in business language, and matched against literal criterion names such as "Influence Rank" or "N and S".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Refers to criterio_ranking.nombre_criterio, for example Alumni, Award, Teaching, Citations Rank, Publications Rank, Quality of Education Rank, or Total Shanghai. Join to ranking_universidad_anio on criterio_ranking.id = ranking_universidad_anio.criterio_ranking_id to reach the scores recorded under a criterion. Do not use descripcion_criterio on the same table for this: it is an unreliable copy of the criterion name and must not be used to identify, filter, or join on a criterion, even though \"description\" reads like it could hold a fuller version of the same label.\n",
+              "id": "term_university_ranking_criterion_name",
+              "name": "ranking criterion name",
+              "summary": "Ranking criterion, also called ranking criteria or criterion name: criterio_ranking.nombre_criterio, the name of a criterion scored under a ranking system.",
+              "synonyms": [
+                "ranking criterion",
+                "ranking criteria",
+                "criterion name"
+              ]
+            }
+          ]
+        }
+  - name: id_criterio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_criterio
+    description: |
+      id_criterio, a numeric column on the criterio_ranking table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_sistema
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_sistema
+    description: |
+      id_sistema, a numeric column on the criterio_ranking table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: descripcion_criterio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: descripcion_criterio
+    description: |
+      descripcion_criterio, a text column on the criterio_ranking table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_university_average_criteria_per_system
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(COUNT(id), COUNT(DISTINCT sistema_ranking_id))
+    description: |
+      Average criteria per ranking system: the mean number of named criteria each ranking system defines in criterio_ranking.
+
+      Bound to criterio_ranking.id and criterio_ranking.sistema_ranking_id: count the criteria and divide by the count of distinct ranking systems they belong to. With 21 criteria spread across 3 systems, the average is 7. A training query for "average number of criterias" was written as the sum of the id column divided by the literal count of ranking systems, 3; that literal form does not generalize (it only matches this ratio by coincidence of how many rows happen to exist), so compute the count-based ratio above instead of summing id.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average criteria per ranking system"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: historial_ranking_universidades
+  source: university.historial_ranking_universidades
+  description: |
+    historial_ranking_universidades is a ranking-history table that is not dependable for analysis.
+
+    This table resembles a history of ranking scores by university, criterion, and evaluation year, but its rows and values are not dependable and should not be used to answer questions. Use ranking_universidad_anio instead for ranking scores by university, criterion, and year. Every column in this table is unreliable for analysis.
+  fields:
+  - name: universidad_ref_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: universidad_ref_id
+    description: |
+      universidad_ref_id, a numeric column on the historial_ranking_universidades table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: criterio_ranking_ref_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: criterio_ranking_ref_id
+    description: |
+      criterio_ranking_ref_id, a numeric column on the historial_ranking_universidades table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: anio_evaluacion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: anio_evaluacion
+    description: |
+      anio_evaluacion, a numeric column on the historial_ranking_universidades table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: puntaje
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: puntaje
+    description: |
+      puntaje, a numeric column on the historial_ranking_universidades table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: pais
+  source: university.pais
+  description: |
+    pais holds one row per country, recording its plain and official name, for grouping universities by nation.
+
+    Grain: one row per country, keyed by id. This is the table to start from for any question naming a country or continent-level grouping. Join to universidad on id = pais_id (one country has many universities) to bring in the universities located there. Do not confuse it with the id_pais and nombre_pais_oficial columns carried on this same table — both are unreliable and should not be used in a query.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The unique identifier for a country, id.
+
+      A numeric id, unique per row in this table. Join to universidad.pais_id to bring in every university located in this country.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nombre_pais
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_pais
+    description: |
+      The name of a country, nombre_pais.
+
+      Free-text country name, for example Slovenia, Norway, Bulgaria, Ghana, or France (74 distinct values in the sample). Called "country", "nation", or "pais" in business language, and matched against literal country names such as Argentina, Turkey, Japan, Spain, Brazil, Denmark, Cyprus, Australia, or "United States of America".
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Refers to pais.nombre_pais, for example Argentina, Turkey, Japan, or Denmark. Do not use nombre_pais_oficial on the same table for this: it is an unreliable copy of the country name and must not be used to identify, filter, or join on a country, even though it reads as the more formal, \"official\" version of the same name.\n",
+              "id": "term_university_country_name",
+              "name": "country name",
+              "summary": "Country name, also called nation or official country name: pais.nombre_pais, the free-text name of a country a university is located in.",
+              "synonyms": [
+                "country name",
+                "nation",
+                "official country name"
+              ]
+            }
+          ]
+        }
+  - name: id_pais
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pais
+    description: |
+      id_pais, a numeric column on the pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nombre_pais_oficial
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_pais_oficial
+    description: |
+      nombre_pais_oficial, a text column on the pais table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: ranking_universidad_anio
+  source: university.ranking_universidad_anio
+  description: |
+    ranking_universidad_anio holds one row per university, ranking criterion, and year, recording the score puntuacion.
+
+    Grain: one row per university, criterion, and year, keyed by universidad_id, criterio_ranking_id, and anio. This is the table to start from for any question about a ranking score. Join to universidad on universidad_id = id (many scored rows per university) to bring in the university's name and country, and to criterio_ranking on criterio_ranking_id = id (many scored rows per criterion) to bring in the criterion and, from there, the ranking system. id_criterio_ranking, id_universidad_ranking, and puntaje look like a criterion reference, a row id, and a score column but are unreliable and should not be used in a query.
+  fields:
+  - name: universidad_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: universidad_id
+    description: |
+      The university a ranking score belongs to, universidad_id.
+
+      Foreign key to universidad.id (351 distinct universities in the sample). Join to universidad to resolve this to the university's name and country.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: criterio_ranking_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: criterio_ranking_id
+    description: |
+      The ranking criterion a score was earned under, criterio_ranking_id.
+
+      Foreign key to criterio_ranking.id (21 distinct criteria in the sample). Join to criterio_ranking to resolve this to the criterion name and its ranking system.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: anio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: anio
+    description: |
+      The year a ranking score applies to, anio.
+
+      A four-digit year, spanning 2005 to 2016 in this table (12 distinct years in the sample). Questions asking "in 2015" or "between 2013 and 2015" filter on this column with equality or a BETWEEN range.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Refers to ranking_universidad_anio.anio, spanning 2005 to 2016 in this table. Use this column, not universidad_anio.anio, whenever a question's year filter applies to a ranking score (puntuacion) rather than to enrollment, student-mix, or student-staff-ratio figures: the two tables share the English word \"year\" and the same column name anio, but they are separate columns on separate tables with different ranges (this one 2005-2016, the enrollment one 2011-2016). Do not use historial_ranking_universidades.anio_evaluacion for this: it belongs to a table that is not dependable for analysis.\n",
+              "id": "term_university_ranking_year",
+              "name": "ranking year",
+              "summary": "Ranking year: ranking_universidad_anio.anio, the year a ranking score applies to.",
+              "synonyms": [
+                "ranking year"
+              ]
+            }
+          ]
+        }
+  - name: puntuacion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: puntuacion
+    description: |
+      The ranking score a university earned on a criterion in a year, puntuacion.
+
+      Whole-number score, for example 64, 81, 89, 381, or 397 in the sample, spanning 0 to 996; one row in the sample has no value recorded. Called "score" or "puntuacion" in business language; a higher value is a better rank on that criterion. "Scored 0", "scored 100", or "over 90" filter on this column directly, and MAX or MIN over it finds the leading or trailing score in a group.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Refers to ranking_universidad_anio.puntuacion, a whole number from 0 to 996 in this table; a higher value is a better rank on that criterion. \"Scored 0\", \"scored 100\", \"the highest puntuacion\", or \"the leader\" all filter or rank on this column directly with MAX or MIN. When a question asks for a university's overall leading score across several criteria in one year rather than a single criterion's score, sum puntuacion grouped by university and year first, then take MAX over those sums. Do not use puntaje on the same table, or anything on historial_ranking_universidades, for this: both are unreliable copies of the ranking score.\n",
+              "id": "term_university_ranking_score",
+              "name": "ranking score",
+              "summary": "Ranking score, also called score or puntuacion: ranking_universidad_anio.puntuacion, the score a university earned on a ranking criterion in a year.",
+              "synonyms": [
+                "ranking score",
+                "score",
+                "puntuacion"
+              ]
+            }
+          ]
+        }
+  - name: id_criterio_ranking
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_criterio_ranking
+    description: |
+      id_criterio_ranking, a numeric column on the ranking_universidad_anio table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_universidad_ranking
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_universidad_ranking
+    description: |
+      id_universidad_ranking, a numeric column on the ranking_universidad_anio table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: puntaje
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: puntaje
+    description: |
+      puntaje, a numeric column on the ranking_universidad_anio table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_university_average_ranking_score
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(SUM(puntuacion), COUNT(puntuacion))
+    description: |
+      Average ranking score: the mean puntuacion across scored rows in ranking_universidad_anio.
+
+      Bound to ranking_universidad_anio.puntuacion. "Puntuacion less than 28%" of the average, within a given year, is a boundary condition on this metric rather than a separate one: a row qualifies when its own puntuacion is below MULTIPLY(DIVIDE(SUM(puntuacion), COUNT(puntuacion)), 0.28), with SUM and COUNT computed over the same scope (for example the same anio and criterio_ranking_id) as the row being compared. The plain average, with no threshold, answers "average puntuacion" directly.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average ranking score"
+        }
+  - name: metric_university_highest_ranking_score
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(puntuacion)
+    description: |
+      Highest ranking score: the largest puntuacion earned on a criterion in ranking_universidad_anio.
+
+      Bound to ranking_universidad_anio.puntuacion. "The leader", "got the highest scores", "with the highest puntuacion", and "puntuacion the best" all mean MAX(puntuacion), typically within a filter on criterio_ranking_id, universidad_id, or anio. When a question compares a university's overall standing across several criteria in one year rather than a single criterion's score, sum puntuacion grouped by university and year first, then take MAX over those sums; do not apply MAX directly to the raw column in that case, which finds the best single criterion score rather than the best combined total.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest ranking score"
+        }
+  - name: metric_university_lowest_ranking_score
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(puntuacion)
+    description: |
+      Lowest ranking score: the smallest puntuacion earned on a criterion in ranking_universidad_anio.
+
+      Bound to ranking_universidad_anio.puntuacion. "Got the lowest puntuacion" means MIN(puntuacion), typically within a filter on criterio_ranking_id, universidad_id, or anio, for example the lowest score on the Teaching criterion. One row in the table carries no recorded value; exclude it the same way any aggregate excludes a null.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "lowest ranking score"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: sistema_ranking
+  source: university.sistema_ranking
+  description: |
+    sistema_ranking holds one row per university ranking system, recording its name.
+
+    Grain: one row per ranking system, keyed by id; only three rows exist. This is the table to start from for any question naming a ranking system. Join to criterio_ranking on id = sistema_ranking_id (one system has many criteria) to bring in the named criteria scored under that system, and from there to ranking_universidad_anio for the scores themselves. id_sistema_rk and nombre_del_sistema look like a row id and a name column but are unreliable and should not be used in a query.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The unique identifier for a ranking system, id.
+
+      A numeric id, unique per row in this table (1 through 3). Join to criterio_ranking.sistema_ranking_id to bring in the criteria scored under this system.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nombre_sistema
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_sistema
+    description: |
+      The name of a ranking system, nombre_sistema.
+
+      One of exactly three values: "Times Higher Education World University Ranking", "Shanghai Ranking", and "Center for World University Rankings". Called "ranking system" or "which ranking system" in business language, and sometimes shortened to just "Shanghai Ranking" or "the Center for World University Rankings" as a literal filter value.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Refers to sistema_ranking.nombre_sistema, one of exactly three values: Times Higher Education World University Ranking, Shanghai Ranking, and Center for World University Rankings. Join to criterio_ranking on sistema_ranking.id = criterio_ranking.sistema_ranking_id to reach the criteria scored under a system. Do not use nombre_del_sistema on this table, or any column of catalogo_sistemas_ranking (including its own nombre_del_sistema): both are unreliable copies of the ranking system name and must not be used to identify, filter, or join on a ranking system.\n",
+              "id": "term_university_ranking_system_name",
+              "name": "ranking system name",
+              "summary": "Ranking system, also called ranking system name or name of the ranking system: sistema_ranking.nombre_sistema, the name of a university ranking system.",
+              "synonyms": [
+                "ranking system",
+                "ranking system name",
+                "name of the ranking system"
+              ]
+            }
+          ]
+        }
+  - name: id_sistema_rk
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_sistema_rk
+    description: |
+      id_sistema_rk, a numeric column on the sistema_ranking table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nombre_del_sistema
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_del_sistema
+    description: |
+      nombre_del_sistema, a text column on the sistema_ranking table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: universidad
+  source: university.universidad
+  description: |
+    universidad holds one row per university, recording its name and the country it is located in.
+
+    Grain: one row per university, keyed by id. This is the table to start from for any question about a university's identity or country. Join to pais on pais_id = id (many universities share one country) to bring in the country name, to universidad_anio on id = universidad_id (one row per year for this university) to bring in enrollment and student mix, and to ranking_universidad_anio on id = universidad_id to bring in ranking scores. id_pais_universidad, id_universidad, and nombre_institucion look like a country reference, a row id, and a name column but are unreliable and should not be used in a query.
+  fields:
+  - name: id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id
+    description: |
+      The unique identifier for a university, id.
+
+      A numeric id, unique per row in this table. Join to universidad_anio.universidad_id and ranking_universidad_anio.universidad_id to bring in this university's yearly stats and ranking scores.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: pais_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pais_id
+    description: |
+      The country a university is located in, pais_id.
+
+      Foreign key to pais.id (58 distinct countries in the sample). Join to pais to resolve this to a country name for filtering or grouping by country.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: nombre_universidad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_universidad
+    description: |
+      The name of a university, nombre_universidad.
+
+      Free-text university name, for example Prince of Songkla University, Tokyo University of Marine Science and Technology, or University of Westminster (500 distinct values in the sample). Matched against literal institution names in questions, such as Harvard University, Stanford University, Yale University, Brown University, Emory University, University of Oxford, or University of São Paulo — an accented value that some question text renders with garbled encoding but that is stored here with the correct accent.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Refers to universidad.nombre_universidad, for example Harvard University, Stanford University, or University of São Paulo. Do not use nombre_institucion on the same table for this: it is an unreliable copy of the university's name and must not be used to identify, filter, or join on a university, even though the English gloss \"institution name\" points to it just as naturally as it points to nombre_universidad.\n",
+              "id": "term_university_university_name",
+              "name": "university name",
+              "summary": "University name, also called institution name or name of the university: universidad.nombre_universidad, the free-text name identifying a university.",
+              "synonyms": [
+                "university name",
+                "institution name",
+                "name of the university"
+              ]
+            }
+          ]
+        }
+  - name: id_pais_universidad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_pais_universidad
+    description: |
+      id_pais_universidad, a numeric column on the universidad table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_universidad
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_universidad
+    description: |
+      id_universidad, a numeric column on the universidad table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nombre_institucion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_institucion
+    description: |
+      nombre_institucion, a text column on the universidad table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_university_universities_per_country
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id)
+    description: |
+      Universities per country: the number of universities recorded in universidad for a country.
+
+      Bound to universidad.id and universidad.pais_id: count the universities grouped by pais_id. "Has the most universities" means grouping by pais_id, counting id in each group, and taking the country with the largest count (MAX over the grouped COUNT). Join to pais on universidad.pais_id = pais.id to report the country by name rather than its raw id.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "universities per country"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: universidad_anio
+  source: university.universidad_anio
+  description: |
+    universidad_anio holds one row per university per year, recording enrollment, student-staff ratio, and the international and female student shares.
+
+    Grain: one row per university and year, keyed by universidad_id and anio. This is the table to start from for any question about enrollment size, student mix, or student-staff ratio, in a given year or across years. Join to universidad on universidad_id = id (many yearly rows per university) to bring in the university's name and country. total_estudiantes, porcentaje_mujeres, and porcentaje_estudiantes_extranjeros look like an enrollment count and two percentage columns but are unreliable and should not be used in a query.
+  fields:
+  - name: universidad_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: universidad_id
+    description: |
+      The university a yearly record belongs to, universidad_id.
+
+      Foreign key to universidad.id (214 distinct universities in the sample). Join to universidad to resolve this to the university's name and country.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: anio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: anio
+    description: |
+      The academic year a record covers, anio.
+
+      A four-digit year, spanning 2011 to 2016 in this table (6 distinct years in the sample). Questions asking "in 2014" or "between 2011 and 2013" filter on this column with equality or a BETWEEN range.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Refers to universidad_anio.anio, spanning 2011 to 2016 in this table. Use this column, not ranking_universidad_anio.anio, whenever a question's year filter applies to enrollment, student-mix, or student-staff-ratio figures rather than to a ranking score: the two tables share the English word \"year\" and the same column name anio, but they are separate columns on separate tables with different ranges (this one 2011-2016, the ranking one 2005-2016), and a filter on the wrong one silently applies to the wrong grain of data.\n",
+              "id": "term_university_enrollment_year",
+              "name": "enrollment year",
+              "summary": "Enrollment year, also called academic year: universidad_anio.anio, the year an enrollment, student-mix, or student-staff-ratio record covers.",
+              "synonyms": [
+                "enrollment year",
+                "academic year"
+              ]
+            }
+          ]
+        }
+  - name: cantidad_estudiantes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: cantidad_estudiantes
+    description: |
+      The total number of students enrolled at a university in a year, cantidad_estudiantes.
+
+      Whole-number headcount, for example 6853, 9187, 16841, 17940, or 27756 in the sample. Called "number of students", "student population", or "enrollment" in business language. A larger value means a more populous university; thresholds like "over 50,000 students" or "no less than 30,000 students" filter on this column directly.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Refers to universidad_anio.cantidad_estudiantes, a whole-number headcount for one university in one year. Thresholds like \"over 50,000 students\" or \"no less than 30,000 students\" filter on this column directly, and MAX or MIN find the most or least populous university-year. Do not use total_estudiantes on the same table for this: it is an unreliable copy of the enrollment count and must not be used to identify, filter, or sum enrollment.\n",
+              "id": "term_university_enrollment",
+              "name": "enrollment",
+              "summary": "Enrollment, also called number of students or student population: universidad_anio.cantidad_estudiantes, the total headcount at a university in a year.",
+              "synonyms": [
+                "enrollment",
+                "number of students",
+                "student population"
+              ]
+            }
+          ]
+        }
+  - name: razon_estudiantes_personal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: razon_estudiantes_personal
+    description: |
+      The ratio of students to teaching staff at a university in a year, razon_estudiantes_personal.
+
+      Decimal ratio, for example 6.6, 11.2, 14.8, 17.9, or 43.2 in the sample. Called "student staff ratio" in business language; a higher value means fewer staff per student. "Over 15" or "the largest student staff ratio" filter or rank on this column directly.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: porcentaje_estudiantes_internacionales
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: porcentaje_estudiantes_internacionales
+    description: |
+      The share of a university's students who are international students in a year, porcentaje_estudiantes_internacionales.
+
+      Whole-number percentage from 0 to 100, for example 8, 10, 16, 17, or 30 in the sample. Called "percentage of international students" or "pct international student" in business language. Multiplying this by cantidad_estudiantes and dividing by 100 gives the count of international students for that university and year; "at least 50%" or "more than 10%" filter on this percentage directly.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Refers to universidad_anio.porcentaje_estudiantes_internacionales, a whole-number percentage from 0 to 100. \"At least 50%\" or \"more than 10%\" filter on this percentage directly; multiplying it by cantidad_estudiantes and dividing by 100 gives the count of international students (see the international student count metric). Do not use porcentaje_estudiantes_extranjeros on the same table for this: its Spanish name translates to percentage of foreign students, an even closer-sounding English gloss than the real column's own name, but it is an unreliable copy and must not be used to identify, filter, or compute an international-student figure.\n",
+              "id": "term_university_international_student_share",
+              "name": "international student share",
+              "summary": "International students, also called percentage of international students or international student share: universidad_anio.porcentaje_estudiantes_internacionales, the share of a university's students who are international in a year.",
+              "synonyms": [
+                "international students",
+                "percentage of international students",
+                "international student share"
+              ]
+            }
+          ]
+        }
+  - name: porcentaje_estudiantes_mujeres
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: porcentaje_estudiantes_mujeres
+    description: |
+      The share of a university's students who are female in a year, porcentaje_estudiantes_mujeres.
+
+      Whole-number percentage from 0 to 100, for example 47, 51, 54, 63, or 64 in the sample; 39 rows in the sample have no value recorded. Called "percentage of female students" in business language. Multiplying this by cantidad_estudiantes and dividing by 100 gives the count of female students for that university and year.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Refers to universidad_anio.porcentaje_estudiantes_mujeres, a whole-number percentage from 0 to 100, with some years unrecorded. Multiplying it by cantidad_estudiantes and dividing by 100 gives the count of female students (see the female student count metric). Do not use porcentaje_mujeres on the same table for this: it is an unreliable copy of the female student share and must not be used to identify, filter, or compute a female-student figure, even though its name is nearly identical to the real column's.\n",
+              "id": "term_university_female_student_share",
+              "name": "female student share",
+              "summary": "Female students, also called percentage of female students or female student share: universidad_anio.porcentaje_estudiantes_mujeres, the share of a university's students who are female in a year.",
+              "synonyms": [
+                "female students",
+                "percentage of female students",
+                "female student share"
+              ]
+            }
+          ]
+        }
+  - name: total_estudiantes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: total_estudiantes
+    description: |
+      total_estudiantes, a numeric column on the universidad_anio table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: porcentaje_mujeres
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: porcentaje_mujeres
+    description: |
+      porcentaje_mujeres, a numeric column on the universidad_anio table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: porcentaje_estudiantes_extranjeros
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: porcentaje_estudiantes_extranjeros
+    description: |
+      porcentaje_estudiantes_extranjeros, a numeric column on the universidad_anio table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_university_average_enrollment
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(SUM(cantidad_estudiantes), COUNT(cantidad_estudiantes))
+    description: |
+      Average enrollment: the mean cantidad_estudiantes across university-year rows in universidad_anio.
+
+      Bound to universidad_anio.cantidad_estudiantes. "Number of students greater than 98% of the average student population of all universities" is a boundary condition on this metric rather than a separate one: a row qualifies when its own cantidad_estudiantes exceeds MULTIPLY( DIVIDE(SUM(cantidad_estudiantes), COUNT(cantidad_estudiantes)), 0.98), with SUM and COUNT computed over the same scope (typically all rows, or all rows for a given anio) as the row being compared.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average enrollment"
+        }
+  - name: metric_university_average_female_student_share
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(porcentaje_estudiantes_mujeres)
+    description: |
+      Average female student share: the mean porcentaje_estudiantes_mujeres across university-year rows in universidad_anio.
+
+      Bound to universidad_anio.porcentaje_estudiantes_mujeres. This averages the percentage column itself, not the female student count metric; it answers "average percentage of female students" across universities or years, and rows with no value recorded are excluded from both the sum and the count the way any AVG excludes a null.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average female student share"
+        }
+  - name: metric_university_domestic_student_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUBTRACT(cantidad_estudiantes, DIVIDE(MULTIPLY(cantidad_estudiantes, porcentaje_estudiantes_internacionales), 100))
+    description: |
+      Domestic student count: the difference between a university's overall enrollment and its international student count in a year.
+
+      Bound to universidad_anio.cantidad_estudiantes and universidad_anio.porcentaje_estudiantes_internacionales: cantidad_estudiantes minus the international student count (porcentaje_estudiantes_internacionales times cantidad_estudiantes divided by 100). "Difference in overall student enrollment and international student" means this subtraction, computed per university-year and summed across a group if the question spans more than one row.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "domestic student count"
+        }
+  - name: metric_university_female_student_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(MULTIPLY(cantidad_estudiantes, porcentaje_estudiantes_mujeres), 100)
+    description: |
+      Female student count: the number of a university's students who are female in a year, derived from cantidad_estudiantes and porcentaje_estudiantes_mujeres.
+
+      Bound to universidad_anio.cantidad_estudiantes and universidad_anio.porcentaje_estudiantes_mujeres. On a single university-year row, this is cantidad_estudiantes times porcentaje_estudiantes_mujeres divided by 100. "Total number of female students" across a group sums this expression across the group's rows. Rows with no porcentaje_estudiantes_mujeres recorded contribute nothing to the sum and should be excluded rather than treated as zero female students.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "female student count"
+        }
+  - name: metric_university_highest_enrollment
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(cantidad_estudiantes)
+    description: |
+      Highest enrollment: the largest cantidad_estudiantes across university-year rows in universidad_anio.
+
+      Bound to universidad_anio.cantidad_estudiantes. "Had the most students", "most populated universidad", and "most number of students" all mean MAX(cantidad_estudiantes), typically within a filter on anio or universidad_id. Each row is already one university in one year, so no grouping or summing across rows is needed unless the question asks for a total across several years.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest enrollment"
+        }
+  - name: metric_university_highest_student_staff_ratio
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(razon_estudiantes_personal)
+    description: |
+      Highest student-staff ratio: the largest razon_estudiantes_personal across university-year rows in universidad_anio.
+
+      Bound to universidad_anio.razon_estudiantes_personal. "The largest student staff ratio" means MAX(razon_estudiantes_personal), typically within a filter on anio or universidad_id. A higher value means fewer teaching staff per student, so this identifies the most understaffed university-year in scope, not the best-staffed one.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "highest student-staff ratio"
+        }
+  - name: metric_university_international_student_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(MULTIPLY(porcentaje_estudiantes_internacionales, cantidad_estudiantes), 100)
+    description: |
+      International student count: the number of a university's students who are international in a year, derived from porcentaje_estudiantes_internacionales and cantidad_estudiantes.
+
+      Bound to universidad_anio.porcentaje_estudiantes_internacionales and universidad_anio.cantidad_estudiantes. On a single university-year row, this is porcentaje_estudiantes_internacionales times cantidad_estudiantes divided by 100. To total it across a group of universities, sum this expression across the group's rows before taking MAX or MIN, rather than taking MAX or MIN of the percentage alone: "highest number of international students" means the largest count, which is not always the row with the highest percentage, since a lower-percentage but much larger university can hold more international students in absolute terms. "At least 50% of its students are international" and "more than 10%" are filters on the percentage column directly and do not use this derived count.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "international student count"
+        }
+  - name: metric_university_lowest_enrollment
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(cantidad_estudiantes)
+    description: |
+      Lowest enrollment: the smallest cantidad_estudiantes across university-year rows in universidad_anio.
+
+      Bound to universidad_anio.cantidad_estudiantes. "Has the lowest number of students" means MIN(cantidad_estudiantes), typically within a filter on anio or universidad_id.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "lowest enrollment"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_university_criterio_ranking_ranking_universidad_anio_1bc323d6
+  from: ranking_universidad_anio
+  to: criterio_ranking
+  from_columns:
+  - criterio_ranking_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Bring the criterion name from criterio_ranking into a score row in ranking_universidad_anio by criterion id.
+
+      Joins criterio_ranking.id to ranking_universidad_anio.criterio_ranking_id. One criterion has many scored university-year rows, so this is one_to_many from criterio_ranking into ranking_universidad_anio; use it whenever a question names a ranking criterion instead of a raw criterion id.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between criterio_ranking and ranking_universidad_anio in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_university_criterio_ranking_sistema_ranking_c7120db7
+  from: criterio_ranking
+  to: sistema_ranking
+  from_columns:
+  - sistema_ranking_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Bring the ranking system name from sistema_ranking into a criterion row in criterio_ranking by system id.
+
+      Joins criterio_ranking.sistema_ranking_id to sistema_ranking.id. Many criteria share one ranking system, so this is many_to_one from criterio_ranking into sistema_ranking; use it whenever a question names a ranking system such as the Shanghai Ranking rather than a raw system id.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between criterio_ranking and sistema_ranking in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_university_pais_universidad_56696258
+  from: universidad
+  to: pais
+  from_columns:
+  - pais_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Bring the country name from pais into a university row in universidad by country id.
+
+      Joins pais.id to universidad.pais_id. One country has many universities, so this is one_to_many from pais into universidad; use it whenever a question names a country rather than a raw country id.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between pais and universidad in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_university_ranking_universidad_anio_universidad_dfd687e3
+  from: ranking_universidad_anio
+  to: universidad
+  from_columns:
+  - universidad_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Bring the university name and country from universidad into a score row in ranking_universidad_anio by university id.
+
+      Joins ranking_universidad_anio.universidad_id to universidad.id. Many scored rows share one university, so this is many_to_one from ranking_universidad_anio into universidad; use it whenever a question names a university rather than a raw university id.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between ranking_universidad_anio and universidad in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_university_universidad_universidad_anio_af0e76f3
+  from: universidad_anio
+  to: universidad
+  from_columns:
+  - universidad_id
+  to_columns:
+  - id
+  ai_context:
+    instructions: |
+      Bring the university name and country from universidad into a yearly record in universidad_anio by university id.
+
+      Joins universidad.id to universidad_anio.universidad_id. One university has many yearly records, so this is one_to_many from universidad into universidad_anio; use it whenever a question needs a university's name or country alongside its enrollment or student mix for a given year.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between universidad and universidad_anio in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_7987",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0000",
+          "sql": "SELECT COUNT(*) FROM \"university\".\"universidad_anio\" WHERE \"cantidad_estudiantes\" > 80000 AND \"anio\" = 2011",
+          "summary": "How many universities have at least 80,000 students in the year 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7988",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0001",
+          "sql": "SELECT \"sistema_ranking_id\" FROM \"university\".\"criterio_ranking\" WHERE \"nombre_criterio\" = 'Award'",
+          "summary": "What is the ranking system ID of the award criteria?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7991",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0002",
+          "sql": "SELECT COUNT(\"id\") FROM \"university\".\"criterio_ranking\" WHERE \"sistema_ranking_id\" = 3",
+          "summary": "How many criteria belong to ranking system ID 3?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7993",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0003",
+          "sql": "SELECT \"T2\".\"nombre_pais\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" GROUP BY \"T2\".\"nombre_pais\" ORDER BY COUNT(\"T1\".\"nombre_universidad\") DESC NULLS LAST LIMIT 1",
+          "summary": "Give the name of the country that has the most universities."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7994",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0004",
+          "sql": "SELECT \"T2\".\"nombre_universidad\" FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" ORDER BY \"T1\".\"porcentaje_estudiantes_internacionales\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the university that had the highest number of international students for 6 consecutive years?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7995",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0005",
+          "sql": "SELECT \"T3\".\"nombre_universidad\" FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" INNER JOIN \"university\".\"universidad\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T1\".\"nombre_criterio\" = 'Publications Rank' AND \"T2\".\"anio\" = 2014 AND \"T1\".\"id\" = 17 ORDER BY \"T2\".\"puntuacion\" DESC NULLS LAST LIMIT 1",
+          "summary": "In 2014, what is the name of the university which was considered a leader in the publications rank?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7996",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0006",
+          "sql": "SELECT \"T2\".\"nombre_universidad\" FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" ORDER BY \"T1\".\"cantidad_estudiantes\" NULLS FIRST LIMIT 1",
+          "summary": "What is the name of the university that has the lowest number of students of all time?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7997",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0007",
+          "sql": "SELECT COUNT(*) FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_pais\" = 'United States of America'",
+          "summary": "How many universities are there in the United States of America?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_7999",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0008",
+          "sql": "SELECT COUNT(*) FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" WHERE \"T1\".\"nombre_criterio\" = 'Award' AND \"T2\".\"anio\" BETWEEN 2005 AND 2015 AND \"T2\".\"puntuacion\" = 0",
+          "summary": "How many universities scored 0 in Awards between 2005 to 2015?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8000",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0009",
+          "sql": "SELECT \"T2\".\"nombre_pais\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" WHERE \"nombre_universidad\" = 'University of Oxford'",
+          "summary": "Which country is the University of Oxford located?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8002",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0010",
+          "sql": "SELECT \"T2\".\"nombre_criterio\" FROM \"university\".\"sistema_ranking\" AS \"T1\" INNER JOIN \"university\".\"criterio_ranking\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"sistema_ranking_id\" WHERE \"T1\".\"nombre_sistema\" = 'Center for World University Rankings'",
+          "summary": "What are the names of the criteria under Center for World University Rankings?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8003",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0011",
+          "sql": "SELECT \"T2\".\"nombre_universidad\" FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T1\".\"cantidad_estudiantes\" > 50000 AND \"T1\".\"anio\" = 2012",
+          "summary": "List the names of all the universities that have no less than 50,000 students in the year 2012."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8004",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0012",
+          "sql": "SELECT DISTINCT \"T3\".\"nombre_pais\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"universidad_id\" INNER JOIN \"university\".\"pais\" AS \"T3\" ON \"T3\".\"id\" = \"T1\".\"pais_id\" WHERE \"T2\".\"porcentaje_estudiantes_internacionales\" > 50 AND \"T2\".\"anio\" BETWEEN 2011 AND 2016",
+          "summary": "Between 2011 to 2016, in which countries can you find the universities where at least 50% of its students are international students?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8007",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0013",
+          "sql": "SELECT \"universidad_id\" FROM \"university\".\"universidad_anio\" ORDER BY \"razon_estudiantes_personal\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the university ID of the university with the largest student staff ratio?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8009",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0014",
+          "sql": "SELECT AVG(\"porcentaje_estudiantes_mujeres\") FROM \"university\".\"universidad_anio\"",
+          "summary": "Compute the average percentage of female students."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8010",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0015",
+          "sql": "SELECT \"porcentaje_estudiantes_internacionales\" * \"cantidad_estudiantes\", \"cantidad_estudiantes\" FROM \"university\".\"universidad_anio\" WHERE \"anio\" = 2013 AND \"universidad_id\" = 20",
+          "summary": "Provide the number of international students and number of students in 2013 in university ID 20."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8011",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0016",
+          "sql": "SELECT \"id\" FROM \"university\".\"universidad\" WHERE \"nombre_universidad\" = 'Harvard University'",
+          "summary": "What is the university ID of Harvard University?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8012",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0017",
+          "sql": "SELECT \"universidad_id\" FROM \"university\".\"ranking_universidad_anio\" WHERE \"puntuacion\" = 100 AND \"anio\" = 2011",
+          "summary": "List the university ID of the university that scored 100 in 2011."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8013",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0018",
+          "sql": "SELECT \"T1\".\"nombre_sistema\" FROM \"university\".\"sistema_ranking\" AS \"T1\" INNER JOIN \"university\".\"criterio_ranking\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"sistema_ranking_id\" WHERE \"T2\".\"nombre_criterio\" = 'Quality of Education Rank'",
+          "summary": "Provide the ranking system of the ranking criteria named Quality of Education Rank."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8017",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0019",
+          "sql": "SELECT \"T1\".\"criterio_ranking_id\" FROM \"university\".\"ranking_universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_universidad\" = 'Brown University' AND \"T1\".\"anio\" = 2014",
+          "summary": "What is the ranking criteria ID of Brown University in 2014?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8018",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0020",
+          "sql": "SELECT \"T1\".\"nombre_universidad\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_pais\" = 'Spain'",
+          "summary": "List the name of universities located in Spain."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8019",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0021",
+          "sql": "SELECT \"T1\".\"nombre_criterio\" FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" WHERE \"T2\".\"universidad_id\" = 32 AND \"T2\".\"anio\" = 2015",
+          "summary": "What is the criteria name of the university ID 32 in 2015?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8020",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0022",
+          "sql": "SELECT AVG(\"T2\".\"puntuacion\") FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"universidad_id\" INNER JOIN \"university\".\"pais\" AS \"T3\" ON \"T3\".\"id\" = \"T1\".\"pais_id\" WHERE \"T3\".\"nombre_pais\" = 'Brazil'",
+          "summary": "Compute the average score of the university located in Brazil."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8021",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0023",
+          "sql": "SELECT \"T2\".\"pais_id\" FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T1\".\"anio\" = 2014 ORDER BY \"T1\".\"cantidad_estudiantes\" DESC NULLS LAST LIMIT 1",
+          "summary": "In which country does the most populated university in 2014 located ?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8025",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0024",
+          "sql": "SELECT DISTINCT \"T3\".\"nombre_pais\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"universidad_id\" INNER JOIN \"university\".\"pais\" AS \"T3\" ON \"T3\".\"id\" = \"T1\".\"pais_id\" WHERE \"T2\".\"anio\" = 2013 AND \"T2\".\"cantidad_estudiantes\" * 100 > (SELECT AVG(\"cantidad_estudiantes\") FROM \"university\".\"universidad_anio\") * 98",
+          "summary": "Provide the country name of universities with the number of students greater than 98% of the average student population of all universities in 2013."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8030",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0025",
+          "sql": "SELECT \"universidad_id\" FROM \"university\".\"universidad_anio\" WHERE \"anio\" = 2011 ORDER BY \"cantidad_estudiantes\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the university ID with the most students in 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8031",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0026",
+          "sql": "SELECT COUNT(*) FROM \"university\".\"universidad_anio\" WHERE \"anio\" = 2011 AND \"cantidad_estudiantes\" > 50000 AND \"porcentaje_estudiantes_internacionales\" > 10",
+          "summary": "How many institutions with over 50,000 students in 2011 had a percentage of oversea students of more than 10%?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8034",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0027",
+          "sql": "SELECT \"T2\".\"nombre_universidad\" FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T1\".\"anio\" = 2011 ORDER BY \"T1\".\"cantidad_estudiantes\" DESC NULLS LAST LIMIT 1",
+          "summary": "Name the university that had the most students in 2011."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8036",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0028",
+          "sql": "SELECT \"T1\".\"porcentaje_estudiantes_internacionales\" FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T1\".\"anio\" = 2011 AND \"T2\".\"nombre_universidad\" = 'Harvard University'",
+          "summary": "What is the percentage of Harvard university's international students in 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8037",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0029",
+          "sql": "SELECT CAST(\"T1\".\"cantidad_estudiantes\" * \"T1\".\"porcentaje_estudiantes_mujeres\" AS REAL) / NULLIF(100, 0) FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T1\".\"anio\" = 2011 AND \"T2\".\"nombre_universidad\" = 'Stanford University'",
+          "summary": "How many female students were there at Stanford University in 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8038",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0030",
+          "sql": "SELECT \"T2\".\"nombre_pais\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" WHERE \"T1\".\"nombre_universidad\" = 'Harvard University'",
+          "summary": "In which nation is Harvard University located?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8039",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0031",
+          "sql": "SELECT \"T1\".\"nombre_sistema\" FROM \"university\".\"sistema_ranking\" AS \"T1\" INNER JOIN \"university\".\"criterio_ranking\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"sistema_ranking_id\" WHERE \"T2\".\"nombre_criterio\" = 'Teaching'",
+          "summary": "What is the name of the ranking system for Teaching criteria?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8041",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0032",
+          "sql": "SELECT COUNT(*) FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_pais\" = 'Argentina'",
+          "summary": "In Argentina, how many universities are there?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8042",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0033",
+          "sql": "SELECT \"T2\".\"nombre_universidad\" FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T1\".\"anio\" = 2011 AND \"T1\".\"cantidad_estudiantes\" > 100000",
+          "summary": "Which universities have more than 100,000 students in 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8043",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0034",
+          "sql": "SELECT COUNT(\"T2\".\"nombre_criterio\") FROM \"university\".\"sistema_ranking\" AS \"T1\" INNER JOIN \"university\".\"criterio_ranking\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"sistema_ranking_id\" WHERE \"T1\".\"nombre_sistema\" = 'Center for World University Rankings'",
+          "summary": "How many criteria are associated with ranking system Center for World University Rankings?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8046",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0035",
+          "sql": "SELECT SUM(\"T1\".\"cantidad_estudiantes\") - SUM(CAST(\"T1\".\"cantidad_estudiantes\" * \"T1\".\"porcentaje_estudiantes_internacionales\" AS REAL) / NULLIF(100, 0)) FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_universidad\" = 'Harvard University' AND \"T1\".\"anio\" BETWEEN 2011 AND 2012",
+          "summary": "What is the difference in overall student enrollment and international student enrollment at the Harvard university from 2011 to 2012?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8047",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0036",
+          "sql": "SELECT COUNT(*) FROM \"university\".\"universidad_anio\" WHERE \"anio\" = 2011 AND \"cantidad_estudiantes\" > 30000",
+          "summary": "How many universities had over 30000 students in 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8048",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0037",
+          "sql": "SELECT \"pais_id\" FROM \"university\".\"universidad\" WHERE \"nombre_universidad\" = 'University of Tokyo'",
+          "summary": "What is the country ID of the University of Tokyo?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8049",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0038",
+          "sql": "SELECT \"id\" FROM \"university\".\"sistema_ranking\" WHERE \"nombre_sistema\" = 'Center for World University Rankings'",
+          "summary": "Provide the ranking system ID of the Center for World University Rankings."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8050",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0039",
+          "sql": "SELECT \"id\" FROM \"university\".\"criterio_ranking\" WHERE \"nombre_criterio\" = 'Publications Rank'",
+          "summary": "What is the ID of the Publications Rank criteria?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8053",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0040",
+          "sql": "SELECT \"T1\".\"cantidad_estudiantes\" FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_universidad\" = 'Yale University' AND \"T1\".\"anio\" = 2016",
+          "summary": "Provide the number of students at Yale University in 2016."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8054",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0041",
+          "sql": "SELECT \"T1\".\"nombre_universidad\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_pais\" = 'Denmark'",
+          "summary": "List the universities in Denmark."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8056",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0042",
+          "sql": "SELECT \"T2\".\"nombre_pais\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" WHERE \"T1\".\"nombre_universidad\" = 'University of São Paulo'",
+          "summary": "Which country has the University of SÃ£o Paulo?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8057",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0043",
+          "sql": "SELECT CAST(\"T2\".\"cantidad_estudiantes\" * \"T2\".\"porcentaje_estudiantes_internacionales\" AS REAL) / NULLIF(100, 0) FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T1\".\"nombre_universidad\" = 'Harvard University' AND \"T2\".\"anio\" = 2012",
+          "summary": "How many international students attended Harvard University in 2012?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8058",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0044",
+          "sql": "SELECT CAST(\"T2\".\"cantidad_estudiantes\" * \"T2\".\"porcentaje_estudiantes_mujeres\" AS REAL) / NULLIF(100, 0) FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T1\".\"nombre_universidad\" = 'Arizona State University' AND \"T2\".\"anio\" = 2014",
+          "summary": "Calculate the number of female students at Arizona State University in 2014."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8059",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0045",
+          "sql": "SELECT \"T1\".\"nombre_universidad\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"universidad_id\" GROUP BY \"T1\".\"nombre_universidad\" ORDER BY SUM(\"T2\".\"puntuacion\") DESC NULLS LAST LIMIT 1",
+          "summary": "Provide the universities which got the highest scores."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8060",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0046",
+          "sql": "SELECT \"T2\".\"nombre_criterio\" FROM \"university\".\"sistema_ranking\" AS \"T1\" INNER JOIN \"university\".\"criterio_ranking\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"sistema_ranking_id\" WHERE \"T1\".\"nombre_sistema\" = 'Shanghai Ranking'",
+          "summary": "List the ranking criteria under the Shanghai Ranking system."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8061",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0047",
+          "sql": "SELECT \"T3\".\"nombre_universidad\" FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" INNER JOIN \"university\".\"universidad\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T1\".\"nombre_criterio\" = 'Teaching' AND \"T2\".\"anio\" = 2011 ORDER BY \"T2\".\"puntuacion\" ASC NULLS FIRST LIMIT 1",
+          "summary": "In 2011, which university got the lowest score in teaching criteria?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8064",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0048",
+          "sql": "SELECT \"T1\".\"nombre_criterio\", \"T2\".\"puntuacion\" FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" INNER JOIN \"university\".\"universidad\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T3\".\"nombre_universidad\" = 'Harvard University' AND \"T2\".\"anio\" = 2005",
+          "summary": "Provide the ranking criteria and scores in 2005 that were received by Harvard University."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8065",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0049",
+          "sql": "SELECT AVG(\"T2\".\"puntuacion\") FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" WHERE \"T1\".\"nombre_criterio\" = 'Alumni' AND \"T2\".\"anio\" = 2008",
+          "summary": "Calculate the average score per university under Alumni criteria in 2008."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8073",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0050",
+          "sql": "SELECT \"T1\".\"cantidad_estudiantes\" FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_universidad\" = 'Harvard University' AND \"T1\".\"anio\" = 2011",
+          "summary": "How many students did Harvard University have in 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8075",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0051",
+          "sql": "SELECT \"T1\".\"nombre_universidad\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_pais\" = 'Australia'",
+          "summary": "Please list the names of all the universities in Australia."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8078",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0052",
+          "sql": "SELECT \"T3\".\"nombre_universidad\" FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" INNER JOIN \"university\".\"universidad\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T1\".\"nombre_criterio\" = 'Teaching' AND \"T2\".\"anio\" = 2011 ORDER BY \"T2\".\"puntuacion\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the name of the university with the highest score in teaching in the year 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8079",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0053",
+          "sql": "SELECT \"T3\".\"nombre_universidad\" FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" INNER JOIN \"university\".\"universidad\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T1\".\"nombre_criterio\" = 'Teaching' AND \"T2\".\"anio\" = 2011 AND \"T2\".\"puntuacion\" > 90",
+          "summary": "Please list the names of the universities with a score in teaching of over 90 in 2011."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8080",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0054",
+          "sql": "SELECT COUNT(*) FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" INNER JOIN \"university\".\"universidad\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T1\".\"nombre_criterio\" = 'Teaching' AND \"T2\".\"anio\" = 2011 AND \"T2\".\"puntuacion\" > 90",
+          "summary": "Among the universities with a score in teaching of over 90 in 2011, how many of them are in the United States of America?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8081",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0055",
+          "sql": "SELECT \"T1\".\"nombre_criterio\" FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" INNER JOIN \"university\".\"universidad\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T3\".\"nombre_universidad\" = 'Harvard University' AND \"T2\".\"anio\" = 2011",
+          "summary": "Please list the names of all the ranking criteria of Harvard University in 2011."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8082",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0056",
+          "sql": "SELECT \"T3\".\"nombre_universidad\" FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" INNER JOIN \"university\".\"universidad\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T1\".\"nombre_criterio\" = 'Teaching' AND \"T2\".\"anio\" = 2011 AND \"T2\".\"puntuacion\" = 98",
+          "summary": "What are the names of the universities that got 98 in teaching in 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8084",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0057",
+          "sql": "SELECT COUNT(*) FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"universidad_id\" INNER JOIN \"university\".\"pais\" AS \"T3\" ON \"T3\".\"id\" = \"T1\".\"pais_id\" WHERE \"T3\".\"nombre_pais\" = 'Australia' AND \"T2\".\"razon_estudiantes_personal\" > 15 AND \"T2\".\"anio\" = 2011",
+          "summary": "Among the universities in Australia, how many of them have a student staff ratio of over 15 in 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8088",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0058",
+          "sql": "SELECT \"pais_id\" FROM \"university\".\"universidad\" WHERE \"nombre_universidad\" = 'University of Veterinary Medicine Vienna'",
+          "summary": "Which country is University of Veterinary Medicine Vienna located in? Give its country id."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8089",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0059",
+          "sql": "SELECT \"id\" FROM \"university\".\"criterio_ranking\" WHERE \"nombre_criterio\" = 'Citations Rank'",
+          "summary": "What is the id of the criteria \"Citations Rank\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8093",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0060",
+          "sql": "SELECT \"T2\".\"nombre_pais\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" WHERE \"T1\".\"nombre_universidad\" = 'McMaster University'",
+          "summary": "Which country is McMaster University located in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8094",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0061",
+          "sql": "SELECT COUNT(*) FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_pais\" = 'Turkey'",
+          "summary": "How many Turkish universities are there in the database?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8097",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0062",
+          "sql": "SELECT \"T2\".\"puntuacion\" FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" INNER JOIN \"university\".\"universidad\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T3\".\"nombre_universidad\" = 'Chosun University' AND \"T1\".\"nombre_criterio\" = 'Influence Rank' AND \"T2\".\"anio\" = 2015",
+          "summary": "For Chosun University, what was its score on \"Influence Rank\" in 2015?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8098",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0063",
+          "sql": "SELECT \"T2\".\"porcentaje_estudiantes_internacionales\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T1\".\"nombre_universidad\" = 'University of Oslo' AND \"T2\".\"anio\" = 2015",
+          "summary": "What is the percentage of the international students in University of Oslo in 2015?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8099",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0064",
+          "sql": "SELECT \"T1\".\"nombre_criterio\" FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" INNER JOIN \"university\".\"universidad\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T3\".\"nombre_universidad\" = 'University of Southampton' AND \"T2\".\"anio\" = 2015 ORDER BY \"T2\".\"puntuacion\" DESC NULLS LAST LIMIT 1",
+          "summary": "For the University of Southampton in 2015, on which criteria did it score the best?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8100",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0065",
+          "sql": "SELECT \"T1\".\"nombre_sistema\" FROM \"university\".\"sistema_ranking\" AS \"T1\" INNER JOIN \"university\".\"criterio_ranking\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"sistema_ranking_id\" WHERE \"T2\".\"nombre_criterio\" = 'Total Shanghai'",
+          "summary": "Which ranking system is criteria \"Total Shanghai\" in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8102",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0066",
+          "sql": "SELECT \"T2\".\"puntuacion\" FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" INNER JOIN \"university\".\"universidad\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"universidad_id\" WHERE \"T3\".\"nombre_universidad\" = 'University of Florida' AND \"T2\".\"anio\" = 2014 AND \"T1\".\"nombre_criterio\" = 'N and S'",
+          "summary": "What was the score for University of Florida in \"N and S\" in 2014?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8104",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0067",
+          "sql": "SELECT \"T2\".\"nombre_universidad\" FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T1\".\"anio\" = 2015 ORDER BY \"T1\".\"cantidad_estudiantes\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Show the name of the university with the lowest number of students in 2015."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8106",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0068",
+          "sql": "SELECT (SUM(CASE WHEN \"T1\".\"nombre_sistema\" = 'Center for World University Rankings' THEN 1 ELSE 0 END) + SUM(CASE WHEN \"T1\".\"nombre_sistema\" = 'Shanghai Ranking' THEN 1 ELSE 0 END) + SUM(CASE WHEN \"T1\".\"nombre_sistema\" = 'Times Higher Education World University Ranking' THEN 1 ELSE 0 END)) / NULLIF(3, 0) FROM \"university\".\"sistema_ranking\" AS \"T1\" INNER JOIN \"university\".\"criterio_ranking\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"sistema_ranking_id\"",
+          "summary": "Calculate the average number of criterias among \"Times Higher Education World University Ranking\",\"Shanghai Ranking\" and \"Center for World University Rankings\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8108",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0069",
+          "sql": "SELECT \"puntuacion\" FROM \"university\".\"ranking_universidad_anio\" WHERE \"anio\" = 2015 AND \"universidad_id\" = 68",
+          "summary": "What is the score of university ID 68 in 2015?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8109",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0070",
+          "sql": "SELECT \"id\" FROM \"university\".\"pais\" WHERE \"nombre_pais\" = 'Cyprus'",
+          "summary": "Provide the country ID of Cyprus."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8111",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0071",
+          "sql": "SELECT \"nombre_criterio\" FROM \"university\".\"criterio_ranking\" WHERE \"id\" = 13",
+          "summary": "Provide the criteria name of the ranking criteria ID 13."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8113",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0072",
+          "sql": "SELECT SUM(CAST(\"cantidad_estudiantes\" * \"porcentaje_estudiantes_mujeres\" AS REAL) / NULLIF(100, 0)) FROM \"university\".\"universidad_anio\" WHERE \"anio\" BETWEEN 2011 AND 2013 AND \"universidad_id\" = 40",
+          "summary": "In years 2011 to 2013, what is the total number of female students in university ID 40?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8114",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0073",
+          "sql": "SELECT AVG(\"puntuacion\") FROM \"university\".\"ranking_universidad_anio\" WHERE \"anio\" BETWEEN 2013 AND 2015 AND \"universidad_id\" = 79",
+          "summary": "Calculate the average score of university ID 79 between year 2013 to 2015."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8115",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0074",
+          "sql": "SELECT \"razon_estudiantes_personal\" FROM \"university\".\"universidad_anio\" WHERE \"universidad_id\" = 35",
+          "summary": "Give the student staff ratio of university ID 35."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8117",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0075",
+          "sql": "SELECT DISTINCT \"T3\".\"nombre_criterio\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"universidad_id\" INNER JOIN \"university\".\"criterio_ranking\" AS \"T3\" ON \"T3\".\"id\" = \"T2\".\"criterio_ranking_id\" WHERE \"T1\".\"nombre_universidad\" = 'Harvard University' AND \"T2\".\"puntuacion\" = 100",
+          "summary": "Give the criteria name where Harvard University scored 100."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8118",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0076",
+          "sql": "SELECT \"T1\".\"nombre_universidad\", \"T1\".\"id\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_pais\" = 'Turkey'",
+          "summary": "Provide the university name and ID of the university found in Turkey."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8120",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0077",
+          "sql": "SELECT \"T2\".\"nombre_universidad\", \"T1\".\"puntuacion\" FROM \"university\".\"ranking_universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T2\".\"id\" = 124",
+          "summary": "Give the name and score of the university ID 124."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8121",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0078",
+          "sql": "SELECT CAST(\"T1\".\"cantidad_estudiantes\" * \"T1\".\"porcentaje_estudiantes_mujeres\" AS REAL) / NULLIF(100, 0) FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T1\".\"anio\" = 2011 AND \"T2\".\"nombre_universidad\" = 'University of Pennsylvania'",
+          "summary": "How many female students are there in University of Pennsylvania in 2011?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8123",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0079",
+          "sql": "SELECT COUNT(*) FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"pais\" AS \"T2\" ON \"T1\".\"pais_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_pais\" = 'Japan'",
+          "summary": "How many universities are located in Japan?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8125",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0080",
+          "sql": "SELECT DISTINCT \"T3\".\"nombre_pais\" FROM \"university\".\"universidad\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"universidad_id\" INNER JOIN \"university\".\"pais\" AS \"T3\" ON \"T3\".\"id\" = \"T1\".\"pais_id\" WHERE \"T2\".\"puntuacion\" < 70 AND \"T2\".\"anio\" = 2016",
+          "summary": "List the countries of universities that scored 70 and below in 2016."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8128",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0081",
+          "sql": "SELECT DISTINCT \"T2\".\"nombre_universidad\" FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T1\".\"cantidad_estudiantes\" BETWEEN 400 AND 1000",
+          "summary": "Give the names of universities with number of students ranges from 400 to 1000."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8130",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0082",
+          "sql": "SELECT AVG(\"T1\".\"puntuacion\") FROM \"university\".\"ranking_universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T2\".\"nombre_universidad\" = 'Emory University' AND \"T1\".\"anio\" BETWEEN 2011 AND 2016",
+          "summary": "Calculate the average score of Emory University from 2011 to 2016."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8131",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0083",
+          "sql": "SELECT \"T2\".\"nombre_universidad\" FROM \"university\".\"universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T1\".\"anio\" = 2015 ORDER BY \"T1\".\"cantidad_estudiantes\" DESC NULLS LAST LIMIT 1",
+          "summary": "Give the name of the university with the most number of students in 2015."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8133",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0084",
+          "sql": "SELECT COUNT(*) FROM \"university\".\"criterio_ranking\" AS \"T1\" INNER JOIN \"university\".\"ranking_universidad_anio\" AS \"T2\" ON \"T1\".\"id\" = \"T2\".\"criterio_ranking_id\" WHERE \"T2\".\"puntuacion\" = 40 AND \"T1\".\"nombre_criterio\" = 'Teaching' AND \"T2\".\"puntuacion\" = 40",
+          "summary": "How many universities scored 40 in teaching criteria?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_8136",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_university_0085",
+          "sql": "SELECT \"T2\".\"nombre_universidad\" FROM \"university\".\"ranking_universidad_anio\" AS \"T1\" INNER JOIN \"university\".\"universidad\" AS \"T2\" ON \"T1\".\"universidad_id\" = \"T2\".\"id\" WHERE \"T1\".\"anio\" = 2015 AND \"T1\".\"puntuacion\" * 100 < (SELECT AVG(\"puntuacion\") * 28 FROM \"university\".\"ranking_universidad_anio\" WHERE \"anio\" = 2015)",
+          "summary": "List the names of universities with a score less than 28% of the average score of all universities in 2015."
+        }
+      ]
+    }

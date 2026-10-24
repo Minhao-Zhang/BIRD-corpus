@@ -1,33 +1,3841 @@
-asset_type: schema
-id: retail_complains
+version: 0.2.0.dev0
 name: retail_complains
-summary: retail_complains tracks retail-banking consumer complaints, the call logs behind them,
-  and separate product reviews, linking each client through their district and state.
-body: >
-  retail_complains combines three views of one bank's retail customers. evenements is a
-  regulatory-style consumer complaint log, one row per complaint about a product such as a
-  credit card or a mortgage, with the product, the issue, how the complaint was submitted, and
-  how the company responded; journaux_centre_appels is the call center log behind those
-  complaints, one row per call with its priority, agent, and duration. avis is unrelated to
-  either: it is a customer-satisfaction review of a product, with a star rating and free text,
-  and carries no complaint identifier. client, district, and etat form the geography chain
-  every person sits in: a client belongs to a district, and a district belongs to a state
-  (etat). avis has no client identifier of its own; it only reaches client indirectly through
-  the district they share. Several tables also carry a column that looks like a real
-  identifier, date, or name but is not dependable for analysis — see the affected table or
-  column for which ones.
-rules:
-- Join through id_district, id_client, and code_etat only. code_district, id_arrondissement,
-  id_consommateur, abrev_region, code_etat_iso, id_district_avis, id_plainte, id_numero_appel,
-  and id_dossier_reclamation look like the same keys but are unreliable and must not be used to
-  join tables.
-- avis (reviews) carries no client identifier; joining it to client goes through the district
-  they both reference, so the result is every client in that reviewer's district, not the one
-  reviewer.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  retail_complains tracks retail-banking consumer complaints, the call logs behind them, and separate product reviews, linking each client through their district and state.
+
+  retail_complains combines three views of one bank's retail customers. evenements is a regulatory-style consumer complaint log, one row per complaint about a product such as a credit card or a mortgage, with the product, the issue, how the complaint was submitted, and how the company responded; journaux_centre_appels is the call center log behind those complaints, one row per call with its priority, agent, and duration. avis is unrelated to either: it is a customer-satisfaction review of a product, with a star rating and free text, and carries no complaint identifier. client, district, and etat form the geography chain every person sits in: a client belongs to a district, and a district belongs to a state (etat). avis has no client identifier of its own; it only reaches client indirectly through the district they share. Several tables also carry a column that looks like a real identifier, date, or name but is not dependable for analysis — see the affected table or column for which ones.
+ai_context:
+  instructions: |-
+    Join through id_district, id_client, and code_etat only. code_district, id_arrondissement, id_consommateur, abrev_region, code_etat_iso, id_district_avis, id_plainte, id_numero_appel, and id_dossier_reclamation look like the same keys but are unreliable and must not be used to join tables.
+    avis (reviews) carries no client identifier; joining it to client goes through the district they both reference, so the result is every client in that reviewer's district, not the one reviewer.
+datasets:
+- name: avis
+  source: retail_complains.avis
+  description: |
+    avis holds each customer's star rating and written review of a banking product, tied to the district where the reviewer lives.
+
+    Grain: one row per customer review of a product. Distinct from evenements and journaux_centre_appels, which record formal regulatory complaints and the calls behind them rather than customer-satisfaction reviews; the same customer can appear in both without any shared key between the two record types. avis connects to district through id_district, and only reaches client indirectly through that shared district — it carries no id_client of its own. Do not use avis_produits, a separate table that repeats this table's shape but is not dependable; three columns on this table itself (id_district_avis, date_avis, type_produit) are also unreliable and are marked individually below.
+  fields:
+  - name: date
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date
+    description: |
+      The date a customer submitted their review, date.
+
+      Spans 2013-02-04 to 2019-12-19 in the loaded sample. This is the review's own submission date; do not confuse it with date_avis on this same table, which is a separate, unreliable column.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: note_etoiles
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: note_etoiles
+    description: |
+      The star rating a customer gave in their review, note_etoiles.
+
+      An integer from 1 (worst) to 5 (best); no other values appear in the loaded sample. "1-star review" or "1 star" means note_etoiles = 1; "5-star review" or "most five stars" means note_etoiles = 5.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to avis.note_etoiles, an integer 1 to 5 with no other values in the loaded sample. \"1 star\" or \"1-star review\" means note_etoiles = 1; \"5 star\", \"5-star review\", or \"most five stars\" means note_etoiles = 5. \"Most 1-star avis\" means the group (typically a lender or a district) with the largest COUNT of rows where note_etoiles = 1.\n",
+              "id": "term_retail_complains_star_rating",
+              "name": "star rating",
+              "summary": "star rating: the note_etoiles value on a review, from 1 star (1-star, worst) to 5 star (5-star, best).",
+              "synonyms": [
+                "star rating",
+                "1 star",
+                "5 star",
+                "1-star",
+                "5-star"
+              ]
+            }
+          ]
+        }
+  - name: avis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: avis
+    description: |
+      The free-text body of a customer's review, avis.
+
+      Free text, for example "Great web interface for both the loan application and document upload and download features." Null for most rows (332 of 377 in the loaded sample) — only a minority of reviewers write anything beyond the star rating.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: produit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: produit
+    description: |
+      The lender a review is about, produit.
+
+      A small, closed set of lender names in the loaded sample: 'Eagle National Mortgage', 'Eagle National Bank', and 'Eagle Capital'. This is a lender name, not the complaint-category vocabulary ('Credit card', 'Bank account or service') used by evenements.produit.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to avis.produit, a closed set of three lender names in the loaded sample: 'Eagle National Mortgage', 'Eagle National Bank', and 'Eagle Capital'. This is a lender name, not the product-category vocabulary ('Credit card', 'Bank account or service') held by evenements.produit for formal complaints; the two produit columns are not comparable.\n",
+              "id": "term_retail_complains_lender",
+              "name": "lender",
+              "summary": "lender: the bank or mortgage company a review is about, recorded as avis.produit — Eagle Capital or Eagle National Mortgage among them.",
+              "synonyms": [
+                "Eagle Capital",
+                "Eagle National Mortgage"
+              ]
+            }
+          ]
+        }
+  - name: id_district
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_district
+    description: |
+      The district where the reviewing customer lives, id_district.
+
+      A numeric foreign key to district.id_district. Use this to bring in the reviewer's city, state, and census division; it is also the only way to relate a review to a client, since avis has no client identifier of its own.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_district_avis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_district_avis
+    description: |
+      id_district_avis, a numeric column on the avis table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: date_avis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_avis
+    description: |
+      date_avis, a date column on the avis table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: type_produit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: type_produit
+    description: |
+      type_produit, a text column on the avis table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: avis_produits
+  source: retail_complains.avis_produits
+  description: |
+    avis_produits is a table in the retail_complains schema whose contents are not dependable for analysis.
+
+    Every column on avis_produits is unreliable and does not correspond to the business facts the schema otherwise records. Use avis instead for a customer's star rating and written review of a product; do not join, filter, or select from avis_produits for any question.
+  fields:
+  - name: date_avis
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_avis
+    description: |
+      date_avis, a date column on the avis_produits table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: note_sur_5
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: note_sur_5
+    description: |
+      note_sur_5, a numeric column on the avis_produits table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: commentaire
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: commentaire
+    description: |
+      commentaire, a text column on the avis_produits table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: reference_produit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: reference_produit
+    description: |
+      reference_produit, a text column on the avis_produits table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_arrondissement
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_arrondissement
+    description: |
+      id_arrondissement, a numeric column on the avis_produits table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: client
+  source: retail_complains.client
+  description: |
+    client holds one retail-banking customer per row, with their name, birth date, contact details, and home address down to the district.
+
+    Grain: one row per customer, keyed by id_client. Every complaint on evenements and every call log on journaux_centre_appels ties back to exactly one client; avis (reviews) has no client identifier and only reaches client indirectly through the district they share. A client's birth date is split across three columns (annee, mois, jour) rather than stored as one date, and age is kept as a separate, already-computed column. Three columns on this table (id_consommateur, id_arrondissement, adresse_principale) look like real identifiers or an address but are not dependable and are marked individually below.
+  fields:
+  - name: id_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_client
+    description: |
+      The unique identifier of a customer, id_client.
+
+      A text code such as 'C00000456', unique per row. Join to evenements.id_client to bring in a customer's complaints, and to journaux_centre_appels.client_aleatoire to bring in their call logs.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: sexe
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sexe
+    description: |
+      The sex recorded for a customer, sexe.
+
+      Two values in the loaded sample: 'Male' and 'Female'. Business language sometimes uses the honorific instead of the value: "Mr" means sexe = 'Male' and "Ms" means sexe = 'Female'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to client.sexe, which holds exactly 'Male' or 'Female' (case matters; a lowercase 'female' also appears in training language but the column itself is title-cased). Business language sometimes uses the honorific instead: \"Mr\" means sexe = 'Male' and \"Ms\" means sexe = 'Female'.\n",
+              "id": "term_retail_complains_client_sex",
+              "name": "client sex",
+              "summary": "client sex: whether a customer is recorded as male or female on client.sexe.",
+              "synonyms": [
+                "male",
+                "female"
+              ]
+            }
+          ]
+        }
+  - name: jour
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: jour
+    description: |
+      The day-of-month a customer was born, jour.
+
+      An integer 1-31. Combine with mois and annee to build a full birth date; see the "date of birth" term for how the three columns compose.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: mois
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mois
+    description: |
+      The month a customer was born, mois.
+
+      An integer 1-12. Combine with jour and annee to build a full birth date; see the "date of birth" term for how the three columns compose.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: annee
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: annee
+    description: |
+      The year a customer was born, annee.
+
+      A four-digit year, spanning 1932 to 2003 in the loaded sample. Combine with mois and jour to build a full birth date. The customer with the largest annee is the youngest; the smallest is the oldest.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: age
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: age
+    description: |
+      The age of a customer, age.
+
+      A pre-computed integer, 16 to 87 in the loaded sample, consistent with annee. The dataset's own age bands are teenager (13-19), adult (19-65), and elder (over 65); see the "age band" term for the exact boundaries used in business language.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to client.age. The dataset's own bands are teenager (13 to 19), adult (19 to 65), and elder (over 65); training language also phrases \"elder\" or \"elderly\" as age > 65 and \"teenager\" as a range as narrow as 13 < age <= 19, so treat 65 and 19 as the boundaries to use unless a question states its own cutoff, such as \"over the age of 60\" or \"between 30 and 50\", which override the named bands with a literal comparison against age.\n",
+              "id": "term_retail_complains_age_band",
+              "name": "age band",
+              "summary": "age band: retail_complains groups a customer's age into teenager, adult, and elder (elderly), recorded on client.age.",
+              "synonyms": [
+                "teenager",
+                "adult",
+                "elder",
+                "elderly"
+              ]
+            }
+          ]
+        }
+  - name: numero_securite_sociale
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: numero_securite_sociale
+    description: |
+      The US social security number of a customer, numero_securite_sociale.
+
+      A text value in NNN-NN-NNNN format, unique per row. Not used as a join key anywhere in this schema; id_client is the identifier to use instead.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: prenom
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: prenom
+    description: |
+      The first name of a customer, prenom.
+
+      Free text, for example 'Beckett' or 'Juliet'. Combine with deuxieme_prenom and nom for a customer's full name; see the "full name" term.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: deuxieme_prenom
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: deuxieme_prenom
+    description: |
+      The middle name of a customer, deuxieme_prenom.
+
+      Free text, for example 'Wendell' or 'Marley'. Always present in the loaded sample. Combine with prenom and nom for a customer's full name; see the "full name" term.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nom
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom
+    description: |
+      The last name of a customer, nom.
+
+      Free text, for example 'Franklin' or 'Salazar'. Combine with prenom and deuxieme_prenom for a customer's full name; see the "full name" term.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: telephone
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: telephone
+    description: |
+      The phone number on file for a customer, telephone.
+
+      A text value in NNN-NNN-NNNN format. This is the customer's own contact number, distinct from journaux_centre_appels.telephone_final, which records the number a specific call was placed from or to.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: email
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: email
+    description: |
+      The email address of a customer, email.
+
+      A text address such as 'beckett.franklin@outlook.com'. The domain names a webmail provider: '@gmail.com' means a Google account and '@outlook.com' or '@hotmail.com' means a Microsoft account; see the "email provider" term.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to client.email. \"Google account\" means the address ends in '@gmail.com'; \"Microsoft account\" means it ends in '@outlook.com' (the sample also carries '@hotmail.com' addresses, another Microsoft domain, though training language names only outlook.com). Match with LIKE against the domain suffix rather than exact equality.\n",
+              "id": "term_retail_complains_email_provider",
+              "name": "email provider",
+              "summary": "email provider: whether a customer's client.email address is a Google account or a Microsoft account, judged by its domain.",
+              "synonyms": [
+                "Google account",
+                "Microsoft account"
+              ]
+            }
+          ]
+        }
+  - name: adresse_ligne_1
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse_ligne_1
+    description: |
+      The first line of a customer's home address, adresse_ligne_1.
+
+      A street address, for example '9318 Race Ave.'. Combine with adresse_ligne_2 for the full address; see the "full address" term. Distinct from adresse_principale on this same table, which is a separate, unreliable column.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: adresse_ligne_2
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse_ligne_2
+    description: |
+      The second line of a customer's home address, adresse_ligne_2.
+
+      A unit or suite designation, for example 'Unit 81'; null for most rows (494 of 500 in the loaded sample) since most addresses have no second line. Combine with adresse_ligne_1 for the full address; see the "full address" term.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ville
+    description: |
+      The city of a customer's home address, ville.
+
+      A US city name, for example 'Wichita' or 'Atlanta'. Independent of district.ville, which names the city for the whole district rather than this one customer's address.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: etat
+    description: |
+      The state of a customer's home address, etat.
+
+      A two-letter state code, for example 'KS' or 'NY', matching etat.code_etat. Named the same as the etat table but holds only this customer's own state code, not a joinable key to it.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: code_postal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_postal
+    description: |
+      The ZIP code of a customer's home address, code_postal.
+
+      A five-digit US postal code, for example 40440 or 10105.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_district
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_district
+    description: |
+      The district a customer lives in, id_district.
+
+      A numeric foreign key to district.id_district, bringing in the customer's district-level city, state, and census division.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_consommateur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_consommateur
+    description: |
+      id_consommateur, a text column on the client table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_arrondissement
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_arrondissement
+    description: |
+      id_arrondissement, a numeric column on the client table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: adresse_principale
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: adresse_principale
+    description: |
+      adresse_principale, a text column on the client table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_retail_complains_average_age
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(age)
+    description: |
+      average age: the mean age across a group of customers, typically all customers in one district or state.
+
+      Bound to client.age: SUM(age) divided by COUNT of the customers in scope. "Average age of customers in a state" means this computed over client rows joined to that state through district, not over the whole table.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average age"
+        }
+  - name: metric_retail_complains_client_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id_client)
+    description: |
+      client count: the number of customers in a group, typically all customers in one district or state.
+
+      Bound to client.id_client. "Highest number of clients" or "highest number of customers" means MAX applied to this count after grouping by district or state; "least number of clients" means MIN applied the same way. "Second most" means the group with the second-largest count, found with an ORDER BY and OFFSET rather than a plain MAX.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "client count"
+        }
+  - name: metric_retail_complains_oldest_client_age
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(age)
+    description: |
+      oldest client age: the largest age value in a group of customers, identifying the oldest one.
+
+      Bound to client.age. "Oldest" or "oldest age" means MAX(age) over the customers in scope; the matching customer is the row where age equals that maximum. See the "youngest client" metric for the opposite direction using birth year instead of age.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "oldest client age"
+        }
+  - name: metric_retail_complains_pct_female_clients
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: 100.0 * COUNT(CASE WHEN sexe = 'Female' THEN 1 END) / COUNT(id_client)
+    description: |
+      percentage of female clients: the share of customers in a group recorded as female on client.sexe.
+
+      Bound to client.sexe: count of rows where sexe = 'Female', divided by the count of all customers in scope, multiplied by 100. "Percentage of male clients" is the same computation with sexe = 'Male', and the two shares add to 100 within one group since sexe only takes those two values.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "percentage of female clients"
+        }
+  - name: metric_retail_complains_youngest_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(annee)
+    description: |
+      youngest client: the customer with the largest annee value, meaning the most recently born and so the youngest.
+
+      Bound to client.annee. Training language phrases "youngest" as MAX applied to the birth-date columns (annee, mois, jour) together, but a larger annee alone already identifies the more recent birth year in almost every case; break ties with mois then jour. Equivalent to MIN(age) when age is populated consistently with annee.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "youngest client"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "terms": [
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "A customer's date of birth is built from three columns: annee (year), mois (month), and jour (day-of-month) rather than stored as one date. \"Born between 1980 and 2000\" filters annee directly; a full calendar date such as \"born on March 14, 1985\" filters all three columns together. The customer with the largest annee (most recent birth year) is the youngest; the smallest annee is the oldest — see the \"youngest client\" metric. client.age is a separate, already-computed column consistent with this birth date.\n",
+            "id": "term_retail_complains_date_of_birth",
+            "name": "date of birth",
+            "summary": "date of birth (birth date, birthday): a customer's annee, mois, and jour combined, on the client table.",
+            "synonyms": [
+              "date of birth",
+              "birth date",
+              "birthday"
+            ]
+          },
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "A customer's full street address is adresse_ligne_1 (the street address) and adresse_ligne_2 (a unit or suite, when present) concatenated. adresse_ligne_2 is null for most rows (494 of 500 in the loaded sample), so most full addresses are just adresse_ligne_1. Do not use adresse_principale on the same table, which is a separate, unreliable column.\n",
+            "id": "term_retail_complains_full_address",
+            "name": "full address",
+            "summary": "full address: a customer's adresse_ligne_1 and adresse_ligne_2 combined, on the client table.",
+            "synonyms": [
+              "full address"
+            ]
+          },
+          {
+            "audit": {
+              "provenance": {
+                "source": "curator",
+                "source_refs": [
+                  "train_final.jsonl"
+                ],
+                "status": "draft",
+                "version": "rebuild-1"
+              }
+            },
+            "body": "A customer's full name is prenom (first name), deuxieme_prenom (middle name), and nom (last name) concatenated in that order; there is no single pre-joined name column. deuxieme_prenom is populated for every row in the loaded sample, so a two-part \"first last\" concatenation will drop a real name component.\n",
+            "id": "term_retail_complains_full_name",
+            "name": "full name",
+            "summary": "full name: a customer's prenom, deuxieme_prenom, and nom combined, on the client table.",
+            "synonyms": [
+              "full name"
+            ]
+          }
+        ]
+      }
+- name: district
+  source: retail_complains.district
+  description: |
+    district holds one US district per row, giving its city, state, and census division, and sits between client and etat in the geography chain.
+
+    Grain: one row per district, keyed by id_district. Every client belongs to exactly one district, and every district belongs to exactly one state (etat) through abrev_etat. division is a finer-grained census region than etat.region — a district's division (for example 'Pacific' or 'New England') is not the same value as its state's broader region (for example 'West' or 'Northeast'), so do not treat the two as interchangeable. Three columns on this table (code_district, abrev_region, commune) look like real identifiers or a city name but are not dependable and are marked individually below.
+  fields:
+  - name: id_district
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_district
+    description: |
+      The unique identifier of a district, id_district.
+
+      A small integer, unique per row. Join to client.id_district and avis.id_district to bring in every customer or review tied to this district.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: ville
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: ville
+    description: |
+      The main city of a district, ville.
+
+      A US city name, for example 'Denver' or 'Indianapolis'. This is the district's own city, distinct from client.ville, which is one customer's own address city and can differ from their district's.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: abrev_etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: abrev_etat
+    description: |
+      The two-letter state abbreviation of a district, abrev_etat.
+
+      For example 'CO' or 'AL', matching etat.code_etat. Join to etat.code_etat to bring in the full state name and its region.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: division
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: division
+    description: |
+      The US census division of a district, division.
+
+      One of nine census divisions in the loaded sample, for example 'Mountain', 'New England', or 'Pacific'. Finer-grained than etat.region; do not use the two interchangeably.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: code_district
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_district
+    description: |
+      code_district, a numeric column on the district table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: abrev_region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: abrev_region
+    description: |
+      abrev_region, a text column on the district table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: commune
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: commune
+    description: |
+      commune, a text column on the district table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: etat
+  source: retail_complains.etat
+  description: |
+    etat is the US state lookup table for retail_complains, giving each state's full name and broad region.
+
+    Grain: one row per state, keyed by code_etat. Every district belongs to exactly one state through district.abrev_etat = etat.code_etat. region here is a broad, four-way grouping (South, West, Midwest, Northeast) and is coarser than district.division, which splits the country into nine census divisions; do not treat the two as interchangeable. Three columns on this table (code_etat_iso, nom_region, nom_etat) look like the real state code, region, or name but are not dependable and are marked individually below.
+  fields:
+  - name: code_etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_etat
+    description: |
+      The two-letter code of a state, code_etat.
+
+      For example 'OK' or 'AZ', unique per row. Join to district.abrev_etat and client.etat to bring in a district's or customer's full state name and region.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: etat
+    description: |
+      The full name of a state, etat.
+
+      For example 'Oklahoma' or 'Arizona'. This is the business-facing state name; abbreviation questions should filter on code_etat instead.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: region
+    description: |
+      The broad region a state belongs to, region.
+
+      One of four values in the loaded sample: 'South', 'West', 'Midwest', 'Northeast'. Coarser than district.division; a state's region groups several of that state's districts' divisions together.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: code_etat_iso
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_etat_iso
+    description: |
+      code_etat_iso, a text column on the etat table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_region
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_region
+    description: |
+      nom_region, a text column on the etat table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_etat
+    description: |
+      nom_etat, a text column on the etat table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: etat_regional
+  source: retail_complains.etat_regional
+  description: |
+    etat_regional is a table in the retail_complains schema whose contents are not dependable for analysis.
+
+    Every column on etat_regional is unreliable and does not correspond to the business facts the schema otherwise records. Use etat instead for a state's code, name, and region; do not join, filter, or select from etat_regional for any question.
+  fields:
+  - name: code_statut
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: code_statut
+    description: |
+      code_statut, a text column on the etat_regional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_etat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_etat
+    description: |
+      nom_etat, a text column on the etat_regional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: zone_geographique
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: zone_geographique
+    description: |
+      zone_geographique, a text column on the etat_regional table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: evenements
+  source: retail_complains.evenements
+  description: |
+    evenements is a regulatory-style consumer complaint log, one row per complaint a client filed about a banking product.
+
+    Grain: one row per complaint, keyed by id_reclamation. Distinct from avis, which holds customer-satisfaction reviews rather than formal complaints and shares no key with this table. Every complaint belongs to exactly one client through id_client, and journaux_centre_appels holds the call log behind a complaint, joined on id_reclamation. A complaint's product and sub-product describe what it is about; its issue and sub-issue describe why it was filed; and consentement_consommateur_fourni, soumis_par, reponse_entreprise_consommateur, reponse_en_temps_voulu, and reclamation_contestee_consommateur together describe how it was handled. Three columns on this table (id_consommateur_evenement, reponse_entreprise_au_consommateur, id_dossier_reclamation) look like the real client id, company response, or complaint id but are not dependable and are marked individually below.
+  fields:
+  - name: date_reception
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_reception
+    description: |
+      The date a complaint was received, date_reception.
+
+      Spans 2011-12-02 to 2017-03-29 in the loaded sample. "3 consecutive years starting from 2015" or similar ranges mean a BETWEEN filter on this column. Distinct from date_envoi_entreprise, which is when the complaint was forwarded to the company.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: produit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: produit
+    description: |
+      The product category a complaint is about, produit.
+
+      Two values in the loaded sample: 'Credit card' and 'Bank account or service'. Business language is inconsistent about capitalization ('Credit Card', 'credit card', 'Credit cards' all mean 'Credit card'); see the "credit card complaints" term. This is a product category, not the lender name held by avis.produit.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to evenements.produit, whose only credit-card value is 'Credit card'. Training language capitalizes this inconsistently ('Credit Card', 'credit card', 'Credit cards'), so match case-insensitively rather than filtering on the exact casing a question uses. The other value in the loaded sample is 'Bank account or service'.\n",
+              "id": "term_retail_complains_credit_card_complaint",
+              "name": "credit card complaint",
+              "summary": "credit card complaint: a row in evenements.produit about a credit card, whether a question spells it credit card, credit cards, or Credit Card.",
+              "synonyms": [
+                "credit card",
+                "credit cards",
+                "Credit Card"
+              ]
+            }
+          ]
+        }
+  - name: sous_produit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sous_produit
+    description: |
+      The more specific product a complaint is about, sous_produit.
+
+      For example 'Checking account', 'Savings account', or '(CD) Certificate of deposit'; null when produit has no further breakdown (333 of 500 rows in the loaded sample). A detailed view of produit rather than an independent category.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: probleme
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: probleme
+    description: |
+      The issue a complaint raises, probleme.
+
+      For example 'Billing disputes', 'Other fee', or 'Late fee'; 37 distinct issues in the loaded sample. "About Billing disputes" means probleme = 'Billing disputes'.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: sous_probleme
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: sous_probleme
+    description: |
+      The more specific issue a complaint raises, sous_probleme.
+
+      A detailed view of probleme, null when there is no further breakdown; null for every row in the loaded sample.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: recit_reclamation_consommateur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: recit_reclamation_consommateur
+    description: |
+      The customer's own written account of a complaint, recit_reclamation_consommateur.
+
+      Free text, for example "In XX/XX/XXXX Eagle National Bank Visa reissued my card because of localized fraud problem..."; personal details are redacted to 'XXXX'. Null for most rows (450 of 500 in the loaded sample), since most complaints are filed without a narrative.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: etiquettes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: etiquettes
+    description: |
+      The tags applied to a complaint, etiquettes.
+
+      For example 'Servicemember', 'Older American', or both combined; null for most rows (443 of 500 in the loaded sample). A tag is only present when the consumer consented to it being recorded; see consentement_consommateur_fourni.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: consentement_consommateur_fourni
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: consentement_consommateur_fourni
+    description: |
+      Whether a customer consented to having their tags recorded, consentement_consommateur_fourni.
+
+      Values in the loaded sample: 'Consent provided', 'Consent not provided', 'N/A', and 'Other'. Null, 'N/A', or an empty value means the company did not get the customer's consent for a tag; any other non-empty value means the customer did provide consent.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to evenements.consentement_consommateur_fourni. Null, 'N/A', or an empty value means the company did not get the customer's permission for a tag — \"without seeking their permission\" refers to this state. Any other non-empty value, such as 'Consent provided', means the customer did provide consent. Only rows with consent given carry a value on etiquettes.\n",
+              "id": "term_retail_complains_consumer_consent",
+              "name": "consumer consent provided",
+              "summary": "consumer consent provided: whether a customer provided consent for their tags to be recorded, held on evenements.consentement_consommateur_fourni; without seeking their permission means they did not.",
+              "synonyms": [
+                "consumer consent provided",
+                "provided consent",
+                "without seeking their permission"
+              ]
+            }
+          ]
+        }
+  - name: soumis_par
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: soumis_par
+    description: |
+      The channel a complaint was submitted through, soumis_par.
+
+      One of 'Web', 'Phone', 'Postal mail', 'Referral', 'Email', or 'Fax' in the loaded sample. "Submitted via call" or "telephone complaint" means soumis_par = 'Phone'; "not sent through web" means soumis_par != 'Web'. See the "submission channel" term.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to evenements.soumis_par, one of 'Web', 'Phone', 'Postal mail', 'Referral', 'Email', or 'Fax' in the loaded sample. \"Submitted via call\" or \"telephone complaint\" means soumis_par = 'Phone'; \"submitted the complaint via fax\" means soumis_par = 'Fax'; \"not sent through web\" means soumis_par != 'Web'.\n",
+              "id": "term_retail_complains_submission_channel",
+              "name": "submission channel",
+              "summary": "submission channel (submitted via, complained through, how it was submitted, made by, medium, sent through): the evenements.soumis_par value a complaint came in on.",
+              "synonyms": [
+                "submitted via",
+                "complained through",
+                "how it was submitted",
+                "made by",
+                "medium",
+                "sent through"
+              ]
+            }
+          ]
+        }
+  - name: date_envoi_entreprise
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_envoi_entreprise
+    description: |
+      The date a complaint was forwarded to the company, date_envoi_entreprise.
+
+      Stored as text in the same YYYY-MM-DD shape as date_reception, spanning 2011-12-05 to 2017-03-29 in the loaded sample. The gap between this column and date_reception is the delay before a complaint was handed off.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: reponse_entreprise_consommateur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: reponse_entreprise_consommateur
+    description: |
+      The company's response to a complaint, reponse_entreprise_consommateur.
+
+      For example 'Closed', 'Closed with explanation', 'Closed with relief', 'Closed with monetary relief', 'Closed with non-monetary relief', 'In progress', or 'Untimely response'. See the "company response status" term.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to evenements.reponse_entreprise_consommateur. Values in the loaded sample: 'Closed', 'Closed with explanation', 'Closed with relief', 'Closed with monetary relief', 'Closed with non-monetary relief', 'In progress', and 'Untimely response'. \"Responded with an explanation\" or the literal response \"Closed with relief\" both mean a direct equality filter on this column. Distinct from reponse_en_temps_voulu, which records only whether the response was timely, not what the resolution itself was.\n",
+              "id": "term_retail_complains_company_response",
+              "name": "company response status",
+              "summary": "company response status: how a company resolved a complaint, recorded on evenements.reponse_entreprise_consommateur as closed with explanation, closed with relief, or in progress, among others.",
+              "synonyms": [
+                "closed with explanation",
+                "closed with relief",
+                "in progress"
+              ]
+            }
+          ]
+        }
+  - name: reponse_en_temps_voulu
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: reponse_en_temps_voulu
+    description: |
+      Whether the company's response to a complaint was timely, reponse_en_temps_voulu.
+
+      'Yes' or 'No'. "Received a timely response" means 'Yes'; "late response", "non-timely response", or "did not receive timely response" means 'No'. See the "timely response" term.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to evenements.reponse_en_temps_voulu, 'Yes' or 'No'. \"Received a timely response\" or \"timely response\" means 'Yes'; \"late response\", \"non-timely response\", or \"did not receive timely response\" means 'No'. Distinct from reponse_entreprise_consommateur, which records what the resolution was rather than whether it was on time.\n",
+              "id": "term_retail_complains_timely_response",
+              "name": "timely response",
+              "summary": "timely response: whether the company answered a complaint on time, recorded on evenements.reponse_en_temps_voulu, with a late response or non-timely response meaning it did not.",
+              "synonyms": [
+                "timely response",
+                "late response",
+                "non-timely response"
+              ]
+            }
+          ]
+        }
+  - name: reclamation_contestee_consommateur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: reclamation_contestee_consommateur
+    description: |
+      Whether the customer disputed the company's response, reclamation_contestee_consommateur.
+
+      'Yes' or 'No'; null for a small number of rows (20 of 500 in the loaded sample). "Have dispute" means 'Yes'; "no dispute" means 'No'. See the "consumer disputed" term.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to evenements.reclamation_contestee_consommateur, 'Yes' or 'No', null for a small number of rows (20 of 500 in the loaded sample). \"Have dispute\" means 'Yes'; \"no dispute\" means 'No'.\n",
+              "id": "term_retail_complains_consumer_disputed",
+              "name": "consumer disputed",
+              "summary": "consumer disputed: whether a customer disputed the company's response, recorded on evenements.reclamation_contestee_consommateur; have dispute means yes, no dispute means no.",
+              "synonyms": [
+                "have dispute",
+                "no dispute"
+              ]
+            }
+          ]
+        }
+  - name: id_reclamation
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_reclamation
+    description: |
+      The unique identifier of a complaint, id_reclamation.
+
+      A text code such as 'CR2410326', unique per row. Join to journaux_centre_appels.id_reclamation to bring in the calls behind this complaint.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_client
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_client
+    description: |
+      The customer who filed a complaint, id_client.
+
+      A foreign key to client.id_client. One customer can file several complaints, so this column repeats across rows.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_consommateur_evenement
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_consommateur_evenement
+    description: |
+      id_consommateur_evenement, a text column on the evenements table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: reponse_entreprise_au_consommateur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: reponse_entreprise_au_consommateur
+    description: |
+      reponse_entreprise_au_consommateur, a text column on the evenements table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_dossier_reclamation
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_dossier_reclamation
+    description: |
+      id_dossier_reclamation, a text column on the evenements table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_retail_complains_complaint_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id_reclamation)
+    description: |
+      complaint count: the number of complaints in a group, typically all complaints filed by one customer or about one product.
+
+      Bound to evenements.id_reclamation. "Most complaints" means the group (a customer, product, or issue) with the largest value of this count, found by grouping and taking MAX, not by taking MAX(id_reclamation) itself, since id_reclamation is a text code rather than a meaningful number to maximize directly.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "complaint count"
+        }
+  - name: metric_retail_complains_pct_credit_card_complaints
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: 100.0 * COUNT(CASE WHEN produit = 'Credit card' THEN 1 END) / COUNT(id_reclamation)
+    description: |
+      percentage of credit card complaints: the share of complaints in a group that are about a credit card.
+
+      Bound to evenements.produit: count of rows where produit = 'Credit card', divided by the count of all complaints in scope, multiplied by 100. See the "credit card complaint" term for matching produit regardless of how a question capitalizes it.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "percentage of credit card complaints"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: journaux_centre_appels
+  source: retail_complains.journaux_centre_appels
+  description: |
+    journaux_centre_appels is the call center log behind each complaint, one row per call with its agent, priority, and duration.
+
+    Grain: one row per call, keyed by id_appel. Each call ties back to exactly one complaint on evenements through id_reclamation, and to exactly one customer through client_aleatoire, which despite its name holds a real client identifier. Not every complaint has a call behind it, and not every call row is fully populated: priority, type, resultat, serveur, debut_service, fin_service, and duree_service are null together for the same 141 rows in the loaded sample. Three columns on this table (id_plainte, date_recue, id_numero_appel) look like the real complaint id, receipt date, or call id but are not dependable and are marked individually below.
+  fields:
+  - name: date_reception
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_reception
+    description: |
+      The date a complaint behind a call was received, date_reception.
+
+      Spans 2011-12-19 to 2019-12-18 in the loaded sample. Mirrors evenements.date_reception for the same complaint; distinct from date_recue on this same table, which is a separate, unreliable column.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date"
+        }
+  - name: id_reclamation
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_reclamation
+    description: |
+      The complaint a call was about, id_reclamation.
+
+      A foreign key to evenements.id_reclamation. Null for 207 of 500 rows in the loaded sample, where the call cannot be tied to a specific complaint.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: client_aleatoire
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: client_aleatoire
+    description: |
+      The customer who placed a call, client_aleatoire.
+
+      A foreign key to client.id_client, despite the "random" in its name; for example 'C00001425'. Null for the same 207 rows in the loaded sample where id_reclamation is null.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: telephone_final
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: telephone_final
+    description: |
+      The phone number a call was placed from or to, telephone_final.
+
+      A text value in NNN-NNN-NNNN format. This is the number used on this specific call, not necessarily client.telephone, the customer's own contact number on file.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: serveur_vocal_ligne
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: serveur_vocal_ligne
+    description: |
+      The voice response unit and line that handled a call, serveur_vocal_ligne.
+
+      A code such as 'AA0210' or 'AA0105', identifying the automated line a call came through before reaching an agent. Null for 141 of 500 rows in the loaded sample.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_appel
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_appel
+    description: |
+      The unique identifier of a call, id_appel.
+
+      A numeric id, unique per row where present; null for 141 of 500 rows in the loaded sample, the same rows missing priority, type, resultat, serveur, and the service timestamps.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: priorite
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: priorite
+    description: |
+      The priority assigned to a call, priorite.
+
+      0, 1, or 2 in the loaded sample; null for 141 of 500 rows. A higher value means a higher priority — a more serious or urgent complaint.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: type
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: type
+    description: |
+      The type of a call, type.
+
+      A short code such as 'PS', 'NW', 'TT', 'IN', or 'NE' in the loaded sample; null for 141 of 500 rows.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: resultat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: resultat
+    description: |
+      The outcome of processing a call, resultat.
+
+      One of 'AGENT', 'HANG', or 'PHANTOM' in the loaded sample; null for 141 of 500 rows.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: serveur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: serveur
+    description: |
+      The agent who handled a call, serveur.
+
+      An agent name such as 'STEREN', 'KAZAV', or 'MIKI', or the sentinel 'NO_SERVER' when no agent took the call; null for 141 of 500 rows. "Served by" refers to this column; see the "call agent" term.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bound to journaux_centre_appels.serveur, an agent name such as 'STEREN' or 'KAZAV', or the sentinel 'NO_SERVER' when no agent took the call. \"Served by DORIT\" or \"served by MICHAL\" means a direct equality filter against this column using the agent's name.\n",
+              "id": "term_retail_complains_call_agent",
+              "name": "call agent",
+              "summary": "call agent: the person who handled a call, held on journaux_centre_appels.serveur; served by refers to this column.",
+              "synonyms": [
+                "served by"
+              ]
+            }
+          ]
+        }
+  - name: debut_service
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: debut_service
+    description: |
+      The time an agent began handling a call, debut_service.
+
+      Stored as text in HH:MM:SS format, for example '13:04:46'. Paired with fin_service; their difference is duree_service.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: fin_service
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: fin_service
+    description: |
+      The time an agent finished handling a call, fin_service.
+
+      Stored as text in HH:MM:SS format, for example '13:16:10'. Paired with debut_service; their difference is duree_service.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: duree_service
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: duree_service
+    description: |
+      The duration a call took to handle, duree_service.
+
+      Stored as text in HH:MM:SS format, for example '00:11:24', ranging '00:00:00' to '00:28:15' in the loaded sample; cast before arithmetic or comparison. A longer duration means a more verbose or longer complaint. See the "average call duration" and "longest call duration" metrics.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_plainte
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_plainte
+    description: |
+      id_plainte, a text column on the journaux_centre_appels table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: date_recue
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_recue
+    description: |
+      date_recue, a date column on the journaux_centre_appels table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Date
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "date",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: id_numero_appel
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_numero_appel
+    description: |
+      id_numero_appel, a numeric column on the journaux_centre_appels table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list or a filter.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_retail_complains_average_call_duration
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(duree_service)
+    description: |
+      average call duration: the mean duree_service across a group of calls, typically all calls handled by one agent.
+
+      Bound to journaux_centre_appels.duree_service, stored as HH:MM:SS text; cast to an interval or to seconds before averaging. "Highest average time per complaint" means the agent or group with the largest value of this average, not a single call's duration.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average call duration"
+        }
+  - name: metric_retail_complains_longest_call_duration
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(duree_service)
+    description: |
+      longest call duration: the largest duree_service value in a group of calls, identifying the most verbose complaint.
+
+      Bound to journaux_centre_appels.duree_service, stored as HH:MM:SS text; cast before comparing. "Longest serveur time" or "most verbose complaint" both mean MAX(duree_service), since a longer duration corresponds to a longer, more verbose complaint call.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "longest call duration"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_retail_complains_avis_district_e51ad259
+  from: avis
+  to: district
+  from_columns:
+  - id_district
+  to_columns:
+  - id_district
+  ai_context:
+    instructions: |
+      Links a review in avis to the district the reviewing customer lives in, bringing in that district's city, state, and census division.
+
+      Each avis row names exactly one district; a district has many reviews. Use this to answer geography questions about reviews, such as which city or state a review's author is from, without needing to identify the specific reviewing customer.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between avis and district in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_retail_complains_client_district_da8f593d
+  from: client
+  to: district
+  from_columns:
+  - id_district
+  to_columns:
+  - id_district
+  ai_context:
+    instructions: |
+      Links a customer in client to the district they live in, bringing in that district's city, state, and census division.
+
+      Each client row names exactly one district; a district has many clients. This is the first hop of the geography chain client to district to etat, used for any question about a customer's city, state, or region that isn't answered by the address columns on client itself.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between client and district in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_retail_complains_client_evenements_ad47699e
+  from: evenements
+  to: client
+  from_columns:
+  - id_client
+  to_columns:
+  - id_client
+  ai_context:
+    instructions: |
+      Links a customer in client to every complaint they filed in evenements.
+
+      Each evenements row names exactly one client; a client can file many complaints. Use this to bring a customer's demographic or geographic attributes into a question about their complaint history, or to count how many complaints one customer filed.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between client and evenements in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_retail_complains_client_journaux_centre_appels_d37aa088
+  from: journaux_centre_appels
+  to: client
+  from_columns:
+  - client_aleatoire
+  to_columns:
+  - id_client
+  ai_context:
+    instructions: |
+      Links a customer in client to every call they placed, recorded in journaux_centre_appels.
+
+      Each journaux_centre_appels row names exactly one client through client_aleatoire, despite the "random" in that column's name; a client can place many calls. Use this to bring a customer's demographic or geographic attributes into a question about their call history.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between client and journaux_centre_appels in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_retail_complains_district_etat_524394e6
+  from: district
+  to: etat
+  from_columns:
+  - abrev_etat
+  to_columns:
+  - code_etat
+  ai_context:
+    instructions: |
+      Links a district in district to the state it belongs to in etat, bringing in the state's full name and broad region.
+
+      Each district row names exactly one state through abrev_etat; a state has many districts. This is the second hop of the geography chain client to district to etat, used for any question about a state's full name or region rather than its two-letter code.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between district and etat in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_retail_complains_evenements_journaux_centre_appels_8df32d05
+  from: evenements
+  to: journaux_centre_appels
+  from_columns:
+  - id_reclamation
+  to_columns:
+  - id_reclamation
+  ai_context:
+    instructions: |
+      Links a complaint in evenements to the call center log behind it in journaux_centre_appels.
+
+      Each id_reclamation value that appears in journaux_centre_appels ties back to exactly one complaint in evenements, and each complaint has at most one matching call row — not every complaint has a call behind it, and 207 of 500 journaux_centre_appels rows in the loaded sample carry no id_reclamation at all. Use this to bring call details such as priority, agent, or duration into a question about a specific complaint.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between evenements and journaux_centre_appels in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_one"
+      }
+metrics:
+- name: metric_retail_complains_pct_gmail_clients
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: 100.0 * COUNT(CASE WHEN client.email LIKE '%@gmail.com' THEN 1 END) / COUNT(evenements.id_reclamation)
+  description: |
+    percentage of complaints from Google account clients: the share of complaints filed by a customer whose email is a Google account.
+
+    Requires joining evenements to client on id_client to reach client.email. Count complaints where the filing customer's email ends in '@gmail.com', divide by the count of all complaints in scope, and multiply by 100. See the "email provider" term for what counts as a Google account.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "curator",
+            "source_refs": [
+              "train_final.jsonl"
+            ],
+            "status": "draft",
+            "version": "rebuild-1"
+          }
+        },
+        "base_table": "retail_complains.evenements",
+        "name": "percentage of complaints from Google account clients"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_240",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0000",
+          "sql": "SELECT \"date_reception\" FROM \"retail_complains\".\"journaux_centre_appels\" WHERE \"duree_service\" = (SELECT MAX(\"duree_service\") FROM \"retail_complains\".\"journaux_centre_appels\")",
+          "summary": "On which day was the most verbose complaint received?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_246",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0001",
+          "sql": "SELECT CASE WHEN \"T2\".\"consentement_consommateur_fourni\" IN (NULL, 'N/A', 'Empty') THEN 'No' ELSE 'Yes' END FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"prenom\" = 'Matthew' AND \"T1\".\"nom\" = 'Pierce' AND \"T2\".\"date_reception\" = '2016-10-28'",
+          "summary": "Was the tag in the complaint filed by Matthew Pierce on 2016/10/28 approved by himself?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_248",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0002",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"deuxieme_prenom\", \"T1\".\"nom\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"journaux_centre_appels\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"client_aleatoire\" WHERE \"T2\".\"date_reception\" = '2017-03-27' AND \"T2\".\"serveur\" = 'MICHAL'",
+          "summary": "What is the full name of the client whose complaint on 2017/3/27 was received by MICHAL?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_250",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0003",
+          "sql": "SELECT COUNT(\"T2\".\"probleme\") FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"probleme\" = 'Deposits and withdrawals' AND \"T1\".\"ville\" = 'New York City'",
+          "summary": "Among all the clients from the New York city, how many of them have filed a complaint on the issue of Deposits and withdrawals?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_251",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0004",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"deuxieme_prenom\", \"T1\".\"nom\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"reponse_entreprise_consommateur\" = 'In progress'",
+          "summary": "Please list the full names of all the clients whose complaints are still in progress."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_253",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0005",
+          "sql": "SELECT COUNT(\"T1\".\"sexe\") FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE TO_CHAR(CAST(\"T2\".\"date_reception\" AS TIMESTAMP), 'YYYY') = '2016' AND \"T1\".\"sexe\" = 'Male' AND \"T2\".\"produit\" = 'Credit card'",
+          "summary": "How many complaints on credit cards in the year 2016 were filed by male clients?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_254",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0006",
+          "sql": "SELECT \"T2\".\"division\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T1\".\"prenom\" = 'Diesel' AND \"T1\".\"nom\" = 'Galloway'",
+          "summary": "Which division is Diesel Galloway in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_256",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0007",
+          "sql": "SELECT CAST(COUNT(\"T2\".\"id_reclamation\") AS REAL) / NULLIF(3, 0) AS \"average\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE TO_CHAR(CAST(\"T2\".\"date_reception\" AS TIMESTAMP), 'YYYY') BETWEEN '2015' AND '2017' AND \"T1\".\"ville\" = 'New York City' AND \"T2\".\"produit\" = 'Credit card'",
+          "summary": "What is the average number of complaints on credit cards filed by clients from New York in the 3 consecutive years starting from 2015?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_257",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0008",
+          "sql": "SELECT 100.0 * (SUM(CASE WHEN TO_CHAR(CAST(\"T2\".\"date_reception\" AS TIMESTAMP), 'YYYY') = '2017' THEN 1 ELSE 0 END) - SUM(CASE WHEN TO_CHAR(CAST(\"T2\".\"date_reception\" AS TIMESTAMP), 'YYYY') = '2016' THEN 1 ELSE 0 END)) / NULLIF(SUM(CASE WHEN TO_CHAR(CAST(\"T2\".\"date_reception\" AS TIMESTAMP), 'YYYY') = '2016' THEN 1 ELSE 0 END), 0) FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"ville\" = 'New York City'",
+          "summary": "What is the percentage of the increase of complaints filed by the clients from New York from the year 2016 to the year 2017?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_260",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0009",
+          "sql": "SELECT DISTINCT \"T2\".\"sous_produit\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"prenom\" = 'Lennox' AND \"T1\".\"deuxieme_prenom\" = 'Oliver' AND \"T1\".\"nom\" = 'Drake' AND \"T1\".\"sexe\" = 'Male'",
+          "summary": "Which detailed product did Mr Lennox Oliver Drake complain about?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_262",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0010",
+          "sql": "SELECT CASE WHEN \"T2\".\"consentement_consommateur_fourni\" IN (NULL, 'N/A', '') THEN 'No' ELSE 'Yes' END FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"prenom\" = 'Lyric' AND \"T1\".\"deuxieme_prenom\" = 'Emely' AND \"T1\".\"nom\" = 'Taylor' AND \"T1\".\"sexe\" = 'Female' AND \"T2\".\"date_reception\" = '2016-05-20'",
+          "summary": "Did Ms. Lyric Emely Taylor provide the consent for result of the complaint call on 2016/5/20?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_264",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0011",
+          "sql": "SELECT \"T2\".\"id_district\", \"T2\".\"ville\" FROM \"retail_complains\".\"avis\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T1\".\"date\" = '2018-09-11'",
+          "summary": "Which district did the review on 2018/9/11 come from? Give the name of the city."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_265",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0012",
+          "sql": "SELECT \"T1\".\"avis\" FROM \"retail_complains\".\"avis\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T2\".\"ville\" = 'Jacksonville' AND \"T1\".\"date\" = '2017-07-22'",
+          "summary": "What was the review context from Jacksonville on 2017/7/22?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_266",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0013",
+          "sql": "SELECT \"T1\".\"produit\" FROM \"retail_complains\".\"avis\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T2\".\"ville\" = 'Indianapolis' AND \"T1\".\"date\" = '2016-10-07'",
+          "summary": "Which product received a review from Indianapolis on 2016/10/7?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_267",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0014",
+          "sql": "SELECT COUNT(\"T1\".\"note_etoiles\") FROM \"retail_complains\".\"avis\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T1\".\"produit\" = 'Eagle Capital' AND \"T2\".\"ville\" = 'Little Rock' AND \"T1\".\"date\" = '2013-04-04'",
+          "summary": "How many stars did \"Eagle Capital\" received from Little Rock on 2013/4/4?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_268",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0015",
+          "sql": "SELECT \"T1\".\"mois\", \"T1\".\"jour\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"id_reclamation\" = 'CR0217298'",
+          "summary": "For the client who made the complaint call \"CR0217298\", what was his/her birthday？"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_270",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0016",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"sexe\" = 'Female' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"sexe\"), 0) FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"date_reception\" = '2017-03-27'",
+          "summary": "For all the complaint callers on 2017/3/27, what percentage of the clients are females?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_273",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0017",
+          "sql": "SELECT \"prenom\", \"deuxieme_prenom\", \"nom\", \"annee\", \"mois\", \"jour\", \"email\" FROM \"retail_complains\".\"client\" WHERE \"age\" > 65 ORDER BY \"age\" DESC NULLS LAST",
+          "summary": "Please list the full name, date of birth, and email id of the elderly clients in descending order of age."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_277",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0018",
+          "sql": "SELECT CAST(SUM(\"T1\".\"age\") AS REAL) / NULLIF(COUNT(\"T3\".\"region\"), 0) AS \"average\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" INNER JOIN \"retail_complains\".\"etat\" AS \"T3\" ON \"T2\".\"abrev_etat\" = \"T3\".\"code_etat\" WHERE \"T3\".\"region\" = 'Midwest'",
+          "summary": "Calculate the average age of clients from the Midwest region."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_278",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0019",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"deuxieme_prenom\", \"T1\".\"nom\", \"T1\".\"telephone\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"soumis_par\" = 'Fax'",
+          "summary": "List the full name and phone number of clients who submitted the complaint via fax."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_280",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0020",
+          "sql": "SELECT COUNT(\"T1\".\"age\") FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T1\".\"age\" BETWEEN 12 AND 20 AND \"T2\".\"division\" = 'Mountain'",
+          "summary": "In the calls from the mountain division, how many are from teenage clients?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_281",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0021",
+          "sql": "SELECT COUNT(\"T1\".\"sexe\") FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"sexe\" = 'Female' AND \"T2\".\"produit\" = 'Credit card'",
+          "summary": "What is the number of complaints related to Credit cards came from female clients?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_282",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0022",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"deuxieme_prenom\", \"T1\".\"nom\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"annee\" BETWEEN 1980 AND 2000 AND \"T1\".\"sexe\" = 'Male' AND \"T2\".\"soumis_par\" = 'Referral'",
+          "summary": "Among the clients born between 1980 and 2000, list the name of male clients who complained through referral."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_284",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0023",
+          "sql": "SELECT TO_CHAR(CAST(\"T3\".\"date_reception\" AS TIMESTAMP), 'YYYY'), CAST(SUM(CASE WHEN \"T3\".\"reponse_entreprise_consommateur\" = 'Closed with explanation' THEN 1 ELSE 0 END) AS REAL) / NULLIF(COUNT(\"T3\".\"id_reclamation\"), 0) AS \"average\" FROM \"retail_complains\".\"journaux_centre_appels\" AS \"T1\" INNER JOIN \"retail_complains\".\"client\" AS \"T2\" ON \"T1\".\"client_aleatoire\" = \"T2\".\"id_client\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T3\" ON \"T1\".\"id_reclamation\" = \"T3\".\"id_reclamation\" WHERE \"T2\".\"ville\" = 'New Bedford' GROUP BY TO_CHAR(CAST(\"T3\".\"date_reception\" AS TIMESTAMP), 'YYYY')",
+          "summary": "Calculate the average number of complaints received from New Bedford each year which are closed with explanation."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_287",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0024",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"priorite\" = 1 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"priorite\"), 0) FROM \"retail_complains\".\"journaux_centre_appels\" AS \"T1\" INNER JOIN \"retail_complains\".\"client\" AS \"T2\" ON \"T1\".\"client_aleatoire\" = \"T2\".\"id_client\" INNER JOIN \"retail_complains\".\"district\" AS \"T3\" ON \"T2\".\"id_district\" = \"T3\".\"id_district\" INNER JOIN \"retail_complains\".\"etat\" AS \"T4\" ON \"T3\".\"abrev_etat\" = \"T4\".\"code_etat\" WHERE \"T4\".\"etat\" = 'California'",
+          "summary": "Among the calls from California, what percentage are priority 1?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_288",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0025",
+          "sql": "SELECT (CAST(SUM(CASE WHEN \"T1\".\"age\" BETWEEN 35 AND 55 THEN \"T1\".\"age\" ELSE 0 END) AS REAL) / NULLIF(SUM(CASE WHEN \"T1\".\"age\" BETWEEN 35 AND 55 THEN 1 ELSE 0 END), 0)) - (CAST(SUM(CASE WHEN \"T1\".\"age\" > 65 THEN \"T1\".\"age\" ELSE 0 END) AS REAL) / NULLIF(SUM(CASE WHEN \"T1\".\"age\" > 65 THEN 1 ELSE 0 END), 0)) AS \"difference\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" INNER JOIN \"retail_complains\".\"etat\" AS \"T3\" ON \"T2\".\"abrev_etat\" = \"T3\".\"code_etat\" WHERE \"T3\".\"region\" = 'Northeast'",
+          "summary": "Calculate the difference in the average age of elderly and middle-aged clients in the Northeast region."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_292",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0026",
+          "sql": "SELECT \"id_reclamation\" FROM \"retail_complains\".\"evenements\" WHERE CAST(EXTRACT(EPOCH FROM CAST(\"date_envoi_entreprise\" AS TIMESTAMP)) AS DOUBLE PRECISION) / 86400.0 - CAST(EXTRACT(EPOCH FROM CAST(\"date_reception\" AS TIMESTAMP)) AS DOUBLE PRECISION) / 86400.0 = (SELECT MAX(CAST(EXTRACT(EPOCH FROM CAST(\"date_envoi_entreprise\" AS TIMESTAMP)) AS DOUBLE PRECISION) / 86400.0 - CAST(EXTRACT(EPOCH FROM CAST(\"date_reception\" AS TIMESTAMP)) AS DOUBLE PRECISION) / 86400.0) FROM \"retail_complains\".\"evenements\" WHERE \"date_envoi_entreprise\" = '2014-09-25') AND \"date_envoi_entreprise\" = '2014-09-25'",
+          "summary": "List by their ID the complaints received by the company on 25/09/2014 that took the longest."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_295",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0027",
+          "sql": "SELECT COUNT(\"T1\".\"id_reclamation\") FROM \"retail_complains\".\"journaux_centre_appels\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_reclamation\" = \"T2\".\"id_reclamation\" WHERE \"T2\".\"produit\" = 'Credit card' AND \"T1\".\"serveur\" = 'SHARON'",
+          "summary": "How many Credit Card complaints did Sharon handle?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_296",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0028",
+          "sql": "SELECT \"T3\".\"region\" FROM \"retail_complains\".\"avis\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" INNER JOIN \"retail_complains\".\"etat\" AS \"T3\" ON \"T2\".\"abrev_etat\" = \"T3\".\"code_etat\" WHERE \"T1\".\"note_etoiles\" = 1 GROUP BY \"T3\".\"region\" ORDER BY COUNT(\"T3\".\"region\") DESC NULLS LAST LIMIT 1",
+          "summary": "In which region have the most 1-star reviews been done?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_297",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0029",
+          "sql": "SELECT \"T1\".\"annee\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"sous_produit\" = '(CD) Certificate of deposit' GROUP BY \"T1\".\"annee\" ORDER BY COUNT(\"T1\".\"annee\") DESC NULLS LAST LIMIT 1",
+          "summary": "In what years were the clients who demanded more problems with Certificate of deposit born?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_298",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0030",
+          "sql": "SELECT COUNT(\"T1\".\"probleme\") FROM \"retail_complains\".\"evenements\" AS \"T1\" INNER JOIN \"retail_complains\".\"client\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" INNER JOIN \"retail_complains\".\"district\" AS \"T3\" ON \"T2\".\"id_district\" = \"T3\".\"id_district\" WHERE \"T1\".\"probleme\" = 'Billing disputes' AND \"T3\".\"division\" = 'Mountain'",
+          "summary": "How many cases of billing dispute issues occurred in the Mountain division?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_301",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0031",
+          "sql": "SELECT COUNT(\"T2\".\"age\") FROM \"retail_complains\".\"avis\" AS \"T1\" INNER JOIN \"retail_complains\".\"client\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T1\".\"produit\" = 'Eagle National Mortgage' AND \"T1\".\"note_etoiles\" = 1 AND \"T2\".\"age\" < 35",
+          "summary": "How many clients under the age of 35 gave Eagle National Mortgage 1 star?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_303",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0032",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"deuxieme_prenom\", \"T1\".\"nom\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"etiquettes\" = 'Older American' AND \"T2\".\"consentement_consommateur_fourni\" <> 'N/A' AND NOT \"T2\".\"consentement_consommateur_fourni\" IS NULL AND \"T2\".\"consentement_consommateur_fourni\" <> ''",
+          "summary": "List by name all customers who provided consent for the tag Older American."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_306",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0033",
+          "sql": "SELECT COUNT(\"T1\".\"id_reclamation\") FROM \"retail_complains\".\"journaux_centre_appels\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_reclamation\" = \"T2\".\"id_reclamation\" WHERE \"T1\".\"duree_service\" < '00:05:00' AND \"T1\".\"serveur\" = 'DORIT' AND \"T2\".\"soumis_par\" = 'Phone' AND \"T2\".\"reponse_entreprise_consommateur\" = 'Closed with explanation'",
+          "summary": "How many complaints were served in 5 minutes or less by DORIT and responded to the customer with an explanation, were made by phone?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_307",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0034",
+          "sql": "SELECT COUNT(\"T2\".\"id_client\") FROM \"retail_complains\".\"district\" AS \"T1\" INNER JOIN \"retail_complains\".\"client\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" INNER JOIN \"retail_complains\".\"etat\" AS \"T3\" ON \"T1\".\"abrev_etat\" = \"T3\".\"code_etat\" WHERE \"T2\".\"nom\" = 'Alvarado' AND \"T2\".\"etat\" = 'MD'",
+          "summary": "How many clients with the last name Alvarado are from Maryland?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_309",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0035",
+          "sql": "SELECT \"T1\".\"adresse_ligne_1\", \"T1\".\"adresse_ligne_2\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"reponse_en_temps_voulu\" = 'Yes' AND \"T2\".\"reclamation_contestee_consommateur\" = 'Yes'",
+          "summary": "What is the full address of the customers who, having received a timely response from the company, have dispute about that response?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_310",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0036",
+          "sql": "SELECT COUNT(\"T2\".\"soumis_par\") FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"sexe\" = 'Female' AND \"T1\".\"annee\" = 2000 AND \"T2\".\"soumis_par\" <> 'Web'",
+          "summary": "How many complaints from female clients born in the year 2000 were not sent through the web?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_315",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0037",
+          "sql": "SELECT CAST(SUM(\"T1\".\"age\") AS REAL) / NULLIF(COUNT(\"T1\".\"age\"), 0) AS \"average\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T2\".\"ville\" = 'Norwalk'",
+          "summary": "What is the average age of Norwalk clients?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_316",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0038",
+          "sql": "SELECT COUNT(\"T1\".\"note_etoiles\") FROM \"retail_complains\".\"avis\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T2\".\"ville\" = 'Kansas City' AND \"T1\".\"note_etoiles\" = 1",
+          "summary": "How many clients who live in Kansas City provided a 1-star review?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_317",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0039",
+          "sql": "SELECT \"T2\".\"abrev_etat\" FROM \"retail_complains\".\"avis\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T1\".\"note_etoiles\" = 5 GROUP BY \"T2\".\"abrev_etat\" ORDER BY COUNT(\"T2\".\"abrev_etat\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which state has the highest number of clients who gave a 5-star review?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_319",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0040",
+          "sql": "SELECT DISTINCT \"T2\".\"soumis_par\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"prenom\" = 'Kyran' AND \"T1\".\"nom\" = 'Muller'",
+          "summary": "How did Kyran Muller submit his complaint?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_321",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0041",
+          "sql": "SELECT \"T3\".\"duree_service\" FROM \"retail_complains\".\"evenements\" AS \"T1\" INNER JOIN \"retail_complains\".\"client\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" INNER JOIN \"retail_complains\".\"journaux_centre_appels\" AS \"T3\" ON \"T1\".\"id_reclamation\" = \"T3\".\"id_reclamation\" WHERE \"T2\".\"prenom\" = 'Kendall' AND \"T2\".\"nom\" = 'Allen' AND \"T2\".\"sexe\" = 'Female' AND \"T1\".\"produit\" = 'Credit card'",
+          "summary": "How long was Kendall Allen's complaint about her credit card?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_324",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0042",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"sexe\" = 'Male' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"sexe\"), 0) FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"produit\" = 'Credit card'",
+          "summary": "What is the percentage of male clients complaining about their credit cards?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_325",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0043",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"deuxieme_prenom\", \"T1\".\"nom\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"etiquettes\" = 'Older American' AND \"T2\".\"consentement_consommateur_fourni\" IN (NULL, 'N/A', '') LIMIT 2",
+          "summary": "Please list any two clients with their full names who have been tagged as \"Older American\" by the company without seeking their permission."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_326",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0044",
+          "sql": "SELECT \"jour\", \"mois\", \"annee\" FROM \"retail_complains\".\"client\" ORDER BY \"annee\" DESC NULLS LAST, \"mois\" DESC NULLS LAST, \"jour\" DESC NULLS LAST LIMIT 1",
+          "summary": "What is the birth date of the youngest client?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_327",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0045",
+          "sql": "SELECT COUNT(\"reponse_en_temps_voulu\") FROM \"retail_complains\".\"evenements\" WHERE \"reponse_en_temps_voulu\" = 'No' AND \"reclamation_contestee_consommateur\" = 'No'",
+          "summary": "How many times does the consumer have no dispute over a non-timely response from the company?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_330",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0046",
+          "sql": "SELECT \"T2\".\"prenom\", \"T2\".\"deuxieme_prenom\", \"T2\".\"nom\" FROM \"retail_complains\".\"district\" AS \"T1\" INNER JOIN \"retail_complains\".\"client\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T1\".\"division\" = 'Pacific'",
+          "summary": "List the full names of all clients who live in the Pacific division."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_333",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0047",
+          "sql": "SELECT \"T1\".\"adresse_ligne_1\", \"T1\".\"adresse_ligne_2\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"date_reception\" = '2012-03-14' AND \"T2\".\"soumis_par\" = 'Postal mail'",
+          "summary": "What is the address of the client who made a complaint via postal mail on March 14, 2012?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_335",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0048",
+          "sql": "SELECT DISTINCT \"T2\".\"serveur\" FROM \"retail_complains\".\"evenements\" AS \"T1\" INNER JOIN \"retail_complains\".\"journaux_centre_appels\" AS \"T2\" ON \"T1\".\"id_reclamation\" = \"T2\".\"id_reclamation\" WHERE \"T1\".\"soumis_par\" = 'Phone' AND \"T1\".\"reponse_en_temps_voulu\" = 'No'",
+          "summary": "List all the server of the phone complaints with a late response from the company."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_336",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0049",
+          "sql": "SELECT DISTINCT \"T2\".\"probleme\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"prenom\" = 'Kaitlyn' AND \"T1\".\"deuxieme_prenom\" = 'Eliza' AND \"T1\".\"nom\" = 'Elliott'",
+          "summary": "List all the issues of the complaints made by Kaitlyn Eliza Elliott."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_338",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0050",
+          "sql": "SELECT \"T2\".\"division\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" GROUP BY \"T2\".\"division\" ORDER BY COUNT(\"T2\".\"division\") DESC NULLS LAST LIMIT 1 OFFSET 1",
+          "summary": "Which region has the second most clients?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_339",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0051",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"deuxieme_prenom\", \"T1\".\"nom\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"journaux_centre_appels\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"client_aleatoire\" WHERE \"T2\".\"serveur\" = 'MORIAH' AND \"T2\".\"date_reception\" = '2013-09-11'",
+          "summary": "Who is the owner of the final phone number for the complaints on server \"MORIAH\" on 9/11/2013?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_341",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0052",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"age\" > 65 THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"age\"), 0) FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\"",
+          "summary": "What percentage of complaints are from the elderly?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_343",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0053",
+          "sql": "SELECT CASE WHEN SUM(CASE WHEN \"email\" LIKE '%@gmail.com' THEN 1 ELSE 0 END) > SUM(CASE WHEN \"email\" LIKE '%@outlook.com' THEN 1 ELSE 0 END) THEN 'Google account' ELSE 'Microsoft account' END FROM \"retail_complains\".\"client\" WHERE \"age\" BETWEEN 13 AND 19",
+          "summary": "Among the teenager clients who use Google account and Microsoft account, which group of client is more than the other?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_344",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0054",
+          "sql": "SELECT \"prenom\", \"deuxieme_prenom\", \"nom\" FROM \"retail_complains\".\"client\" WHERE \"email\" = 'emily.garcia43@outlook.com'",
+          "summary": "What is the full name of client whose email address is emily.garcia43@outlook.com?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_347",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0055",
+          "sql": "SELECT \"T1\".\"nom\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"journaux_centre_appels\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"client_aleatoire\" WHERE \"T1\".\"age\" > 65 AND \"T2\".\"serveur\" = 'YIFAT'",
+          "summary": "Among the elderlies, state the last name of whose complaint is handled in server YIFAT?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_348",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0056",
+          "sql": "SELECT COUNT(\"T2\".\"client_aleatoire\") FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"journaux_centre_appels\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"client_aleatoire\" WHERE \"T1\".\"ville\" = 'New York City' AND \"T2\".\"resultat\" = 'AGENT'",
+          "summary": "How many clients who live in New York City have the complaint outcome as \"AGENT\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_351",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0057",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"email\" LIKE '%@gmail.com' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"email\"), 0) FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"journaux_centre_appels\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"client_aleatoire\" WHERE \"T2\".\"serveur\" = 'ZOHARI'",
+          "summary": "Calculate the percentage of complaints made by Google account client in server ZOHARI."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_356",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0058",
+          "sql": "SELECT \"T1\".\"prenom\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"reponse_en_temps_voulu\" = 'No' AND \"T1\".\"sexe\" = 'Male'",
+          "summary": "State the first name of male clients who did not receive timely response from the call center."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_358",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0059",
+          "sql": "SELECT SUM(CASE WHEN \"T1\".\"age\" > 13 AND \"T1\".\"age\" <= 19 THEN 1 ELSE 0 END), SUM(CASE WHEN \"T1\".\"age\" > 19 AND \"T1\".\"age\" <= 65 THEN 1 ELSE 0 END) AS \"adult\", SUM(CASE WHEN \"T1\".\"age\" > 65 THEN 1 ELSE 0 END) AS \"elder\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"produit\" = 'Credit card'",
+          "summary": "Complaint about Credit Card mostly came from clients of which age group?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_362",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0060",
+          "sql": "SELECT \"T1\".\"email\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"soumis_par\" = 'Postal mail'",
+          "summary": "What is the email address of clients who submitted their complaints via postal mail?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_363",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0061",
+          "sql": "SELECT AVG(\"T1\".\"age\") FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"reponse_entreprise_consommateur\" = 'Closed with relief'",
+          "summary": "Calculate the average age of clients whose response is \"Closed with relief\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_365",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0062",
+          "sql": "SELECT \"id_reclamation\", \"id_appel\", \"telephone_final\" FROM \"retail_complains\".\"journaux_centre_appels\" WHERE TO_CHAR(CAST(\"date_reception\" AS TIMESTAMP), 'YYYY') = '2014' AND \"serveur\" = 'AVIDAN'",
+          "summary": "Write the complaint ID, call ID, and final phone number of complaints through AVIDAN server from 1/1/2014 to 12/30/2014."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_369",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0063",
+          "sql": "SELECT \"T1\".\"annee\", \"T1\".\"mois\", \"T1\".\"jour\", \"T1\".\"email\", \"T1\".\"telephone\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T2\".\"ville\" = 'Indianapolis' ORDER BY \"T1\".\"annee\" DESC NULLS LAST, \"T1\".\"mois\" DESC NULLS LAST, \"T1\".\"jour\" DESC NULLS LAST LIMIT 1",
+          "summary": "Give me the full birthdate, email and phone number of the youngest client in Indianapolis ."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_373",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0064",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"deuxieme_prenom\", \"T1\".\"nom\", \"T1\".\"telephone\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T2\".\"division\" = 'Pacific'",
+          "summary": "List the full names and phone numbers of clients that were from the Pacific."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_376",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0065",
+          "sql": "SELECT \"prenom\", \"nom\" FROM \"retail_complains\".\"client\" WHERE \"ville\" = 'New York City'",
+          "summary": "Please list all first and last names of clients who live in New York city."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_377",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0066",
+          "sql": "SELECT MAX(\"age\") FROM \"retail_complains\".\"client\" WHERE \"sexe\" = 'Male'",
+          "summary": "What is the oldest age of male clients?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_378",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0067",
+          "sql": "SELECT \"T2\".\"division\", COUNT(\"T2\".\"division\") FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" GROUP BY \"T2\".\"division\"",
+          "summary": "Please calculate the number of clients by each division."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_380",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0068",
+          "sql": "SELECT AVG(\"T1\".\"age\") FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T2\".\"division\" = 'South Atlantic'",
+          "summary": "What is the average age of clients in South Atlantic?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_381",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0069",
+          "sql": "SELECT \"T2\".\"ville\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" INNER JOIN \"retail_complains\".\"etat\" AS \"T3\" ON \"T2\".\"abrev_etat\" = \"T3\".\"code_etat\" WHERE \"T3\".\"region\" = 'Midwest' GROUP BY \"T2\".\"ville\" ORDER BY COUNT(\"T2\".\"ville\") NULLS FIRST LIMIT 1",
+          "summary": "Which city in the Midwest region has the least number of clients?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_385",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0070",
+          "sql": "SELECT \"abrev_etat\" FROM \"retail_complains\".\"district\" GROUP BY \"abrev_etat\" ORDER BY COUNT(\"ville\") DESC NULLS LAST LIMIT 1",
+          "summary": "Which state has the most cities?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_386",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0071",
+          "sql": "SELECT \"T1\".\"prenom\", \"T1\".\"telephone\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"id_reclamation\" = 'CR0922485'",
+          "summary": "Please give the first name and phone number of the client whose complaint id is CR0922485."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_387",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0072",
+          "sql": "SELECT \"T1\".\"email\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"date_reception\" = '2014-07-03'",
+          "summary": "Please list the emails of the clients whose complaint date received is 7/3/2014."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_390",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0073",
+          "sql": "SELECT \"T1\".\"telephone\", \"T2\".\"id_reclamation\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"reponse_entreprise_consommateur\" = 'In progress'",
+          "summary": "Please list all clients' phone numbers and complaint IDs which are still in progress."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_396",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0074",
+          "sql": "SELECT COUNT(\"T1\".\"id_reclamation\") FROM \"retail_complains\".\"journaux_centre_appels\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_reclamation\" = \"T2\".\"id_reclamation\" WHERE TO_CHAR(CAST(\"T1\".\"date_reception\" AS TIMESTAMP), 'YYYY') = '2015' AND \"T2\".\"reponse_en_temps_voulu\" = 'Yes' AND \"T2\".\"reponse_entreprise_consommateur\" = 'Closed with explanation'",
+          "summary": "Among the complaints received in year 2015, what is total number of complaints timely response and closed with an explanation?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_397",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0075",
+          "sql": "SELECT DISTINCT \"T3\".\"date_reception\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" INNER JOIN \"retail_complains\".\"journaux_centre_appels\" AS \"T3\" ON \"T2\".\"id_reclamation\" = \"T3\".\"id_reclamation\" WHERE \"T1\".\"age\" BETWEEN 20 AND 40 AND \"T1\".\"sexe\" = 'Female'",
+          "summary": "Among the female clients that age between 20 to 40, list the date when their complaints were received."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_399",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0076",
+          "sql": "SELECT COUNT(\"T2\".\"note_etoiles\") FROM \"retail_complains\".\"district\" AS \"T1\" INNER JOIN \"retail_complains\".\"avis\" AS \"T2\" ON \"T1\".\"id_district\" = \"T2\".\"id_district\" WHERE \"T1\".\"ville\" = 'Nashville' AND \"T1\".\"abrev_etat\" = 'TN' AND \"T2\".\"produit\" = 'Eagle National Mortgage' AND \"T2\".\"note_etoiles\" = 5",
+          "summary": "In reviews for the Eagle National Bank product, how many of the 5 star reviews where from Nashville, Tennessee?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_400",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0077",
+          "sql": "SELECT DISTINCT \"T2\".\"probleme\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"sexe\" = 'Male' AND \"T1\".\"age\" < 25",
+          "summary": "What are the issues of the complains of male clients and products from age 25 and below?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_401",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0078",
+          "sql": "SELECT DISTINCT \"T3\".\"produit\" FROM \"retail_complains\".\"etat\" AS \"T1\" INNER JOIN \"retail_complains\".\"district\" AS \"T2\" ON \"T1\".\"code_etat\" = \"T2\".\"abrev_etat\" INNER JOIN \"retail_complains\".\"avis\" AS \"T3\" ON \"T2\".\"id_district\" = \"T3\".\"id_district\" WHERE \"T1\".\"region\" = 'Midwest' AND \"T3\".\"note_etoiles\" = 1",
+          "summary": "Among the reviews from midwest region, what are the products that received 1 star?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_404",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0079",
+          "sql": "SELECT \"T1\".\"telephone\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T2\".\"produit\" = 'Credit card' ORDER BY \"T1\".\"age\" DESC NULLS LAST LIMIT 1",
+          "summary": "In complaints about the credit card product, list the phone number of the oldest client."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_405",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0080",
+          "sql": "SELECT COUNT(\"T2\".\"id_reclamation\") FROM \"retail_complains\".\"journaux_centre_appels\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_reclamation\" = \"T2\".\"id_reclamation\" WHERE \"T2\".\"soumis_par\" = 'Phone' AND TO_CHAR(CAST(\"T1\".\"date_reception\" AS TIMESTAMP), 'YYYY') = '2014'",
+          "summary": "In complaints received in 2014, how many of them were submitted via call?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_406",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_retail_complains_0081",
+          "sql": "SELECT DISTINCT \"T2\".\"produit\", \"T2\".\"probleme\" FROM \"retail_complains\".\"client\" AS \"T1\" INNER JOIN \"retail_complains\".\"evenements\" AS \"T2\" ON \"T1\".\"id_client\" = \"T2\".\"id_client\" WHERE \"T1\".\"age\" * 100 > (SELECT AVG(\"age\") * 60 FROM \"retail_complains\".\"client\")",
+          "summary": "List the product and its issues of the complains of clients with age greater than the 60% of average age of all clients."
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between avis and client in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "avis has no client identifier of its own, so this join goes through id_district instead of a one-to-one key. It returns every client in the reviewer's district, not the one reviewer who wrote the review — treat it as \"reviews and clients in the same district,\" not \"a review's own author.\" Prefer the two-step path through district (avis to district, district to client) when the geography matters more than brevity.\n",
+          "cardinality": "many_to_many",
+          "id": "join_retail_complains_avis_client_32b99fe0",
+          "left_table": "retail_complains.avis",
+          "on": "retail_complains.avis.id_district = retail_complains.client.id_district",
+          "right_table": "retail_complains.client",
+          "summary": "A direct shortcut between avis and client through the district they both reference, used when a question needs a review and a customer's attributes together."
+        }
+      ]
+    }

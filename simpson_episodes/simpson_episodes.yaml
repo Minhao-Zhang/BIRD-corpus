@@ -1,34 +1,3895 @@
-asset_type: schema
-id: simpson_episodes
+version: 0.2.0.dev0
 name: simpson_episodes
-summary: >-
-  simpson_episodes catalogs Simpsons TV episodes: air dates, ratings and vote counts, star-score
-  audience votes, keyword tags, cast and crew credits with roles, crew birth details, and awards
-  or nominations for episodes, people, and characters.
-body: >
-  Nine tables, keyed on the episode identifier id_episode (format 'S<season>-E<episode>'; every
-  row loaded here is season 20). episode carries one row per episode with its title, summary,
-  air date, IMDb-style rating (note) and vote count. generique carries one row per credited
-  person and role (cast, writers, directors, animation staff, and so on). mot_cle carries one row
-  per keyword tag on an episode. personne carries one row per named cast or crew member with
-  birth details, joined to generique and recompense by name rather than a numeric id. recompense
-  carries one row per award nomination or win, tied to an organisation, category, year, person,
-  and optionally an episode; recompense_personnage links an award record to the in-show character
-  it recognizes. vote carries ten rows per episode, one per star score from 1 (worst) to 10
-  (best), with the vote count and percentage share at each level. etiquette_episode and
-  notation_episode look like duplicates of mot_cle and vote but are not dependable for analysis.
-rules:
-- Join episode, generique, mot_cle, recompense, and vote on id_episode; never join on
-  id_fiche_episode, episode_ref_id, id_episode_ref, identifiant_episode, id_episode_vote, or
-  recompense_ref_id — every one of those is unreliable for analysis.
-- etiquette_episode and notation_episode are entirely unreliable — use mot_cle for episode
-  keywords and vote for star-score ratings instead.
-- generique.personne, recompense.personne, and personne.nom match by exact name text, not a
-  numeric key — there is no shared person id across these tables.
-audit:
-  provenance:
-    source: seed
-    status: draft
-    version: scaffold-1
-    source_refs:
-    - information_schema
+description: |
+  simpson_episodes catalogs Simpsons TV episodes: air dates, ratings and vote counts, star-score audience votes, keyword tags, cast and crew credits with roles, crew birth details, and awards or nominations for episodes, people, and characters.
+
+  Nine tables, keyed on the episode identifier id_episode (format 'S<season>-E<episode>'; every row loaded here is season 20). episode carries one row per episode with its title, summary, air date, IMDb-style rating (note) and vote count. generique carries one row per credited person and role (cast, writers, directors, animation staff, and so on). mot_cle carries one row per keyword tag on an episode. personne carries one row per named cast or crew member with birth details, joined to generique and recompense by name rather than a numeric id. recompense carries one row per award nomination or win, tied to an organisation, category, year, person, and optionally an episode; recompense_personnage links an award record to the in-show character it recognizes. vote carries ten rows per episode, one per star score from 1 (worst) to 10 (best), with the vote count and percentage share at each level. etiquette_episode and notation_episode look like duplicates of mot_cle and vote but are not dependable for analysis.
+ai_context:
+  instructions: |-
+    Join episode, generique, mot_cle, recompense, and vote on id_episode; never join on id_fiche_episode, episode_ref_id, id_episode_ref, identifiant_episode, id_episode_vote, or recompense_ref_id — every one of those is unreliable for analysis.
+    etiquette_episode and notation_episode are entirely unreliable — use mot_cle for episode keywords and vote for star-score ratings instead.
+    generique.personne, recompense.personne, and personne.nom match by exact name text, not a numeric key — there is no shared person id across these tables.
+datasets:
+- name: episode
+  source: simpson_episodes.episode
+  description: |
+    episode holds one row per aired Simpsons episode, with its title, air date, rating, and vote count.
+
+    Grain: one row per episode, all from season 20 in this dataset, keyed by id_episode in the format 'S<season>-E<episode>'. saison is constant at 20 across every row; episode is the episode's position within the season (1-21) while numero_serie is its position across the whole series (421-441 here) — do not confuse the two. titre and resume are the episode's title and a short plot synopsis; date_diffusion is the original air date; note and votes are an IMDb-style rating and its backing vote count, where higher votes mean a more popular episode. Join to generique, mot_cle, recompense, and vote on id_episode to reach an episode's credits, keywords, awards, and per-star vote breakdown. id_fiche_episode, date_de_diffusion, and numero_episode sit on this table but are not dependable for analysis.
+  fields:
+  - name: id_episode
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_episode
+    description: |
+      The unique identifier for a Simpsons episode, id_episode.
+
+      Primary key of episode, formatted 'S<season>-E<episode>' — for example S20-E7 or S20-E13. Every row in this dataset is season 20, so every value here starts with S20. Join to generique, mot_cle, recompense, and vote on this column to reach an episode's credits, keywords, awards, and star votes.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "id_episode always takes the form \"S\" followed by the season number, a hyphen, \"E\", and the episode number within that season — S20-E11 for season 20 episode 11, or S20-E7 for season 20 episode 7. Every row in this dataset is season 20, so every id_episode here starts with S20. To filter by season, match the prefix (id_episode LIKE 'S20%') rather than parsing saison alone; to select a specific range of episodes within a season, build the exact ids (id_episode IN ('S20-E5', 'S20-E6', 'S20-E7')) since episode numbers are not zero-padded.\n",
+              "id": "term_simpson_episodes_episode_id_format",
+              "name": "episode id format",
+              "summary": "episode id format (episode id, season-episode code): the pattern that encodes a Simpsons episode's season and its position within that season in id_episode.",
+              "synonyms": [
+                "episode id",
+                "season-episode code"
+              ]
+            }
+          ]
+        }
+  - name: saison
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: saison
+    description: |
+      The season number an episode belongs to, saison.
+
+      Constant at 20 across every row in this dataset — only season 20 of the show is loaded here. Encoded as the 'S20' component of id_episode; a season filter can equally read saison = 20 or id_episode LIKE 'S20%'.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: episode
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: episode
+    description: |
+      The episode's position within its season, episode.
+
+      Integer episode number within season 20, ranging 1-21 in this sample. Encoded as the 'E<n>' component of id_episode (E7 in S20-E7, for instance). Distinct from numero_serie, which numbers the episode's position across the whole series rather than within one season.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: numero_serie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: numero_serie
+    description: |
+      The episode's position across the whole series, numero_serie.
+
+      Integer series-wide episode number, ranging 421-441 in this sample of season 20 — much larger than episode's 1-21 range because it counts every episode aired since the series began, not only the current season.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: titre
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: titre
+    description: |
+      The episode's title, titre.
+
+      Free-text episode title, one per id_episode — Wedding for Disaster, How the Test Was Won, and Lost Verizon are examples from this sample.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: resume
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: resume
+    description: |
+      A short plot synopsis of the episode, resume.
+
+      Free-text summary of the episode's plot, one to a few sentences long. Use for questions about what an episode is about or its subject matter, not for structured filtering.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: date_diffusion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_diffusion
+    description: |
+      The date an episode originally aired, date_diffusion.
+
+      Text date in 'YYYY-MM-DD' format, ranging from 2008-09-28 to 2009-05-17 in this season. Because it is stored as text rather than a native date type, filter by year or month with a prefix match (date_diffusion LIKE '2008%' for the year 2008, LIKE '2008-11%' for November 2008) or a lexical BETWEEN over the 'YYYY-MM-DD' strings, rather than date arithmetic.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "date_diffusion is stored as text in 'YYYY-MM-DD' format, not a native date column. Match a year with a prefix (date_diffusion LIKE '2008%'), a year and month with a longer prefix (LIKE '2008-11%' for November 2008), or a date range with a lexical BETWEEN over two 'YYYY-MM-DD' strings, which works correctly because the format sorts the same lexically and chronologically. To match a month across years, extract it with a substring or the SQLite strftime('%m', date_diffusion) function rather than assuming a native date type.\n",
+              "id": "term_simpson_episodes_air_date_filtering",
+              "name": "air date filtering",
+              "summary": "air date filtering (air date, aired): how to match the year or month an episode aired, given that episode.date_diffusion records its air date as plain text rather than a real date type.",
+              "synonyms": [
+                "air date",
+                "aired"
+              ]
+            }
+          ]
+        }
+  - name: image_episode
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: image_episode
+    description: |
+      A poster or thumbnail image URL for the episode, image_episode.
+
+      Free-text URL pointing to an episode image, typically a media-hosting link ending in a JPEG filename. Not a structured or filterable attribute beyond presence.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: note
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: note
+    description: |
+      The episode's audience rating, note.
+
+      Decimal rating from 0.0 to 10.0 (5.9-7.2 in this season's sample). Higher is better: episodes rated above 7.0 up to 10.0 count as excellent, above 5.0 up to 7.0 as average, and 5.0 or below as bad; "not bad" covers average or excellent. See the note quality term for the exact boundaries.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Bad covers note values above 0.0 up to and including 5.0; average covers above 5.0 up to and including 7.0; excellent covers above 7.0 up to 10.0. Not bad means average or excellent, i.e. note > 5.0. These bands come from the dataset's own rating convention: higher note values mean higher quality and a better audience response.\n",
+              "id": "term_simpson_episodes_note_quality",
+              "name": "note quality",
+              "summary": "note quality (excellent, average, bad, not bad): the rating band — bad, average, or excellent — that an episode's note score falls into, where not bad means average or better.",
+              "synonyms": [
+                "excellent",
+                "average",
+                "bad",
+                "not bad"
+              ]
+            }
+          ]
+        }
+  - name: votes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: votes
+    description: |
+      The number of audience votes behind an episode's rating, votes.
+
+      Integer vote count backing note — 927, 1015, and 1117 are examples from this sample. Higher votes mean more audience engagement; use MAX or MIN over this column to find the most or least popular episode. Distinct from vote.votes, which counts votes for one specific star score rather than the whole episode.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: id_fiche_episode
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_fiche_episode
+    description: |
+      id_fiche_episode, a text column on the episode table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: date_de_diffusion
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_de_diffusion
+    description: |
+      date_de_diffusion, a text column on the episode table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: numero_episode
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: numero_episode
+    description: |
+      numero_episode, a numeric column in this schema.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_simpson_episodes_episode_rating
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(note)
+    description: |
+      episode rating: the audience score assigned to an episode, aggregated to find the highest- or lowest-rated episode in a group.
+
+      MIN(note) finds the lowest-rated episode in scope; MAX(note) finds the highest-rated. note runs 0.0 to 10.0, with higher values meaning higher quality per this dataset's own convention. See the note quality term for the bad, average, and excellent bands this scale is divided into.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "episode rating"
+        }
+  - name: metric_simpson_episodes_episode_vote_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(votes)
+    description: |
+      episode vote count: the number of audience votes behind an episode's rating, used to rank episodes from most to least popular.
+
+      MAX(votes) over episode gives the vote count of the most popular episode; MIN(votes) gives the least popular. Higher votes mean more audience engagement, per this dataset's own convention. Distinct from vote.votes, which counts votes for one specific star score rather than the whole episode — SUM(vote.votes) grouped by episode reconstructs this same total from that other table, so do not add episode.votes and a votes aggregate from vote together, as that would double count.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "episode vote count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: etiquette_episode
+  source: simpson_episodes.etiquette_episode
+  description: |
+    etiquette_episode is a table in the simpson_episodes database whose columns are not dependable for analysis.
+
+    Every column on etiquette_episode is unreliable and does not correspond to the business facts the schema otherwise records. Do not select, filter, or join on any column of this table when answering questions.
+  fields:
+  - name: identifiant_episode
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_episode
+    description: |
+      identifiant_episode, a text column on the etiquette_episode table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: libelle_mot_cle
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: libelle_mot_cle
+    description: |
+      libelle_mot_cle, a text column on the etiquette_episode table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: generique
+  source: simpson_episodes.generique
+  description: |
+    generique holds one row per credited person and role on a Simpsons episode.
+
+    Grain: one row per (episode, person, role) credit line. categorie groups a credit into a production department (Cast, Animation Department, Writing Credits, and so on); personne is the free-text name of the credited person, joined to personne.nom rather than a numeric key; role is the specific job or on-screen part; credits is a true/false flag for whether the person appears in the episode's official credit list. Confused with recompense, which records award nominations and wins for people and roles rather than ordinary production credits. episode_ref_id, contributeur, and categorie_credit sit on this table but are not dependable for analysis.
+  fields:
+  - name: id_episode
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_episode
+    description: |
+      The Simpsons episode a credit entry belongs to, id_episode.
+
+      Foreign key to episode.id_episode. One episode has many generique rows, one per credited person and role.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: categorie
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: categorie
+    description: |
+      The production department or credit category for a generique row, categorie.
+
+      Free-text department name — Animation Department, Cast, General, Script and Continuity Department, and Editorial Department are examples from this sample (15 distinct values). Groups credits by kind of work rather than individual role.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: personne
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: personne
+    description: |
+      The name of the person credited in this row, personne.
+
+      Free-text person name — Sam Im, Hank Azaria, and Alf Clausen are examples from this sample (215 or more distinct names). No numeric identifier; join to personne.nom to reach that person's birth details.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: role
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: role
+    description: |
+      The specific job or on-screen role a person is credited for, role.
+
+      Free-text role — composer, director, writer, animation timer, and character names for voice cast are examples from this sample (146 or more distinct values). More granular than categorie, which groups roles into departments.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: credits
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: credits
+    description: |
+      Whether a person is included in the episode's official credit list, credits.
+
+      Text flag holding only two values: true means the person appears in the credit list, false means they do not.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "generique.credits holds two text values: \"true\" means the person is credited — included in the episode's official credit list — and \"false\" (or blank in some records) means they are not credited despite the row existing on this table. Filter credits = 'true' for credited appearances only.\n",
+              "id": "term_simpson_episodes_credited",
+              "name": "credited status",
+              "summary": "credited status (credited, credits, included in credit list, not credited): whether generique.credits marks a person as included in credit list or not credited for that episode.",
+              "synonyms": [
+                "credited",
+                "credits",
+                "included in credit list",
+                "not credited"
+              ]
+            }
+          ]
+        }
+  - name: episode_ref_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: episode_ref_id
+    description: |
+      episode_ref_id, a text column on the generique table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: contributeur
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: contributeur
+    description: |
+      contributeur, a text column on the generique table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: categorie_credit
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: categorie_credit
+    description: |
+      categorie_credit, a text column on the generique table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: mot_cle
+  source: simpson_episodes.mot_cle
+  description: |
+    mot_cle records the keyword tags assigned to each Simpsons episode.
+
+    Grain: one row per (episode, keyword) tag pairing; most episodes carry several tags. id_episode links to episode; mot_cle is the free-text keyword or theme tag. Confused with etiquette_episode, a duplicate table whose columns are not dependable — use mot_cle for keyword lookups instead. id_episode_ref and terme_cle sit on this table but are not dependable for analysis.
+  fields:
+  - name: id_episode
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_episode
+    description: |
+      The Simpsons episode a keyword tag belongs to, id_episode.
+
+      Foreign key to episode.id_episode. One episode has many mot_cle rows, one per keyword tag.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: mot_cle
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: mot_cle
+    description: |
+      A keyword or theme tag assigned to an episode, mot_cle.
+
+      Free-text tag — riot, cake, norwegian, and surrealism are examples from this sample (264 or more distinct tags). Use an exact match or LIKE pattern to find episodes tagged with a given theme.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_episode_ref
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_episode_ref
+    description: |
+      id_episode_ref, a text column on the mot_cle table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: terme_cle
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: terme_cle
+    description: |
+      terme_cle, a text column on the mot_cle table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: notation_episode
+  source: simpson_episodes.notation_episode
+  description: |
+    notation_episode is a table in the simpson_episodes database whose columns are not dependable for analysis.
+
+    Every column on notation_episode is unreliable and does not correspond to the business facts the schema otherwise records. Do not select, filter, or join on any column of this table when answering questions.
+  fields:
+  - name: identifiant_episode
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_episode
+    description: |
+      identifiant_episode, a text column on the notation_episode table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: etoiles_sur_cinq
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: etoiles_sur_cinq
+    description: |
+      etoiles_sur_cinq, a numeric column on the notation_episode table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nombre_votes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nombre_votes
+    description: |
+      nombre_votes, a numeric column on the notation_episode table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: pourcentage_vote
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pourcentage_vote
+    description: |
+      pourcentage_vote, a decimal column on the notation_episode table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: personne
+  source: simpson_episodes.personne
+  description: |
+    personne holds one row per named Simpsons cast or crew member, with their name and birth details.
+
+    Grain: one row per unique person, keyed by nom (369 distinct names in this sample). Birth columns — date_naissance, lieu_naissance, region_naissance, pays_naissance, taille_metres, and surnom — are mostly null, populated for only around a third of rows. There is no numeric identifier: generique.personne and recompense.personne reference people in this table by exact name text rather than a foreign key. nom_complet, pays_de_naissance, and nom_de_naissance sit on this table but are not dependable for analysis.
+  fields:
+  - name: nom
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom
+    description: |
+      The person's name, used as the key for this table, nom.
+
+      Free-text canonical name, unique per row (369 distinct of 369 sampled) — Jodie Foster and Hank Azaria are examples from this sample. Join generique.personne and recompense.personne to this column by exact text match.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: date_naissance
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: date_naissance
+    description: |
+      The person's date of birth, date_naissance.
+
+      Text date in 'YYYY-MM-DD' format, null for 237 of 369 sampled rows. To compute age, extract the year as a text substring (the leading four characters) rather than using date arithmetic, since the column holds no native date type.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nom_naissance
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_naissance
+    description: |
+      The person's birth name, nom_naissance.
+
+      Free-text full legal or birth name, which can differ from nom (the person's commonly used name) — for the person credited as "Jodie Foster", this column holds "Alicia Christian Foster". Null for 262 of 369 sampled rows.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: lieu_naissance
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: lieu_naissance
+    description: |
+      The city or place the person was born in, lieu_naissance.
+
+      Free-text birthplace — Los Angeles, Venice, and Albuquerque are examples from this sample (73 or more distinct values, null for 246 of 369 rows). Finer-grained than region_naissance and pays_naissance, which record the state or province and the country.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: region_naissance
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: region_naissance
+    description: |
+      The state, province, or region the person was born in, region_naissance.
+
+      Free-text region — California, Connecticut, and Nova Scotia are examples from this sample (24 distinct values, null for 258 of 369 rows). Broader than lieu_naissance (city) and narrower than pays_naissance (country).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: pays_naissance
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pays_naissance
+    description: |
+      The country the person was born in, pays_naissance.
+
+      Free-text country name — USA, Canada, and Ireland are examples from this sample (9 distinct values, null for 250 of 369 rows). USA is by far the most common value among this cast and crew.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: taille_metres
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: taille_metres
+    description: |
+      The person's height in meters, taille_metres.
+
+      Decimal height in meters, ranging 1.55-2.03 in this sample and null for 319 of 369 rows — the least populated of the birth-detail columns.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: surnom
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: surnom
+    description: |
+      The person's nickname, surnom.
+
+      Free-text nickname, null for 354 of 369 sampled rows — populated only for a small number of well-known crew members, such as "The Tiny Canadian" or "Joe Cool" in this sample.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: nom_complet
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_complet
+    description: |
+      nom_complet, a text column on the personne table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: pays_de_naissance
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pays_de_naissance
+    description: |
+      pays_de_naissance, a text column on the personne table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_de_naissance
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_de_naissance
+    description: |
+      nom_de_naissance, a text column on the personne table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_simpson_episodes_person_age
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: SUBTRACT(2009, SUBSTR(date_naissance, 1, 4))
+    description: |
+      person age: how old a cast or crew member is in a given year, computed from the year embedded in date_naissance.
+
+      date_naissance is stored as text in 'YYYY-MM-DD' format; age in a given year is that year minus the leading four characters of date_naissance (SUBSTR(date_naissance, 1, 4)), since the column holds no native date type to subtract against. The same pattern gives a person's age at the time of a specific award by substituting that award's recompense.annee for the fixed year. MIN(date_naissance) finds the earliest birth date in scope, i.e. the oldest person, since an earlier date means an older person.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "person age"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: recompense
+  source: simpson_episodes.recompense
+  description: |
+    recompense records one row per award nomination or win, for an organisation, category, and the person or episode involved.
+
+    Grain: one row per award record (75 rows in this sample, id_recompense unique per row). organisation is the awarding body; annee is the award year (2009, 2010, 2017, or 2018 here); categorie_recompense and recompense name the award's category and specific title; personne and role name the nominee and their credited role; resultat is either Winner or Nominee; id_episode links to the nominated episode when the award is tied to one, and is null when the award instead recognizes a person, a character, or the whole series. saison and chanson are always null in this dataset. Confused with generique, which records ordinary production credits rather than award nominations. identifiant_recompense, identifiant_episode, and intervenant sit on this table but are not dependable for analysis. Join to recompense_personnage on id_recompense to reach any in-show characters credited on the same award, and to personne on personne = nom for that person's birth details.
+  fields:
+  - name: id_recompense
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_recompense
+    description: |
+      The unique identifier for an award record, id_recompense.
+
+      Numeric primary key, unique per row (75 distinct of 75 sampled). Join to recompense_personnage.id_recompense to reach any in-show characters credited on the same award.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: organisation
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: organisation
+    description: |
+      The organization presenting the award, organisation.
+
+      Free-text awarding body — People's Choice Awards USA, Writers Guild of America USA, Primetime Emmy Awards, and Jupiter Award are examples from this sample (11 distinct values).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: annee
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: annee
+    description: |-
+      The year an award was presented, annee.
+
+      One of 2009, 2010, 2017, or 2018 in this sample.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: categorie_recompense
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: categorie_recompense
+    description: |
+      The award's category, categorie_recompense.
+
+      Free-text category — People's Choice Award, WGA Award (TV), Primetime Emmy, Jupiter Award, and OFTA Television Award are examples from this sample (11 distinct values).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: recompense
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: recompense
+    description: |
+      The specific title of the award, recompense.
+
+      Free-text award name — Favorite Animated Comedy, Comedy Series, Animation, Outstanding Animated Program (For Programming Less Than One Hour), and Best International TV Series are examples from this sample (18 distinct values).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: personne
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: personne
+    description: |
+      The name of the person nominated for or awarded this record, personne.
+
+      Free-text person name — Al Jean, Hank Azaria, and Max Pross are examples from this sample (41 distinct values, null for 11 of 75 rows when the award credits a character instead of a named person). No numeric identifier; join to personne.nom for that person's birth details.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: role
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: role
+    description: |
+      The role the nominee is credited under for this award, role.
+
+      Free-text role — director, writer, executive producer, and a combined credit such as "co-executive producer, writer" are examples from this sample (11 distinct values, null for 53 of 75 rows).
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: id_episode
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_episode
+    description: |
+      The episode this award record is tied to, id_episode.
+
+      Foreign key to episode.id_episode when the award is for a specific episode; null for 32 of 75 rows when the award instead recognizes a person, a character, or the series as a whole.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: saison
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: saison
+    description: |
+      The season of the awarded work, saison.
+
+      Always null in this dataset — no award record in this table carries a populated season value.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: chanson
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: chanson
+    description: |
+      The theme song associated with the awarded work, chanson.
+
+      Always null in this dataset — no award record in this table carries a populated song value.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: resultat
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: resultat
+    description: |
+      Whether this nomination resulted in a win, resultat.
+
+      Text flag holding only two values: Winner means the nomination won the award, Nominee means it was nominated but did not win. See the award win and award nomination terms.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Nominee in recompense.resultat means the record is a nomination that did not go on to win; match it with resultat = 'Nominee'. A nominee is sometimes called the prospective recipient of the award — someone put forward for it but not confirmed as the winner. Contrast with the award win term, where resultat = 'Winner'.\n",
+              "id": "term_simpson_episodes_award_nomination",
+              "name": "award nomination",
+              "summary": "award nomination (nominee, nominated, nomination, nominations, prospective recipient): a recompense record whose resultat shows the person or work was nominated but did not win.",
+              "synonyms": [
+                "nominee",
+                "nominated",
+                "nomination",
+                "nominations",
+                "prospective recipient"
+              ]
+            },
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "Winner in recompense.resultat means the person or work took home the award for that record; filter resultat = 'Winner' to find wins. Contrast with the award nomination term, which covers records where resultat = 'Nominee' — nominated but not awarded.\n",
+              "id": "term_simpson_episodes_award_win",
+              "name": "award win",
+              "summary": "award win (winner, win, won, awardee): a recompense record whose resultat shows the nomination won the award, rather than only being nominated.",
+              "synonyms": [
+                "winner",
+                "win",
+                "won",
+                "awardee"
+              ]
+            }
+          ]
+        }
+  - name: identifiant_recompense
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_recompense
+    description: |
+      identifiant_recompense, a numeric column on the recompense table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: identifiant_episode
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: identifiant_episode
+    description: |
+      identifiant_episode, a text column on the recompense table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: intervenant
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: intervenant
+    description: |
+      intervenant, a text column on the recompense table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_simpson_episodes_award_winning_rate
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: DIVIDE(SUM(CASE WHEN resultat = 'Winner' THEN 1 ELSE 0 END), COUNT(resultat))
+    description: |
+      award winning rate: the share of a person's or category's recompense records that resulted in a win rather than only a nomination.
+
+      Computed as the count of resultat = 'Winner' rows divided by the total count of recompense rows in scope, typically after filtering or grouping by personne, categorie_recompense, or organisation. Multiply by 100 for a percentage. The complementary nomination rate divides the count of resultat = 'Nominee' rows by the same total.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "award winning rate"
+        }
+  - name: metric_simpson_episodes_first_award_year
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MIN(annee)
+    description: |
+      first award year: the earliest year in which a person, episode, or category was recognized with a recompense record.
+
+      MIN(annee) over recompense, optionally filtered by personne, categorie_recompense, or organisation, gives the year of that group's first nomination or win. annee ranges 2009 to 2018 in this dataset's sample.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "first award year"
+        }
+  - name: metric_simpson_episodes_nomination_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: COUNT(id_episode)
+    description: |
+      nomination count: how many recompense records list a person, episode, or category as nominated, used to find the most-nominated one.
+
+      COUNT grouped by personne, id_episode, or categorie_recompense, typically filtered to resultat = 'Nominee' or counting every resultat regardless of outcome, then wrapped in MAX(COUNT(...)) to find the most-nominated group. Filter resultat = 'Winner' instead to count wins rather than nominations.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "nomination count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: recompense_personnage
+  source: simpson_episodes.recompense_personnage
+  description: |
+    recompense_personnage links an award record to the in-show Simpsons character it recognizes.
+
+    Grain: one row per (award, character) pairing — an ensemble award can credit several characters. personnage is a fictional in-show character, distinct from recompense.personne, which names the real person nominated. Join to recompense on id_recompense to reach the award's organisation, category, year, and result. recompense_ref_id and nom_personnage sit on this table but are not dependable for analysis.
+  fields:
+  - name: id_recompense
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_recompense
+    description: |
+      The award record a character credit belongs to, id_recompense.
+
+      Foreign key to recompense.id_recompense; one award can credit several characters (3 distinct award ids across 12 sampled rows).
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: personnage
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: personnage
+    description: |
+      The in-show character credited on this award, personnage.
+
+      Free-text fictional character name — Homer Simpson, Mr. Burns, Moe Szyslak, Kent Brockman, and Smithers are examples from this sample (6 distinct values). Distinct from recompense.personne, which names the real person nominated for the same award.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: recompense_ref_id
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: recompense_ref_id
+    description: |
+      recompense_ref_id, a numeric column on the recompense_personnage table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nom_personnage
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nom_personnage
+    description: |
+      nom_personnage, a text column on the recompense_personnage table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: vote
+  source: simpson_episodes.vote
+  description: |
+    vote records, for each Simpsons episode, how many viewers gave it each star score from 1 to 10.
+
+    Grain: one row per (episode, star score), ten rows per episode. etoiles is the star score (1 is worst, 10 is best); votes is the number of viewers who gave that score; pourcentage is that count's share of the episode's total votes across all ten star levels. Distinct from episode.votes and episode.note, which record the episode's overall vote count and average rating rather than the per-star breakdown. id_episode_vote, nb_etoiles, and nb_votes sit on this table but are not dependable for analysis.
+  fields:
+  - name: id_episode
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_episode
+    description: |
+      The episode a star-score row belongs to, id_episode.
+
+      Foreign key to episode.id_episode; each episode has exactly ten rows here, one per star level 1 through 10.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text"
+        }
+  - name: etoiles
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: etoiles
+    description: |
+      The star score this row counts votes for, etoiles.
+
+      Integer star rating from 1 to 10; 1 is the lowest (worst) score and 10 is the highest (best), per this dataset's star classification scale. See the star rating scale term.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "terms": [
+            {
+              "audit": {
+                "provenance": {
+                  "source": "curator",
+                  "source_refs": [
+                    "train_final.jsonl"
+                  ],
+                  "status": "draft",
+                  "version": "rebuild-1"
+                }
+              },
+              "body": "vote.etoiles ranges from 1 to 10; per this dataset's own convention, a higher star score means a better audience response, so 1 is the worst rating and 10 is the best. Use MAX(etoiles) or a filter such as etoiles = 10 for the best rating, and MIN(etoiles) or etoiles = 1 for the worst. Distinct from episode.note, a separate 0.0-10.0 decimal rating on the episode table.\n",
+              "id": "term_simpson_episodes_star_rating_scale",
+              "name": "star rating scale",
+              "summary": "star rating scale (star scores, worst, best): the 1-to-10 vote.etoiles scale on which episode star scores run, where 1 is the worst score and 10 is the best.",
+              "synonyms": [
+                "star score",
+                "star scores",
+                "worst",
+                "best"
+              ]
+            }
+          ]
+        }
+  - name: votes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: votes
+    description: |
+      The number of viewers who gave this star score, votes.
+
+      Integer count of votes at this specific star level — 25, 57, and 191 are examples from this sample. Distinct from episode.votes, which totals every vote for the episode across all ten star levels.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint"
+        }
+  - name: pourcentage
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: pourcentage
+    description: |
+      This star score's share of the episode's total votes, pourcentage.
+
+      Decimal percentage, computed as this row's votes divided by the sum of votes across all ten star levels for the same episode, times 100. The ten pourcentage values for one episode sum to approximately 100.
+    datatype: Float
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "real"
+        }
+  - name: id_episode_vote
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: id_episode_vote
+    description: |
+      id_episode_vote, a text column on the vote table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key. It must not be used as a join key between tables.
+    datatype: String
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "text",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nb_etoiles
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nb_etoiles
+    description: |
+      nb_etoiles, a numeric column on the vote table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  - name: nb_votes
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: nb_votes
+    description: |
+      nb_votes, a numeric column on the vote table.
+
+      Values in this column are not dependable and do not correspond to the business facts the table otherwise records. Do not use it in a SELECT list, a filter, or a join key.
+    datatype: Integer
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "nullable": true,
+          "physical_type": "bigint",
+          "reliability": {
+            "note": "Unreliable for analysis. Do not use this column to answer questions.",
+            "status": "suspect"
+          }
+        }
+  metrics:
+  - name: metric_simpson_episodes_average_star_rating
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: AVG(etoiles)
+    description: |
+      average star rating: the mean star score an episode receives across its votes, either treating every star level equally or weighting by how many viewers chose it.
+
+      AVG(etoiles) over the ten star-level rows for an episode treats every level equally, ignoring how many viewers actually chose it. A votes-weighted average — DIVIDE(SUM(etoiles * votes), SUM(votes)) — accounts for how many viewers gave each score and is the more faithful measure of the episode's typical rating. Prefer the weighted form whenever votes is available alongside etoiles.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "average star rating"
+        }
+  - name: metric_simpson_episodes_star_vote_count
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: MAX(votes)
+    description: |
+      star vote count: the number of viewers who gave an episode a specific star score, aggregated to find the most-voted star level.
+
+      MAX(votes) over vote, grouped by id_episode, finds the star score that drew the most votes for a given episode. Also supports difference comparisons, such as subtracting the vote count at one star level from another to compare how a low score and a high score each performed. Distinct from episode.votes, which totals every vote for the episode across all ten star levels rather than one.
+    custom_extensions:
+    - vendor_name: GOVERNED_BI
+      data: |-
+        {
+          "audit": {
+            "provenance": {
+              "source": "curator",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "rebuild-1"
+            }
+          },
+          "name": "star vote count"
+        }
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "provenance": {
+            "source": "seed",
+            "source_refs": [
+              "information_schema"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+relationships:
+- name: join_simpson_episodes_episode_generique_22247052
+  from: generique
+  to: episode
+  from_columns:
+  - id_episode
+  to_columns:
+  - id_episode
+  ai_context:
+    instructions: |
+      episode joins to generique on id_episode to reach every credited person and role for that episode.
+
+      One episode row matches many generique rows, since an episode credits many people across departments. Use this join to move from an episode's title or air date to its cast and crew credits, then filter generique.categorie or role for a specific department or job.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between episode and generique in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_simpson_episodes_episode_mot_cle_9fadad75
+  from: mot_cle
+  to: episode
+  from_columns:
+  - id_episode
+  to_columns:
+  - id_episode
+  ai_context:
+    instructions: |
+      episode joins to mot_cle on id_episode to reach every keyword tag for that episode.
+
+      One episode row matches many mot_cle rows, since an episode carries several theme tags. Use this join to find episodes tagged with a given keyword, or to list every tag on one episode.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between episode and mot_cle in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_simpson_episodes_episode_recompense_71fd71ee
+  from: recompense
+  to: episode
+  from_columns:
+  - id_episode
+  to_columns:
+  - id_episode
+  ai_context:
+    instructions: |
+      episode joins to recompense on id_episode to reach the awards or nominations tied to that episode.
+
+      One episode row can match many recompense rows, since an episode can receive multiple award nominations. recompense.id_episode is null for roughly two in five records, when the award instead recognizes a person, a character, or the series as a whole rather than one episode — those recompense rows never match an episode here.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between episode and recompense in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_simpson_episodes_episode_vote_3b6cf2c4
+  from: vote
+  to: episode
+  from_columns:
+  - id_episode
+  to_columns:
+  - id_episode
+  ai_context:
+    instructions: |
+      episode joins to vote on id_episode to reach that episode's ten star-score vote counts.
+
+      One episode row matches exactly ten vote rows, one for each star score from 1 to 10. Use this join to move from an episode's title to its full star-score distribution, or aggregate vote.votes across the match to reconstruct the episode's total vote count.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between episode and vote in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_simpson_episodes_generique_personne_dcfddbd2
+  from: generique
+  to: personne
+  from_columns:
+  - personne
+  to_columns:
+  - nom
+  ai_context:
+    instructions: |
+      generique joins to personne on personne = nom to reach a credited person's birth details.
+
+      Many generique rows can match one personne row, since the same person is credited on many episodes and in many roles. The join is a text match on the person's name, not a numeric key, so a name recorded inconsistently between the two tables (different spelling or capitalization) will fail to match.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between generique and personne in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        }
+      }
+- name: join_simpson_episodes_personne_recompense_362dbd37
+  from: recompense
+  to: personne
+  from_columns:
+  - personne
+  to_columns:
+  - nom
+  ai_context:
+    instructions: |
+      personne joins to recompense on nom = personne to reach every award record for that person.
+
+      One personne row can match many recompense rows, since a person can be nominated for or win several awards. The join is a text match on the person's name; recompense.personne is null when an award credits a character rather than a named person, and those rows never match here.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between personne and recompense in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+- name: join_simpson_episodes_recompense_recompense_personnage_3a739263
+  from: recompense_personnage
+  to: recompense
+  from_columns:
+  - id_recompense
+  to_columns:
+  - id_recompense
+  ai_context:
+    instructions: |
+      recompense joins to recompense_personnage on id_recompense to reach the in-show characters credited on that award.
+
+      One recompense row can match several recompense_personnage rows, since an ensemble award can credit multiple characters. Use this join to move from an award's organisation, category, or result to the fictional characters recognized by it.
+  custom_extensions:
+  - vendor_name: GOVERNED_BI
+    data: |-
+      {
+        "audit": {
+          "evidence": "equality between recompense and recompense_personnage in train gold SQL",
+          "provenance": {
+            "source": "gold",
+            "source_refs": [
+              "train_final.jsonl",
+              "*_tables.json"
+            ],
+            "status": "draft",
+            "version": "scaffold-1"
+          }
+        },
+        "cardinality": "one_to_many"
+      }
+custom_extensions:
+- vendor_name: GOVERNED_BI
+  data: |-
+    {
+      "audit": {
+        "provenance": {
+          "source": "seed",
+          "source_refs": [
+            "information_schema"
+          ],
+          "status": "draft",
+          "version": "scaffold-1"
+        }
+      },
+      "few_shots": [
+        {
+          "audit": {
+            "evidence": "train question train_4158",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0000",
+          "sql": "SELECT \"nom\" FROM \"simpson_episodes\".\"personne\" WHERE NOT \"date_naissance\" IS NULL ORDER BY \"date_naissance\" ASC NULLS FIRST LIMIT 1",
+          "summary": "Which crew member of the simpson 20s is the oldest?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4159",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0001",
+          "sql": "SELECT \"surnom\" FROM \"simpson_episodes\".\"personne\" WHERE \"nom\" = 'Dan Castellaneta'",
+          "summary": "What's the nickname for Dan Castellaneta?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4160",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0002",
+          "sql": "SELECT COUNT(\"nom\") FROM \"simpson_episodes\".\"personne\" WHERE \"region_naissance\" = 'New York' AND SUBSTRING(\"date_naissance\" FROM 1 FOR 4) > '1970'",
+          "summary": "Among the crew members of the simpson 20s born in the New York city, how many of them were born after the year 1970?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4161",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0003",
+          "sql": "SELECT \"T1\".\"pays_naissance\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T2\".\"recompense\" = 'Outstanding Voice-Over Performance' AND \"T2\".\"annee\" = 2009 AND \"T2\".\"resultat\" = 'Winner'",
+          "summary": "In which country was the winner of the Outstanding Voice-Over Performance award of 2009 born?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4162",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0004",
+          "sql": "SELECT \"T2\".\"recompense\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T1\".\"surnom\" = 'Doofus' AND \"T2\".\"resultat\" = 'Winner'",
+          "summary": "Please list the names of all the awards won by the crew member whose nickname is Doofus."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4163",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0005",
+          "sql": "SELECT COUNT(*) FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T1\".\"pays_naissance\" = 'USA' AND \"T2\".\"resultat\" = 'Nominee' AND \"T2\".\"recompense\" = 'Outstanding Animated Program (For Programming Less Than One Hour)' AND \"T2\".\"annee\" = 2009",
+          "summary": "How many crew members who were born in the USA were nominated for the Outstanding Animated Program (For Programming Less Than One Hour) award in 2009?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4164",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0006",
+          "sql": "SELECT DISTINCT \"T1\".\"personnage\" FROM \"simpson_episodes\".\"recompense_personnage\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense\" AS \"T2\" ON \"T1\".\"id_recompense\" = \"T2\".\"id_recompense\" WHERE \"T2\".\"recompense\" = 'Outstanding Voice-Over Performance' AND \"T2\".\"annee\" = 2009 AND \"T2\".\"resultat\" = 'Winner'",
+          "summary": "Which character won the Outstanding Voice-Over Performance award in 2009?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4165",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0007",
+          "sql": "SELECT \"T2\".\"mot_cle\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"mot_cle\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T1\".\"titre\" = 'Lost Verizon'",
+          "summary": "Please list all the keywords of the episode Lost Verizon."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4168",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0008",
+          "sql": "SELECT COUNT(*) FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T1\".\"titre\" = 'Lost Verizon' AND \"T2\".\"etoiles\" = 7",
+          "summary": "How many 7-star votes in star score did the episode Lost Verizon have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4170",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0009",
+          "sql": "SELECT \"T1\".\"titre\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T2\".\"votes\" > 200 AND \"T2\".\"etoiles\" = 10",
+          "summary": "Please list the titles of the episodes that have over 200 voters voting a 10 in star score."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4171",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0010",
+          "sql": "SELECT COUNT(*) FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE SUBSTRING(\"T1\".\"date_diffusion\" FROM 1 FOR 4) = '2009' AND \"T2\".\"etoiles\" = 10 AND \"T2\".\"pourcentage\" > 15",
+          "summary": "How many episodes aired in the year 2009 have over 15% of voters giving 10 stars in star score?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4172",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0011",
+          "sql": "SELECT \"T1\".\"titre\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T2\".\"etoiles\" = 7 ORDER BY \"T2\".\"votes\" DESC NULLS LAST LIMIT 1",
+          "summary": "What's the title of the episode that got the most 7-star votes in star score?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4173",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0012",
+          "sql": "SELECT CAST(SUM(\"T2\".\"votes\" * \"T2\".\"etoiles\") AS REAL) / NULLIF(SUM(\"T2\".\"votes\"), 0) FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T1\".\"titre\" = 'Lost Verizon'",
+          "summary": "How many stars on average does the episode Lost Verizon have?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4174",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0013",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"categorie_recompense\" = 'Primetime Emmy' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"episode\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"note\" > 7 AND \"T1\".\"resultat\" = 'Nominee'",
+          "summary": "What is the percentage of Primetime Emmy nominated episodes with a rating over 7 to all the episodes that have a rating over 7?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4175",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0014",
+          "sql": "SELECT \"T1\".\"titre\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"personne\" = 'Pamela Hayden' AND \"T2\".\"role\" = 'Ruthie'",
+          "summary": "Name the title of the episode where Pamela Hayden voiced the character 'Ruthie.'"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4176",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0015",
+          "sql": "SELECT \"T2\".\"role\", \"T1\".\"episode\", \"T1\".\"numero_serie\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"personne\" = 'Matt Groening' AND \"T1\".\"titre\" = 'In the Name of the Grandfather'",
+          "summary": "List down all the roles of Matt Groening on the episode titled 'In the Name of the Grandfather' along with the episode number and series number."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4177",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0016",
+          "sql": "SELECT \"T1\".\"titre\", \"T1\".\"resume\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"mot_cle\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"mot_cle\" = 'eviction'",
+          "summary": "Write down the title and summary of the episode with the keyword 'eviction.'"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4178",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0017",
+          "sql": "SELECT AVG(\"T2\".\"etoiles\") FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T1\".\"titre\" = 'Wedding for Disaster'",
+          "summary": "What is the average number of stars received by the episode titled 'Wedding for Disaster.'"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4180",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0018",
+          "sql": "SELECT DISTINCT \"T1\".\"nom_naissance\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T2\".\"role\" = 'Helen Lovejoy'",
+          "summary": "What is the birth name of the person who voiced 'Helen Lovejoy?'"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4182",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0019",
+          "sql": "SELECT COUNT(\"id_episode\") FROM \"simpson_episodes\".\"episode\" WHERE \"votes\" > 1000",
+          "summary": "How many episodes have more than 1000 votes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4183",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0020",
+          "sql": "SELECT COUNT(\"nom\") FROM \"simpson_episodes\".\"personne\" WHERE \"lieu_naissance\" = 'New York City' AND \"pays_naissance\" = 'USA'",
+          "summary": "How many persons were born in New York, USA?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4188",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0021",
+          "sql": "SELECT \"T2\".\"personnage\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense_personnage\" AS \"T2\" ON \"T1\".\"id_recompense\" = \"T2\".\"id_recompense\" WHERE \"T1\".\"annee\" = 2009 AND \"T1\".\"recompense\" = 'Outstanding Voice-Over Performance'",
+          "summary": "List the name character awarded for the Outstanding Voice-Over Performance award in 2009."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4189",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0022",
+          "sql": "SELECT COUNT(*) FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T2\".\"annee\" = 2009 AND \"T2\".\"recompense\" = 'Comedy Series' AND \"T1\".\"region_naissance\" = 'California'",
+          "summary": "Among the person nominated for the Comedy Series Award in 2009, how many of them were born in California?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4191",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0023",
+          "sql": "SELECT \"T2\".\"personne\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T1\".\"titre\" = 'How the Test Was Won' AND \"T2\".\"credits\" = 'false'",
+          "summary": "List the name of persons who were not included in the credit for the 'How the Test Was Won' episode."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4192",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0024",
+          "sql": "SELECT DISTINCT \"T1\".\"titre\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"mot_cle\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"mot_cle\" IN ('riot', 'cake')",
+          "summary": "What is the title of episode that has a keyword of 'riot' and 'cake'?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4194",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0025",
+          "sql": "SELECT DISTINCT \"T2\".\"personne\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE SUBSTRING(\"T1\".\"date_diffusion\" FROM 6 FOR 2) BETWEEN '10' AND '11'",
+          "summary": "Name all the person who involved in the making of simpson 20s episode that aired between October to November."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4195",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0026",
+          "sql": "SELECT \"T2\".\"personne\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T1\".\"titre\" = 'Treehouse of Horror XIX' AND \"T2\".\"role\" = 'director'",
+          "summary": "State the name of director for the 'Treehouse of Horror XIX' episode."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4196",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0027",
+          "sql": "SELECT COUNT(DISTINCT \"T2\".\"role\") FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T1\".\"episode\" = 5",
+          "summary": "Based on the credits, state how many roles were played in the 5th episode of simpson 20."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4197",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0028",
+          "sql": "SELECT \"T2\".\"mot_cle\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"mot_cle\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T1\".\"titre\" = 'Take My Life, Please'",
+          "summary": "List all the keyword for 'Take My Life, Please' episode."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4202",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0029",
+          "sql": "SELECT \"titre\" FROM \"simpson_episodes\".\"episode\" ORDER BY \"note\" NULLS FIRST LIMIT 1",
+          "summary": "What is the title of the episode that received the lowest rating?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4203",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0030",
+          "sql": "SELECT \"annee\" FROM \"simpson_episodes\".\"recompense\" WHERE \"resultat\" = 'Winner' AND \"recompense\" = 'Favorite Animated Comedy' ORDER BY \"annee\" DESC NULLS LAST LIMIT 1",
+          "summary": "What year did the Simpsons receive its first ever award for Favorite Animated Comedy in People's Choice Award?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4204",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0031",
+          "sql": "SELECT COUNT(*) FROM \"simpson_episodes\".\"generique\" WHERE \"personne\" = 'Dell Hake' AND \"credits\" = 'false'",
+          "summary": "How many episodes was Dell Hake not included in the credit list?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4205",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0032",
+          "sql": "SELECT \"T2\".\"annee\" - CAST(SUBSTRING(\"T1\".\"date_naissance\" FROM 1 FOR 4) AS INT) AS \"age\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T2\".\"recompense\" = 'Outstanding Voice-Over Performance' AND \"T2\".\"organisation\" = 'Primetime Emmy Awards' AND \"T2\".\"resultat\" = 'Winner'",
+          "summary": "How old was the awardee when he/she won the first-ever award for Outstanding Voice-Over Performance in Primetime Emmy Awards?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4206",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0033",
+          "sql": "SELECT DISTINCT \"T2\".\"personnage\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense_personnage\" AS \"T2\" ON \"T1\".\"id_recompense\" = \"T2\".\"id_recompense\" WHERE \"T1\".\"personne\" = 'Dan Castellaneta' AND \"T1\".\"recompense\" = 'Outstanding Voice-Over Performance' AND \"T1\".\"organisation\" = 'Primetime Emmy Awards' AND \"T1\".\"annee\" = 2009",
+          "summary": "What character did Dan Castellaneta play that won him an award for Outstanding Voice-Over Performance in 2009 in the Primetime Emmy Awards?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4210",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0034",
+          "sql": "SELECT COUNT(*) FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T1\".\"titre\" = 'No Loan Again, Naturally' AND \"T2\".\"votes\" < 50",
+          "summary": "In \"No Loan Again, Naturally\", how many stars received votes of no more than 50?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4211",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0035",
+          "sql": "SELECT COUNT(*) FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T1\".\"pays_naissance\" = 'USA' AND \"T2\".\"resultat\" = 'Winner'",
+          "summary": "How many award winners are from the USA?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4212",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0036",
+          "sql": "SELECT COUNT(*) FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T1\".\"surnom\" = 'Doofus' AND \"T2\".\"credits\" = 'true' AND \"T2\".\"id_episode\" = 'S20-E11'",
+          "summary": "In Season 20 Episode 11, how many times was Doofus included in the credit list?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4213",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0037",
+          "sql": "SELECT \"T2\".\"recompense\", \"T1\".\"nom\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T2\".\"resultat\" = 'Winner' ORDER BY \"T2\".\"annee\" NULLS FIRST LIMIT 1",
+          "summary": "What was the first award won by the cast or crew member of the show? Give the name of the person who won the said award."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4214",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0038",
+          "sql": "SELECT \"T2\".\"pourcentage\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T1\".\"titre\" = 'Sex, Pies and Idiot Scrapes' AND \"T2\".\"etoiles\" = 9",
+          "summary": "In \"Sex, Pies and Idiot Scrapes\", how many percentage of votes did the 9 star score has?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4215",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0039",
+          "sql": "SELECT \"recompense\", \"personne\" FROM \"simpson_episodes\".\"recompense\" WHERE \"resultat\" = 'Winner' AND SUBSTRING(CAST(\"annee\" AS TEXT) FROM 1 FOR 4) = '2009'",
+          "summary": "List the award name and persons who won the award in 2009."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4218",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0040",
+          "sql": "SELECT \"T1\".\"id_recompense\", \"T1\".\"recompense\", \"T1\".\"personne\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense_personnage\" AS \"T2\" ON \"T1\".\"id_recompense\" = \"T2\".\"id_recompense\" WHERE \"T2\".\"personnage\" = 'Homer Simpson' AND \"T1\".\"resultat\" = 'Winner'",
+          "summary": "Write down the award ID, award name and winner for character named \"Homer simpson 20\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4221",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0041",
+          "sql": "SELECT \"T1\".\"pays_naissance\", \"T1\".\"taille_metres\", \"T1\".\"nom\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T2\".\"categorie\" = 'Cast' AND \"T2\".\"credits\" = 'false'",
+          "summary": "Describe the birth country, height and person name who were not included in credit list with category of casting."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4222",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0042",
+          "sql": "SELECT \"T3\".\"personne\", \"T1\".\"mot_cle\", \"T1\".\"id_episode\" FROM \"simpson_episodes\".\"mot_cle\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"episode\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" INNER JOIN \"simpson_episodes\".\"recompense\" AS \"T3\" ON \"T2\".\"id_episode\" = \"T3\".\"id_episode\" WHERE \"T2\".\"titre\" = 'The Good, the Sad and the Drugly' AND \"T3\".\"resultat\" = 'Nominee'",
+          "summary": "List the nominee, keywords and episode ID of the title \"The Good, the Sad and the Drugly\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4224",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0043",
+          "sql": "SELECT \"T1\".\"recompense\", \"T2\".\"date_diffusion\", \"T2\".\"note\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"episode\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T1\".\"organisation\" = 'Jupiter Award' AND \"T1\".\"resultat\" = 'Winner'",
+          "summary": "For the episode who won the award held by Jupiter Award, describe award name, aired date and rating of that episode."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4226",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0044",
+          "sql": "SELECT \"T2\".\"titre\", \"T2\".\"image_episode\", \"T1\".\"recompense\", \"T1\".\"personne\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"episode\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"note\" BETWEEN 7 AND 10 AND SUBSTRING(\"T2\".\"date_diffusion\" FROM 1 FOR 4) = '2008' AND \"T1\".\"resultat\" = 'Nominee'",
+          "summary": "Among the episodes with excellent rating which were aired in 2008, describe the title, episode's image, award name and person who were nominated."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4227",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0045",
+          "sql": "SELECT DISTINCT \"T1\".\"recompense\", \"T1\".\"personne\", \"T2\".\"personnage\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense_personnage\" AS \"T2\" ON \"T1\".\"id_recompense\" = \"T2\".\"id_recompense\" WHERE \"T2\".\"id_recompense\" = 326",
+          "summary": "Describe the award title, person and character name of the award ID 326."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4228",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0046",
+          "sql": "SELECT \"T1\".\"nom\", \"T1\".\"lieu_naissance\", \"T2\".\"role\", 2022 - CAST(SUBSTRING(\"T1\".\"date_naissance\" FROM 1 FOR 4) AS INT) AS \"age\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE NOT \"T1\".\"date_naissance\" IS NULL ORDER BY \"T1\".\"date_naissance\" NULLS FIRST LIMIT 1",
+          "summary": "Describe name, birth country, role in episode and age in 2022 of the oldest crew member.."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4229",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0047",
+          "sql": "SELECT DISTINCT \"T2\".\"credits\", \"T2\".\"categorie\", \"T2\".\"role\", \"T1\".\"lieu_naissance\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T1\".\"pays_naissance\" = 'North Korea'",
+          "summary": "Provide the number of credits, category, role and birthplace of the crew member who was born in North Korea."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4231",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0048",
+          "sql": "SELECT \"T1\".\"titre\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" ORDER BY \"T2\".\"etoiles\" DESC NULLS LAST, \"T2\".\"votes\" DESC NULLS LAST LIMIT 1",
+          "summary": "Name the title of the episode that received the highest star score and the highest number of votes."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4236",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0049",
+          "sql": "SELECT DISTINCT \"T1\".\"nom_naissance\", \"T2\".\"role\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T1\".\"nom\" = 'Al Jean'",
+          "summary": "What is the birth name of Al Jean and his role in creating The simpson 20s: Season 20?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4240",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0050",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"resultat\" = 'Winner' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(\"recompense\"), 0) AS \"rate\" FROM \"simpson_episodes\".\"recompense\"",
+          "summary": "What is The simpson 20s: Season 20 average awards winning rate?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4241",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0051",
+          "sql": "SELECT COUNT(\"id_episode\") FROM \"simpson_episodes\".\"episode\" WHERE \"date_diffusion\" LIKE '2008-10%' OR \"date_diffusion\" LIKE '2008-11%'",
+          "summary": "How many episodes were aired between October and November 2008?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4243",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0052",
+          "sql": "SELECT DISTINCT \"categorie\", \"role\" FROM \"simpson_episodes\".\"generique\" WHERE \"personne\" = 'Bonita Pietila'",
+          "summary": "List the categories for which Bonita Pietila was given credit and her role in creating the episodes."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4245",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0053",
+          "sql": "SELECT DISTINCT \"personne\" FROM \"simpson_episodes\".\"generique\" WHERE \"role\" = 'producer'",
+          "summary": "Who produced The simpson 20s: Season 20?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4248",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0054",
+          "sql": "SELECT \"lieu_naissance\" FROM \"simpson_episodes\".\"personne\" WHERE \"nom\" = 'Dan Castellaneta'",
+          "summary": "Please indicate the birthplace of the crew which name is Dan Castellaneta."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4249",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0055",
+          "sql": "SELECT COUNT(\"nom\") FROM \"simpson_episodes\".\"personne\" WHERE \"pays_naissance\" = 'USA'",
+          "summary": "How many crews were born in the USA?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4253",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0056",
+          "sql": "SELECT \"T2\".\"mot_cle\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"mot_cle\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T1\".\"titre\" = 'Double, Double, Boy in Trouble'",
+          "summary": "Please indicate the keywords of the title \"Double, Double, Boy in Trouble\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4254",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0057",
+          "sql": "SELECT DISTINCT \"T1\".\"episode\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T1\".\"episode\" BETWEEN 10 AND 20 AND \"T2\".\"votes\" > 200",
+          "summary": "Among episodes from 10 to 20, which episode has more than 200 votes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4257",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0058",
+          "sql": "SELECT DISTINCT \"T1\".\"id_episode\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T1\".\"recompense\" = 'Outstanding Animated Program (For Programming Less Than One Hour)' AND \"T2\".\"etoiles\" = 10",
+          "summary": "Which episode id did award Outstanding Animated Program (For Programming Less Than One Hour) with an episode star score of 10?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4261",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0059",
+          "sql": "SELECT DISTINCT \"T1\".\"id_episode\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T1\".\"role\" = 'composer' AND \"T1\".\"recompense\" = 'Outstanding Music Composition for a Series (Original Dramatic Score)' AND \"T2\".\"votes\" > 200",
+          "summary": "Which episode did the composer win for Outstanding Music Composition for a Series (Original Dramatic Score) with more than 200 votes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4263",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0060",
+          "sql": "SELECT SUM(CASE WHEN \"T1\".\"episode\" = 1 THEN \"T2\".\"votes\" ELSE 0 END) - SUM(CASE WHEN \"T1\".\"episode\" = 5 THEN \"T2\".\"votes\" ELSE 0 END) AS \"diff\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\"",
+          "summary": "How much more votes for episode 1 than for episode 5?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4267",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0061",
+          "sql": "SELECT \"personne\" FROM \"simpson_episodes\".\"recompense\" WHERE \"resultat\" = 'Nominee' AND \"recompense\" = 'Outstanding Voice-Over Performance' AND \"id_episode\" LIKE 'S20%' LIMIT 2",
+          "summary": "Please list two people who are the nominees for the \"Outstanding Voice-Over Performance\" award for season 20."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4271",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0062",
+          "sql": "SELECT COUNT(*) FROM \"simpson_episodes\".\"recompense\" WHERE \"recompense\" = 'Animation' AND \"resultat\" = 'Nominee'",
+          "summary": "How many people were considered as prospective recipients of the \"Animation\" award?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4272",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0063",
+          "sql": "SELECT \"titre\" FROM \"simpson_episodes\".\"episode\" WHERE \"note\" BETWEEN 7 AND 10 LIMIT 3",
+          "summary": "Please list any three episodes that have an excellent rating."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4273",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0064",
+          "sql": "SELECT \"id_episode\" FROM \"simpson_episodes\".\"episode\" ORDER BY \"votes\" DESC NULLS LAST LIMIT 5",
+          "summary": "What are the top five most popular episodes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4274",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0065",
+          "sql": "SELECT \"T1\".\"titre\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T2\".\"etoiles\" = (SELECT MIN(\"etoiles\") FROM \"simpson_episodes\".\"vote\") ORDER BY \"T2\".\"votes\" DESC NULLS LAST LIMIT 3",
+          "summary": "Please list the three episodes with the highest number of votes for the worst star rating."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4275",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0066",
+          "sql": "SELECT DISTINCT \"T2\".\"personnage\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense_personnage\" AS \"T2\" ON \"T1\".\"id_recompense\" = \"T2\".\"id_recompense\" WHERE \"T1\".\"recompense\" LIKE '%Voice-Over%' AND \"T1\".\"personne\" = 'Dan Castellaneta'",
+          "summary": "What was the character that Dan Castellaneta did the voice over for and was awarded?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4276",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0067",
+          "sql": "SELECT \"T1\".\"id_episode\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE SUBSTRING(\"T1\".\"date_diffusion\" FROM 1 FOR 4) = '2008' ORDER BY \"T2\".\"votes\" DESC NULLS LAST LIMIT 1",
+          "summary": "Please list all of the episodes that aired in 2008 that have the highest number of votes for the maximum star rating."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4280",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0068",
+          "sql": "SELECT SUM(\"T2\".\"votes\") FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T1\".\"titre\" = 'Lisa the Drama Queen' AND \"T2\".\"etoiles\" = 5",
+          "summary": "How many votes of 5-star did the episode \"Lisa the Drama Queen\" receive?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4281",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0069",
+          "sql": "SELECT \"T2\".\"votes\" FROM \"simpson_episodes\".\"mot_cle\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"etoiles\" = 10 AND \"T1\".\"mot_cle\" = 'reference to the fantastic four'",
+          "summary": "What is the number of votes for 10-star for the episode that has the keyword \"reference to the fantastic four\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4282",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0070",
+          "sql": "SELECT SUM(CASE WHEN \"T2\".\"etoiles\" = 10 THEN \"T2\".\"votes\" ELSE 0 END) - SUM(CASE WHEN \"T2\".\"etoiles\" = 1 THEN \"T2\".\"votes\" ELSE 0 END) AS \"Difference\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T1\".\"titre\" = 'The Burns and the Bees'",
+          "summary": "What is the difference between the number of votes for 1-star vs. 10-star for the episode \"The Burns and the Bees\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4283",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0071",
+          "sql": "SELECT \"T2\".\"mot_cle\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"mot_cle\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" ORDER BY \"T1\".\"votes\" NULLS FIRST LIMIT 1",
+          "summary": "What are the keywords of the least popular episode?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4285",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0072",
+          "sql": "SELECT \"episode\" FROM \"simpson_episodes\".\"episode\" WHERE \"votes\" = (SELECT MAX(\"votes\") FROM \"simpson_episodes\".\"episode\")",
+          "summary": "Which episode has the largest number of votes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4287",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0073",
+          "sql": "SELECT \"id_episode\" FROM \"simpson_episodes\".\"generique\" WHERE \"personne\" = 'Oscar Cervantes' AND \"credits\" = 'true'",
+          "summary": "What are the episodes Oscar Cervantes is credited with?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4288",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0074",
+          "sql": "SELECT \"T2\".\"role\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T1\".\"pays_naissance\" <> 'USA'",
+          "summary": "What are the roles of the cast and crew from countries other than the USA?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4290",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0075",
+          "sql": "SELECT DISTINCT \"T2\".\"personnage\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense_personnage\" AS \"T2\" ON \"T1\".\"id_recompense\" = \"T2\".\"id_recompense\" WHERE \"T1\".\"recompense\" = 'Outstanding Voice-Over Performance' AND \"T1\".\"resultat\" = 'Winner'",
+          "summary": "Which character did the \"Outstanding Voice-Over Performance\" winner voice?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4291",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0076",
+          "sql": "SELECT \"T1\".\"resume\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"personne\" = 'Emily Blunt'",
+          "summary": "What is the summary of the episode in which Emily Blunt is featured in?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4292",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0077",
+          "sql": "SELECT \"T2\".\"role\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T1\".\"surnom\" = 'The Tiny Canadian'",
+          "summary": "Who did \"The Tiny Canadian\" play as in the show?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4294",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0078",
+          "sql": "SELECT DISTINCT \"T2\".\"personne\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T1\".\"titre\" = 'In the Name of the Grandfather' AND \"T2\".\"categorie\" = 'Cast' AND \"T2\".\"credits\" = 'true'",
+          "summary": "What is the credited cast for the episode \"In the Name of the Grandfather\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4295",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0079",
+          "sql": "SELECT \"T1\".\"date_naissance\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T2\".\"resultat\" = 'Winner'",
+          "summary": "List all of the award winners' birth dates."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4297",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0080",
+          "sql": "SELECT \"T1\".\"recompense\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"episode\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T1\".\"resultat\" = 'Winner' AND \"T2\".\"date_diffusion\" = '2008-11-30'",
+          "summary": "What award did the episode that aired on 11/30/2008 win?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4303",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0081",
+          "sql": "SELECT \"pays_naissance\" FROM \"simpson_episodes\".\"personne\" ORDER BY \"taille_metres\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which country has the tallest person in the crew?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4307",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0082",
+          "sql": "SELECT \"titre\" FROM \"simpson_episodes\".\"episode\" WHERE \"id_episode\" IN ('S20-E1', 'S20-E2', 'S20-E3')",
+          "summary": "List down the title of episode S20-E1, S20-E2 & S20-E3."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4308",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0083",
+          "sql": "SELECT \"image_episode\" FROM \"simpson_episodes\".\"episode\" WHERE \"episode\" = 5",
+          "summary": "Write down the website address which stores the episode image of episode 5."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4309",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0084",
+          "sql": "SELECT \"votes\" FROM \"simpson_episodes\".\"episode\" WHERE \"note\" > 7",
+          "summary": "State the number of votes for episode with rating of 7 and above."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4310",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0085",
+          "sql": "SELECT COUNT(*) FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"categorie\" = 'Casting Department'",
+          "summary": "How many title's crew members are working from Casting Department?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4311",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0086",
+          "sql": "SELECT COUNT(*) FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T2\".\"role\" = 'additional timer' AND \"T1\".\"pays_naissance\" = 'USA'",
+          "summary": "How many additional timers were born in USA?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4314",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0087",
+          "sql": "SELECT \"T1\".\"note\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"personne\" = 'Jason Bikowski'",
+          "summary": "List down the rating of episodes that were produced by Jason Bikowski."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4316",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0088",
+          "sql": "SELECT DISTINCT \"T2\".\"personnage\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense_personnage\" AS \"T2\" ON \"T1\".\"id_recompense\" = \"T2\".\"id_recompense\" WHERE \"T1\".\"categorie_recompense\" = 'Primetime Emmy' AND \"T1\".\"annee\" = 2009 AND \"T1\".\"resultat\" = 'Winner'",
+          "summary": "What is the character that won the award in Primetime Emmy 2009?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4318",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0089",
+          "sql": "SELECT SUM(\"T1\".\"votes\") FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"personne\" = 'Adam Kuhlman'",
+          "summary": "Calculate the total votes of episodes that Adam Kuhlman had involved."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4325",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0090",
+          "sql": "SELECT \"T1\".\"lieu_naissance\" FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T2\".\"recompense\" = 'Outstanding Animated Program (For Programming Less Than One Hour)' AND \"T2\".\"role\" = 'co-executive producer'",
+          "summary": "State the birth place of co-executive producer for nominee of \"Outstanding Animated Program (For Programming Less Than One Hour)\" award."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4330",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0091",
+          "sql": "SELECT \"id_episode\" FROM \"simpson_episodes\".\"vote\" ORDER BY \"votes\" DESC NULLS LAST LIMIT 1",
+          "summary": "Which episode has the highest number of vote of the star score?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4331",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0092",
+          "sql": "SELECT COUNT(\"id_episode\") FROM \"simpson_episodes\".\"mot_cle\" WHERE \"mot_cle\" = '2d animation'",
+          "summary": "How many episodes have the keyword \"2d animation\"?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4333",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0093",
+          "sql": "SELECT COUNT(\"id_recompense\") FROM \"simpson_episodes\".\"recompense\" WHERE SUBSTRING(CAST(\"annee\" AS TEXT) FROM 1 FOR 4) = '2009'",
+          "summary": "How many awards had been held in 2009?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4334",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0094",
+          "sql": "SELECT COUNT(\"id_recompense\") FROM \"simpson_episodes\".\"recompense\" WHERE \"categorie_recompense\" = 'Primetime Emmy'",
+          "summary": "How many awards classified as \"Primetime Emmy\" category?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4336",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0095",
+          "sql": "SELECT CAST(SUM(CASE WHEN \"T1\".\"pays_naissance\" = 'USA' THEN 1 ELSE 0 END) AS REAL) * 100 / NULLIF(COUNT(*), 0) FROM \"simpson_episodes\".\"personne\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense\" AS \"T2\" ON \"T1\".\"nom\" = \"T2\".\"personne\" WHERE \"T2\".\"resultat\" = 'Nominee'",
+          "summary": "Calculate the percentage of the nominees who were born in USA."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4339",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0096",
+          "sql": "SELECT \"T2\".\"etoiles\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE \"T1\".\"titre\" = 'How the Test Was Won'",
+          "summary": "List out the star scores of episode which has title of \"How the Test Was Won\"."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4341",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0097",
+          "sql": "SELECT \"T2\".\"personnage\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense_personnage\" AS \"T2\" ON \"T1\".\"id_recompense\" = \"T2\".\"id_recompense\" WHERE \"T1\".\"annee\" = 2009",
+          "summary": "List out the names of the awarded character in the awards held in 2009."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4342",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0098",
+          "sql": "SELECT DISTINCT \"T1\".\"annee\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense_personnage\" AS \"T2\" ON \"T1\".\"id_recompense\" = \"T2\".\"id_recompense\" WHERE \"T2\".\"personnage\" = 'Mr. Burns'",
+          "summary": "Which are the years that character Mr. Burns won an award?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4343",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0099",
+          "sql": "SELECT DISTINCT \"T1\".\"categorie_recompense\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense_personnage\" AS \"T2\" ON \"T1\".\"id_recompense\" = \"T2\".\"id_recompense\" WHERE \"T2\".\"personnage\" = 'Lenny'",
+          "summary": "What is the awarded category that the awarded character Lenny won?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4344",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0100",
+          "sql": "SELECT DISTINCT \"T1\".\"personne\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"recompense_personnage\" AS \"T2\" ON \"T1\".\"id_recompense\" = \"T2\".\"id_recompense\" WHERE \"T2\".\"personnage\" = 'Smithers'",
+          "summary": "What is the name of actor who took the role Smithers?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4346",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0101",
+          "sql": "SELECT \"T2\".\"mot_cle\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"mot_cle\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE SUBSTRING(\"T1\".\"date_diffusion\" FROM 1 FOR 4) = '2008'",
+          "summary": "What are the keywords of the episodes which have the air date in 2008?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4352",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0102",
+          "sql": "SELECT COUNT(\"credits\") FROM \"simpson_episodes\".\"generique\" WHERE \"id_episode\" IN ('S20-E5', 'S20-E6', 'S20-E7', 'S20-E8', 'S20-E9', 'S20-E10') AND \"credits\" = 'true' AND \"role\" = 'casting'",
+          "summary": "In between the episode 5 and10 of season 2, how many of them are credited for casting?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4353",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0103",
+          "sql": "SELECT \"id_episode\" FROM \"simpson_episodes\".\"vote\" WHERE \"etoiles\" = 2 AND \"votes\" = 9",
+          "summary": "What is the episode ID that received 2 stars and 9 votes?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4354",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0104",
+          "sql": "SELECT \"T2\".\"titre\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"episode\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T1\".\"organisation\" = 'Primetime Emmy Awards' AND \"T1\".\"annee\" = 2009 AND \"T1\".\"resultat\" = 'Winner'",
+          "summary": "Give the title of the episode won in Primetime Emmy Awards 2009."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4355",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0105",
+          "sql": "SELECT DISTINCT \"T1\".\"id_episode\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE SUBSTRING(\"T1\".\"date_diffusion\" FROM 1 FOR 4) = '2008' AND \"T2\".\"etoiles\" < 5",
+          "summary": "List down the episode ID of episodes aired in 2008 with 5 stars and below."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4356",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0106",
+          "sql": "SELECT \"T2\".\"categorie\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"personne\" = 'Carlton Batten' AND \"T2\".\"credits\" = 'true' ORDER BY \"T1\".\"votes\" DESC NULLS LAST LIMIT 1",
+          "summary": "Among the episode with highest votes, what is the category credited to Carlton Batten?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4358",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0107",
+          "sql": "SELECT \"T1\".\"id_episode\", \"T1\".\"titre\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"credits\" = 'true' AND \"T2\".\"personne\" = 'Bonita Pietila' AND \"T2\".\"role\" = 'casting'",
+          "summary": "List the episode ID and title of episode where casting was credited to Bonita Pietila."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4360",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0108",
+          "sql": "SELECT DISTINCT \"T2\".\"titre\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"episode\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"votes\" > 1000 AND \"T1\".\"categorie_recompense\" = 'WGA Award (TV)' AND \"T1\".\"resultat\" = 'Nominee'",
+          "summary": "What is the title of episode nominated for WGA Award (TV) with votes greater than 1000?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4362",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0109",
+          "sql": "SELECT \"T2\".\"etoiles\" FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T2\".\"id_episode\" = \"T1\".\"id_episode\" WHERE SUBSTRING(\"T1\".\"date_diffusion\" FROM 1 FOR 7) = '2008-11'",
+          "summary": "List the stars of episodes aired in November 2008."
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4363",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0110",
+          "sql": "SELECT \"T3\".\"titre\" FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"vote\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" INNER JOIN \"simpson_episodes\".\"episode\" AS \"T3\" ON \"T1\".\"id_episode\" = \"T3\".\"id_episode\" WHERE \"T3\".\"date_diffusion\" = '2009-04-19' AND \"T1\".\"categorie_recompense\" = 'Prism Award' AND \"T2\".\"etoiles\" = 5 AND \"T1\".\"resultat\" = 'Nominee'",
+          "summary": "What is the title of episode with 5 stars and nominated for Prism Award which is aired on April 19, 2009?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4365",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0111",
+          "sql": "SELECT COUNT(*) FROM \"simpson_episodes\".\"episode\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"generique\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"credits\" = 'true' AND \"T2\".\"personne\" = 'Sam Im' AND SUBSTRING(\"T1\".\"date_diffusion\" FROM 1 FOR 4) = '2009' AND \"T2\".\"role\" = 'additional timer'",
+          "summary": "In episodes aired in 2009, how many of them are credited to Sam Im for additional timer?"
+        },
+        {
+          "audit": {
+            "evidence": "train question train_4367",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl"
+              ],
+              "status": "draft",
+              "version": "harvest-1"
+            }
+          },
+          "id": "fs_simpson_episodes_0112",
+          "sql": "SELECT CAST((SUM(CASE WHEN \"T1\".\"resultat\" = 'Nominee' THEN 1 ELSE 0 END) - SUM(CASE WHEN \"T1\".\"resultat\" = 'Winner' THEN 1 ELSE 0 END)) AS REAL) * 100 / NULLIF(COUNT(\"T1\".\"resultat\"), 0) FROM \"simpson_episodes\".\"recompense\" AS \"T1\" INNER JOIN \"simpson_episodes\".\"episode\" AS \"T2\" ON \"T1\".\"id_episode\" = \"T2\".\"id_episode\" WHERE \"T2\".\"titre\" = 'Gone Maggie Gone' AND \"T1\".\"annee\" = 2009",
+          "summary": "In year 2009, what is the percentage of the episode titled by \"Gone Maggie Gone\" being nominated?"
+        }
+      ],
+      "joins": [
+        {
+          "audit": {
+            "evidence": "equality between mot_cle and vote in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "Both tables carry many rows per episode — several keyword tags in mot_cle and exactly ten star-score rows in vote — so joining them directly on id_episode produces every combination of the two for each episode, not a meaningful one-to-one pairing. Aggregate one side before joining, for instance summing vote.votes per episode, rather than joining the raw rows when combining keyword and vote data.\n",
+          "cardinality": "many_to_many",
+          "id": "join_simpson_episodes_mot_cle_vote_f5d5ec50",
+          "left_table": "simpson_episodes.mot_cle",
+          "on": "simpson_episodes.mot_cle.id_episode = simpson_episodes.vote.id_episode",
+          "right_table": "simpson_episodes.vote",
+          "summary": "mot_cle joins to vote on id_episode, pairing every keyword tag on an episode with every one of its star-score rows."
+        },
+        {
+          "audit": {
+            "evidence": "equality between recompense and vote in train gold SQL",
+            "provenance": {
+              "source": "gold",
+              "source_refs": [
+                "train_final.jsonl",
+                "*_tables.json"
+              ],
+              "status": "draft",
+              "version": "scaffold-1"
+            }
+          },
+          "body": "recompense.id_episode is not unique and vote carries exactly ten rows per episode, so joining them directly produces every combination of an episode's award records and its star-score rows rather than a meaningful pairing. Aggregate one side, for instance summing vote.votes per episode, before combining award and vote data, and recall that recompense.id_episode is null for awards not tied to a single episode, which never match here.\n",
+          "cardinality": "many_to_many",
+          "id": "join_simpson_episodes_recompense_vote_946cd5da",
+          "left_table": "simpson_episodes.recompense",
+          "on": "simpson_episodes.recompense.id_episode = simpson_episodes.vote.id_episode",
+          "right_table": "simpson_episodes.vote",
+          "summary": "recompense joins to vote on id_episode, pairing every award tied to an episode with every one of that episode's star-score rows."
+        }
+      ]
+    }
